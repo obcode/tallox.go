@@ -55,6 +55,17 @@ func TestChangedKeysNamesWhatMoved(t *testing.T) {
 			want:   []string{"spo"},
 		},
 		{
+			// The regression that the first real run found. Their interface escapes non-ASCII
+			// and jsonb stores the decoded character, so a byte comparison of the values calls
+			// every field containing an umlaut different. Changing one field of one module
+			// reported eight — and every German module description has umlauts in it, so the
+			// report would have named nearly every field of nearly every change.
+			name:   "an escaped umlaut is not a change",
+			before: `{"frequency":"nach Ankündigung","sws":"4"}`,
+			after:  `{"frequency":"nach Ank\u00fcndigung","sws":"2"}`,
+			want:   []string{"sws"},
+		},
+		{
 			// Change detection must never be the thing that fails a sync — the hash has already
 			// established that something differs, and an unreadable payload is still a change
 			// worth recording.

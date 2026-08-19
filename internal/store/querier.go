@@ -6,6 +6,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -69,6 +70,13 @@ type Querier interface {
 	// into a YAML file once. The DO UPDATE therefore writes a column back to itself — a true
 	// no-op that still produces a row to return, which DO NOTHING does not.
 	EnsurePerson(ctx context.Context, arg EnsurePersonParams) (Person, error)
+	// Called at startup, beside the protected-admin reconciliation.
+	//
+	// A process that dies mid-sync leaves a RUNNING row forever, and forever is long enough that
+	// the interface would show a run in progress that nothing is progressing. The cutoff is passed
+	// in rather than hard-coded here so the caller's reasoning about it stays in Go.
+	FailAbandonedZPASyncRuns(ctx context.Context, olderThan time.Time) ([]uuid.UUID, error)
+	FinishZPASyncRun(ctx context.Context, arg FinishZPASyncRunParams) (ZpaSyncRun, error)
 	// Idempotent in the sense that matters: granting a role somebody already holds updates its
 	// expiry rather than failing, so "give me DEANS_OFFICE for another hour" is one call and not
 	// a read-then-write race.
@@ -76,6 +84,10 @@ type Querier interface {
 	// granted_at is refreshed with it. The row records the grant that is in force, and a
 	// timestamp that pointed at a superseded one would be the wrong answer to the audit question.
 	GrantRole(ctx context.Context, arg GrantRoleParams) error
+	// The one number the interface shows largest, and the one the deploy smoke check asserts is
+	// recent. PARTIAL counts: it fetched something, and a run that got three of four endpoints is
+	// not the silence this is watching for.
+	LastSuccessfulZPASyncRun(ctx context.Context) (ZpaSyncRun, error)
 	// The administration screen: everybody, or everybody active, optionally narrowed by a
 	// substring of the mail address or the name.
 	//
@@ -123,6 +135,13 @@ type Querier interface {
 	// updated_at stays untouched when nothing changed, so a repeated call does not make the row
 	// look edited.
 	PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Semester, error)
+	RecordZPAChange(ctx context.Context, arg RecordZPAChangeParams) error
+	RecordZPASyncRunKind(ctx context.Context, arg RecordZPASyncRunKindParams) error
+	// Mark everything of one kind that a successful fetch did not mention.
+	//
+	// Only ever called after a fetch that succeeded and returned something — the client refuses an
+	// empty result for exactly this reason. Rows are marked, never deleted.
+	RetireMissingZPAObjects(ctx context.Context, arg RetireMissingZPAObjectsParams) ([]RetireMissingZPAObjectsRow, error)
 	RevokeRole(ctx context.Context, arg RevokeRoleParams) error
 	// A timestamp, not a DELETE: the audit log has to keep resolving this token id afterwards.
 	// Idempotent — revoking twice keeps the first moment, which is the one that matters.
@@ -161,6 +180,10 @@ type Querier interface {
 	// here that is not a permission change, and mixing it in would make every rename look like
 	// one in the audit log.
 	SetPersonName(ctx context.Context, arg SetPersonNameParams) error
+	// Written before the first fetch, not after the last one. A run that crashes then leaves a
+	// RUNNING row somebody can see, rather than no row at all — which is indistinguishable from a
+	// job that was never scheduled, and is how "the import stopped three weeks ago" happens.
+	StartZPASyncRun(ctx context.Context, arg StartZPASyncRunParams) (ZpaSyncRun, error)
 	// The authentication query of the token door, in one round trip: the token, its owner and the
 	// owner's roles.
 	//
@@ -181,6 +204,34 @@ type Querier interface {
 	// there — a WHERE on the right-hand table of a LEFT JOIN makes it an inner one, which would
 	// turn "this person has no live roles" into "this token does not exist".
 	TokenByID(ctx context.Context, tokenID string) (TokenByIDRow, error)
+	// The cache of the examination office's module master data, its runs and its changes.
+	//
+	// The theme of this file is that a sync never deletes and never overwrites blindly. Every
+	// write says what it expects to find, so that the difference between "unchanged", "changed",
+	// "new" and "gone" is decided by the database against the row it actually holds, rather than
+	// by Go against a row it read a moment ago.
+	// One object, written whole.
+	//
+	// What kind of change this was — new, changed, or unchanged — is decided by the caller against
+	// the hashes ZPAObjectStateByKind already returned, not here. Deciding it in SQL was the first
+	// attempt and it was worse: it needed a subquery in RETURNING whose visibility rules are
+	// subtle, to answer a question the caller had already answered for free.
+	//
+	// last_changed_at moves only when the content really differs, and that comparison is against
+	// the generated content_hash — so it is the canonical jsonb form being compared, not whatever
+	// key order arrived. A sync that changes nothing leaves every timestamp but last_seen_at
+	// alone, which is what makes "what actually moved, and when" answerable months later.
+	UpsertZPAObject(ctx context.Context, arg UpsertZPAObjectParams) (UpsertZPAObjectRow, error)
+	ZPAChangesByRun(ctx context.Context, runID uuid.UUID) ([]ZPAChangesByRunRow, error)
+	ZPAObjectPayload(ctx context.Context, arg ZPAObjectPayloadParams) (ZPAObjectPayloadRow, error)
+	// What is currently held for one kind: enough to decide the diff without reading the payloads.
+	//
+	// The payload itself is fetched only for the objects that turn out to have changed, which
+	// keeps a nightly run that changes nothing from moving 2.7 MB through the wire for no reason.
+	ZPAObjectStateByKind(ctx context.Context, kind string) ([]ZPAObjectStateByKindRow, error)
+	ZPASyncRunByID(ctx context.Context, id uuid.UUID) (ZpaSyncRun, error)
+	ZPASyncRunKinds(ctx context.Context, runID uuid.UUID) ([]ZpaSyncRunKind, error)
+	ZPASyncRuns(ctx context.Context, limit int32) ([]ZpaSyncRun, error)
 }
 
 var _ Querier = (*Queries)(nil)

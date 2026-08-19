@@ -106,13 +106,19 @@ func ChangedKeys(before, after json.RawMessage) []string {
 		return []string{""}
 	}
 
-	// Byte comparison of the values is enough because both sides come out of jsonb, which has
-	// already normalised key order and whitespace. Comparing what arrived over the wire instead
-	// would report a difference every time their serialiser reordered a map.
+	// Values are compared after canonicalising, never as bytes, and this is not theoretical
+	// tidiness — it was wrong first and the first real run showed it.
+	//
+	// One side has been through jsonb and the other is exactly what arrived. Their interface
+	// escapes non-ASCII (`nach Ankündigung`) and jsonb stores the decoded character, so a
+	// byte comparison calls every field containing an umlaut different. Changing one field of
+	// one module reported eight, and since every German module description has umlauts in it,
+	// the report would have named nearly every field of nearly every change — which is the
+	// amount of information a hash already carried.
 	changed := make([]string, 0, len(a)+len(b))
 	for key, beforeValue := range a {
 		afterValue, present := b[key]
-		if !present || string(beforeValue) != string(afterValue) {
+		if !present || !sameJSON(beforeValue, afterValue) {
 			changed = append(changed, key)
 		}
 	}
@@ -124,6 +130,30 @@ func ChangedKeys(before, after json.RawMessage) []string {
 
 	sort.Strings(changed)
 	return changed
+}
+
+// sameJSON compares two payloads by value rather than by bytes.
+//
+// The stored side has been through jsonb and the fetched side has not, so their key order and
+// whitespace differ for reasons that are not changes. Comparing bytes would report the entire
+// catalogue as changed on the first run after any serialiser change on either side.
+func sameJSON(a, b json.RawMessage) bool {
+	var av, bv any
+	if err := json.Unmarshal(a, &av); err != nil {
+		return false
+	}
+	if err := json.Unmarshal(b, &bv); err != nil {
+		return false
+	}
+	ac, err := json.Marshal(av)
+	if err != nil {
+		return false
+	}
+	bc, err := json.Marshal(bv)
+	if err != nil {
+		return false
+	}
+	return string(ac) == string(bc)
 }
 
 func topLevelKeys(raw json.RawMessage) (map[string]json.RawMessage, bool) {

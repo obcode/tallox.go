@@ -75,18 +75,22 @@ const (
 
 // ZPASyncRun is one run of the import.
 type ZPASyncRun struct {
-	ID          uuid.UUID
-	Trigger     ZPASyncTrigger
-	StartedBy   *uuid.UUID
-	StartedAt   time.Time
-	FinishedAt  *time.Time
-	Status      ZPASyncStatus
-	Fetched     int
-	Appeared    int
-	Changed     int
-	Disappeared int
-	Error       string
-	Kinds       []ZPASyncRunKind
+	ID        uuid.UUID
+	Trigger   ZPASyncTrigger
+	StartedBy *uuid.UUID
+	// StartedByName is the name of whoever asked, empty for the nightly job. Carried on the run
+	// rather than resolved from StartedBy, because "who set this off" is the whole question and
+	// a second route into person data would be a second set of rules to get right.
+	StartedByName string
+	StartedAt     time.Time
+	FinishedAt    *time.Time
+	Status        ZPASyncStatus
+	Fetched       int
+	Appeared      int
+	Changed       int
+	Disappeared   int
+	Error         string
+	Kinds         []ZPASyncRunKind
 }
 
 // ZPASyncRunKind is what happened to one endpoint within a run.
@@ -139,6 +143,18 @@ type ZPAStore interface {
 	ChangesByRun(ctx context.Context, runID uuid.UUID) ([]ZPAChange, error)
 }
 
+// ZPASyncLocker serialises runs against each other, across processes.
+//
+// A seam rather than a pool, because internal/domain may not import pgx — the architecture
+// test confines that to internal/store — and because it lets the service be driven in a test
+// without a database.
+//
+// The implementation refuses rather than waits. A second sync should be told one is already
+// running and stop, not queue behind the first and then repeat the work it just did.
+type ZPASyncLocker interface {
+	WithSyncLock(ctx context.Context, fn func(context.Context) error) error
+}
+
 // RetiredZPAObject is an object a successful fetch stopped mentioning.
 type RetiredZPAObject struct {
 	ID      uuid.UUID
@@ -169,13 +185,17 @@ type RecordedZPAChange struct {
 type ZPASyncService struct {
 	store  ZPAStore
 	source ZPASource
+	locker ZPASyncLocker
 	now    func() time.Time
 }
 
-// NewZPASyncService wires the service. A nil source is the unconfigured case: every read still
-// works, and starting a run refuses with ErrZPANotConfigured.
-func NewZPASyncService(store ZPAStore, source ZPASource) *ZPASyncService {
-	return &ZPASyncService{store: store, source: source, now: time.Now}
+// NewZPASyncService wires the service.
+//
+// A nil source is the unconfigured case: every read still works, and starting a run refuses
+// with ErrZPANotConfigured. A nil locker means no cross-process serialisation, which is what
+// the service tests want and what production must never have.
+func NewZPASyncService(store ZPAStore, source ZPASource, locker ZPASyncLocker) *ZPASyncService {
+	return &ZPASyncService{store: store, source: source, locker: locker, now: time.Now}
 }
 
 // Configured reports whether a sync can run at all.
@@ -194,7 +214,23 @@ func (s *ZPASyncService) Sync(ctx context.Context, trigger ZPASyncTrigger, start
 	if !s.Configured() {
 		return ZPASyncRun{}, ErrZPANotConfigured
 	}
+	if s.locker == nil {
+		return s.sync(ctx, trigger, startedBy)
+	}
 
+	// The lock is taken here rather than by each caller, so the nightly job and the button in
+	// the interface cannot end up with different concurrency behaviour. That is the same
+	// argument the two authentication doors make about sharing one handler.
+	var run ZPASyncRun
+	err := s.locker.WithSyncLock(ctx, func(ctx context.Context) error {
+		var syncErr error
+		run, syncErr = s.sync(ctx, trigger, startedBy)
+		return syncErr
+	})
+	return run, err
+}
+
+func (s *ZPASyncService) sync(ctx context.Context, trigger ZPASyncTrigger, startedBy *uuid.UUID) (ZPASyncRun, error) {
 	run, err := s.store.StartRun(ctx, trigger, startedBy)
 	if err != nil {
 		// Not wrapped: the store already says "cannot start a sync run", and two layers saying

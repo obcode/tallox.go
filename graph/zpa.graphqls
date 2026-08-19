@@ -1,0 +1,204 @@
+# The module master data import, as far as it is visible from outside.
+#
+# Deliberately only the runs and what they changed — never the objects themselves. Three
+# reasons, and the third is the one that decides it:
+#
+#   1. A field here is a published contract. Exporting somebody else's payload publishes their
+#      schema as ours, and theirs has already changed once.
+#   2. It would need a JSON scalar, which this schema does not have. A field whose shape
+#      introspection cannot describe cuts against the reason introspection is left on in
+#      production.
+#   3. Tallox has no module type yet, because what identifies a course instance is not decided.
+#      Publishing the imported ids first would make them the thing colleagues' scripts key on —
+#      which is the mistake this cache exists to avoid, one layer up, where undoing it means
+#      changing somebody else's script rather than our schema.
+
+"""
+What kind of object the examination office's interface published.
+"""
+enum ZpaObjectKind {
+  "A module in the catalogue, with its home programme, course type and credits."
+  MODULE
+  """
+  A catalogue slot inside one version of a programme's examination regulations — compulsory or
+  elective, and possibly belonging to a specialisation.
+  """
+  BASKET
+  """
+  The association between a module, a set of examination regulations and a basket. The module
+  code and the earliest programme semester live here rather than on the module, because both
+  differ between the programmes a module appears in.
+  """
+  MSBA
+  "One version of one programme's examination regulations."
+  SPO
+}
+
+"""
+What started an import run.
+"""
+enum ZpaSyncTrigger {
+  "The nightly job."
+  SCHEDULE
+  "Somebody asked for it."
+  MANUAL
+}
+
+"""
+How an import run ended.
+"""
+enum ZpaSyncStatus {
+  "Still going, or the process that started it did not finish."
+  RUNNING
+  "Every endpoint was fetched and applied."
+  SUCCEEDED
+  """
+  Some endpoints were applied and others failed.
+
+  Not a failure: the ones that arrived are correctly up to date, and nothing belonging to an
+  endpoint that failed was retired.
+  """
+  PARTIAL
+  "Nothing was applied."
+  FAILED
+}
+
+"""
+What happened to one object in one run.
+"""
+enum ZpaChangeType {
+  "Seen for the first time."
+  APPEARED
+  "Already held, and its content differs."
+  CHANGED
+  """
+  A successful fetch no longer mentions it.
+
+  Only ever recorded after a fetch that succeeded and returned something, so that one bad night
+  cannot retire a whole catalogue.
+  """
+  DISAPPEARED
+  "It had disappeared and is back. The same record, with the day it was first seen intact."
+  REAPPEARED
+}
+
+"""
+What one endpoint did within a run.
+"""
+type ZpaSyncRunKind {
+  "Which endpoint."
+  kind: ZpaObjectKind!
+  "Whether this endpoint was applied."
+  status: ZpaSyncStatus!
+  "How many objects it returned."
+  fetched: Int!
+  "Why it failed, in the words the operator needs, or `null`."
+  error: String
+}
+
+"""
+One run of the module master data import.
+"""
+type ZpaSyncRun {
+  id: ID!
+  "What started it."
+  trigger: ZpaSyncTrigger!
+  """
+  The name of whoever asked for it, or `null` for the nightly job.
+
+  A name rather than a `Person`, because that is all this answers: the question is "who set
+  this off", not "tell me about them", and a link into the people graph from here would be a
+  second route to person data with its own rules to get right.
+
+  Only ever a person, never a token: asking for a run is an act with an effect outside this
+  database, so it stays attributable to somebody who signed in.
+  """
+  startedBy: String
+  "When it started. Written before the first fetch, so a run that crashed is still visible."
+  startedAt: Time!
+  "When it ended, or `null` while it is still going."
+  finishedAt: Time
+  "How it ended."
+  status: ZpaSyncStatus!
+  "How many objects were fetched in total."
+  fetched: Int!
+  "How many were seen for the first time, or came back after an absence."
+  appeared: Int!
+  "How many already held objects had different content."
+  changed: Int!
+  "How many a successful fetch stopped mentioning."
+  disappeared: Int!
+  "Why it failed or was only partly applied, or `null`."
+  error: String
+  "What each endpoint did."
+  kinds: [ZpaSyncRunKind!]!
+}
+
+"""
+One line of a run's report.
+
+Deliberately without the payloads. They are kept in the database for the durable answer months
+later, but shipping two documents per line into a list is a great many bytes for a view that
+renders field names.
+"""
+type ZpaChange {
+  id: ID!
+  "Which kind of object."
+  kind: ZpaObjectKind!
+  "The object's identifier in the examination office's database."
+  zpaId: String!
+  """
+  A human-readable name, or `null` when the payload carries none.
+
+  Modules have none today: their objects carry no name field at all, and the name exists only
+  inside the nested object of an association row.
+  """
+  label: String
+  "What happened to it."
+  change: ZpaChangeType!
+  """
+  The top-level fields whose content differs, for a change; empty otherwise.
+
+  Field names only. This is what turns "the content differs" into something readable — "the
+  hours per week and the person responsible changed" rather than two documents side by side.
+  """
+  changedKeys: [String!]!
+  "When this was noticed."
+  detectedAt: Time!
+}
+
+extend type Query {
+  """
+  The recent import runs, newest first.
+
+  The one worth looking at is the most recent **successful** one and how long ago it was. The
+  failure this import will actually have is not a wrong result — it is a job that quietly
+  stopped weeks ago, while everything looks healthy and the planning uses stale data.
+  """
+  zpaSyncRuns(limit: Int = 20): [ZpaSyncRun!]! @interactiveOnly @scope(area: ADMIN, verb: READ)
+
+  """
+  One import run, or `null` if there is no such run.
+  """
+  zpaSyncRun(id: ID!): ZpaSyncRun @interactiveOnly @scope(area: ADMIN, verb: READ)
+
+  """
+  What one run changed.
+  """
+  zpaChanges(runId: ID!): [ZpaChange!]! @interactiveOnly @scope(area: ADMIN, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Fetch the module master data now and apply it.
+
+  Refused if a run is already going — the one in progress is returned instead of a second one
+  being started — and refused for a while after a successful run, because this reaches into
+  another institution's system and a button that can be held down should not be able to hammer
+  it.
+
+  Interactive only. It is an outbound call using a shared credential, and the record of who
+  asked for it should be a person who signed in rather than a token in a script.
+  """
+  syncZpaNow: ZpaSyncRun! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+}

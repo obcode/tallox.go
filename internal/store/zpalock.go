@@ -54,3 +54,19 @@ func WithZPASyncLock(ctx context.Context, pool *pgxpool.Pool, fn func(context.Co
 
 	return fn(ctx)
 }
+
+// ZPALock is the domain's locker, bound to a pool.
+//
+// A type of its own rather than a method on ZPA, because the lock needs the pool and the cache
+// queries do not — ZPA is deliberately constructible from a transaction as well.
+type ZPALock struct {
+	pool *pgxpool.Pool
+}
+
+// NewZPALock binds the sync lock to a pool.
+func NewZPALock(pool *pgxpool.Pool) *ZPALock { return &ZPALock{pool: pool} }
+
+// WithSyncLock runs fn while holding the lock, or returns ErrZPASyncLocked.
+func (l *ZPALock) WithSyncLock(ctx context.Context, fn func(context.Context) error) error {
+	return WithZPASyncLock(ctx, l.pool, fn)
+}

@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/obcode/tallox.go/internal/domain"
 )
@@ -23,7 +24,28 @@ func NewZPA(db DBTX) *ZPA { return &ZPA{q: New(db)} }
 
 var _ domain.ZPAStore = (*ZPA)(nil)
 
-func runFrom(row ZpaSyncRun) domain.ZPASyncRun {
+// runRow is the shape every run query produces, gathered in one place.
+//
+// sqlc emits a distinct type per query because the reading ones join the person table for a
+// name and the writing ones cannot. Rather than four near-identical mappers, each query
+// converts into this and there is one mapper — so a field added to the domain type is added
+// once, not four times, and the compiler names every call site that has to follow.
+type runRow struct {
+	ID            uuid.UUID
+	Trigger       string
+	StartedBy     uuid.NullUUID
+	StartedByName *string
+	StartedAt     time.Time
+	FinishedAt    pgtype.Timestamptz
+	Status        string
+	Fetched       int32
+	Appeared      int32
+	Changed       int32
+	Disappeared   int32
+	Error         *string
+}
+
+func runFrom(row runRow) domain.ZPASyncRun {
 	run := domain.ZPASyncRun{
 		ID:          row.ID,
 		Trigger:     domain.ZPASyncTrigger(row.Trigger),
@@ -38,6 +60,9 @@ func runFrom(row ZpaSyncRun) domain.ZPASyncRun {
 		id := row.StartedBy.UUID
 		run.StartedBy = &id
 	}
+	if row.StartedByName != nil {
+		run.StartedByName = *row.StartedByName
+	}
 	if row.FinishedAt.Valid {
 		finished := row.FinishedAt.Time
 		run.FinishedAt = &finished
@@ -46,6 +71,29 @@ func runFrom(row ZpaSyncRun) domain.ZPASyncRun {
 		run.Error = *row.Error
 	}
 	return run
+}
+
+// The conversions into runRow.
+//
+// The three reading queries produce rows that are structurally identical to it — same fields,
+// same order, same types — so a plain conversion does the job, and it will stop compiling the
+// moment sqlc emits a different shape, which is exactly when somebody should look.
+//
+// The writing queries cannot join, so their row has no name in it and needs a field-by-field
+// copy. That asymmetry is the whole reason runRow exists.
+func listedRunRow(row ZPASyncRunsRow) runRow { return runRow(row) }
+
+func singleRunRow(row ZPASyncRunByIDRow) runRow { return runRow(row) }
+
+func lastRunRow(row LastSuccessfulZPASyncRunRow) runRow { return runRow(row) }
+
+func writtenRunRow(row ZpaSyncRun) runRow {
+	return runRow{
+		ID: row.ID, Trigger: row.Trigger, StartedBy: row.StartedBy, StartedAt: row.StartedAt,
+		FinishedAt: row.FinishedAt, Status: row.Status, Fetched: row.Fetched,
+		Appeared: row.Appeared, Changed: row.Changed, Disappeared: row.Disappeared,
+		Error: row.Error,
+	}
 }
 
 // StartRun writes the run before the first fetch, so a crash leaves evidence.
@@ -59,7 +107,7 @@ func (z *ZPA) StartRun(ctx context.Context, trigger domain.ZPASyncTrigger, start
 	if err != nil {
 		return domain.ZPASyncRun{}, fmt.Errorf("cannot start a sync run: %w", err)
 	}
-	return runFrom(row), nil
+	return runFrom(writtenRunRow(row)), nil
 }
 
 // FinishRun records the outcome and the counts.
@@ -81,7 +129,21 @@ func (z *ZPA) FinishRun(ctx context.Context, run domain.ZPASyncRun) (domain.ZPAS
 	if err != nil {
 		return domain.ZPASyncRun{}, fmt.Errorf("cannot finish the sync run: %w", err)
 	}
-	return runFrom(row), nil
+
+	// Read back through the joined query rather than returning the row the UPDATE produced.
+	// RETURNING cannot join, so that row carries the id of whoever asked and not their name —
+	// and this run is what the mutation hands straight to the interface, where "who set this
+	// off" is one of three things it shows.
+	finished, err := z.RunByID(ctx, row.ID)
+	if err != nil {
+		return domain.ZPASyncRun{}, err
+	}
+	if finished == nil {
+		// The row was written a line ago. Nothing sensible removes it in between, so falling
+		// back to the unjoined row is better than failing a run that succeeded.
+		return runFrom(writtenRunRow(row)), nil
+	}
+	return *finished, nil
 }
 
 // RecordRunKind stores what happened to one endpoint.
@@ -209,7 +271,7 @@ func (z *ZPA) Runs(ctx context.Context, limit int) ([]domain.ZPASyncRun, error) 
 
 	runs := make([]domain.ZPASyncRun, 0, len(rows))
 	for _, row := range rows {
-		run := runFrom(row)
+		run := runFrom(listedRunRow(row))
 		if run.Kinds, err = z.kindsOf(ctx, run.ID); err != nil {
 			return nil, err
 		}
@@ -227,7 +289,7 @@ func (z *ZPA) RunByID(ctx context.Context, id uuid.UUID) (*domain.ZPASyncRun, er
 		}
 		return nil, fmt.Errorf("cannot read the sync run: %w", err)
 	}
-	run := runFrom(row)
+	run := runFrom(singleRunRow(row))
 	if run.Kinds, err = z.kindsOf(ctx, run.ID); err != nil {
 		return nil, err
 	}
@@ -243,7 +305,7 @@ func (z *ZPA) LastSuccessfulRun(ctx context.Context) (*domain.ZPASyncRun, error)
 		}
 		return nil, fmt.Errorf("cannot read the last successful sync run: %w", err)
 	}
-	run := runFrom(row)
+	run := runFrom(lastRunRow(row))
 	if run.Kinds, err = z.kindsOf(ctx, run.ID); err != nil {
 		return nil, err
 	}

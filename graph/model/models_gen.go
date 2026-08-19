@@ -5,6 +5,7 @@ package model
 import (
 	"time"
 
+	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
 )
 
@@ -195,4 +196,77 @@ type Session struct {
 	// `false` means the `@interactiveOnly` fields will answer `null` — worth checking before
 	// concluding that something is empty.
 	Interactive bool `json:"interactive"`
+}
+
+// One line of a run's report.
+//
+// Deliberately without the payloads. They are kept in the database for the durable answer months
+// later, but shipping two documents per line into a list is a great many bytes for a view that
+// renders field names.
+type ZpaChange struct {
+	ID string `json:"id"`
+	// Which kind of object.
+	Kind domain.ZPAKind `json:"kind"`
+	// The object's identifier in the examination office's database.
+	ZpaID string `json:"zpaId"`
+	// A human-readable name, or `null` when the payload carries none.
+	//
+	// Modules have none today: their objects carry no name field at all, and the name exists only
+	// inside the nested object of an association row.
+	Label *string `json:"label,omitempty"`
+	// What happened to it.
+	Change domain.ZPAChangeType `json:"change"`
+	// The top-level fields whose content differs, for a change; empty otherwise.
+	//
+	// Field names only. This is what turns "the content differs" into something readable — "the
+	// hours per week and the person responsible changed" rather than two documents side by side.
+	ChangedKeys []string `json:"changedKeys"`
+	// When this was noticed.
+	DetectedAt time.Time `json:"detectedAt"`
+}
+
+// One run of the module master data import.
+type ZpaSyncRun struct {
+	ID string `json:"id"`
+	// What started it.
+	Trigger domain.ZPASyncTrigger `json:"trigger"`
+	// The name of whoever asked for it, or `null` for the nightly job.
+	//
+	// A name rather than a `Person`, because that is all this answers: the question is "who set
+	// this off", not "tell me about them", and a link into the people graph from here would be a
+	// second route to person data with its own rules to get right.
+	//
+	// Only ever a person, never a token: asking for a run is an act with an effect outside this
+	// database, so it stays attributable to somebody who signed in.
+	StartedBy *string `json:"startedBy,omitempty"`
+	// When it started. Written before the first fetch, so a run that crashed is still visible.
+	StartedAt time.Time `json:"startedAt"`
+	// When it ended, or `null` while it is still going.
+	FinishedAt *time.Time `json:"finishedAt,omitempty"`
+	// How it ended.
+	Status domain.ZPASyncStatus `json:"status"`
+	// How many objects were fetched in total.
+	Fetched int `json:"fetched"`
+	// How many were seen for the first time, or came back after an absence.
+	Appeared int `json:"appeared"`
+	// How many already held objects had different content.
+	Changed int `json:"changed"`
+	// How many a successful fetch stopped mentioning.
+	Disappeared int `json:"disappeared"`
+	// Why it failed or was only partly applied, or `null`.
+	Error *string `json:"error,omitempty"`
+	// What each endpoint did.
+	Kinds []*ZpaSyncRunKind `json:"kinds"`
+}
+
+// What one endpoint did within a run.
+type ZpaSyncRunKind struct {
+	// Which endpoint.
+	Kind domain.ZPAKind `json:"kind"`
+	// Whether this endpoint was applied.
+	Status domain.ZPASyncStatus `json:"status"`
+	// How many objects it returned.
+	Fetched int `json:"fetched"`
+	// Why it failed, in the words the operator needs, or `null`.
+	Error *string `json:"error,omitempty"`
 }

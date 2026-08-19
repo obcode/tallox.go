@@ -61,6 +61,7 @@ type ComplexityRoot struct {
 		RevokePersonalAccessToken func(childComplexity int, id string) int
 		SetPersonActive           func(childComplexity int, id string, active bool) int
 		SetPersonRoles            func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
+		SyncZpaNow                func(childComplexity int) int
 	}
 
 	Person struct {
@@ -97,6 +98,9 @@ type ComplexityRoot struct {
 		Semester       func(childComplexity int, id string) int
 		Semesters      func(childComplexity int) int
 		Session        func(childComplexity int) int
+		ZpaChanges     func(childComplexity int, runID string) int
+		ZpaSyncRun     func(childComplexity int, id string) int
+		ZpaSyncRuns    func(childComplexity int, limit *int) int
 	}
 
 	RoleGrant struct {
@@ -122,6 +126,38 @@ type ComplexityRoot struct {
 		Interactive    func(childComplexity int) int
 		Narrowed       func(childComplexity int) int
 		Person         func(childComplexity int) int
+	}
+
+	ZpaChange struct {
+		Change      func(childComplexity int) int
+		ChangedKeys func(childComplexity int) int
+		DetectedAt  func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Kind        func(childComplexity int) int
+		Label       func(childComplexity int) int
+		ZpaID       func(childComplexity int) int
+	}
+
+	ZpaSyncRun struct {
+		Appeared    func(childComplexity int) int
+		Changed     func(childComplexity int) int
+		Disappeared func(childComplexity int) int
+		Error       func(childComplexity int) int
+		Fetched     func(childComplexity int) int
+		FinishedAt  func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Kinds       func(childComplexity int) int
+		StartedAt   func(childComplexity int) int
+		StartedBy   func(childComplexity int) int
+		Status      func(childComplexity int) int
+		Trigger     func(childComplexity int) int
+	}
+
+	ZpaSyncRunKind struct {
+		Error   func(childComplexity int) int
+		Fetched func(childComplexity int) int
+		Kind    func(childComplexity int) int
+		Status  func(childComplexity int) int
 	}
 }
 
@@ -295,6 +331,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetPersonRoles(childComplexity, args["id"].(string), args["roles"].([]policy.Role), args["expiresAt"].(*time.Time)), true
+	case "Mutation.syncZpaNow":
+		if e.ComplexityRoot.Mutation.SyncZpaNow == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Mutation.SyncZpaNow(childComplexity), true
 
 	case "Person.id":
 		if e.ComplexityRoot.Person.ID == nil {
@@ -469,6 +511,39 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Session(childComplexity), true
+	case "Query.zpaChanges":
+		if e.ComplexityRoot.Query.ZpaChanges == nil {
+			break
+		}
+
+		args, err := ec.field_Query_zpaChanges_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ZpaChanges(childComplexity, args["runId"].(string)), true
+	case "Query.zpaSyncRun":
+		if e.ComplexityRoot.Query.ZpaSyncRun == nil {
+			break
+		}
+
+		args, err := ec.field_Query_zpaSyncRun_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ZpaSyncRun(childComplexity, args["id"].(string)), true
+	case "Query.zpaSyncRuns":
+		if e.ComplexityRoot.Query.ZpaSyncRuns == nil {
+			break
+		}
+
+		args, err := ec.field_Query_zpaSyncRuns_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ZpaSyncRuns(childComplexity, args["limit"].(*int)), true
 
 	case "RoleGrant.expiresAt":
 		if e.ComplexityRoot.RoleGrant.ExpiresAt == nil {
@@ -568,6 +643,147 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Session.Person(childComplexity), true
+
+	case "ZpaChange.change":
+		if e.ComplexityRoot.ZpaChange.Change == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaChange.Change(childComplexity), true
+	case "ZpaChange.changedKeys":
+		if e.ComplexityRoot.ZpaChange.ChangedKeys == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaChange.ChangedKeys(childComplexity), true
+	case "ZpaChange.detectedAt":
+		if e.ComplexityRoot.ZpaChange.DetectedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaChange.DetectedAt(childComplexity), true
+	case "ZpaChange.id":
+		if e.ComplexityRoot.ZpaChange.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaChange.ID(childComplexity), true
+	case "ZpaChange.kind":
+		if e.ComplexityRoot.ZpaChange.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaChange.Kind(childComplexity), true
+	case "ZpaChange.label":
+		if e.ComplexityRoot.ZpaChange.Label == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaChange.Label(childComplexity), true
+	case "ZpaChange.zpaId":
+		if e.ComplexityRoot.ZpaChange.ZpaID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaChange.ZpaID(childComplexity), true
+
+	case "ZpaSyncRun.appeared":
+		if e.ComplexityRoot.ZpaSyncRun.Appeared == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.Appeared(childComplexity), true
+	case "ZpaSyncRun.changed":
+		if e.ComplexityRoot.ZpaSyncRun.Changed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.Changed(childComplexity), true
+	case "ZpaSyncRun.disappeared":
+		if e.ComplexityRoot.ZpaSyncRun.Disappeared == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.Disappeared(childComplexity), true
+	case "ZpaSyncRun.error":
+		if e.ComplexityRoot.ZpaSyncRun.Error == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.Error(childComplexity), true
+	case "ZpaSyncRun.fetched":
+		if e.ComplexityRoot.ZpaSyncRun.Fetched == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.Fetched(childComplexity), true
+	case "ZpaSyncRun.finishedAt":
+		if e.ComplexityRoot.ZpaSyncRun.FinishedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.FinishedAt(childComplexity), true
+	case "ZpaSyncRun.id":
+		if e.ComplexityRoot.ZpaSyncRun.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.ID(childComplexity), true
+	case "ZpaSyncRun.kinds":
+		if e.ComplexityRoot.ZpaSyncRun.Kinds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.Kinds(childComplexity), true
+	case "ZpaSyncRun.startedAt":
+		if e.ComplexityRoot.ZpaSyncRun.StartedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.StartedAt(childComplexity), true
+	case "ZpaSyncRun.startedBy":
+		if e.ComplexityRoot.ZpaSyncRun.StartedBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.StartedBy(childComplexity), true
+	case "ZpaSyncRun.status":
+		if e.ComplexityRoot.ZpaSyncRun.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.Status(childComplexity), true
+	case "ZpaSyncRun.trigger":
+		if e.ComplexityRoot.ZpaSyncRun.Trigger == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.Trigger(childComplexity), true
+
+	case "ZpaSyncRunKind.error":
+		if e.ComplexityRoot.ZpaSyncRunKind.Error == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRunKind.Error(childComplexity), true
+	case "ZpaSyncRunKind.fetched":
+		if e.ComplexityRoot.ZpaSyncRunKind.Fetched == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRunKind.Fetched(childComplexity), true
+	case "ZpaSyncRunKind.kind":
+		if e.ComplexityRoot.ZpaSyncRunKind.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRunKind.Kind(childComplexity), true
+	case "ZpaSyncRunKind.status":
+		if e.ComplexityRoot.ZpaSyncRunKind.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRunKind.Status(childComplexity), true
 
 	}
 	return 0, false
@@ -881,6 +1097,10 @@ enum ScopeArea {
   when everything else is refused: if this answers and nothing else does, the problem is the
   token and not the connection.
 
+  **A scope list cannot take this away.** What is behind it answers without any credential, so
+  a token scoped away from it would reach less than an anonymous caller — and would lose the
+  one field that tells a broken credential from a broken route. Listing it is never necessary.
+
   Fields: ` + "`" + `buildInfo` + "`" + `.
   """
   PUBLIC
@@ -913,10 +1133,18 @@ enum ScopeArea {
   TOKENS
 
   """
-  User and role administration. Also ` + "`" + `@interactiveOnly` + "`" + `, for the same reason.
+  Running the installation: user and role administration, and the module import. Also
+  ` + "`" + `@interactiveOnly` + "`" + `, for the same reason.
+
+  The import is here rather than under ` + "`" + `PLANNING` + "`" + ` because what these fields expose is the
+  operation — did the nightly job run, what did it change, run it now — and not the catalogue
+  it produces. When the modules themselves become readable they will be planning data and will
+  say so. An area of its own was considered and rejected: every field it could hold is
+  unreachable through a token anyway, so it would be a promise in an enum that colleagues can
+  read via introspection and never use.
 
   Fields: ` + "`" + `people` + "`" + `, ` + "`" + `person` + "`" + `, ` + "`" + `roleGrants` + "`" + `, ` + "`" + `diagnoseAccess` + "`" + `, ` + "`" + `createPerson` + "`" + `, ` + "`" + `renamePerson` + "`" + `,
-  ` + "`" + `setPersonRoles` + "`" + `, ` + "`" + `setPersonActive` + "`" + `.
+  ` + "`" + `setPersonRoles` + "`" + `, ` + "`" + `setPersonActive` + "`" + `, ` + "`" + `zpaSyncRuns` + "`" + `, ` + "`" + `zpaSyncRun` + "`" + `, ` + "`" + `zpaChanges` + "`" + `, ` + "`" + `syncZpaNow` + "`" + `.
   """
   ADMIN
 }
@@ -1364,6 +1592,211 @@ type Mutation {
   revokePersonalAccessToken(id: ID!): PersonalAccessToken! @interactiveOnly @scope(area: TOKENS, verb: WRITE)
 }
 `, BuiltIn: false},
+	{Name: "../zpa.graphqls", Input: `# The module master data import, as far as it is visible from outside.
+#
+# Deliberately only the runs and what they changed — never the objects themselves. Three
+# reasons, and the third is the one that decides it:
+#
+#   1. A field here is a published contract. Exporting somebody else's payload publishes their
+#      schema as ours, and theirs has already changed once.
+#   2. It would need a JSON scalar, which this schema does not have. A field whose shape
+#      introspection cannot describe cuts against the reason introspection is left on in
+#      production.
+#   3. Tallox has no module type yet, because what identifies a course instance is not decided.
+#      Publishing the imported ids first would make them the thing colleagues' scripts key on —
+#      which is the mistake this cache exists to avoid, one layer up, where undoing it means
+#      changing somebody else's script rather than our schema.
+
+"""
+What kind of object the examination office's interface published.
+"""
+enum ZpaObjectKind {
+  "A module in the catalogue, with its home programme, course type and credits."
+  MODULE
+  """
+  A catalogue slot inside one version of a programme's examination regulations — compulsory or
+  elective, and possibly belonging to a specialisation.
+  """
+  BASKET
+  """
+  The association between a module, a set of examination regulations and a basket. The module
+  code and the earliest programme semester live here rather than on the module, because both
+  differ between the programmes a module appears in.
+  """
+  MSBA
+  "One version of one programme's examination regulations."
+  SPO
+}
+
+"""
+What started an import run.
+"""
+enum ZpaSyncTrigger {
+  "The nightly job."
+  SCHEDULE
+  "Somebody asked for it."
+  MANUAL
+}
+
+"""
+How an import run ended.
+"""
+enum ZpaSyncStatus {
+  "Still going, or the process that started it did not finish."
+  RUNNING
+  "Every endpoint was fetched and applied."
+  SUCCEEDED
+  """
+  Some endpoints were applied and others failed.
+
+  Not a failure: the ones that arrived are correctly up to date, and nothing belonging to an
+  endpoint that failed was retired.
+  """
+  PARTIAL
+  "Nothing was applied."
+  FAILED
+}
+
+"""
+What happened to one object in one run.
+"""
+enum ZpaChangeType {
+  "Seen for the first time."
+  APPEARED
+  "Already held, and its content differs."
+  CHANGED
+  """
+  A successful fetch no longer mentions it.
+
+  Only ever recorded after a fetch that succeeded and returned something, so that one bad night
+  cannot retire a whole catalogue.
+  """
+  DISAPPEARED
+  "It had disappeared and is back. The same record, with the day it was first seen intact."
+  REAPPEARED
+}
+
+"""
+What one endpoint did within a run.
+"""
+type ZpaSyncRunKind {
+  "Which endpoint."
+  kind: ZpaObjectKind!
+  "Whether this endpoint was applied."
+  status: ZpaSyncStatus!
+  "How many objects it returned."
+  fetched: Int!
+  "Why it failed, in the words the operator needs, or ` + "`" + `null` + "`" + `."
+  error: String
+}
+
+"""
+One run of the module master data import.
+"""
+type ZpaSyncRun {
+  id: ID!
+  "What started it."
+  trigger: ZpaSyncTrigger!
+  """
+  The name of whoever asked for it, or ` + "`" + `null` + "`" + ` for the nightly job.
+
+  A name rather than a ` + "`" + `Person` + "`" + `, because that is all this answers: the question is "who set
+  this off", not "tell me about them", and a link into the people graph from here would be a
+  second route to person data with its own rules to get right.
+
+  Only ever a person, never a token: asking for a run is an act with an effect outside this
+  database, so it stays attributable to somebody who signed in.
+  """
+  startedBy: String
+  "When it started. Written before the first fetch, so a run that crashed is still visible."
+  startedAt: Time!
+  "When it ended, or ` + "`" + `null` + "`" + ` while it is still going."
+  finishedAt: Time
+  "How it ended."
+  status: ZpaSyncStatus!
+  "How many objects were fetched in total."
+  fetched: Int!
+  "How many were seen for the first time, or came back after an absence."
+  appeared: Int!
+  "How many already held objects had different content."
+  changed: Int!
+  "How many a successful fetch stopped mentioning."
+  disappeared: Int!
+  "Why it failed or was only partly applied, or ` + "`" + `null` + "`" + `."
+  error: String
+  "What each endpoint did."
+  kinds: [ZpaSyncRunKind!]!
+}
+
+"""
+One line of a run's report.
+
+Deliberately without the payloads. They are kept in the database for the durable answer months
+later, but shipping two documents per line into a list is a great many bytes for a view that
+renders field names.
+"""
+type ZpaChange {
+  id: ID!
+  "Which kind of object."
+  kind: ZpaObjectKind!
+  "The object's identifier in the examination office's database."
+  zpaId: String!
+  """
+  A human-readable name, or ` + "`" + `null` + "`" + ` when the payload carries none.
+
+  Modules have none today: their objects carry no name field at all, and the name exists only
+  inside the nested object of an association row.
+  """
+  label: String
+  "What happened to it."
+  change: ZpaChangeType!
+  """
+  The top-level fields whose content differs, for a change; empty otherwise.
+
+  Field names only. This is what turns "the content differs" into something readable — "the
+  hours per week and the person responsible changed" rather than two documents side by side.
+  """
+  changedKeys: [String!]!
+  "When this was noticed."
+  detectedAt: Time!
+}
+
+extend type Query {
+  """
+  The recent import runs, newest first.
+
+  The one worth looking at is the most recent **successful** one and how long ago it was. The
+  failure this import will actually have is not a wrong result — it is a job that quietly
+  stopped weeks ago, while everything looks healthy and the planning uses stale data.
+  """
+  zpaSyncRuns(limit: Int = 20): [ZpaSyncRun!]! @interactiveOnly @scope(area: ADMIN, verb: READ)
+
+  """
+  One import run, or ` + "`" + `null` + "`" + ` if there is no such run.
+  """
+  zpaSyncRun(id: ID!): ZpaSyncRun @interactiveOnly @scope(area: ADMIN, verb: READ)
+
+  """
+  What one run changed.
+  """
+  zpaChanges(runId: ID!): [ZpaChange!]! @interactiveOnly @scope(area: ADMIN, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Fetch the module master data now and apply it.
+
+  Refused if a run is already going — the one in progress is returned instead of a second one
+  being started — and refused for a while after a successful run, because this reaches into
+  another institution's system and a button that can be held down should not be able to hammer
+  it.
+
+  Interactive only. It is an outbound call using a shared credential, and the record of who
+  asked for it should be a person who signed in rather than a token in a script.
+  """
+  syncZpaNow: ZpaSyncRun! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+}
+`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -1501,6 +1934,70 @@ func (ec *executionContext) childFields_Session(ctx context.Context, field graph
 		return ec.fieldContext_Session_interactive(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
+}
+
+func (ec *executionContext) childFields_ZpaChange(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_ZpaChange_id(ctx, field)
+	case "kind":
+		return ec.fieldContext_ZpaChange_kind(ctx, field)
+	case "zpaId":
+		return ec.fieldContext_ZpaChange_zpaId(ctx, field)
+	case "label":
+		return ec.fieldContext_ZpaChange_label(ctx, field)
+	case "change":
+		return ec.fieldContext_ZpaChange_change(ctx, field)
+	case "changedKeys":
+		return ec.fieldContext_ZpaChange_changedKeys(ctx, field)
+	case "detectedAt":
+		return ec.fieldContext_ZpaChange_detectedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ZpaChange", field.Name)
+}
+
+func (ec *executionContext) childFields_ZpaSyncRun(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_ZpaSyncRun_id(ctx, field)
+	case "trigger":
+		return ec.fieldContext_ZpaSyncRun_trigger(ctx, field)
+	case "startedBy":
+		return ec.fieldContext_ZpaSyncRun_startedBy(ctx, field)
+	case "startedAt":
+		return ec.fieldContext_ZpaSyncRun_startedAt(ctx, field)
+	case "finishedAt":
+		return ec.fieldContext_ZpaSyncRun_finishedAt(ctx, field)
+	case "status":
+		return ec.fieldContext_ZpaSyncRun_status(ctx, field)
+	case "fetched":
+		return ec.fieldContext_ZpaSyncRun_fetched(ctx, field)
+	case "appeared":
+		return ec.fieldContext_ZpaSyncRun_appeared(ctx, field)
+	case "changed":
+		return ec.fieldContext_ZpaSyncRun_changed(ctx, field)
+	case "disappeared":
+		return ec.fieldContext_ZpaSyncRun_disappeared(ctx, field)
+	case "error":
+		return ec.fieldContext_ZpaSyncRun_error(ctx, field)
+	case "kinds":
+		return ec.fieldContext_ZpaSyncRun_kinds(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ZpaSyncRun", field.Name)
+}
+
+func (ec *executionContext) childFields_ZpaSyncRunKind(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "kind":
+		return ec.fieldContext_ZpaSyncRunKind_kind(ctx, field)
+	case "status":
+		return ec.fieldContext_ZpaSyncRunKind_status(ctx, field)
+	case "fetched":
+		return ec.fieldContext_ZpaSyncRunKind_fetched(ctx, field)
+	case "error":
+		return ec.fieldContext_ZpaSyncRunKind_error(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ZpaSyncRunKind", field.Name)
 }
 
 func (ec *executionContext) childFields___Directive(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

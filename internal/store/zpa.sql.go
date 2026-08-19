@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const failAbandonedZPASyncRuns = `-- name: FailAbandonedZPASyncRuns :many
@@ -99,24 +100,41 @@ func (q *Queries) FinishZPASyncRun(ctx context.Context, arg FinishZPASyncRunPara
 }
 
 const lastSuccessfulZPASyncRun = `-- name: LastSuccessfulZPASyncRun :one
-SELECT id, trigger, started_by, started_at, finished_at, status,
-       fetched, appeared, changed, disappeared, error
-FROM zpa_sync_run
-WHERE status IN ('SUCCEEDED', 'PARTIAL')
-ORDER BY started_at DESC
+SELECT r.id, r.trigger, r.started_by, p.name AS started_by_name, r.started_at,
+       r.finished_at, r.status, r.fetched, r.appeared, r.changed, r.disappeared, r.error
+FROM zpa_sync_run r
+LEFT JOIN person p ON p.id = r.started_by
+WHERE r.status IN ('SUCCEEDED', 'PARTIAL')
+ORDER BY r.started_at DESC
 LIMIT 1
 `
+
+type LastSuccessfulZPASyncRunRow struct {
+	ID            uuid.UUID
+	Trigger       string
+	StartedBy     uuid.NullUUID
+	StartedByName *string
+	StartedAt     time.Time
+	FinishedAt    pgtype.Timestamptz
+	Status        string
+	Fetched       int32
+	Appeared      int32
+	Changed       int32
+	Disappeared   int32
+	Error         *string
+}
 
 // The one number the interface shows largest, and the one the deploy smoke check asserts is
 // recent. PARTIAL counts: it fetched something, and a run that got three of four endpoints is
 // not the silence this is watching for.
-func (q *Queries) LastSuccessfulZPASyncRun(ctx context.Context) (ZpaSyncRun, error) {
+func (q *Queries) LastSuccessfulZPASyncRun(ctx context.Context) (LastSuccessfulZPASyncRunRow, error) {
 	row := q.db.QueryRow(ctx, lastSuccessfulZPASyncRun)
-	var i ZpaSyncRun
+	var i LastSuccessfulZPASyncRunRow
 	err := row.Scan(
 		&i.ID,
 		&i.Trigger,
 		&i.StartedBy,
+		&i.StartedByName,
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.Status,
@@ -451,19 +469,36 @@ func (q *Queries) ZPAObjectStateByKind(ctx context.Context, kind string) ([]ZPAO
 }
 
 const zPASyncRunByID = `-- name: ZPASyncRunByID :one
-SELECT id, trigger, started_by, started_at, finished_at, status,
-       fetched, appeared, changed, disappeared, error
-FROM zpa_sync_run
-WHERE id = $1
+SELECT r.id, r.trigger, r.started_by, p.name AS started_by_name, r.started_at,
+       r.finished_at, r.status, r.fetched, r.appeared, r.changed, r.disappeared, r.error
+FROM zpa_sync_run r
+LEFT JOIN person p ON p.id = r.started_by
+WHERE r.id = $1
 `
 
-func (q *Queries) ZPASyncRunByID(ctx context.Context, id uuid.UUID) (ZpaSyncRun, error) {
+type ZPASyncRunByIDRow struct {
+	ID            uuid.UUID
+	Trigger       string
+	StartedBy     uuid.NullUUID
+	StartedByName *string
+	StartedAt     time.Time
+	FinishedAt    pgtype.Timestamptz
+	Status        string
+	Fetched       int32
+	Appeared      int32
+	Changed       int32
+	Disappeared   int32
+	Error         *string
+}
+
+func (q *Queries) ZPASyncRunByID(ctx context.Context, id uuid.UUID) (ZPASyncRunByIDRow, error) {
 	row := q.db.QueryRow(ctx, zPASyncRunByID, id)
-	var i ZpaSyncRun
+	var i ZPASyncRunByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Trigger,
 		&i.StartedBy,
+		&i.StartedByName,
 		&i.StartedAt,
 		&i.FinishedAt,
 		&i.Status,
@@ -510,26 +545,43 @@ func (q *Queries) ZPASyncRunKinds(ctx context.Context, runID uuid.UUID) ([]ZpaSy
 }
 
 const zPASyncRuns = `-- name: ZPASyncRuns :many
-SELECT id, trigger, started_by, started_at, finished_at, status,
-       fetched, appeared, changed, disappeared, error
-FROM zpa_sync_run
-ORDER BY started_at DESC
+SELECT r.id, r.trigger, r.started_by, p.name AS started_by_name, r.started_at,
+       r.finished_at, r.status, r.fetched, r.appeared, r.changed, r.disappeared, r.error
+FROM zpa_sync_run r
+LEFT JOIN person p ON p.id = r.started_by
+ORDER BY r.started_at DESC
 LIMIT $1
 `
 
-func (q *Queries) ZPASyncRuns(ctx context.Context, limit int32) ([]ZpaSyncRun, error) {
+type ZPASyncRunsRow struct {
+	ID            uuid.UUID
+	Trigger       string
+	StartedBy     uuid.NullUUID
+	StartedByName *string
+	StartedAt     time.Time
+	FinishedAt    pgtype.Timestamptz
+	Status        string
+	Fetched       int32
+	Appeared      int32
+	Changed       int32
+	Disappeared   int32
+	Error         *string
+}
+
+func (q *Queries) ZPASyncRuns(ctx context.Context, limit int32) ([]ZPASyncRunsRow, error) {
 	rows, err := q.db.Query(ctx, zPASyncRuns, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ZpaSyncRun{}
+	items := []ZPASyncRunsRow{}
 	for rows.Next() {
-		var i ZpaSyncRun
+		var i ZPASyncRunsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Trigger,
 			&i.StartedBy,
+			&i.StartedByName,
 			&i.StartedAt,
 			&i.FinishedAt,
 			&i.Status,

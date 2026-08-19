@@ -87,7 +87,7 @@ type Querier interface {
 	// The one number the interface shows largest, and the one the deploy smoke check asserts is
 	// recent. PARTIAL counts: it fetched something, and a run that got three of four endpoints is
 	// not the silence this is watching for.
-	LastSuccessfulZPASyncRun(ctx context.Context) (ZpaSyncRun, error)
+	LastSuccessfulZPASyncRun(ctx context.Context) (LastSuccessfulZPASyncRunRow, error)
 	// The administration screen: everybody, or everybody active, optionally narrowed by a
 	// substring of the mail address or the name.
 	//
@@ -229,9 +229,9 @@ type Querier interface {
 	// The payload itself is fetched only for the objects that turn out to have changed, which
 	// keeps a nightly run that changes nothing from moving 2.7 MB through the wire for no reason.
 	ZPAObjectStateByKind(ctx context.Context, kind string) ([]ZPAObjectStateByKindRow, error)
-	ZPASyncRunByID(ctx context.Context, id uuid.UUID) (ZpaSyncRun, error)
+	ZPASyncRunByID(ctx context.Context, id uuid.UUID) (ZPASyncRunByIDRow, error)
 	ZPASyncRunKinds(ctx context.Context, runID uuid.UUID) ([]ZpaSyncRunKind, error)
-	ZPASyncRuns(ctx context.Context, limit int32) ([]ZpaSyncRun, error)
+	ZPASyncRuns(ctx context.Context, limit int32) ([]ZPASyncRunsRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

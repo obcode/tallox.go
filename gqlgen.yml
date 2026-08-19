@@ -72,6 +72,22 @@ models:
     model: github.com/obcode/tallox.go/internal/policy.ScopeArea
   ScopeVerb:
     model: github.com/obcode/tallox.go/internal/policy.ScopeVerb
+  # The import vocabulary, bound for the same reason. ZpaObjectKind has the three homes Role
+  # has — schema, internal/domain and the CHECK constraint — and
+  # store.TestDatabaseAndDomainAgreeOnZPAKinds compares the two that remain. The other three
+  # have two homes each.
+  #
+  # The names differ in case on purpose: the schema says Zpa because GraphQL type names read
+  # as words, Go says ZPA because an initialism in a Go identifier is capitalised. Binding is
+  # what lets both be idiomatic without a third copy in between.
+  ZpaObjectKind:
+    model: github.com/obcode/tallox.go/internal/domain.ZPAKind
+  ZpaSyncTrigger:
+    model: github.com/obcode/tallox.go/internal/domain.ZPASyncTrigger
+  ZpaSyncStatus:
+    model: github.com/obcode/tallox.go/internal/domain.ZPASyncStatus
+  ZpaChangeType:
+    model: github.com/obcode/tallox.go/internal/domain.ZPAChangeType
   # Timestamps travel as RFC 3339 strings. gqlgen's Time scalar does the marshalling, so
   # nothing in the domain has to know about the wire format.
   Time:

@@ -30,6 +30,7 @@ import (
 	"github.com/obcode/tallox.go/internal/buildinfo"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/store"
+	"github.com/obcode/tallox.go/internal/zpa"
 )
 
 // EnvDatabaseURL is where the connection string comes from.
@@ -66,6 +67,8 @@ type Options struct {
 	People *domain.PeopleService
 	// Planning is the semester workflow, on the same terms.
 	Planning *domain.SemesterService
+	// Import is the module master data import. Nil in tests that do not exercise it.
+	Import *domain.ZPASyncService
 }
 
 // Serve parses flags, sets up logging and runs the HTTP server until a signal arrives.
@@ -198,6 +201,22 @@ func Serve(build buildinfo.Info) {
 	}
 	log.Info().Int("applied", applied).Msg("migrations up to date")
 
+	// Before the pool, so that a failure here may still use log.Fatal — after `defer
+	// pool.Close()` is installed it would skip the close. Nothing about the client needs the
+	// database anyway; it is built entirely from the configuration.
+	//
+	// The import service exists even when the ZPA is not configured: reading the runs has to
+	// work so that the page can say "not configured", and a nil source is what makes starting
+	// a run refuse rather than panic.
+	var zpaSource domain.ZPASource
+	if cfg.ZPA.Configured() {
+		client, err := zpa.New(zpa.Config{BaseURL: cfg.ZPA.BaseURL, Token: cfg.ZPA.Token})
+		if err != nil {
+			log.Fatal().Err(err).Msg("cannot build the zpa client")
+		}
+		zpaSource = client
+	}
+
 	pool, err := store.Open(ctx, dsn)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cannot reach the database")
@@ -220,6 +239,18 @@ func Serve(build buildinfo.Info) {
 	people := domain.NewPeopleService(store.NewPeople(pool), nil)
 	planning := domain.NewSemesterService(store.NewSemesters(pool))
 
+	zpaCache := store.NewZPA(pool)
+	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool))
+
+	// Beside reconcileProtectedAdmins, and for a related reason: a process that died mid-sync
+	// leaves a RUNNING row that the interface would show as a run in progress forever. Not
+	// fatal — a stale row is untidy, not dangerous.
+	if failed, err := zpaCache.FailAbandonedRuns(ctx, abandonedRunAge); err != nil {
+		log.Warn().Err(err).Msg("cannot clear abandoned zpa sync runs")
+	} else if failed > 0 {
+		log.Warn().Int("runs", failed).Msg("marked abandoned zpa sync runs as failed")
+	}
+
 	srv := &http.Server{
 		Addr: cfg.Server.Addr(),
 		Handler: Handler(Options{
@@ -235,6 +266,7 @@ func Serve(build buildinfo.Info) {
 			Tokens:   tokens,
 			People:   people,
 			Planning: planning,
+			Import:   imports,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -416,6 +448,7 @@ func graphqlHandler(opts Options) http.Handler {
 			Tokens:   opts.Tokens,
 			People:   opts.People,
 			Planning: opts.Planning,
+			Import:   opts.Import,
 		},
 		// The generated code fails closed on a directive with no implementation — the field
 		// errors with "directive interactiveOnly is not implemented" rather than passing

@@ -95,27 +95,30 @@ INSERT INTO zpa_change (run_id, object_id, kind, zpa_id, label, change,
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
 
 -- name: ZPASyncRuns :many
-SELECT id, trigger, started_by, started_at, finished_at, status,
-       fetched, appeared, changed, disappeared, error
-FROM zpa_sync_run
-ORDER BY started_at DESC
+SELECT r.id, r.trigger, r.started_by, p.name AS started_by_name, r.started_at,
+       r.finished_at, r.status, r.fetched, r.appeared, r.changed, r.disappeared, r.error
+FROM zpa_sync_run r
+LEFT JOIN person p ON p.id = r.started_by
+ORDER BY r.started_at DESC
 LIMIT $1;
 
 -- name: ZPASyncRunByID :one
-SELECT id, trigger, started_by, started_at, finished_at, status,
-       fetched, appeared, changed, disappeared, error
-FROM zpa_sync_run
-WHERE id = $1;
+SELECT r.id, r.trigger, r.started_by, p.name AS started_by_name, r.started_at,
+       r.finished_at, r.status, r.fetched, r.appeared, r.changed, r.disappeared, r.error
+FROM zpa_sync_run r
+LEFT JOIN person p ON p.id = r.started_by
+WHERE r.id = $1;
 
 -- name: LastSuccessfulZPASyncRun :one
 -- The one number the interface shows largest, and the one the deploy smoke check asserts is
 -- recent. PARTIAL counts: it fetched something, and a run that got three of four endpoints is
 -- not the silence this is watching for.
-SELECT id, trigger, started_by, started_at, finished_at, status,
-       fetched, appeared, changed, disappeared, error
-FROM zpa_sync_run
-WHERE status IN ('SUCCEEDED', 'PARTIAL')
-ORDER BY started_at DESC
+SELECT r.id, r.trigger, r.started_by, p.name AS started_by_name, r.started_at,
+       r.finished_at, r.status, r.fetched, r.appeared, r.changed, r.disappeared, r.error
+FROM zpa_sync_run r
+LEFT JOIN person p ON p.id = r.started_by
+WHERE r.status IN ('SUCCEEDED', 'PARTIAL')
+ORDER BY r.started_at DESC
 LIMIT 1;
 
 -- name: ZPASyncRunKinds :many

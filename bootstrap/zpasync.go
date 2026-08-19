@@ -69,14 +69,11 @@ func zpaSyncExitCode(ctx context.Context, cfg Config, dsn string, dryRun bool) i
 		log.Warn().Int("runs", failed).Msg("marked abandoned sync runs as failed")
 	}
 
-	service := domain.NewZPASyncService(cache, client)
+	service := domain.NewZPASyncService(cache, client, store.NewZPALock(pool))
 
-	var run domain.ZPASyncRun
-	err = store.WithZPASyncLock(ctx, pool, func(ctx context.Context) error {
-		var syncErr error
-		run, syncErr = service.Sync(ctx, domain.ZPASyncTriggerSchedule, nil)
-		return syncErr
-	})
+	// The lock is inside Sync, so this path and the button in the interface cannot end up with
+	// different concurrency behaviour.
+	run, err := service.Sync(ctx, domain.ZPASyncTriggerSchedule, nil)
 
 	if errors.Is(err, store.ErrZPASyncLocked) {
 		// Not a failure. Somebody pressed the button a minute ago, or the previous night's run

@@ -115,10 +115,18 @@ enum ScopeArea {
   TOKENS
 
   """
-  User and role administration. Also `@interactiveOnly`, for the same reason.
+  Running the installation: user and role administration, and the module import. Also
+  `@interactiveOnly`, for the same reason.
+
+  The import is here rather than under `PLANNING` because what these fields expose is the
+  operation — did the nightly job run, what did it change, run it now — and not the catalogue
+  it produces. When the modules themselves become readable they will be planning data and will
+  say so. An area of its own was considered and rejected: every field it could hold is
+  unreachable through a token anyway, so it would be a promise in an enum that colleagues can
+  read via introspection and never use.
 
   Fields: `people`, `person`, `roleGrants`, `diagnoseAccess`, `createPerson`, `renamePerson`,
-  `setPersonRoles`, `setPersonActive`.
+  `setPersonRoles`, `setPersonActive`, `zpaSyncRuns`, `zpaSyncRun`, `zpaChanges`, `syncZpaNow`.
   """
   ADMIN
 }

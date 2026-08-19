@@ -30,4 +30,10 @@ type Resolver struct {
 	// resolves to the method, and the resulting error is about a func having no field `List`,
 	// which takes a minute to read.
 	Planning *domain.SemesterService
+	// Import is the module master data import: which runs there were and what they changed.
+	//
+	// Named for what it does rather than for its type, for the reason Planning is: a field
+	// called ZpaSyncRuns would be shadowed by the generated queryResolver method of the same
+	// name, and the resulting error takes a minute to read.
+	Import *domain.ZPASyncService
 }

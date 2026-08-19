@@ -158,7 +158,7 @@ func TestASyncRecordsOnlyWhatActuallyMoved(t *testing.T) {
 	source := &fakeZPASource{objects: map[domain.ZPAKind][]domain.ZPAObject{
 		domain.ZPAKindSPO: {object(801, `{"spo_id":"801","version":"2025"}`)},
 	}}
-	service := domain.NewZPASyncService(store, source)
+	service := domain.NewZPASyncService(store, source, nil)
 
 	if _, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil); err != nil {
 		t.Fatalf("first sync: %v", err)
@@ -189,7 +189,7 @@ func TestReorderedKeysAreNotAChange(t *testing.T) {
 	source := &fakeZPASource{objects: map[domain.ZPAKind][]domain.ZPAObject{
 		domain.ZPAKindSPO: {object(801, `{"spo_id":"801","version":"2025"}`)},
 	}}
-	service := domain.NewZPASyncService(store, source)
+	service := domain.NewZPASyncService(store, source, nil)
 
 	if _, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil); err != nil {
 		t.Fatalf("first sync: %v", err)
@@ -221,7 +221,7 @@ func TestAFailedKindRetiresNothing(t *testing.T) {
 		domain.ZPAKindSPO:    {object(801, `{"spo_id":"801"}`)},
 		domain.ZPAKindModule: {object(501, `{"module_id":"501"}`)},
 	}}
-	service := domain.NewZPASyncService(store, source)
+	service := domain.NewZPASyncService(store, source, nil)
 
 	if _, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil); err != nil {
 		t.Fatalf("seeding sync: %v", err)
@@ -265,7 +265,7 @@ func TestEveryEndpointIsTriedEvenAfterOneFails(t *testing.T) {
 		source.objects[kind] = []domain.ZPAObject{object(1, `{"id":"1"}`)}
 	}
 
-	service := domain.NewZPASyncService(newFakeZPAStore(), source)
+	service := domain.NewZPASyncService(newFakeZPAStore(), source, nil)
 	run, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil)
 	if err != nil {
 		t.Fatalf("sync: %v", err)
@@ -289,7 +289,7 @@ func TestAllEndpointsFailingIsAFailureNotAPartial(t *testing.T) {
 		source.fail[kind] = errors.New("down")
 	}
 
-	run, err := domain.NewZPASyncService(newFakeZPAStore(), source).
+	run, err := domain.NewZPASyncService(newFakeZPAStore(), source, nil).
 		Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil)
 	if err != nil {
 		t.Fatalf("sync: %v", err)
@@ -310,7 +310,7 @@ func TestAReturningObjectIsReportedAsSuchAndNotAsNew(t *testing.T) {
 	source := &fakeZPASource{objects: map[domain.ZPAKind][]domain.ZPAObject{
 		domain.ZPAKindSPO: {object(801, `{"spo_id":"801"}`)},
 	}}
-	service := domain.NewZPASyncService(store, source)
+	service := domain.NewZPASyncService(store, source, nil)
 
 	if _, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil); err != nil {
 		t.Fatalf("first sync: %v", err)
@@ -345,7 +345,7 @@ func TestAChangeNamesTheKeysThatMoved(t *testing.T) {
 	source := &fakeZPASource{objects: map[domain.ZPAKind][]domain.ZPAObject{
 		domain.ZPAKindModule: {object(501, `{"module_id":"501","sws":"4","credits":"5"}`)},
 	}}
-	service := domain.NewZPASyncService(store, source)
+	service := domain.NewZPASyncService(store, source, nil)
 
 	if _, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil); err != nil {
 		t.Fatalf("first sync: %v", err)
@@ -377,7 +377,7 @@ func TestAChangeNamesTheKeysThatMoved(t *testing.T) {
 func TestAnUnconfiguredImportRefusesToRunAndStillReads(t *testing.T) {
 	t.Parallel()
 
-	service := domain.NewZPASyncService(newFakeZPAStore(), nil)
+	service := domain.NewZPASyncService(newFakeZPAStore(), nil, nil)
 
 	if service.Configured() {
 		t.Error("a service with no source reports itself configured")
@@ -400,7 +400,7 @@ func TestAManualSyncIsRefusedRightAfterASuccessfulOne(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeZPAStore()
-	service := domain.NewZPASyncService(store, &fakeZPASource{})
+	service := domain.NewZPASyncService(store, &fakeZPASource{}, nil)
 
 	if err := service.MayStartManualSync(t.Context()); err != nil {
 		t.Errorf("the first ever sync was refused: %v", err)

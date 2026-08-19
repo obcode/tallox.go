@@ -49,3 +49,52 @@ type Semester struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }
+
+type ZpaChange struct {
+	ID            uuid.UUID
+	RunID         uuid.UUID
+	ObjectID      uuid.UUID
+	Kind          string
+	ZpaID         int64
+	Label         *string
+	Change        string
+	PayloadBefore []byte
+	PayloadAfter  []byte
+	ChangedKeys   []string
+	DetectedAt    time.Time
+}
+
+type ZpaObject struct {
+	ID            uuid.UUID
+	Kind          string
+	ZpaID         int64
+	Payload       []byte
+	ContentHash   *string
+	Label         *string
+	FirstSeenAt   time.Time
+	LastSeenAt    time.Time
+	LastChangedAt time.Time
+	GoneAt        pgtype.Timestamptz
+}
+
+type ZpaSyncRun struct {
+	ID          uuid.UUID
+	Trigger     string
+	StartedBy   uuid.NullUUID
+	StartedAt   time.Time
+	FinishedAt  pgtype.Timestamptz
+	Status      string
+	Fetched     int32
+	Appeared    int32
+	Changed     int32
+	Disappeared int32
+	Error       *string
+}
+
+type ZpaSyncRunKind struct {
+	RunID   uuid.UUID
+	Kind    string
+	Status  string
+	Fetched int32
+	Error   *string
+}

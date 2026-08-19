@@ -54,6 +54,39 @@ deterministisch neu aufbaubar.
 und kein Go-Code kann ihn vergessen. jsonb statt text, damit „Hash geändert" Inhalt heißt und
 nicht Schlüsselreihenfolge. Braucht `pgcrypto`, mit demselben Idempotenz-Tanz wie `citext`.
 
+## Die Struktur liegt in Views, nicht in Spiegeltabellen
+
+Die Landetabelle allein reichte nicht — sie beantwortet „was hat sich geändert", aber nicht
+„welche Module muss IF anbieten". `zpa_spo_v`, `zpa_basket_v`, `zpa_msba_v`, `zpa_module_v`
+holen die Beziehungen und die planungsrelevanten Skalare heraus.
+
+**Warum keine Spiegeltabellen mit Fremdschlüsseln:** gemessen an den echten Daten verweisen
+**665 von 3272 Zuordnungen auf 12 SPOs, die `spo_info` nicht zurückgibt** (historische Fassungen
+2007–2017 plus eine `version=2099`-Platzhalterzeile). Ein FK hätte ein Fünftel der echten Daten
+zurückgewiesen — der Import wäre gescheitert, weil er korrekt ist. Dazu 19 Module und 7 Kataloge,
+die keine Zuordnung nennt. Referenzielle Integrität ist Sache der Gegenseite; der Cache muss
+ihre Wahrheit tragen können, auch die unsaubere.
+
+Deshalb liest `zpa_msba_v` Version und Gültigkeit aus der **eingebetteten** Kopie der
+Zuordnung statt sie zu joinen — für jene 665 Zeilen ist das der einzige Ort, an dem die
+Information existiert. Wo beides vorliegt, widersprechen sie sich nie (über den ganzen Katalog
+geprüft, null Konflikte).
+
+Dazu drei Gründe, von denen der erste die anderen bezahlbar macht: 3861 Objekte und 4,9 MB
+machen Performance zur Nicht-Frage; eine View kostet fast nichts zu ändern (`CREATE OR REPLACE`,
+keine Daten, kein Drei-Release-Tanz) — genau die Eigenschaft, für die die untypisierte
+Landetabelle gewählt wurde; und sqlc liest Views wie Tabellen.
+
+**Die Umwandlungen sind fünf `IMMUTABLE STRICT`-Funktionen und bewusst *abgesichert*, nicht
+einfache Casts.** Ein einziger kaputter Wert in einer Zeile ließe ein blankes `::int` für die
+ganze View werfen — aus einem schlechten Datensatz würde ein Cache, den niemand lesen kann.
+NULL ist die ehrliche Antwort, das Payload steht weiter daneben.
+
+**`zpa_module_v.name` wird abgeleitet**, weil die Modulobjekte gar kein Namensfeld haben und der
+Importer es nicht füllen kann (er holt die Arten unabhängig, Module vor Zuordnungen). Gefunden
+durch Ausführen: alle 506 Namen waren leer. Bestes Argument für Views — die Regel steht einmal,
+kostete nichts zu ändern und brauchte keinen erneuten Import.
+
 ## Der teuerste Fehler, gefunden durch Ausführen
 
 `ChangedKeys` verglich die Werte **byteweise**. Ein geändertes Feld eines Moduls meldete acht.

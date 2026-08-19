@@ -1,0 +1,20 @@
+[
+ {
+  "basket": {"id": "701", "name": "Pflichtmodule"},
+  "exam_types": [{"id": "401", "short_name": "SP", "name": "Schriftliche Pruefung", "repetition": "False"}],
+  "min_program_semester": "1",
+  "module": {"id": "501", "name": "Beispielmodul"},
+  "module_code": "XX-B-0010",
+  "msba_id": "301",
+  "spo": {"id": "801", "version": "2025", "valid_from": "2025-10-01"}
+ },
+ {
+  "basket": {"id": "702", "name": "XX: Wahlpflicht"},
+  "exam_types": [],
+  "min_program_semester": "5",
+  "module": {"id": "502", "name": "Beispielseminar"},
+  "module_code": "",
+  "msba_id": "302",
+  "spo": {"id": "801", "version": "2025", "valid_from": "2025-10-01"}
+ }
+]

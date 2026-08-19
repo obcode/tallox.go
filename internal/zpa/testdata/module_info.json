@@ -1,0 +1,18 @@
+[
+ {
+  "active": "True", "bonus": "", "competency_in": "", "competency_out": "",
+  "content": "Beispielinhalt", "course_type": "SU mit Praktikum", "credits": "5",
+  "effort": "30 Praesenzstunden", "frequency": "jedes Semester", "languages": "DE",
+  "literature": "", "media": "Tafel", "module_id": "501", "objectives": "Beispielziele",
+  "official": "True", "owner": "XX", "repeater_exam": "False",
+  "requirements": "", "responsible": "prof.eins@example.org", "std_lang": "DE", "sws": "4"
+ },
+ {
+  "active": "False", "bonus": "", "competency_in": "", "competency_out": "",
+  "content": "", "course_type": "Seminar", "credits": "5", "effort": "",
+  "frequency": "None", "languages": "DE", "literature": "", "media": "",
+  "module_id": "502", "objectives": "", "official": "True", "owner": "None",
+  "repeater_exam": "False", "requirements": "", "responsible": "prof.zwei@example.org",
+  "std_lang": "DE", "sws": "2"
+ }
+]

@@ -473,3 +473,199 @@ func TestTheLockIsReleasedForTheNextRun(t *testing.T) {
 		}
 	}
 }
+
+// seedObject writes one cached object directly, so a view test can state exactly what it is
+// looking at without going through a whole sync.
+func seedObject(t *testing.T, s *storetest.Schema, kind domain.ZPAKind, zpaID int64, payload string) {
+	t.Helper()
+	if _, err := store.NewZPA(s.Pool).Upsert(t.Context(), kind, domain.ZPAObject{
+		ZpaID:   zpaID,
+		Payload: json.RawMessage(payload),
+	}); err != nil {
+		t.Fatalf("seeding %s %d: %v", kind, zpaID, err)
+	}
+}
+
+// TestTheViewsReconstructTheStructure.
+//
+// The landing table holds each object whole, which is right for surviving a change of shape and
+// wrong for answering a question. This is the question: which modules does a programme have to
+// offer, split into the compulsory and the elective catalogue. It is the one the study
+// programme leads are actually here for, and before the views it would have been written as
+// `(payload->'module'->>'id')::bigint` in every query that asked it.
+func TestTheViewsReconstructTheStructure(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	seedObject(t, s, domain.ZPAKindSPO, 801, `{
+		"spo_id":"801","version":"2025","valid_from":"2025-10-01",
+		"primuss_id":"07-XX-2025","program":{"id":"901","title":"XX"}}`)
+	seedObject(t, s, domain.ZPAKindBasket, 701, `{
+		"basket_id":"701","basket":"Pflicht","is_duty":true,"schwerpunkt":{}}`)
+	seedObject(t, s, domain.ZPAKindBasket, 702, `{
+		"basket_id":"702","basket":"Wahlpflicht","is_duty":false,
+		"schwerpunkt":{"sp_id":"601","sp_short":"BSP","sp_title":"Beispiel"}}`)
+	seedObject(t, s, domain.ZPAKindModule, 501, `{
+		"module_id":"501","owner":"XX","course_type":"SU mit Praktikum",
+		"sws":"4","credits":"5","active":"True","official":"True"}`)
+	seedObject(t, s, domain.ZPAKindMSBA, 301, `{
+		"msba_id":"301","module":{"id":"501","name":"Beispielmodul"},
+		"spo":{"id":"801","version":"2025","valid_from":"2025-10-01"},
+		"basket":{"id":"701","name":"Pflicht"},
+		"module_code":"XX-B-0010","min_program_semester":"1","exam_types":[{"id":"401"}]}`)
+
+	var programme, catalogue, moduleName, code string
+	var compulsory bool
+	var sws, semester int
+	err := s.Pool.QueryRow(t.Context(), `
+		SELECT s.programme, b.name, b.is_duty, m.name, a.module_code, m.sws,
+		       a.min_programme_semester
+		  FROM zpa_msba_v a
+		  JOIN zpa_spo_v s ON s.spo_id = a.spo_id
+		  JOIN zpa_basket_v b ON b.basket_id = a.basket_id
+		  JOIN zpa_module_v m ON m.module_id = a.module_id`).
+		Scan(&programme, &catalogue, &compulsory, &moduleName, &code, &sws, &semester)
+	if err != nil {
+		t.Fatalf("joining across the views: %v", err)
+	}
+
+	if programme != "XX" || catalogue != "Pflicht" || !compulsory {
+		t.Errorf("programme=%q catalogue=%q compulsory=%v", programme, catalogue, compulsory)
+	}
+	if moduleName != "Beispielmodul" {
+		t.Errorf("module name is %q", moduleName)
+	}
+	if code != "XX-B-0010" || sws != 4 || semester != 1 {
+		t.Errorf("code=%q sws=%d semester=%d", code, sws, semester)
+	}
+}
+
+// TestAModuleTakesItsNameFromAnAssociation.
+//
+// The module objects carry no name field at all — it exists only inside the nested object of an
+// association row, and the importer cannot fill it in because it fetches each kind
+// independently and modules come before associations. Deriving it in the view is what makes the
+// catalogue readable, and a module no association mentions has no name, which is the honest
+// answer rather than an id in disguise.
+func TestAModuleTakesItsNameFromAnAssociation(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	seedObject(t, s, domain.ZPAKindModule, 501, `{"module_id":"501","owner":"XX"}`)
+	seedObject(t, s, domain.ZPAKindModule, 502, `{"module_id":"502","owner":"XX"}`)
+	seedObject(t, s, domain.ZPAKindMSBA, 301, `{
+		"msba_id":"301","module":{"id":"501","name":"Beispielmodul"},
+		"spo":{"id":"801"},"basket":{"id":"701"}}`)
+
+	var named, orphan *string
+	if err := s.Pool.QueryRow(t.Context(),
+		`SELECT (SELECT name FROM zpa_module_v WHERE module_id = 501),
+		        (SELECT name FROM zpa_module_v WHERE module_id = 502)`).Scan(&named, &orphan); err != nil {
+		t.Fatalf("reading the names: %v", err)
+	}
+	if named == nil || *named != "Beispielmodul" {
+		t.Errorf("the module with an association has name %v, want Beispielmodul", named)
+	}
+	if orphan != nil {
+		t.Errorf("a module no association mentions got the name %q", *orphan)
+	}
+}
+
+// TestAnAssociationSurvivesASetOfRegulationsWeDoNotHave.
+//
+// This is why the association's own copy of the version is read instead of joined, and why
+// mirror tables with foreign keys were rejected. Against the real catalogue, 665 of 3272
+// association rows point at one of 12 sets of regulations that spo_info does not return — a
+// foreign key would have refused a fifth of the data, and an inner join would silently lose it.
+func TestAnAssociationSurvivesASetOfRegulationsWeDoNotHave(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	// No SPO 999 is ever cached: the source does not return it.
+	seedObject(t, s, domain.ZPAKindMSBA, 301, `{
+		"msba_id":"301","module":{"id":"501","name":"Altes Modul"},
+		"spo":{"id":"999","version":"2012","valid_from":"2012-10-01"},
+		"basket":{"id":"701","name":"Pflicht"}}`)
+
+	var version int
+	var name string
+	// A real date, not text — which is the whole point of the layer being typed.
+	var validFrom time.Time
+	err := s.Pool.QueryRow(t.Context(), `
+		SELECT a.spo_version, a.spo_valid_from, a.module_name
+		  FROM zpa_msba_v a
+		  LEFT JOIN zpa_spo_v s ON s.spo_id = a.spo_id
+		 WHERE a.msba_id = 301 AND s.spo_id IS NULL`).Scan(&version, &validFrom, &name)
+	if err != nil {
+		t.Fatalf("the row vanished with its set of regulations: %v", err)
+	}
+	if version != 2012 || name != "Altes Modul" {
+		t.Errorf("version=%d name=%q — the embedded copy is the only place this exists",
+			version, name)
+	}
+	if validFrom.Year() != 2012 {
+		t.Errorf("valid from %v, want 2012", validFrom)
+	}
+}
+
+// TestOneBadValueDoesNotBreakTheView.
+//
+// The most important property of the coercions, and the reason they are guarded rather than
+// plain casts. The source types nothing, so a single malformed value in a single row would make
+// a plain `::int` throw for the whole view — turning one bad record into a cache nobody can
+// read. NULL is the honest answer, and the payload is still there for whoever wants to see what
+// really arrived.
+func TestOneBadValueDoesNotBreakTheView(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	seedObject(t, s, domain.ZPAKindModule, 501, `{
+		"module_id":"501","owner":"XX","sws":"4","credits":"5","active":"True"}`)
+	seedObject(t, s, domain.ZPAKindModule, 502, `{
+		"module_id":"502","owner":"None","sws":"vier","credits":"","active":"vielleicht"}`)
+
+	rows, err := s.Pool.Query(t.Context(),
+		`SELECT module_id, home_programme, sws, credits, active FROM zpa_module_v ORDER BY module_id`)
+	if err != nil {
+		t.Fatalf("the view could not be read at all — one bad row poisoned it: %v", err)
+	}
+	defer rows.Close()
+
+	type row struct {
+		id           int64
+		home         *string
+		sws, credits *int32
+		active       *bool
+	}
+	var got []row
+	for rows.Next() {
+		var r row
+		if err := rows.Scan(&r.id, &r.home, &r.sws, &r.credits, &r.active); err != nil {
+			t.Fatalf("scanning: %v", err)
+		}
+		got = append(got, r)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("got %d rows, want both — the bad one included", len(got))
+	}
+	if got[0].sws == nil || *got[0].sws != 4 || got[0].active == nil || !*got[0].active {
+		t.Errorf("the good row came out wrong: %+v", got[0])
+	}
+	// "None" is a Python None that arrived as text — a null wearing the costume of a value.
+	// Without the coercion, a query for modules whose home programme is None returns rows and
+	// looks like a real programme.
+	if got[1].home != nil {
+		t.Errorf("owner \"None\" became the programme %q", *got[1].home)
+	}
+	if got[1].sws != nil || got[1].credits != nil || got[1].active != nil {
+		t.Errorf("unparseable values did not become null: %+v", got[1])
+	}
+}

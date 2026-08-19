@@ -50,6 +50,17 @@ type Semester struct {
 	UpdatedAt         time.Time
 }
 
+type ZpaBasketV struct {
+	BasketID      int64
+	Name          string
+	IsDuty        bool
+	FocusID       int64
+	FocusShort    string
+	Focus         string
+	Present       interface{}
+	LastChangedAt time.Time
+}
+
 type ZpaChange struct {
 	ID            uuid.UUID
 	RunID         uuid.UUID
@@ -64,6 +75,40 @@ type ZpaChange struct {
 	DetectedAt    time.Time
 }
 
+type ZpaModuleV struct {
+	ModuleID        int64
+	Name            string
+	HomeProgramme   string
+	CourseType      string
+	Sws             int32
+	Credits         int32
+	Active          bool
+	Official        bool
+	RepeaterExam    bool
+	Responsible     string
+	Frequency       string
+	Languages       string
+	DefaultLanguage string
+	Present         interface{}
+	LastChangedAt   time.Time
+}
+
+type ZpaMsbaV struct {
+	MsbaID               int64
+	ModuleID             int64
+	ModuleName           string
+	SpoID                int64
+	SpoVersion           int32
+	SpoValidFrom         pgtype.Date
+	BasketID             int64
+	BasketName           string
+	ModuleCode           string
+	MinProgrammeSemester int32
+	ExamTypeCount        int32
+	Present              interface{}
+	LastChangedAt        time.Time
+}
+
 type ZpaObject struct {
 	ID            uuid.UUID
 	Kind          string
@@ -75,6 +120,17 @@ type ZpaObject struct {
 	LastSeenAt    time.Time
 	LastChangedAt time.Time
 	GoneAt        pgtype.Timestamptz
+}
+
+type ZpaSpoV struct {
+	SpoID         int64
+	Version       int32
+	ValidFrom     pgtype.Date
+	PrimussID     string
+	ProgrammeID   int64
+	Programme     string
+	Present       interface{}
+	LastChangedAt time.Time
 }
 
 type ZpaSyncRun struct {

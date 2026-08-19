@@ -1,0 +1,5 @@
+[
+ {"basket": "Pflichtmodule", "basket_id": "701", "is_duty": true, "schwerpunkt": {}},
+ {"basket": "XX: Wahlpflicht", "basket_id": "702", "is_duty": false,
+  "schwerpunkt": {"sp_id": "601", "sp_short": "BSP", "sp_title": "Beispiel-Schwerpunkt"}}
+]

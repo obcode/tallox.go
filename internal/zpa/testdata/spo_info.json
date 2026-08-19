@@ -1,0 +1,20 @@
+[
+ {
+  "baskets": [{"id": "701", "basket_name": "Pflichtmodule"}, {"id": "702", "basket_name": "Wahlpflicht"}],
+  "primuss_id": "07-XX-2025",
+  "program": {"id": "901", "title": "XX"},
+  "schwerpunkte": [],
+  "spo_id": "801",
+  "valid_from": "2025-10-01",
+  "version": "2025"
+ },
+ {
+  "baskets": [{"id": "701", "basket_name": "Pflichtmodule"}],
+  "primuss_id": "",
+  "program": {"id": "901", "title": "XX"},
+  "schwerpunkte": [],
+  "spo_id": "802",
+  "valid_from": "2026-10-01",
+  "version": "2026"
+ }
+]

@@ -259,3 +259,105 @@ func writeConfig(t *testing.T, body string) string {
 	}
 	return path
 }
+
+// TestTheZPABlockIsReadAsAWhole covers the three states of the block, which are deliberately
+// three rather than two.
+//
+// Absent is the ordinary case — every DevContainer, every CI run, every fresh clone — and must
+// not be a failure. Complete is production. Half-filled is neither: somebody expressed an
+// intention that would not be honoured, and the file is the thing that says who talks to the
+// examination office's system, so it has to be loud on the restart that introduces the mistake
+// rather than on the first nightly import that quietly never ran.
+//
+// The same asymmetry auth.protectedadmins already has: an empty list warns, a malformed entry
+// refuses.
+func TestTheZPABlockIsReadAsAWhole(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name       string
+		body       string
+		wantErr    string
+		configured bool
+	}{
+		{
+			name: "absent is not a failure",
+			body: "auth:\n  mode: proxy\n",
+		},
+		{
+			name:       "complete",
+			body:       "zpa:\n  baseurl: https://zpa.example.org\n  token: example-token\n",
+			configured: true,
+		},
+		{
+			name:    "token without an address",
+			body:    "zpa:\n  token: example-token\n",
+			wantErr: "zpa.baseurl",
+		},
+		{
+			name:    "address without a token",
+			body:    "zpa:\n  baseurl: https://zpa.example.org\n",
+			wantErr: "zpa.token",
+		},
+		{
+			name:    "an address that is not http",
+			body:    "zpa:\n  baseurl: ftp://zpa.example.org\n  token: example-token\n",
+			wantErr: "scheme",
+		},
+		{
+			name:    "an address with a query",
+			body:    "zpa:\n  baseurl: https://zpa.example.org/?v=2\n  token: example-token\n",
+			wantErr: "without a query",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg, _, err := bootstrap.LoadConfig(writeConfig(t, tc.body))
+
+			if tc.wantErr != "" {
+				if err == nil {
+					t.Fatalf("a half-configured or malformed zpa block was accepted — the "+
+						"import would silently never run: %q", tc.body)
+				}
+				if !strings.Contains(err.Error(), tc.wantErr) {
+					t.Errorf("the error does not say which key is at fault (want %q): %v",
+						tc.wantErr, err)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("loading failed: %v", err)
+			}
+			if got := cfg.ZPA.Configured(); got != tc.configured {
+				t.Errorf("Configured() = %v, want %v", got, tc.configured)
+			}
+		})
+	}
+}
+
+// TestTheZPAAddressLosesItsTrailingSlash.
+//
+// Joining a path onto a base that ends in a slash produces a doubled separator, which most
+// reverse proxies answer with a redirect. The client does not follow redirects on purpose, so
+// the symptom would be a refusal from a URL nobody typed — an expensive thing to diagnose for
+// a character.
+func TestTheZPAAddressLosesItsTrailingSlash(t *testing.T) {
+	t.Parallel()
+
+	cfg, _, err := bootstrap.LoadConfig(writeConfig(t,
+		"zpa:\n  baseurl: \"https://zpa.example.org/\"\n  token: \"  example-token  \"\n"))
+	if err != nil {
+		t.Fatalf("loading failed: %v", err)
+	}
+	if cfg.ZPA.BaseURL != "https://zpa.example.org" {
+		t.Errorf("base url is %q, want it without the trailing slash", cfg.ZPA.BaseURL)
+	}
+	if cfg.ZPA.Token != "example-token" {
+		t.Errorf("token is %q, want it trimmed — a copied-in secret brings whitespace with it",
+			cfg.ZPA.Token)
+	}
+}

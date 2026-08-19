@@ -91,6 +91,13 @@ func Serve(build buildinfo.Info) {
 		// answer it is reporting.
 		migrateStatus = flag.Bool("migrate-status", false,
 			"report which migrations are applied and pending, then exit")
+		// Also read-only, and deliberately not folded into -migrate-status even though the two
+		// look alike. That one needs a reachable database; this one must work when the database
+		// is the thing that is down, because the question it answers — "will this image start
+		// with this file" — is asked before swapping an image, and a new configuration key is
+		// forward-only. See the Config doc.
+		checkConfig = flag.Bool("check-config", false,
+			"read the configuration file, report what it configures, then exit")
 		// Where the configuration file is. Empty means "look for tallox.yaml in . and $HOME",
 		// which is what the container and the development loop both want.
 		configPath = flag.String("config", "",
@@ -122,11 +129,20 @@ func Serve(build buildinfo.Info) {
 	} else {
 		log.Info().Msg("no configuration file found — flags and defaults only")
 	}
+	logZPAConfiguration(cfg.ZPA)
 	log.Info().
 		Str("version", build.Version).
 		Str("commit", build.Commit).
 		Str("builtAt", build.BuiltAt).
 		Msg("tallox starting")
+
+	// Before the database url is even looked at. Getting here at all means the file parsed and
+	// validated, which is the whole of what this flag asserts — and it has to be assertable on
+	// an installation whose database is exactly what is broken.
+	if *checkConfig {
+		reportConfiguration(cfg, configFile)
+		return
+	}
 
 	dsn := os.Getenv(EnvDatabaseURL)
 	if dsn == "" {
@@ -259,6 +275,48 @@ func reconcileProtectedAdmins(ctx context.Context, pool store.Pool, admins []Pro
 			Bool("reactivated", o.Reactivated).
 			Bool("granted", o.Granted).
 			Msg("protected administrator restored from the configuration file")
+	}
+}
+
+// logZPAConfiguration says once, at startup, whether the module import can run.
+//
+// The address goes into the line and the token never does — not truncated, not as a prefix.
+// A Bool is the whole useful answer to "did the file reach the container", and a fragment of a
+// credential in a log is a credential in a log.
+//
+// Info rather than Warn when it is absent: no ZPA is the ordinary state of every DevContainer
+// and every CI run, and a warning that fires on every ordinary start is one people learn to
+// scroll past — which is a bad habit to teach on the same screen where the protected-admin
+// warning has to be noticed.
+func logZPAConfiguration(cfg ZPAConfig) {
+	if !cfg.Configured() {
+		log.Info().Msg("zpa module import not configured")
+		return
+	}
+	log.Info().Str("baseURL", cfg.BaseURL).Bool("token", true).Msg("zpa module import configured")
+}
+
+// reportConfiguration prints which file was read and which subsystems it configures.
+//
+// To stdout, for the same reason reportMigrationStatus is: somebody reads this in a terminal
+// after `docker compose run --rm`, and a timestamp and a level in front of every line make it
+// harder to read for no gain.
+//
+// It reports what is configured, never the values that are secret. The point is to answer
+// "will the new image start with this file, and did it see the block I added" — both of which
+// are answered by getting here at all plus these three lines.
+func reportConfiguration(cfg Config, configFile string) {
+	if configFile == "" {
+		fmt.Println("configuration file: none found (flags and defaults only)")
+	} else {
+		fmt.Printf("configuration file: %s\n", configFile)
+	}
+	fmt.Printf("auth:               mode=%s, %d protected administrator(s)\n",
+		cfg.Auth.Mode, len(cfg.Auth.ProtectedAdmins))
+	if cfg.ZPA.Configured() {
+		fmt.Printf("zpa module import:  configured (%s)\n", cfg.ZPA.BaseURL)
+	} else {
+		fmt.Println("zpa module import:  not configured")
 	}
 }
 

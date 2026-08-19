@@ -1,7 +1,9 @@
 package store_test
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"strings"
 	"testing"
@@ -401,4 +403,73 @@ func runStatus(t *testing.T, z *store.ZPA, id uuid.UUID) domain.ZPASyncStatus {
 		t.Fatalf("cannot read run %s: %+v, %v", id, run, err)
 	}
 	return run.Status
+}
+
+// TestTwoSyncsProduceOneWinner.
+//
+// The failure this prevents is not corruption but waste and confusion: two runs fetching the
+// same 2.7 MB, writing the same rows, and producing two change logs of which one is a ghost.
+// try rather than the blocking form, so the loser is told and stops instead of queueing to
+// repeat the work that just finished.
+//
+// NOT t.Parallel(), unlike everything else in this file, and the reason is worth knowing: a
+// PostgreSQL advisory lock is database-wide, while storetest gives each test its own *schema*
+// inside one shared database. Two parallel tests taking this lock therefore contend for real,
+// and the loser fails for a reason that has nothing to do with what it was testing. migrate.go
+// documents the same trap from the other side, which is why Migrate is unlocked in the harness.
+//
+// Go runs the non-parallel tests one at a time, so this and the release test below cannot
+// overlap. Any future test that takes this lock has to join them.
+func TestTwoSyncsProduceOneWinner(t *testing.T) {
+	s := storetest.New(t)
+	ctx := t.Context()
+
+	inside := make(chan struct{})
+	release := make(chan struct{})
+	results := make(chan error, 2)
+
+	go func() {
+		results <- store.WithZPASyncLock(ctx, s.Pool, func(context.Context) error {
+			close(inside)
+			<-release
+			return nil
+		})
+	}()
+
+	<-inside
+	results <- store.WithZPASyncLock(ctx, s.Pool, func(context.Context) error {
+		t.Error("the second sync ran while the first held the lock")
+		return nil
+	})
+	close(release)
+
+	var winners, refused int
+	for range 2 {
+		switch err := <-results; {
+		case err == nil:
+			winners++
+		case errors.Is(err, store.ErrZPASyncLocked):
+			refused++
+		default:
+			t.Errorf("unexpected error: %v", err)
+		}
+	}
+	if winners != 1 || refused != 1 {
+		t.Errorf("got %d winners and %d refusals, want exactly one of each", winners, refused)
+	}
+}
+
+// TestTheLockIsReleasedForTheNextRun. A lock held after the function returns would mean the
+// import runs once and never again until the container restarts.
+//
+// Not parallel, for the reason above.
+func TestTheLockIsReleasedForTheNextRun(t *testing.T) {
+	s := storetest.New(t)
+	ctx := t.Context()
+
+	for attempt := range 2 {
+		if err := store.WithZPASyncLock(ctx, s.Pool, func(context.Context) error { return nil }); err != nil {
+			t.Fatalf("attempt %d could not take the lock: %v", attempt, err)
+		}
+	}
 }

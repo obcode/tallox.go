@@ -98,6 +98,20 @@ func Serve(build buildinfo.Info) {
 		// forward-only. See the Config doc.
 		checkConfig = flag.Bool("check-config", false,
 			"read the configuration file, report what it configures, then exit")
+		// The nightly import, as a separate process rather than a timer inside the server.
+		//
+		// There is exactly one precedent for scheduled work in this installation — the backup
+		// script in the host's crontab — and this is a line beside it. It keeps the request and
+		// shutdown paths untouched, makes the schedule editable without a redeploy, turns a
+		// failure into an exit code and a log line the operator already reads, and gives the
+		// emergency stop the right shape: comment the line out and no timer exists in the
+		// running process that could be wrong about whether it is engaged.
+		zpaSync = flag.Bool("zpa-sync", false,
+			"fetch the module master data from the ZPA and apply it, then exit")
+		// The tool for the first run against an unknown catalogue, and for "did the token stop
+		// working last night". Fetches and diffs, writes nothing at all.
+		dryRun = flag.Bool("dry-run", false,
+			"with -zpa-sync: fetch and report what would change, without writing")
 		// Where the configuration file is. Empty means "look for tallox.yaml in . and $HOME",
 		// which is what the container and the development loop both want.
 		configPath = flag.String("config", "",
@@ -157,6 +171,16 @@ func Serve(build buildinfo.Info) {
 	// question about the schema.
 	if *migrateStatus {
 		reportMigrationStatus(ctx, dsn)
+		return
+	}
+
+	// Also before the auth mode is validated, and for the same reason: this path serves nobody.
+	//
+	// It deliberately does NOT migrate. The serving container owns the schema, and a cron job
+	// that could apply a migration would mean the schema changes at 02:30 on whatever image the
+	// crontab happens to invoke, rather than on a deploy somebody is watching.
+	if *zpaSync {
+		runZPASync(ctx, cfg, dsn, *dryRun)
 		return
 	}
 

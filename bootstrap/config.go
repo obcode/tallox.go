@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -19,7 +20,7 @@ const ConfigName = "tallox"
 // Every field here is read by something. That is a rule rather than an observation: a key
 // that a file documents and the program ignores is worse than no key at all, because somebody
 // eventually sets it, restarts, and believes the restart did what the comment promised. The
-// blocks that are planned but not wired — ZPA, SMTP — are commented out in
+// blocks that are planned but not wired — SMTP — are commented out in
 // deploy/tallox.yaml.example instead of being declared here, so the shape stays documented
 // without the file being able to lie.
 //
@@ -27,9 +28,17 @@ const ConfigName = "tallox"
 // failure, not a shrug. A typo in a production configuration file has to be loud on the
 // restart that introduces it, and the alternative — silently keeping the default — is a
 // mode where the server runs and the operator is wrong about what it is doing.
+//
+// That exactness makes a configuration key forward-only, exactly like a migration, and it is
+// worth spelling out because the recovery for everything else here is a rollback. Deploy the
+// image that reads a new key before the key appears in the file; roll back past it and the
+// file the operator has already edited stops the older image from starting. The failure is
+// also deferred — it lands on the next restart, not on the edit — so the person who caused it
+// is not necessarily the person who sees it.
 type Config struct {
 	Server ServerConfig
 	Auth   AuthConfig
+	ZPA    ZPAConfig
 	Log    LogConfig
 }
 
@@ -87,6 +96,92 @@ type ProtectedAdmin struct {
 	// address, exactly as it is for a person created through the GUI before the ZPA import
 	// has run.
 	Name string
+}
+
+// ZPAConfig points at the central examination office's REST interface, the source of the
+// module master data. Read-only, in one direction: SPOs are maintained there and stay there.
+//
+// Both values or neither. There is deliberately no `enabled` switch, and the argument is the
+// one auth.mode=off-token already makes about not mounting a route: an emergency stop that
+// removes the thing itself leaves no code path that could be wrong about whether it is
+// engaged. `enabled: false` next to a filled-in token is exactly such a code path — the
+// credential is still there and a single condition stands between it and the other system.
+// Emptying Token removes the credential, and then there is nothing to authenticate with.
+type ZPAConfig struct {
+	// BaseURL is the root of the interface, without a trailing slash and without the /rest
+	// path. Deliberately without a default: this repository is public, and the address of an
+	// internal system is operational detail. It lives in deploy/tallox.yaml.example, which is
+	// not.
+	BaseURL string
+	// Token authenticates every request. The scheme is `Authorization: Token <value>`, not
+	// Bearer — the interface is Django REST Framework, which answers a missing credential with
+	// `WWW-Authenticate: Token`. Getting this wrong costs half an hour, because the wrong
+	// scheme and no scheme at all produce the same refusal.
+	//
+	// A secret, and therefore in this file rather than in the environment: TALLOX_DB_URL is in
+	// the environment because it differs between the DevContainer, CI and the host and because
+	// a deploy script sets it. This one does not vary that way.
+	//
+	// Never logged, not even truncated. Startup reports whether one is configured, not what it
+	// is.
+	Token string
+}
+
+// Configured reports whether the ZPA import can run at all.
+//
+// The three states are deliberately not two. Nothing configured is the ordinary case for every
+// DevContainer, every CI run and every fresh checkout, so it is a fact to log and not a
+// failure. Both values configured is the production case. Exactly one of them is neither: it
+// is somebody who expressed an intention the program will not honour, and Validate refuses the
+// start for it — the same asymmetry auth.protectedadmins already has, where an empty list is a
+// warning and a malformed entry is an error.
+func (c ZPAConfig) Configured() bool {
+	return c.BaseURL != "" && c.Token != ""
+}
+
+// Validate checks the block for the mistakes that would otherwise surface as a puzzling
+// refusal from the other system rather than as a configuration error here.
+func (c ZPAConfig) Validate() error {
+	baseURL := strings.TrimSpace(c.BaseURL)
+	token := strings.TrimSpace(c.Token)
+
+	switch {
+	case baseURL == "" && token == "":
+		return nil
+	case baseURL == "":
+		return errors.New("zpa.token is set but zpa.baseurl is not")
+	case token == "":
+		return errors.New("zpa.baseurl is set but zpa.token is not")
+	}
+
+	u, err := url.Parse(baseURL)
+	if err != nil {
+		return fmt.Errorf("zpa.baseurl %q is not a URL: %w", baseURL, err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return fmt.Errorf("zpa.baseurl %q needs an http or https scheme", baseURL)
+	}
+	if u.Host == "" {
+		return fmt.Errorf("zpa.baseurl %q has no host", baseURL)
+	}
+	if u.RawQuery != "" || u.Fragment != "" {
+		return fmt.Errorf("zpa.baseurl %q must be a bare address, without a query or fragment", baseURL)
+	}
+	return nil
+}
+
+// Normalised returns the block with its whitespace trimmed and its base address free of a
+// trailing slash.
+//
+// The slash matters more than it looks. Joining a path onto a base that ends in one produces
+// a doubled separator, which most reverse proxies answer with a redirect — and the client
+// deliberately does not follow redirects, so the symptom would be a refusal from a URL nobody
+// typed. Trimming once here is cheaper than diagnosing that.
+func (c ZPAConfig) Normalised() ZPAConfig {
+	return ZPAConfig{
+		BaseURL: strings.TrimRight(strings.TrimSpace(c.BaseURL), "/"),
+		Token:   strings.TrimSpace(c.Token),
+	}
 }
 
 // LogConfig is the logging level, as a word rather than a boolean pair.
@@ -180,6 +275,14 @@ func LoadConfigFrom(explicitPath string, searchPaths ...string) (Config, string,
 	if err := v.UnmarshalExact(&cfg); err != nil {
 		return Config{}, "", fmt.Errorf("cannot read %s: %w", v.ConfigFileUsed(), err)
 	}
+
+	// Validated here rather than at the point of use, so that a malformed address fails the
+	// start instead of the first nightly import — which would be discovered a day later, by
+	// nobody, because a job that never ran sends no mail.
+	if err := cfg.ZPA.Validate(); err != nil {
+		return Config{}, "", fmt.Errorf("cannot read %s: %w", v.ConfigFileUsed(), err)
+	}
+	cfg.ZPA = cfg.ZPA.Normalised()
 
 	return cfg, v.ConfigFileUsed(), nil
 }

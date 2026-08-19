@@ -141,6 +141,15 @@ leaves the newer schema in place, so every migration has to be one the previous 
 against — add a column in one release, stop reading the old one in the next, drop it in a
 third.
 
+**A configuration key is forward-only for the same reason.** `UnmarshalExact` means a file
+carrying a key the binary does not know refuses to start — so ship the image that reads a key
+before the key appears in anyone's `tallox.yaml`, and do not roll back past that image once it
+has. Two things make this worse than it sounds: the failure is *deferred* to the next restart
+rather than landing on the edit, and rollback is the documented recovery for everything else
+here. `-check-config` reads the file, reports what it configures and exits — without a
+database, unlike `-migrate-status`, because "will this image start with this file" is asked
+exactly when the database may be the thing that is broken.
+
 ### Scopes
 
 Schema-driven via a `@scope(area:, verb:)` directive, evaluated in `AroundOperations`

@@ -197,7 +197,9 @@ func (s *ZPASyncService) Sync(ctx context.Context, trigger ZPASyncTrigger, start
 
 	run, err := s.store.StartRun(ctx, trigger, startedBy)
 	if err != nil {
-		return ZPASyncRun{}, fmt.Errorf("cannot start a sync run: %w", err)
+		// Not wrapped: the store already says "cannot start a sync run", and two layers saying
+		// the same sentence make an error message that reads like a stutter.
+		return ZPASyncRun{}, err
 	}
 
 	var succeeded, failed int
@@ -375,30 +377,6 @@ func changedKeysFor(change ZPAChangeType, before, after json.RawMessage) []strin
 		return []string{}
 	}
 	return ChangedKeys(before, after)
-}
-
-// sameJSON compares two payloads by value rather than by bytes.
-//
-// The stored side has been through jsonb and the fetched side has not, so their key order and
-// whitespace differ for reasons that are not changes. Comparing bytes would report the entire
-// catalogue as changed on the first run after any serialiser change on either side.
-func sameJSON(a, b json.RawMessage) bool {
-	var av, bv any
-	if err := json.Unmarshal(a, &av); err != nil {
-		return false
-	}
-	if err := json.Unmarshal(b, &bv); err != nil {
-		return false
-	}
-	ac, err := json.Marshal(av)
-	if err != nil {
-		return false
-	}
-	bc, err := json.Marshal(bv)
-	if err != nil {
-		return false
-	}
-	return string(ac) == string(bc)
 }
 
 // Runs lists the recent runs, newest first.

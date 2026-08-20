@@ -43,7 +43,15 @@ SELECT
     COALESCE(
         array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
         ARRAY[]::text[]
-    )::text[] AS roles
+    )::text[] AS roles,
+    COALESCE((
+        SELECT jsonb_agg(jsonb_build_object('role', s.role, 'programme', s.programme_id)
+                         ORDER BY s.role, s.programme_id)
+        FROM person_programme_scope s
+        JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+        WHERE s.person_id = t.owner_id
+          AND (r.expires_at IS NULL OR r.expires_at > now())
+    ), '[]'::jsonb)::jsonb AS role_scopes
 FROM personal_access_token t
 JOIN person p ON p.id = t.owner_id
 LEFT JOIN person_role pr

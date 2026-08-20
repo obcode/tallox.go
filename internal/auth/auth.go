@@ -95,6 +95,10 @@ type Person struct {
 	Name   string
 	Active bool
 	Roles  []string
+	// RoleScopes narrow individual grants to individual things — which study programme a
+	// programme lead leads. Carried here because authentication is the one place that reads a
+	// person's grants, and a second lookup later would be a second place to forget.
+	RoleScopes []principal.RoleScope
 }
 
 // Token is a Personal Access Token as stored, with its owner.

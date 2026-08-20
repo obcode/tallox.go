@@ -198,6 +198,16 @@ type Querier interface {
 	PersonByID(ctx context.Context, id uuid.UUID) (PersonByIDRow, error)
 	// The authentication query of the browser door. mail is citext, so the comparison is
 	// case-insensitive without a lower() that would defeat the unique index.
+	//
+	// role_scopes carries the grants that name a thing as well as an action — leading *one* study
+	// programme rather than leading in general. A correlated subquery rather than a second LEFT
+	// JOIN, because joining two one-to-many tables in one SELECT multiplies their rows and the
+	// roles array would repeat every role once per scope.
+	//
+	// It applies the same expiry filter as the roles above, for the same reason: a grant the
+	// database considers over must not still take effect, and a scope belonging to an expired grant
+	// is exactly that. The composite foreign key means a scope cannot outlive a *revoked* grant;
+	// this covers the one that merely ran out.
 	PersonByMail(ctx context.Context, mail string) (PersonByMailRow, error)
 	// Where each module counts, folded to one row per module per set of regulations.
 	//

@@ -6,7 +6,11 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/obcode/tallox.go/internal/auth"
 	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/policy"
+	"github.com/obcode/tallox.go/internal/principal"
+	"github.com/obcode/tallox.go/internal/store"
 	"github.com/obcode/tallox.go/internal/store/storetest"
 	"github.com/obcode/tallox.go/internal/testdata"
 )
@@ -427,5 +431,105 @@ func TestNothingReferencesAnOffering(t *testing.T) {
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatalf("cannot read the foreign keys: %v", err)
+	}
+}
+
+// The scope is only worth anything if it reaches the rule, and it reaches the rule by being
+// read at authentication. Asserted through both doors, because the realistic failure is a
+// lookup somebody extends for the browser and forgets on the token path.
+func TestProgrammeScopesReachTheActorThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	ctx := t.Context()
+
+	storetest.SeedPerson(t, s, testdata.Vier, "LECTURER", "PROGRAMME_LEAD")
+	storetest.SeedToken(t, s, testdata.Vier, auth.HashSecret("example-secret"), storetest.TokenOptions{})
+
+	if_ := seedProgramme(t, s, "IF")
+	seedProgramme(t, s, "IG")
+
+	if _, err := s.Pool.Exec(ctx,
+		`INSERT INTO person_programme_scope (person_id, role, programme_id)
+		 VALUES ($1, 'PROGRAMME_LEAD', $2)`, testdata.Vier.ID(), if_); err != nil {
+		t.Fatalf("cannot assign the programme: %v", err)
+	}
+
+	directory := store.NewDirectory(s.Pool)
+
+	t.Run("browser door", func(t *testing.T) {
+		person, err := directory.PersonByMail(ctx, testdata.Vier.Mail)
+		if err != nil || person == nil {
+			t.Fatalf("cannot resolve the person: %v", err)
+		}
+		assertScopedTo(t, person.RoleScopes, if_)
+	})
+
+	t.Run("token door", func(t *testing.T) {
+		token, err := directory.TokenByID(ctx, testdata.Vier.TokenID)
+		if err != nil || token == nil {
+			t.Fatalf("cannot resolve the token: %v", err)
+		}
+		assertScopedTo(t, token.Owner.RoleScopes, if_)
+	})
+}
+
+func assertScopedTo(t *testing.T, scopes []principal.RoleScope, programme uuid.UUID) {
+	t.Helper()
+
+	if len(scopes) != 1 {
+		t.Fatalf("the actor carries %d programme scope(s), want 1", len(scopes))
+	}
+	if scopes[0].Role != "PROGRAMME_LEAD" {
+		t.Errorf("the scope is for %s", scopes[0].Role)
+	}
+	if scopes[0].ProgrammeID != programme {
+		t.Errorf("the scope names %s, want %s", scopes[0].ProgrammeID, programme)
+	}
+	if !policy.MayPlanProgramme(
+		principal.Actor{Roles: []string{"PROGRAMME_LEAD"}, RoleScopes: scopes}, programme) {
+		t.Error("the scope reached the actor but does not permit planning the programme")
+	}
+}
+
+// A grant that ran out takes its scopes with it. The composite foreign key covers a *revoked*
+// grant; nothing in the database covers one that merely expired, so the query has to.
+func TestAnExpiredGrantCarriesNoProgrammes(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	ctx := t.Context()
+
+	storetest.SeedPerson(t, s, testdata.Vier, "LECTURER", "PROGRAMME_LEAD")
+	if_ := seedProgramme(t, s, "IF")
+
+	if _, err := s.Pool.Exec(ctx,
+		`INSERT INTO person_programme_scope (person_id, role, programme_id)
+		 VALUES ($1, 'PROGRAMME_LEAD', $2)`, testdata.Vier.ID(), if_); err != nil {
+		t.Fatalf("cannot assign the programme: %v", err)
+	}
+	// granted_at moves with it: the schema refuses a grant that expired before it was made,
+	// which is the constraint saying the same thing this test does from the other side.
+	if _, err := s.Pool.Exec(ctx,
+		`UPDATE person_role
+		    SET granted_at = now() - interval '2 hours', expires_at = now() - interval '1 hour'
+		  WHERE person_id = $1 AND role = 'PROGRAMME_LEAD'`, testdata.Vier.ID()); err != nil {
+		t.Fatalf("cannot expire the grant: %v", err)
+	}
+
+	person, err := store.NewDirectory(s.Pool).PersonByMail(ctx, testdata.Vier.Mail)
+	if err != nil || person == nil {
+		t.Fatalf("cannot resolve the person: %v", err)
+	}
+
+	for _, role := range person.Roles {
+		if role == "PROGRAMME_LEAD" {
+			t.Error("an expired grant is still in the role set")
+		}
+	}
+	if len(person.RoleScopes) != 0 {
+		t.Errorf("an expired grant still carries %d programme(s). A grant the database "+
+			"considers over must not still take effect, and a scope of one is exactly that.",
+			len(person.RoleScopes))
 	}
 }

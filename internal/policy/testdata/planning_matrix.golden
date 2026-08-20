@@ -1,0 +1,81 @@
+Planning — who may declare the demand of which study programme
+==============================================================
+
+Generated from internal/policy (TestPlanningMatrix). Do not edit by hand:
+
+    go test ./internal/policy/ -update-golden
+
+The rule
+--------
+
+Demand for a study programme may be declared by
+
+  · the dean's office, for every programme — the import/export statistics are its job, and a
+    programme created tomorrow is included, or
+  · a programme lead, for the programmes they have been assigned — and for no others.
+
+Nobody else, through either door. Planning is not confidential and not personnel data, so a
+Personal Access Token reaches exactly as far as a browser session does: a colleague evaluating
+their own programme's demand from a script is a use this API exists for.
+
+The one that surprises people
+-----------------------------
+
+**A programme lead who has not been assigned a programme may plan nothing.** Not everything.
+
+Elsewhere in this system an empty list means "unrestricted" — an empty token scope list, an
+empty role selection — because both of those are mechanisms that can only ever *remove*, so
+"nothing selected" has to mean "nothing removed". A programme assignment is not a narrowing of
+the grant; it is what the grant is about. The role declares the demand of ONE programme, and
+the role that means all of them is the dean's office.
+
+Read the other way, the release that introduced programme assignments would have been the
+moment every existing programme lead silently became faculty-wide.
+
+What such a person is shown is not "you may not do this" — which would send them to ask for a
+role they already hold — but "your programme leadership has not been assigned to a study
+programme yet".
+
+The columns
+-----------
+
+  Scoped to     Which programmes this person has been assigned.
+  own / other   May they declare demand for programme one / programme two?
+  Query scope   The same rule as a query restriction, and what the interface reads to decide
+                which programmes to offer in a picker at all. "every programme" is not the
+                list of programmes that exist today — a programme created afterwards is in it.
+
+Notes
+-----
+
+  · ADMIN plans nothing, and that is the same decision the wish rule makes: running the system
+    is a different job from planning with it. An administrator who genuinely has to plan is
+    granted the role, visibly.
+  · A subject group lead fills instances and does not declare them, so it plans nothing here.
+  · Combinations of roles are not listed. Somebody holding several gets the union — checked
+    over the complete cartesian product in TestPlanningGuardAndScopeAgree.
+  · Only the programme lead has a scope dimension today. The subject group lead gets its own
+    when subject groups exist as rows.
+
+Role                Door          Scoped to   own   other  Query scope
+----------------------------------------------------------------------
+(not signed in)     —             —           no    no     none
+
+LECTURER            interactive   —           no    no     none
+LECTURER            token         —           no    no     none
+
+SUBJECT_GROUP_LEAD  interactive   —           no    no     none
+SUBJECT_GROUP_LEAD  token         —           no    no     none
+
+PROGRAMME_LEAD      interactive   —           no    no     none
+PROGRAMME_LEAD      interactive   one         yes   no     1 programme
+PROGRAMME_LEAD      interactive   one, two    yes   yes    2 programmes
+PROGRAMME_LEAD      token         —           no    no     none
+PROGRAMME_LEAD      token         one         yes   no     1 programme
+PROGRAMME_LEAD      token         one, two    yes   yes    2 programmes
+
+DEANS_OFFICE        interactive   —           yes   yes    every programme
+DEANS_OFFICE        token         —           yes   yes    every programme
+
+ADMIN               interactive   —           no    no     none
+ADMIN               token         —           no    no     none

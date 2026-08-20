@@ -21,6 +21,16 @@ RETURNING id, mail, name, active, created_at, updated_at;
 -- name: PersonByMail :one
 -- The authentication query of the browser door. mail is citext, so the comparison is
 -- case-insensitive without a lower() that would defeat the unique index.
+--
+-- role_scopes carries the grants that name a thing as well as an action — leading *one* study
+-- programme rather than leading in general. A correlated subquery rather than a second LEFT
+-- JOIN, because joining two one-to-many tables in one SELECT multiplies their rows and the
+-- roles array would repeat every role once per scope.
+--
+-- It applies the same expiry filter as the roles above, for the same reason: a grant the
+-- database considers over must not still take effect, and a scope belonging to an expired grant
+-- is exactly that. The composite foreign key means a scope cannot outlive a *revoked* grant;
+-- this covers the one that merely ran out.
 SELECT
     p.id,
     p.mail,
@@ -29,7 +39,15 @@ SELECT
     COALESCE(
         array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
         ARRAY[]::text[]
-    )::text[] AS roles
+    )::text[] AS roles,
+    COALESCE((
+        SELECT jsonb_agg(jsonb_build_object('role', s.role, 'programme', s.programme_id)
+                         ORDER BY s.role, s.programme_id)
+        FROM person_programme_scope s
+        JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+        WHERE s.person_id = p.id
+          AND (r.expires_at IS NULL OR r.expires_at > now())
+    ), '[]'::jsonb)::jsonb AS role_scopes  -- cast: without it sqlc types the column interface{}
 FROM person p
 LEFT JOIN person_role pr
     ON pr.person_id = p.id
@@ -46,7 +64,15 @@ SELECT
     COALESCE(
         array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
         ARRAY[]::text[]
-    )::text[] AS roles
+    )::text[] AS roles,
+    COALESCE((
+        SELECT jsonb_agg(jsonb_build_object('role', s.role, 'programme', s.programme_id)
+                         ORDER BY s.role, s.programme_id)
+        FROM person_programme_scope s
+        JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+        WHERE s.person_id = p.id
+          AND (r.expires_at IS NULL OR r.expires_at > now())
+    ), '[]'::jsonb)::jsonb AS role_scopes
 FROM person p
 LEFT JOIN person_role pr
     ON pr.person_id = p.id
@@ -69,7 +95,15 @@ SELECT
     COALESCE(
         array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
         ARRAY[]::text[]
-    )::text[] AS roles
+    )::text[] AS roles,
+    COALESCE((
+        SELECT jsonb_agg(jsonb_build_object('role', s.role, 'programme', s.programme_id)
+                         ORDER BY s.role, s.programme_id)
+        FROM person_programme_scope s
+        JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+        WHERE s.person_id = p.id
+          AND (r.expires_at IS NULL OR r.expires_at > now())
+    ), '[]'::jsonb)::jsonb AS role_scopes
 FROM person p
 LEFT JOIN person_role pr
     ON pr.person_id = p.id

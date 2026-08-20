@@ -59,6 +59,18 @@ const (
 	KindToken Kind = "token"
 )
 
+// RoleScope narrows one grant to one thing.
+//
+// Uninterpreted here, exactly like the role strings it accompanies: this package carries who
+// the caller is and what was granted to them, and internal/policy decides what a role name and
+// a programme id mean together. A field named after the rule would put the rule here.
+type RoleScope struct {
+	// Role is the grant this narrows, as stored.
+	Role string
+	// ProgrammeID is the study programme the grant applies to.
+	ProgrammeID uuid.UUID
+}
+
 // Actor is the authenticated caller of the current request.
 //
 // The zero value is the anonymous caller, which is what makes the context helpers below safe:
@@ -90,6 +102,20 @@ type Actor struct {
 	// action was taken while narrowed. A rule that consulted it would be undoing the
 	// narrowing it is supposed to respect.
 	NarrowedFrom []string
+	// RoleScopes narrow individual grants to individual things, uninterpreted like Roles.
+	//
+	// A role in Roles says what somebody may do; an entry here says what they may do it to.
+	// Only some roles have a scope dimension — leading a study programme is leading *one* —
+	// and a role with no entry here has none rather than all of them. Which way round that is
+	// read is internal/policy's business, not this package's.
+	//
+	// Deliberately not folded into Roles as "PROGRAMME_LEAD:<uuid>" strings. Every rule that
+	// asks "does this actor hold PROGRAMME_LEAD" would then have to know about the encoding,
+	// and the first one to forget would be reading a scoped grant as no grant at all.
+	//
+	// Narrowed with the roles: an actor that kept the scopes of a role it no longer holds is
+	// a bug in the direction that leaks.
+	RoleScopes []RoleScope
 	// Scopes are the area:verb grants of the Personal Access Token used, empty for an
 	// interactive session (where the role alone bounds what is allowed).
 	//

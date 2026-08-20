@@ -16,8 +16,9 @@ import (
 
 // The refusals the semester workflow produces.
 var (
-	// ErrSemesterCodeInvalid: not four digits and S or W.
-	ErrSemesterCodeInvalid = errors.New("a semester code is four digits and S or W, e.g. 2027S")
+	// ErrSemesterCodeInvalid: not four digits, a hyphen and SS or WS.
+	ErrSemesterCodeInvalid = errors.New(
+		"a semester code is four digits, a hyphen and SS or WS, e.g. 2026-WS")
 	// ErrSemesterExists: the code is taken. Not confidential — which semesters exist is
 	// visible to everybody signed in — so this may be specific.
 	ErrSemesterExists = errors.New("this semester already exists")
@@ -39,7 +40,11 @@ var (
 // Both, deliberately. Here so that the caller gets ErrSemesterCodeInvalid and a sentence they
 // can act on, and in the database so that an import, a migration or a future admin command
 // cannot write a code that breaks the chronological sort the whole system orders by.
-var semesterCode = regexp.MustCompile(`^[0-9]{4}[SW]$`)
+//
+// The form is the faculty's own: the ZPA says "WS 2026", the exam planning says 2026-WS, and
+// this says 2026-WS too. A tool that invents a third spelling of a name everybody already uses
+// makes every export and every colleague's script guess which one it got.
+var semesterCode = regexp.MustCompile(`^[0-9]{4}-(SS|WS)$`)
 
 // Semester is a semester as the rest of the system sees it.
 //
@@ -109,10 +114,12 @@ func (s *SemesterService) ByID(ctx context.Context, actor principal.Actor,
 
 // Create adds a semester, at the start of the process.
 //
-// The code is upper-cased and trimmed before validation, because "2027s" typed into a form is
-// the same semester and refusing it teaches nothing. It is not otherwise repaired: "SS2027" is
-// refused rather than guessed at, since guessing between 2027S and something else is how an
-// import silently creates a semester nobody meant.
+// The code is upper-cased and trimmed before validation, because "2026-ws" typed into a form
+// is the same semester and refusing it teaches nothing. It is not otherwise repaired: the
+// ZPA's own "WS 2026" is refused rather than rearranged, because the year in that spelling is
+// only unambiguous if one already knows that a winter semester is named after the year it
+// starts in — and an import that guesses wrong there creates a semester nobody meant, one year
+// out, looking exactly like one somebody chose.
 func (s *SemesterService) Create(ctx context.Context, actor principal.Actor,
 	code string,
 ) (Semester, error) {

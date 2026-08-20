@@ -140,11 +140,14 @@ type ScopeGrantInput struct {
 // One semester, and where its planning stands.
 type Semester struct {
 	ID string `json:"id"`
-	// The semester in the form `2027S` or `2026W`: four digits and a letter.
+	// The semester in the form `2026-WS` or `2026-SS`: four digits, a hyphen and the term.
 	//
-	// The letter is the term and the digits are the year the term *starts* in, so the winter
-	// semester 2026/27 is `2026W`. Sorts chronologically as plain text, which is why it is worth
-	// having in a filename or a script rather than the id.
+	// The digits are the year the term *starts* in, so the winter semester 2026/27 is `2026-WS`.
+	// This is the spelling the faculty already uses — the examination office writes `WS 2026`, and
+	// the hyphen is here because a space has to be quoted in a URL, a filename or a shell argument.
+	//
+	// Sorts chronologically as plain text (`2026-SS` < `2026-WS` < `2027-SS`), which is why it is
+	// worth having in a filename or a script rather than the id.
 	Code string `json:"code"`
 	// Where the planning stands.
 	Phase policy.Phase `json:"phase"`

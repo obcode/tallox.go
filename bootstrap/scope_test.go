@@ -404,7 +404,7 @@ func TestAMintedTokenIsNarrowedAtTheDoor(t *testing.T) {
 	t.Run("and nothing else, although the owner holds the role", func(t *testing.T) {
 		// The dean's office may create a semester. This token may not, and the difference is
 		// the scope alone — which is the point of being able to choose one.
-		resp := c.Do(t, createSemester, map[string]any{"code": "2027S"})
+		resp := c.Do(t, createSemester, map[string]any{"code": "2027-SS"})
 		assertInsufficientScope(t, resp,
 			policy.Scope{Area: policy.ScopeAreaPlanning, Verb: policy.ScopeVerbWrite})
 	})

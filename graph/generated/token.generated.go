@@ -30,6 +30,7 @@ type MutationResolver interface {
 	AdvanceSemesterPhase(ctx context.Context, code string, to policy.Phase) (*model.Semester, error)
 	PublishWishes(ctx context.Context, code string) (*model.Semester, error)
 	SyncZpaNow(ctx context.Context) (*model.ZpaSyncRun, error)
+	ProjectZpaCatalogue(ctx context.Context) (*model.ZpaCatalogueProjection, error)
 }
 
 // endregion ************************** generated!.gotpl **************************
@@ -904,6 +905,51 @@ func (ec *executionContext) fieldContext_Mutation_syncZpaNow(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_projectZpaCatalogue(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_projectZpaCatalogue(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Mutation().ProjectZpaCatalogue(ctx)
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.InteractiveOnly == nil {
+					var zeroVal *model.ZpaCatalogueProjection
+					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+				}
+				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ZpaCatalogueProjection) graphql.Marshaler {
+			return ec.marshalNZpaCatalogueProjection2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐZpaCatalogueProjection(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_projectZpaCatalogue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ZpaCatalogueProjection(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _PersonalAccessToken_id(ctx context.Context, field graphql.CollectedField, obj *model.PersonalAccessToken) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1213,6 +1259,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "syncZpaNow":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_syncZpaNow(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "projectZpaCatalogue":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_projectZpaCatalogue(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

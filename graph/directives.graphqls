@@ -128,7 +128,7 @@ enum ScopeArea {
 
   Fields: `people`, `person`, `roleGrants`, `diagnoseAccess`, `createPerson`, `renamePerson`,
   `setPersonRoles`, `setPersonActive`, `setPersonProgrammes`, `zpaSyncRuns`, `zpaSyncRun`,
-  `zpaChanges`, `syncZpaNow`.
+  `zpaChanges`, `zpaCatalogueProjections`, `syncZpaNow`, `projectZpaCatalogue`.
   """
   ADMIN
 }

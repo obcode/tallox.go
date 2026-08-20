@@ -131,3 +131,33 @@ func mayReadImport(actor principal.Actor) error {
 	}
 	return nil
 }
+
+// projectionModel reshapes one rebuild of the catalogue for the wire.
+func projectionModel(p domain.CatalogueProjection) *model.ZpaCatalogueProjection {
+	out := &model.ZpaCatalogueProjection{
+		ID:                p.ID.String(),
+		StartedAt:         p.StartedAt,
+		FinishedAt:        p.FinishedAt,
+		Status:            p.Status,
+		ProgrammesWritten: p.ProgrammesWritten,
+		ModulesWritten:    p.ModulesWritten,
+		OfferingsWritten:  p.OfferingsWritten,
+		OfferingsRemoved:  p.OfferingsRemoved,
+		Error:             p.Error,
+		Notes:             make([]*model.ZpaProjectionNote, 0, len(p.Notes)),
+	}
+	if p.RunID != nil {
+		id := p.RunID.String()
+		out.RunID = &id
+	}
+	for _, note := range p.Notes {
+		out.Notes = append(out.Notes, &model.ZpaProjectionNote{
+			Finding: note.Code,
+			Count:   note.Count,
+			// Never nil on the wire: a list field that is sometimes null and sometimes empty
+			// makes every client handle two shapes of nothing.
+			Sample: append([]string{}, note.Sample...),
+		})
+	}
+	return out
+}

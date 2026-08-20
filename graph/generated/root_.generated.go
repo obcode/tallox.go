@@ -90,6 +90,7 @@ type ComplexityRoot struct {
 		AdvanceSemesterPhase      func(childComplexity int, code string, to policy.Phase) int
 		CreatePerson              func(childComplexity int, mail string, name *string) int
 		CreatePersonalAccessToken func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput) int
+		ProjectZpaCatalogue       func(childComplexity int) int
 		PublishWishes             func(childComplexity int, code string) int
 		RenamePerson              func(childComplexity int, id string, name string) int
 		RevokePersonalAccessToken func(childComplexity int, id string) int
@@ -132,23 +133,24 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		BuildInfo      func(childComplexity int) int
-		DiagnoseAccess func(childComplexity int, mail string) int
-		Me             func(childComplexity int) int
-		Module         func(childComplexity int, id string) int
-		Modules        func(childComplexity int, filter *model.ModuleFilter) int
-		MyTokens       func(childComplexity int) int
-		People         func(childComplexity int, search *string, includeInactive *bool) int
-		Person         func(childComplexity int, id string) int
-		Programme      func(childComplexity int, code string) int
-		Programmes     func(childComplexity int) int
-		RoleGrants     func(childComplexity int, personID string) int
-		Semester       func(childComplexity int, code string) int
-		Semesters      func(childComplexity int) int
-		Session        func(childComplexity int) int
-		ZpaChanges     func(childComplexity int, runID string) int
-		ZpaSyncRun     func(childComplexity int, id string) int
-		ZpaSyncRuns    func(childComplexity int, limit *int) int
+		BuildInfo               func(childComplexity int) int
+		DiagnoseAccess          func(childComplexity int, mail string) int
+		Me                      func(childComplexity int) int
+		Module                  func(childComplexity int, id string) int
+		Modules                 func(childComplexity int, filter *model.ModuleFilter) int
+		MyTokens                func(childComplexity int) int
+		People                  func(childComplexity int, search *string, includeInactive *bool) int
+		Person                  func(childComplexity int, id string) int
+		Programme               func(childComplexity int, code string) int
+		Programmes              func(childComplexity int) int
+		RoleGrants              func(childComplexity int, personID string) int
+		Semester                func(childComplexity int, code string) int
+		Semesters               func(childComplexity int) int
+		Session                 func(childComplexity int) int
+		ZpaCatalogueProjections func(childComplexity int, limit *int) int
+		ZpaChanges              func(childComplexity int, runID string) int
+		ZpaSyncRun              func(childComplexity int, id string) int
+		ZpaSyncRuns             func(childComplexity int, limit *int) int
 	}
 
 	RoleGrant struct {
@@ -182,6 +184,20 @@ type ComplexityRoot struct {
 		Version   func(childComplexity int) int
 	}
 
+	ZpaCatalogueProjection struct {
+		Error             func(childComplexity int) int
+		FinishedAt        func(childComplexity int) int
+		ID                func(childComplexity int) int
+		ModulesWritten    func(childComplexity int) int
+		Notes             func(childComplexity int) int
+		OfferingsRemoved  func(childComplexity int) int
+		OfferingsWritten  func(childComplexity int) int
+		ProgrammesWritten func(childComplexity int) int
+		RunID             func(childComplexity int) int
+		StartedAt         func(childComplexity int) int
+		Status            func(childComplexity int) int
+	}
+
 	ZpaChange struct {
 		Change      func(childComplexity int) int
 		ChangedKeys func(childComplexity int) int
@@ -190,6 +206,12 @@ type ComplexityRoot struct {
 		Kind        func(childComplexity int) int
 		Label       func(childComplexity int) int
 		ZpaID       func(childComplexity int) int
+	}
+
+	ZpaProjectionNote struct {
+		Count   func(childComplexity int) int
+		Finding func(childComplexity int) int
+		Sample  func(childComplexity int) int
 	}
 
 	ZpaSyncRun struct {
@@ -482,6 +504,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreatePersonalAccessToken(childComplexity, args["description"].(string), args["expiresInDays"].(*int), args["scopes"].([]*model.ScopeGrantInput)), true
+	case "Mutation.projectZpaCatalogue":
+		if e.ComplexityRoot.Mutation.ProjectZpaCatalogue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Mutation.ProjectZpaCatalogue(childComplexity), true
 	case "Mutation.publishWishes":
 		if e.ComplexityRoot.Mutation.PublishWishes == nil {
 			break
@@ -809,6 +837,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Session(childComplexity), true
+	case "Query.zpaCatalogueProjections":
+		if e.ComplexityRoot.Query.ZpaCatalogueProjections == nil {
+			break
+		}
+
+		args, err := ec.field_Query_zpaCatalogueProjections_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ZpaCatalogueProjections(childComplexity, args["limit"].(*int)), true
 	case "Query.zpaChanges":
 		if e.ComplexityRoot.Query.ZpaChanges == nil {
 			break
@@ -961,6 +1000,73 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Spo.Version(childComplexity), true
 
+	case "ZpaCatalogueProjection.error":
+		if e.ComplexityRoot.ZpaCatalogueProjection.Error == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.Error(childComplexity), true
+	case "ZpaCatalogueProjection.finishedAt":
+		if e.ComplexityRoot.ZpaCatalogueProjection.FinishedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.FinishedAt(childComplexity), true
+	case "ZpaCatalogueProjection.id":
+		if e.ComplexityRoot.ZpaCatalogueProjection.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.ID(childComplexity), true
+	case "ZpaCatalogueProjection.modulesWritten":
+		if e.ComplexityRoot.ZpaCatalogueProjection.ModulesWritten == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.ModulesWritten(childComplexity), true
+	case "ZpaCatalogueProjection.notes":
+		if e.ComplexityRoot.ZpaCatalogueProjection.Notes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.Notes(childComplexity), true
+	case "ZpaCatalogueProjection.offeringsRemoved":
+		if e.ComplexityRoot.ZpaCatalogueProjection.OfferingsRemoved == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.OfferingsRemoved(childComplexity), true
+	case "ZpaCatalogueProjection.offeringsWritten":
+		if e.ComplexityRoot.ZpaCatalogueProjection.OfferingsWritten == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.OfferingsWritten(childComplexity), true
+	case "ZpaCatalogueProjection.programmesWritten":
+		if e.ComplexityRoot.ZpaCatalogueProjection.ProgrammesWritten == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.ProgrammesWritten(childComplexity), true
+	case "ZpaCatalogueProjection.runId":
+		if e.ComplexityRoot.ZpaCatalogueProjection.RunID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.RunID(childComplexity), true
+	case "ZpaCatalogueProjection.startedAt":
+		if e.ComplexityRoot.ZpaCatalogueProjection.StartedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.StartedAt(childComplexity), true
+	case "ZpaCatalogueProjection.status":
+		if e.ComplexityRoot.ZpaCatalogueProjection.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.Status(childComplexity), true
+
 	case "ZpaChange.change":
 		if e.ComplexityRoot.ZpaChange.Change == nil {
 			break
@@ -1003,6 +1109,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ZpaChange.ZpaID(childComplexity), true
+
+	case "ZpaProjectionNote.count":
+		if e.ComplexityRoot.ZpaProjectionNote.Count == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaProjectionNote.Count(childComplexity), true
+	case "ZpaProjectionNote.finding":
+		if e.ComplexityRoot.ZpaProjectionNote.Finding == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaProjectionNote.Finding(childComplexity), true
+	case "ZpaProjectionNote.sample":
+		if e.ComplexityRoot.ZpaProjectionNote.Sample == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaProjectionNote.Sample(childComplexity), true
 
 	case "ZpaSyncRun.appeared":
 		if e.ComplexityRoot.ZpaSyncRun.Appeared == nil {
@@ -1922,7 +2047,7 @@ enum ScopeArea {
 
   Fields: ` + "`" + `people` + "`" + `, ` + "`" + `person` + "`" + `, ` + "`" + `roleGrants` + "`" + `, ` + "`" + `diagnoseAccess` + "`" + `, ` + "`" + `createPerson` + "`" + `, ` + "`" + `renamePerson` + "`" + `,
   ` + "`" + `setPersonRoles` + "`" + `, ` + "`" + `setPersonActive` + "`" + `, ` + "`" + `setPersonProgrammes` + "`" + `, ` + "`" + `zpaSyncRuns` + "`" + `, ` + "`" + `zpaSyncRun` + "`" + `,
-  ` + "`" + `zpaChanges` + "`" + `, ` + "`" + `syncZpaNow` + "`" + `.
+  ` + "`" + `zpaChanges` + "`" + `, ` + "`" + `zpaCatalogueProjections` + "`" + `, ` + "`" + `syncZpaNow` + "`" + `, ` + "`" + `projectZpaCatalogue` + "`" + `.
   """
   ADMIN
 }
@@ -2411,18 +2536,19 @@ type Mutation {
 `, BuiltIn: false},
 	{Name: "../zpa.graphqls", Input: `# The module master data import, as far as it is visible from outside.
 #
-# Deliberately only the runs and what they changed — never the objects themselves. Three
-# reasons, and the third is the one that decides it:
+# Deliberately only the runs, what they changed, and what the projection made of the untidy parts
+# — never the objects themselves. Two reasons:
 #
 #   1. A field here is a published contract. Exporting somebody else's payload publishes their
 #      schema as ours, and theirs has already changed once.
 #   2. It would need a JSON scalar, which this schema does not have. A field whose shape
 #      introspection cannot describe cuts against the reason introspection is left on in
 #      production.
-#   3. Tallox has no module type yet, because what identifies a course instance is not decided.
-#      Publishing the imported ids first would make them the thing colleagues' scripts key on —
-#      which is the mistake this cache exists to avoid, one layer up, where undoing it means
-#      changing somebody else's script rather than our schema.
+#
+# There used to be a third: Tallox had no module type, so publishing the imported ids would have
+# made them the thing colleagues' scripts key on. The module type exists now, in
+# catalogue.graphqls, and it is addressed by a uuid of its own — the imported id appears there as
+# ` + "`" + `Module.zpaId` + "`" + `, for cross-referencing, and is never an argument to anything.
 
 """
 What kind of object the examination office's interface published.
@@ -2612,6 +2738,161 @@ extend type Mutation {
   asked for it should be a person who signed in rather than a token in a script.
   """
   syncZpaNow: ZpaSyncRun! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+}
+
+# The projection is a second thing that can be stale, and it is deliberately visible as one.
+#
+# The import caches somebody else's payloads; the projection turns them into the catalogue this
+# system plans with. They can disagree — a run that succeeded and a projection that failed leaves
+# fresh payloads behind a stale catalogue — and an interface that showed only the first would say
+# everything is fine while the module list is a week old.
+
+"""
+How a projection of the catalogue ended.
+
+Three values rather than the import's four. There is no ` + "`" + `PARTIAL` + "`" + `: the whole projection is one
+transaction, so either the catalogue moved or it did not.
+"""
+enum ZpaProjectionStatus {
+  "Still going, or the process that started it did not finish."
+  RUNNING
+  "The catalogue was rebuilt."
+  SUCCEEDED
+  "Nothing was written. The catalogue is exactly as it was."
+  FAILED
+}
+
+"""
+One decision the projection made about input the examination office left untidy.
+
+Every one of these is a decision with a reason, and none of them is a silent drop: a projection
+that quietly discarded rows would be indistinguishable from a catalogue that never had them, and
+the first person to notice would be a programme lead who cannot find a module they are
+responsible for.
+"""
+enum ZpaProjectionFinding {
+  "Skipped: the source names no home programme for the module, and every module has exactly one."
+  MODULE_WITHOUT_HOME_PROGRAMME
+  "Skipped, with its modules: a programme code this system cannot store."
+  PROGRAMME_CODE_MALFORMED
+  """
+  Not projected: the association points at regulations the source no longer publishes.
+
+  The largest of these by far, and mostly historical. There is no path from such a row to a
+  programme, so it cannot become an entry in a module's list of where it counts.
+  """
+  ASSOCIATION_WITH_UNKNOWN_REGULATIONS
+  """
+  Kept, and marked inactive: a programme named only by the modules that call it home.
+
+  Its modules stay planable, which is why it is kept at all rather than treated as an error.
+  """
+  PROGRAMME_WITHOUT_REGULATIONS
+  """
+  Kept with an empty name: the source's module records carry no name field, and this module
+  appears in no set of regulations to borrow one from.
+  """
+  MODULE_WITHOUT_NAME
+  "Kept and flagged: the examination office has retired the module."
+  MODULE_INACTIVE
+  "Became ` + "`" + `UNKNOWN` + "`" + `: a phrase for how often a module runs that this version does not recognise."
+  FREQUENCY_UNMAPPED
+  "The same, for how the teaching is broken up."
+  COURSE_TYPE_UNMAPPED
+  "Folded with the lower value: the catalogue slots of one set of regulations disagree about the earliest semester."
+  MIN_SEMESTER_CONFLICT
+  """
+  The one that is an alarm rather than a note, and it should always be absent.
+
+  A module's entry per set of regulations is folded from up to four catalogue slots, and that
+  fold is only safe because the slots never disagree about compulsory-or-elective — measured at
+  zero conflicts across the whole catalogue. If this appears, the fold has been picking an
+  answer.
+  """
+  DUTY_CONFLICT
+}
+
+"""
+One line of a projection's report: what it found, how often, and a few examples.
+
+Counts and samples rather than a row per object. The useful sentence is "665 associations across
+12 sets of regulations", and whoever wants to chase one needs a handful of identifiers rather
+than all of them.
+"""
+type ZpaProjectionNote {
+  "What was found."
+  finding: ZpaProjectionFinding!
+  "How many objects it applies to."
+  count: Int!
+  """
+  Up to twenty examples: examination office identifiers, or the phrases that were not
+  recognised, or the programme codes — whichever is the useful thing to look at for this
+  finding.
+  """
+  sample: [String!]!
+}
+
+"""
+One rebuild of the module catalogue out of the cached payloads.
+"""
+type ZpaCatalogueProjection {
+  id: ID!
+  """
+  The import run that triggered this, or ` + "`" + `null` + "`" + ` for a projection somebody asked for on its own.
+
+  Both happen: every successful import projects, and the rules of the projection change often
+  enough that applying a new one to data already held has to be possible.
+  """
+  runId: ID
+  "When it started. Written before the first statement, so a projection that crashed is still visible."
+  startedAt: Time!
+  "When it ended, or ` + "`" + `null` + "`" + ` while it is still going."
+  finishedAt: Time
+  "How it ended."
+  status: ZpaProjectionStatus!
+  "How many study programmes were written."
+  programmesWritten: Int!
+  "How many modules were written."
+  modulesWritten: Int!
+  "How many entries of 'this module counts in these regulations' were written."
+  offeringsWritten: Int!
+  """
+  How many such entries were removed because the source stopped supporting them.
+
+  The only thing a projection deletes, and it is safe because nothing points at one. A module
+  that disappears keeps its row and gains a retirement date instead.
+  """
+  offeringsRemoved: Int!
+  "Why it failed, or ` + "`" + `null` + "`" + `."
+  error: String
+  "What the projection made of the parts of the source that are not tidy."
+  notes: [ZpaProjectionNote!]!
+}
+
+extend type Query {
+  """
+  The recent rebuilds of the module catalogue, newest first.
+
+  Worth looking at beside ` + "`" + `zpaSyncRuns` + "`" + ` rather than instead of it. A successful import with a
+  failed projection means fresh payloads behind a stale catalogue, and only this field says so.
+  """
+  zpaCatalogueProjections(limit: Int = 20): [ZpaCatalogueProjection!]!
+    @interactiveOnly @scope(area: ADMIN, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Rebuild the module catalogue from the payloads already cached, without fetching anything.
+
+  For when the rules of the projection change: a new rule has to be applicable to data already
+  held, without waiting for the nightly job and without asking another institution's system for
+  3861 objects that have not moved.
+
+  Unlike ` + "`" + `syncZpaNow` + "`" + ` this reaches nothing outside this database, so there is nothing to hammer
+  and no cooling-off period. Interactive only all the same — it rewrites the catalogue everybody
+  plans with, and that should be attributable to somebody who signed in.
+  """
+  projectZpaCatalogue: ZpaCatalogueProjection! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 }
 `, BuiltIn: false},
 }
@@ -2849,6 +3130,34 @@ func (ec *executionContext) childFields_Spo(ctx context.Context, field graphql.C
 	return nil, fmt.Errorf("no field named %q was found under type Spo", field.Name)
 }
 
+func (ec *executionContext) childFields_ZpaCatalogueProjection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_ZpaCatalogueProjection_id(ctx, field)
+	case "runId":
+		return ec.fieldContext_ZpaCatalogueProjection_runId(ctx, field)
+	case "startedAt":
+		return ec.fieldContext_ZpaCatalogueProjection_startedAt(ctx, field)
+	case "finishedAt":
+		return ec.fieldContext_ZpaCatalogueProjection_finishedAt(ctx, field)
+	case "status":
+		return ec.fieldContext_ZpaCatalogueProjection_status(ctx, field)
+	case "programmesWritten":
+		return ec.fieldContext_ZpaCatalogueProjection_programmesWritten(ctx, field)
+	case "modulesWritten":
+		return ec.fieldContext_ZpaCatalogueProjection_modulesWritten(ctx, field)
+	case "offeringsWritten":
+		return ec.fieldContext_ZpaCatalogueProjection_offeringsWritten(ctx, field)
+	case "offeringsRemoved":
+		return ec.fieldContext_ZpaCatalogueProjection_offeringsRemoved(ctx, field)
+	case "error":
+		return ec.fieldContext_ZpaCatalogueProjection_error(ctx, field)
+	case "notes":
+		return ec.fieldContext_ZpaCatalogueProjection_notes(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ZpaCatalogueProjection", field.Name)
+}
+
 func (ec *executionContext) childFields_ZpaChange(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "id":
@@ -2867,6 +3176,18 @@ func (ec *executionContext) childFields_ZpaChange(ctx context.Context, field gra
 		return ec.fieldContext_ZpaChange_detectedAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ZpaChange", field.Name)
+}
+
+func (ec *executionContext) childFields_ZpaProjectionNote(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "finding":
+		return ec.fieldContext_ZpaProjectionNote_finding(ctx, field)
+	case "count":
+		return ec.fieldContext_ZpaProjectionNote_count(ctx, field)
+	case "sample":
+		return ec.fieldContext_ZpaProjectionNote_sample(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ZpaProjectionNote", field.Name)
 }
 
 func (ec *executionContext) childFields_ZpaSyncRun(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

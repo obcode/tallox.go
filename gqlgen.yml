@@ -88,6 +88,10 @@ models:
     model: github.com/obcode/tallox.go/internal/domain.ZPASyncStatus
   ZpaChangeType:
     model: github.com/obcode/tallox.go/internal/domain.ZPAChangeType
+  ZpaProjectionStatus:
+    model: github.com/obcode/tallox.go/internal/domain.ProjectionStatus
+  ZpaProjectionFinding:
+    model: github.com/obcode/tallox.go/internal/domain.ProjectionNoteCode
   # The catalogue vocabularies, bound for the same reason as Role and Phase. Frequency,
   # CourseType and InstancePartKind each have the three homes Role has — the schema,
   # internal/domain and a CHECK constraint in db/migrations — and binding removes one of them;

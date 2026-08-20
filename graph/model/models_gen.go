@@ -267,6 +267,37 @@ type Session struct {
 	Interactive bool `json:"interactive"`
 }
 
+// One rebuild of the module catalogue out of the cached payloads.
+type ZpaCatalogueProjection struct {
+	ID string `json:"id"`
+	// The import run that triggered this, or `null` for a projection somebody asked for on its own.
+	//
+	// Both happen: every successful import projects, and the rules of the projection change often
+	// enough that applying a new one to data already held has to be possible.
+	RunID *string `json:"runId,omitempty"`
+	// When it started. Written before the first statement, so a projection that crashed is still visible.
+	StartedAt time.Time `json:"startedAt"`
+	// When it ended, or `null` while it is still going.
+	FinishedAt *time.Time `json:"finishedAt,omitempty"`
+	// How it ended.
+	Status domain.ProjectionStatus `json:"status"`
+	// How many study programmes were written.
+	ProgrammesWritten int `json:"programmesWritten"`
+	// How many modules were written.
+	ModulesWritten int `json:"modulesWritten"`
+	// How many entries of 'this module counts in these regulations' were written.
+	OfferingsWritten int `json:"offeringsWritten"`
+	// How many such entries were removed because the source stopped supporting them.
+	//
+	// The only thing a projection deletes, and it is safe because nothing points at one. A module
+	// that disappears keeps its row and gains a retirement date instead.
+	OfferingsRemoved int `json:"offeringsRemoved"`
+	// Why it failed, or `null`.
+	Error *string `json:"error,omitempty"`
+	// What the projection made of the parts of the source that are not tidy.
+	Notes []*ZpaProjectionNote `json:"notes"`
+}
+
 // One line of a run's report.
 //
 // Deliberately without the payloads. They are kept in the database for the durable answer months
@@ -292,6 +323,22 @@ type ZpaChange struct {
 	ChangedKeys []string `json:"changedKeys"`
 	// When this was noticed.
 	DetectedAt time.Time `json:"detectedAt"`
+}
+
+// One line of a projection's report: what it found, how often, and a few examples.
+//
+// Counts and samples rather than a row per object. The useful sentence is "665 associations across
+// 12 sets of regulations", and whoever wants to chase one needs a handful of identifiers rather
+// than all of them.
+type ZpaProjectionNote struct {
+	// What was found.
+	Finding domain.ProjectionNoteCode `json:"finding"`
+	// How many objects it applies to.
+	Count int `json:"count"`
+	// Up to twenty examples: examination office identifiers, or the phrases that were not
+	// recognised, or the programme codes — whichever is the useful thing to look at for this
+	// finding.
+	Sample []string `json:"sample"`
 }
 
 // One run of the module master data import.

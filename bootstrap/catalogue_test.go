@@ -77,7 +77,9 @@ func catalogueHandler(t *testing.T, scoped map[string][]string, people ...grants
 				Users:  store.NewDirectory(s.Pool),
 				Tokens: store.NewDirectory(s.Pool),
 			},
-			People:    domain.NewPeopleService(store.NewPeople(s.Pool), nil),
+			People: domain.NewPeopleService(store.NewPeople(s.Pool), nil),
+			Import: domain.NewZPASyncService(
+				store.NewZPA(s.Pool), nil, nil, store.NewCatalogue(s.Pool)),
 			Catalogue: domain.NewCatalogueService(store.NewModules(s.Pool)),
 		}),
 	}
@@ -659,4 +661,142 @@ func TestTheDiagnosisNamesAMissingProgrammeAssignment(t *testing.T) {
 	if !strings.Contains(reason, storetest.FixtureProgrammeA) {
 		t.Errorf("the reason is %q; it should name the programmes they lead", reason)
 	}
+}
+
+// The projection is a second thing that can be stale, and it has to be visible as one: a
+// successful import with a failed projection is fresh payloads behind a week-old catalogue.
+func TestTheProjectionCanBeRunOnItsOwnAndReportsWhatItFound(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil, grants{testdata.Sechs, []string{"LECTURER", "ADMIN"}})
+
+	admin := graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).On(graphqltest.Browser)
+
+	var out struct {
+		ProjectZpaCatalogue struct {
+			RunID             *string
+			Status            string
+			ProgrammesWritten int
+			ModulesWritten    int
+			OfferingsWritten  int
+			Notes             []struct {
+				Finding string
+				Count   int
+				Sample  []string
+			}
+		}
+	}
+	admin.MustQuery(t, `mutation {
+		projectZpaCatalogue {
+			runId status programmesWritten modulesWritten offeringsWritten
+			notes { finding count sample }
+		}
+	}`, nil, &out)
+
+	got := out.ProjectZpaCatalogue
+	if got.Status != "SUCCEEDED" {
+		t.Fatalf("the projection ended as %s", got.Status)
+	}
+	// Asked for on its own, so it belongs to no import run.
+	if got.RunID != nil {
+		t.Errorf("a projection nobody's import triggered claims run %s", *got.RunID)
+	}
+	if got.ModulesWritten == 0 || got.OfferingsWritten == 0 {
+		t.Errorf("the projection wrote %d modules and %d offerings",
+			got.ModulesWritten, got.OfferingsWritten)
+	}
+
+	findings := make(map[string]int, len(got.Notes))
+	for _, n := range got.Notes {
+		findings[n.Finding] = n.Count
+		if n.Count == 0 {
+			t.Errorf("%s is reported with a count of zero; a line that means nothing is noise "+
+				"in a report whose value is that every line means something", n.Finding)
+		}
+		if len(n.Sample) == 0 {
+			t.Errorf("%s has no examples, so nobody can go and look", n.Finding)
+		}
+	}
+
+	// The decisions the synthetic catalogue was built to force. Named individually rather than
+	// counted, because what matters is that each is *visible* — a projection that silently
+	// dropped rows would be indistinguishable from a catalogue that never had them.
+	for _, want := range []string{
+		"MODULE_WITHOUT_HOME_PROGRAMME",
+		"PROGRAMME_WITHOUT_REGULATIONS",
+		"MODULE_WITHOUT_NAME",
+		"ASSOCIATION_WITH_UNKNOWN_REGULATIONS",
+		"FREQUENCY_UNMAPPED",
+		"COURSE_TYPE_UNMAPPED",
+	} {
+		if _, ok := findings[want]; !ok {
+			t.Errorf("the report says nothing about %s", want)
+		}
+	}
+
+	// The one that is an alarm rather than a note.
+	if count, ok := findings["DUTY_CONFLICT"]; ok {
+		t.Errorf("%d set(s) of regulations call a module both compulsory and elective. The "+
+			"grain of a module's offerings rests on that never happening.", count)
+	}
+
+	// And it is readable afterwards, beside the import runs.
+	var list struct {
+		ZpaCatalogueProjections []struct {
+			Status string
+			Notes  []struct{ Finding string }
+		}
+	}
+	admin.MustQuery(t, `{ zpaCatalogueProjections(limit: 5) { status notes { finding } } }`,
+		nil, &list)
+	if len(list.ZpaCatalogueProjections) == 0 {
+		t.Fatal("the projection that just ran is not in the list")
+	}
+	if len(list.ZpaCatalogueProjections[0].Notes) != len(got.Notes) {
+		t.Errorf("the stored report has %d lines and the one just returned had %d",
+			len(list.ZpaCatalogueProjections[0].Notes), len(got.Notes))
+	}
+}
+
+// It rewrites the catalogue everybody plans with, so it stays attributable to a sign-in. Per
+// door rather than through EachDoor, because this is one of the places the two differ.
+func TestProjectingIsInteractiveOnlyAndAdministrative(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil,
+		grants{testdata.Sechs, []string{"LECTURER", "ADMIN"}},
+		grants{testdata.Fuenf, []string{"LECTURER", "DEANS_OFFICE"}},
+		grants{testdata.Eins, []string{"LECTURER"}})
+
+	const mutation = `mutation { projectZpaCatalogue { status } }`
+
+	t.Run("an administrator in a browser may", func(t *testing.T) {
+		var out struct{ ProjectZpaCatalogue struct{ Status string } }
+		graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).On(graphqltest.Browser).
+			MustQuery(t, mutation, nil, &out)
+	})
+
+	t.Run("the dean's office may — it is who notices a stale catalogue", func(t *testing.T) {
+		var out struct{ ProjectZpaCatalogue struct{ Status string } }
+		graphqltest.New(f.handler).AsUser(testdata.Fuenf.Mail).On(graphqltest.Browser).
+			MustQuery(t, mutation, nil, &out)
+	})
+
+	t.Run("the same administrator through a token may not", func(t *testing.T) {
+		resp := graphqltest.New(f.handler).WithToken(testdata.Sechs.Token).On(graphqltest.Token).
+			Do(t, mutation, nil)
+		assertRefusal(t, resp, "INTERACTIVE_ONLY")
+	})
+
+	t.Run("a lecturer may not", func(t *testing.T) {
+		resp := graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).On(graphqltest.Browser).
+			Do(t, mutation, nil)
+		assertRefusal(t, resp, "FORBIDDEN")
+	})
+
+	t.Run("reading the reports is interactive-only too", func(t *testing.T) {
+		resp := graphqltest.New(f.handler).WithToken(testdata.Sechs.Token).On(graphqltest.Token).
+			Do(t, `{ zpaCatalogueProjections { status } }`, nil)
+		assertRefusal(t, resp, "INTERACTIVE_ONLY")
+	})
 }

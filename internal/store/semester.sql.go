@@ -47,10 +47,11 @@ func (q *Queries) AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterP
 	return i, err
 }
 
-const createSemester = `-- name: CreateSemester :one
+const ensureSemester = `-- name: EnsureSemester :one
 
 INSERT INTO semester (code)
 VALUES ($1)
+ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at
 `
 
@@ -61,11 +62,20 @@ RETURNING id, code, phase, wishes_published_at, created_at, updated_at
 // think it is": the alternative is to read the row, decide in Go, and write — which is correct
 // in a unit test and a race in production, because two people from the dean's office clicking
 // at the same moment is precisely the situation a phase switch happens in.
-// The code carries the format constraint, so an invalid one is refused by the database and
-// not only by the service. The phase defaults to DEMAND_PLANNING: a semester that exists but
-// has not been planned yet is at the start of the process, which is the only sensible reading.
-func (q *Queries) CreateSemester(ctx context.Context, code string) (Semester, error) {
-	row := q.db.QueryRow(ctx, createSemester, code)
+// The row for a semester, created if this is the first decision anybody records about it.
+//
+// Nobody creates a semester — a semester is a name for a stretch of time and is there the way
+// next March is there. The row holds the decisions taken about one, so it comes into existence
+// with the first of them, and its defaults are what an untouched semester already means:
+// DEMAND_PLANNING, wishes confidential.
+//
+// ON CONFLICT DO UPDATE rather than DO NOTHING, because DO NOTHING returns nothing when the
+// row is already there and would need a second query to find out what it looks like — a race
+// for the sake of a statement that reads slightly better. Assigning the code to itself is the
+// idiom for "give me the row either way"; nothing is changed by it, and updated_at stays where
+// it was so that arriving at a semester does not look like deciding something about it.
+func (q *Queries) EnsureSemester(ctx context.Context, code string) (Semester, error) {
+	row := q.db.QueryRow(ctx, ensureSemester, code)
 	var i Semester
 	err := row.Scan(
 		&i.ID,
@@ -129,34 +139,17 @@ func (q *Queries) SemesterByCode(ctx context.Context, code string) (Semester, er
 	return i, err
 }
 
-const semesterByID = `-- name: SemesterByID :one
-SELECT id, code, phase, wishes_published_at, created_at, updated_at
-FROM semester
-WHERE id = $1
-`
-
-func (q *Queries) SemesterByID(ctx context.Context, id uuid.UUID) (Semester, error) {
-	row := q.db.QueryRow(ctx, semesterByID, id)
-	var i Semester
-	err := row.Scan(
-		&i.ID,
-		&i.Code,
-		&i.Phase,
-		&i.WishesPublishedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const semesters = `-- name: Semesters :many
 SELECT id, code, phase, wishes_published_at, created_at, updated_at
 FROM semester
 ORDER BY code DESC
 `
 
-// Newest first, which for this code is also chronological: the year leads and S sorts before
-// W within a year, in the order the terms actually happen. Ordering by created_at instead
+// The recorded ones — the semesters somebody has decided something about. The ones nobody has
+// touched are not here to be listed, and the domain adds them from the calendar.
+//
+// Newest first, which for this code is also chronological: the year leads and SS sorts before
+// WS within a year, in the order the terms actually happen. Ordering by created_at instead
 // would list them by when somebody got round to entering them.
 func (q *Queries) Semesters(ctx context.Context) ([]Semester, error) {
 	rows, err := q.db.Query(ctx, semesters)

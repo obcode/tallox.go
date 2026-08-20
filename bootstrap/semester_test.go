@@ -3,6 +3,7 @@ package bootstrap_test
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/obcode/tallox.go/bootstrap"
 	"github.com/obcode/tallox.go/internal/auth"
@@ -16,23 +17,54 @@ import (
 )
 
 const (
-	semestersQuery = `{ semesters { id code phase reachablePhases wishesPublishedAt } }`
-	createSemester = `mutation ($code: String!) { createSemester(code: $code) { id code phase } }`
-	advancePhase   = `mutation ($id: ID!, $to: Phase!) {
-		advanceSemesterPhase(id: $id, to: $to) { id phase reachablePhases }
+	semestersQuery = `{ semesters { code phase reachablePhases wishesPublishedAt decidedAt } }`
+	semesterQuery  = `query ($code: String!) {
+		semester(code: $code) { code phase decidedAt }
 	}`
-	publishWishes = `mutation ($id: ID!) { publishWishes(id: $id) { id wishesPublishedAt } }`
+	advancePhase = `mutation ($code: String!, $to: Phase!) {
+		advanceSemesterPhase(code: $code, to: $to) { code phase reachablePhases }
+	}`
+	publishWishes = `mutation ($code: String!) {
+		publishWishes(code: $code) { code wishesPublishedAt }
+	}`
 )
 
-type semesterList struct {
-	Semesters []struct {
-		ID                string   `json:"id"`
-		Code              string   `json:"code"`
-		Phase             string   `json:"phase"`
-		ReachablePhases   []string `json:"reachablePhases"`
-		WishesPublishedAt *string  `json:"wishesPublishedAt"`
-	} `json:"semesters"`
+type semesterEntry struct {
+	Code              string   `json:"code"`
+	Phase             string   `json:"phase"`
+	ReachablePhases   []string `json:"reachablePhases"`
+	WishesPublishedAt *string  `json:"wishesPublishedAt"`
+	DecidedAt         *string  `json:"decidedAt"`
 }
+
+type semesterList struct {
+	Semesters []semesterEntry `json:"semesters"`
+}
+
+// find picks one semester out of the list, which now holds the window from the calendar as
+// well as everything anybody has decided something about.
+func find(t *testing.T, list semesterList, code string) semesterEntry {
+	t.Helper()
+
+	for _, s := range list.Semesters {
+		if s.Code == code {
+			return s
+		}
+	}
+
+	got := make([]string, 0, len(list.Semesters))
+	for _, s := range list.Semesters {
+		got = append(got, s.Code)
+	}
+	t.Fatalf("%s is not in the list: %v", code, got)
+	return semesterEntry{}
+}
+
+// currentSemester is what the calendar says right now. The tests use the same function the
+// server does — the arithmetic itself is checked in internal/domain against fixed dates, and
+// what matters here is that whatever "now" means, the list contains it without anybody having
+// created anything.
+func currentSemester() string { return domain.CurrentSemester(time.Now()) }
 
 // grants is a persona plus the roles the test depends on. Spelled out at every call site
 // rather than attached to the persona, because which grant an assertion rests on is the thing
@@ -65,7 +97,7 @@ func planningHandler(t *testing.T, people ...grants) http.Handler {
 	return bootstrap.Handler(bootstrap.Options{
 		Build:    buildinfo.Info{Version: "test"},
 		Auth:     auth.Config{Mode: auth.ModeProxy, Users: directory, Tokens: directory},
-		Planning: domain.NewSemesterService(store.NewSemesters(s.Pool)),
+		Planning: domain.NewSemesterService(store.NewSemesters(s.Pool), nil),
 	})
 }
 
@@ -84,19 +116,16 @@ func assertRefusal(t *testing.T, resp graphqltest.Response, wantCode string) {
 	t.Errorf("expected the code %s, got %v:\n%s", wantCode, resp.Messages(), resp.Body)
 }
 
-// seedSemester creates one through the API as the dean's office and returns its id.
-func seedSemester(t *testing.T, h http.Handler, code string) string {
+// decideAbout puts a semester into a phase through the API, as the dean's office.
+//
+// Nothing "creates" the semester here — it is there either way. What this does is record a
+// decision about it, which is also what puts a row behind it, and several tests below need a
+// semester that has one.
+func decideAbout(t *testing.T, h http.Handler, code string, phase policy.Phase) {
 	t.Helper()
 
-	var out struct {
-		CreateSemester struct {
-			ID string `json:"id"`
-		} `json:"createSemester"`
-	}
 	graphqltest.New(h).AsUser(testdata.Fuenf.Mail).
-		MustQuery(t, createSemester, map[string]any{"code": code}, &out)
-
-	return out.CreateSemester.ID
+		MustQuery(t, advancePhase, map[string]any{"code": code, "to": string(phase)}, nil)
 }
 
 func deansOffice() grants {
@@ -107,38 +136,125 @@ func lecturer() grants {
 	return grants{who: testdata.Eins, roles: []string{string(policy.RoleLecturer)}}
 }
 
-// TestALecturerSeesTheProcessThroughBothDoors is the read rule, and the reason it is not
-// narrower: "may I enter my wishes yet" is the phase.
-func TestALecturerSeesTheProcessThroughBothDoors(t *testing.T) {
+// TestSemestersAreThereWithoutAnybodySettingThemUp is the change stated as an assertion.
+//
+// A database in which nobody has ever done anything still answers with the semester we are in,
+// in the phase every untouched semester is in, through both doors. The alternative — an empty
+// list until somebody with the right role creates a row — is the shape this replaced, and it
+// made the first step of the whole process an administrative act.
+func TestSemestersAreThereWithoutAnybodySettingThemUp(t *testing.T) {
 	t.Parallel()
 
-	h := planningHandler(t, deansOffice(), lecturer())
-	seedSemester(t, h, "2027-SS")
+	h := planningHandler(t, lecturer())
 
 	graphqltest.EachDoor(t, h, testdata.Eins.Mail, testdata.Eins.Token,
 		func(t *testing.T, c *graphqltest.Client) {
 			var out semesterList
 			c.MustQuery(t, semestersQuery, nil, &out)
 
-			if len(out.Semesters) != 1 {
-				t.Fatalf("got %d semesters, want 1", len(out.Semesters))
+			now := find(t, out, currentSemester())
+			if now.Phase != string(policy.PhaseDemandPlanning) {
+				t.Errorf("phase = %s, want %s — an untouched semester is at the start of the "+
+					"process", now.Phase, policy.PhaseDemandPlanning)
 			}
-			got := out.Semesters[0]
-			if got.Code != "2027-SS" || got.Phase != string(policy.PhaseDemandPlanning) {
-				t.Errorf("got %s in %s, want 2027-SS in %s",
-					got.Code, got.Phase, policy.PhaseDemandPlanning)
+			if now.WishesPublishedAt != nil {
+				t.Errorf("wishesPublishedAt = %v, want null", *now.WishesPublishedAt)
+			}
+			if now.DecidedAt != nil {
+				t.Errorf("decidedAt = %v, want null — nothing has been decided about it",
+					*now.DecidedAt)
+			}
+
+			// The list reaches forward as well, which is what lets a programme lead plan for a
+			// semester years out without asking anybody to open it first.
+			if len(out.Semesters) < 4 {
+				t.Errorf("the list holds %d semesters, want the window around now",
+					len(out.Semesters))
+			}
+		})
+}
+
+// TestALecturerSeesTheProcessThroughBothDoors is the read rule, and the reason it is not
+// narrower: "may I enter my wishes yet" is the phase.
+func TestALecturerSeesTheProcessThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	h := planningHandler(t, deansOffice(), lecturer())
+	decideAbout(t, h, "2027-SS", policy.PhaseWishes)
+
+	graphqltest.EachDoor(t, h, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out semesterList
+			c.MustQuery(t, semestersQuery, nil, &out)
+
+			got := find(t, out, "2027-SS")
+			if got.Phase != string(policy.PhaseWishes) {
+				t.Errorf("phase = %s, want %s", got.Phase, policy.PhaseWishes)
 			}
 			if got.WishesPublishedAt != nil {
 				t.Errorf("wishesPublishedAt = %v, want null", *got.WishesPublishedAt)
 			}
+			if got.DecidedAt == nil {
+				t.Error("decidedAt is null although the phase was switched")
+			}
 		})
+}
+
+// TestAPlanFarAheadStaysOnTheList is the second half of what the list is made of.
+//
+// The window from the calendar reaches three years out; a decision recorded for a semester
+// beyond it took a deliberate act, and it is exactly the one that must not quietly fall off
+// the page. Ten years is inside what may be planned at all — see SEMESTER_OUT_OF_RANGE.
+func TestAPlanFarAheadStaysOnTheList(t *testing.T) {
+	t.Parallel()
+
+	h := planningHandler(t, deansOffice())
+
+	far := domain.SemestersAround(time.Now(), 0, 18)[0] // nine years out, past the window
+	decideAbout(t, h, far, policy.PhaseWishes)
+
+	var out semesterList
+	graphqltest.New(h).AsUser(testdata.Fuenf.Mail).MustQuery(t, semestersQuery, nil, &out)
+
+	if got := find(t, out, far); got.Phase != string(policy.PhaseWishes) {
+		t.Errorf("phase of %s = %s, want %s", far, got.Phase, policy.PhaseWishes)
+	}
+}
+
+// TestASemesterIsAlwaysAnAnswer covers the single lookup: there is no "no such semester" any
+// more, because a code within reach names a stretch of time that will happen.
+func TestASemesterIsAlwaysAnAnswer(t *testing.T) {
+	t.Parallel()
+
+	h := planningHandler(t, lecturer())
+	c := graphqltest.New(h).AsUser(testdata.Eins.Mail)
+
+	var out struct {
+		Semester struct {
+			Code      string  `json:"code"`
+			Phase     string  `json:"phase"`
+			DecidedAt *string `json:"decidedAt"`
+		} `json:"semester"`
+	}
+
+	untouched := domain.SemestersAround(time.Now(), 0, 12)[0]
+	c.MustQuery(t, semesterQuery, map[string]any{"code": untouched}, &out)
+
+	if out.Semester.Code != untouched {
+		t.Errorf("code = %q, want %q", out.Semester.Code, untouched)
+	}
+	if out.Semester.Phase != string(policy.PhaseDemandPlanning) {
+		t.Errorf("phase = %s, want %s", out.Semester.Phase, policy.PhaseDemandPlanning)
+	}
+	if out.Semester.DecidedAt != nil {
+		t.Errorf("decidedAt = %v, want null", *out.Semester.DecidedAt)
+	}
 }
 
 func TestAnAnonymousCallerSeesNoSemesters(t *testing.T) {
 	t.Parallel()
 
 	h := planningHandler(t, deansOffice())
-	seedSemester(t, h, "2027-SS")
 
 	for _, door := range []graphqltest.Door{graphqltest.Browser, graphqltest.Token} {
 		t.Run(door.Name, func(t *testing.T) {
@@ -153,6 +269,10 @@ func TestAnAnonymousCallerSeesNoSemesters(t *testing.T) {
 // TestOnlyTheDeansOfficeAdministersSemesters covers the two absences that are decisions: an
 // administrator runs the system and does not plan with it, and a programme lead declares
 // demand within a phase rather than ending one.
+//
+// What is *not* on trial here any more is bringing a semester into existence. Nobody does
+// that, so there is no permission for it and a programme lead can plan for any semester within
+// reach; what the dean's office alone decides is which phase it is in.
 func TestOnlyTheDeansOfficeAdministersSemesters(t *testing.T) {
 	t.Parallel()
 
@@ -185,13 +305,18 @@ func TestOnlyTheDeansOfficeAdministersSemesters(t *testing.T) {
 				func(t *testing.T, c *graphqltest.Client) {
 					code := "2027-SS"
 					if c.Door() == graphqltest.Token {
-						code = "2027-WS" // the browser subtest may already have taken 2027-SS
+						// A different semester per door: the browser subtest may already have
+						// moved 2027-SS on, and the second call would then fail on the
+						// compare-and-set rather than on the rule under test.
+						code = "2027-WS"
 					}
 
-					resp := c.Do(t, createSemester, map[string]any{"code": code})
+					resp := c.Do(t, advancePhase, map[string]any{
+						"code": code, "to": string(policy.PhaseWishes),
+					})
 					if tt.allowed {
 						if resp.Failed() {
-							t.Errorf("expected to create a semester: %v", resp.Messages())
+							t.Errorf("expected to switch the phase: %v", resp.Messages())
 						}
 						return
 					}
@@ -209,14 +334,16 @@ func TestSemesterCodeIsValidatedAtTheAPI(t *testing.T) {
 
 	t.Run("lower case is accepted, because a form does not shout", func(t *testing.T) {
 		var out struct {
-			CreateSemester struct {
+			AdvanceSemesterPhase struct {
 				Code string `json:"code"`
-			} `json:"createSemester"`
+			} `json:"advanceSemesterPhase"`
 		}
-		c.MustQuery(t, createSemester, map[string]any{"code": " 2027-ss "}, &out)
+		c.MustQuery(t, advancePhase, map[string]any{
+			"code": " 2027-ss ", "to": string(policy.PhaseWishes),
+		}, &out)
 
-		if out.CreateSemester.Code != "2027-SS" {
-			t.Errorf("code = %q, want 2027-SS", out.CreateSemester.Code)
+		if out.AdvanceSemesterPhase.Code != "2027-SS" {
+			t.Errorf("code = %q, want 2027-SS", out.AdvanceSemesterPhase.Code)
 		}
 	})
 
@@ -225,22 +352,30 @@ func TestSemesterCodeIsValidatedAtTheAPI(t *testing.T) {
 		// is only unambiguous once one knows that the year names the term's start, and a guess
 		// there produces a semester one year out that looks like one somebody chose.
 		for _, code := range []string{"SS2027", "WS 2026", "2027S"} {
-			resp := c.Do(t, createSemester, map[string]any{"code": code})
+			resp := c.Do(t, advancePhase, map[string]any{
+				"code": code, "to": string(policy.PhaseWishes),
+			})
 			assertRefusal(t, resp, "SEMESTER_CODE_INVALID")
 		}
 	})
 
-	t.Run("a duplicate says so without the driver's vocabulary", func(t *testing.T) {
-		c.MustQuery(t, createSemester, map[string]any{"code": "2028-SS"}, nil)
+	t.Run("a semester too far away to plan is refused, and told why", func(t *testing.T) {
+		// The bound exists because nothing here can be taken back: there is no delete and no
+		// un-publishing, so a mistyped year in somebody's script would otherwise leave a
+		// decision about the year 9999 in the faculty's planning for good.
+		for _, code := range []string{"9999-WS", "1999-SS"} {
+			resp := c.Do(t, advancePhase, map[string]any{
+				"code": code, "to": string(policy.PhaseWishes),
+			})
+			assertRefusal(t, resp, "SEMESTER_OUT_OF_RANGE")
 
-		resp := c.Do(t, createSemester, map[string]any{"code": "2028-SS"})
-		assertRefusal(t, resp, "SEMESTER_EXISTS")
-
-		// Leak channel 2. Harmless here — which semesters exist is not confidential — and the
-		// same SQLSTATE on the wish write path reveals that a colleague has already registered
-		// interest. The habit is what has to be in place by then.
-		for _, message := range resp.Messages() {
-			graphqltest.AssertNoLeak(t, message, graphqltest.DatabaseNoise()...)
+			// Leak channel 2, practised where it is harmless: which semesters exist is not
+			// confidential, and the same SQLSTATE on the wish write path reveals that a
+			// colleague has already registered interest. The habit is what has to be in place
+			// by then.
+			for _, message := range resp.Messages() {
+				graphqltest.AssertNoLeak(t, message, graphqltest.DatabaseNoise()...)
+			}
 		}
 	})
 }
@@ -250,7 +385,6 @@ func TestPhaseMovesOneStepAtATime(t *testing.T) {
 	t.Parallel()
 
 	h := planningHandler(t, deansOffice())
-	id := seedSemester(t, h, "2027-SS")
 	c := graphqltest.New(h).AsUser(testdata.Fuenf.Mail)
 
 	var out struct {
@@ -262,7 +396,7 @@ func TestPhaseMovesOneStepAtATime(t *testing.T) {
 
 	t.Run("forward", func(t *testing.T) {
 		c.MustQuery(t, advancePhase, map[string]any{
-			"id": id, "to": string(policy.PhaseWishes),
+			"code": "2027-SS", "to": string(policy.PhaseWishes),
 		}, &out)
 
 		if out.AdvanceSemesterPhase.Phase != string(policy.PhaseWishes) {
@@ -288,14 +422,14 @@ func TestPhaseMovesOneStepAtATime(t *testing.T) {
 
 	t.Run("skipping is refused", func(t *testing.T) {
 		resp := c.Do(t, advancePhase, map[string]any{
-			"id": id, "to": string(policy.PhaseFinal),
+			"code": "2027-SS", "to": string(policy.PhaseFinal),
 		})
 		assertRefusal(t, resp, "PHASE_NOT_ADJACENT")
 	})
 
 	t.Run("backward, because reopening a plan is a normal thing to do", func(t *testing.T) {
 		c.MustQuery(t, advancePhase, map[string]any{
-			"id": id, "to": string(policy.PhaseDemandPlanning),
+			"code": "2027-SS", "to": string(policy.PhaseDemandPlanning),
 		}, &out)
 
 		if out.AdvanceSemesterPhase.Phase != string(policy.PhaseDemandPlanning) {
@@ -314,13 +448,12 @@ func TestPublishingIsBrowserOnly(t *testing.T) {
 	t.Parallel()
 
 	h := planningHandler(t, deansOffice())
-	id := seedSemester(t, h, "2027-SS")
 
 	t.Run("token", func(t *testing.T) {
 		t.Parallel()
 
 		resp := graphqltest.New(h).WithToken(testdata.Fuenf.Token).
-			Do(t, publishWishes, map[string]any{"id": id})
+			Do(t, publishWishes, map[string]any{"code": "2027-SS"})
 		assertRefusal(t, resp, "INTERACTIVE_ONLY")
 	})
 
@@ -333,7 +466,7 @@ func TestPublishingIsBrowserOnly(t *testing.T) {
 			} `json:"publishWishes"`
 		}
 		c := graphqltest.New(h).AsUser(testdata.Fuenf.Mail)
-		c.MustQuery(t, publishWishes, map[string]any{"id": id}, &out)
+		c.MustQuery(t, publishWishes, map[string]any{"code": "2027-SS"}, &out)
 
 		if out.PublishWishes.WishesPublishedAt == nil {
 			t.Fatal("wishesPublishedAt is still null after publishing")
@@ -341,7 +474,7 @@ func TestPublishingIsBrowserOnly(t *testing.T) {
 		first := *out.PublishWishes.WishesPublishedAt
 
 		// Twice is not an error, and the moment does not move.
-		c.MustQuery(t, publishWishes, map[string]any{"id": id}, &out)
+		c.MustQuery(t, publishWishes, map[string]any{"code": "2027-SS"}, &out)
 		if out.PublishWishes.WishesPublishedAt == nil ||
 			*out.PublishWishes.WishesPublishedAt != first {
 			t.Errorf("the second call moved the timestamp: %v then %v",
@@ -354,10 +487,9 @@ func TestALecturerCannotPublish(t *testing.T) {
 	t.Parallel()
 
 	h := planningHandler(t, deansOffice(), lecturer())
-	id := seedSemester(t, h, "2027-SS")
 
 	resp := graphqltest.New(h).AsUser(testdata.Eins.Mail).
-		Do(t, publishWishes, map[string]any{"id": id})
+		Do(t, publishWishes, map[string]any{"code": "2027-SS"})
 	assertRefusal(t, resp, "FORBIDDEN")
 }
 
@@ -380,7 +512,7 @@ func TestAScopedTokenIsHeldToItsArea(t *testing.T) {
 	h := bootstrap.Handler(bootstrap.Options{
 		Build:    buildinfo.Info{Version: "test"},
 		Auth:     auth.Config{Mode: auth.ModeProxy, Users: directory, Tokens: directory},
-		Planning: domain.NewSemesterService(store.NewSemesters(s.Pool)),
+		Planning: domain.NewSemesterService(store.NewSemesters(s.Pool), nil),
 	})
 
 	c := graphqltest.New(h).WithToken(testdata.Fuenf.Token)
@@ -391,7 +523,9 @@ func TestAScopedTokenIsHeldToItsArea(t *testing.T) {
 	})
 
 	t.Run("and cannot write it, although the role would allow it", func(t *testing.T) {
-		resp := c.Do(t, createSemester, map[string]any{"code": "2027-SS"})
+		resp := c.Do(t, advancePhase, map[string]any{
+			"code": "2027-SS", "to": string(policy.PhaseWishes),
+		})
 		assertRefusal(t, resp, "INSUFFICIENT_SCOPE")
 	})
 

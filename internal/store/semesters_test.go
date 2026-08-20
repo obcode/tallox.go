@@ -21,14 +21,19 @@ func semesters(t *testing.T) (*store.Semesters, *storetest.Schema) {
 	return store.NewSemesters(s.Pool), s
 }
 
-func TestCreateAndReadSemester(t *testing.T) {
+// TestEnsureAndReadSemester is the first decision about a semester, and the row it leaves.
+//
+// The defaults are the assertion. A row that appears because somebody switched a phase must
+// start where an untouched semester already is — DEMAND_PLANNING, wishes confidential — or the
+// act of first touching a semester would silently change what it says.
+func TestEnsureAndReadSemester(t *testing.T) {
 	t.Parallel()
 
 	semesters, _ := semesters(t)
 
-	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
+	created, err := semesters.EnsureSemester(t.Context(), "2027-SS")
 	if err != nil {
-		t.Fatalf("cannot create: %v", err)
+		t.Fatalf("cannot record: %v", err)
 	}
 
 	switch {
@@ -43,7 +48,7 @@ func TestCreateAndReadSemester(t *testing.T) {
 		t.Error("the id is nil")
 	}
 
-	found, err := semesters.SemesterByID(t.Context(), created.ID)
+	found, err := semesters.SemesterByCode(t.Context(), created.Code)
 	if err != nil {
 		t.Fatalf("cannot read back: %v", err)
 	}
@@ -52,38 +57,88 @@ func TestCreateAndReadSemester(t *testing.T) {
 	}
 }
 
-func TestSemesterByIDReportsAMissingRow(t *testing.T) {
+// TestSemesterByCodeTreatsNoRowAsNothingDecided is the reading that makes "semesters are
+// simply there" work at the bottom of the stack.
+//
+// No row is not a missing thing and not an error. It is the ordinary state of nearly every
+// semester there is, and the layer above turns it into the defaults an untouched semester has.
+func TestSemesterByCodeTreatsNoRowAsNothingDecided(t *testing.T) {
 	t.Parallel()
 
 	semesters, _ := semesters(t)
 
-	_, err := semesters.SemesterByID(t.Context(), uuid.New())
-	if !errors.Is(err, domain.ErrNoSuchSemester) {
-		t.Errorf("err = %v, want ErrNoSuchSemester", err)
+	found, err := semesters.SemesterByCode(t.Context(), "2031-SS")
+	if err != nil {
+		t.Fatalf("no row should not be an error: %v", err)
+	}
+	if found.Recorded() {
+		t.Errorf("got a recorded semester out of an empty table: %+v", found)
 	}
 }
 
-func TestDuplicateSemesterIsRefusedWithoutTheDriverMessage(t *testing.T) {
+// TestEnsureSemesterIsIdempotent: arriving at a semester twice is one row, and the second
+// arrival is not a decision.
+func TestEnsureSemesterIsIdempotent(t *testing.T) {
 	t.Parallel()
 
 	semesters, _ := semesters(t)
 
-	if _, err := semesters.CreateSemester(t.Context(), "2027-SS"); err != nil {
-		t.Fatalf("cannot create: %v", err)
+	first, err := semesters.EnsureSemester(t.Context(), "2027-SS")
+	if err != nil {
+		t.Fatalf("cannot record: %v", err)
 	}
 
-	_, err := semesters.CreateSemester(t.Context(), "2027-SS")
-	if !errors.Is(err, domain.ErrSemesterExists) {
-		t.Fatalf("err = %v, want ErrSemesterExists", err)
+	second, err := semesters.EnsureSemester(t.Context(), "2027-SS")
+	if err != nil {
+		t.Fatalf("the second call failed: %v", err)
 	}
+	if second.ID != first.ID {
+		t.Errorf("id = %s, want %s — the second call made a second semester",
+			second.ID, first.ID)
+	}
+	if !second.UpdatedAt.Equal(first.UpdatedAt) {
+		t.Errorf("updatedAt moved: %v then %v — arriving at a semester is not deciding "+
+			"something about it", first.UpdatedAt, second.UpdatedAt)
+	}
+}
 
-	// The habit, established where it is harmless. Which semesters exist is not confidential;
-	// which colleagues have registered interest is, and that write path raises the same
-	// SQLSTATE. A verbatim constraint name here would be the pattern to copy there.
-	for _, noise := range []string{"23505", "duplicate key", "semester_code_key", "SQLSTATE"} {
-		if strings.Contains(err.Error(), noise) {
-			t.Errorf("the refusal carries %q from the driver:\n  %v", noise, err)
-		}
+// TestConcurrentEnsureProducesOneSemester is the same question under the conditions it
+// actually arises in.
+//
+// Two members of the dean's office switching the same untouched semester at the same moment
+// both reach for the row before either has written one. A check-then-insert in Go passes its
+// unit test here and raises a uniqueness violation in the meeting; the single statement does
+// not have the window.
+func TestConcurrentEnsureProducesOneSemester(t *testing.T) {
+	t.Parallel()
+
+	semesters, _ := semesters(t)
+
+	var (
+		wg  sync.WaitGroup
+		mu  sync.Mutex
+		ids = map[uuid.UUID]int{}
+	)
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			got, err := semesters.EnsureSemester(t.Context(), "2029-WS")
+			if err != nil {
+				t.Errorf("cannot record: %v", err)
+				return
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			ids[got.ID]++
+		}()
+	}
+	wg.Wait()
+
+	if len(ids) != 1 {
+		t.Errorf("four callers saw %d different semesters, want 1: %v", len(ids), ids)
 	}
 }
 
@@ -103,7 +158,7 @@ func TestSemesterCodeFormatIsEnforcedByTheDatabase(t *testing.T) {
 		"2027S", "WS 2026", "2026 WS", "SS2027", "2027", "27S", "2027X", "2026-ws", "",
 		"2026-W", "2026-SW", "2026_WS",
 	} {
-		if _, err := q.CreateSemester(t.Context(), code); err == nil {
+		if _, err := q.EnsureSemester(t.Context(), code); err == nil {
 			t.Errorf("the database accepted the code %q", code)
 		}
 	}
@@ -120,7 +175,7 @@ func TestSemestersSortChronologically(t *testing.T) {
 	semesters, _ := semesters(t)
 
 	for _, code := range []string{"2027-SS", "2025-WS", "2026-WS", "2027-WS", "2026-SS"} {
-		if _, err := semesters.CreateSemester(t.Context(), code); err != nil {
+		if _, err := semesters.EnsureSemester(t.Context(), code); err != nil {
 			t.Fatalf("cannot create %s: %v", code, err)
 		}
 	}
@@ -146,9 +201,9 @@ func TestAdvanceSemesterPhase(t *testing.T) {
 
 	semesters, _ := semesters(t)
 
-	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
+	created, err := semesters.EnsureSemester(t.Context(), "2027-SS")
 	if err != nil {
-		t.Fatalf("cannot create: %v", err)
+		t.Fatalf("cannot record: %v", err)
 	}
 
 	moved, err := semesters.AdvanceSemesterPhase(t.Context(), created.ID,
@@ -175,9 +230,9 @@ func TestAdvanceRefusesWhenTheSemesterMovedOn(t *testing.T) {
 
 	semesters, _ := semesters(t)
 
-	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
+	created, err := semesters.EnsureSemester(t.Context(), "2027-SS")
 	if err != nil {
-		t.Fatalf("cannot create: %v", err)
+		t.Fatalf("cannot record: %v", err)
 	}
 
 	if _, err := semesters.AdvanceSemesterPhase(t.Context(), created.ID,
@@ -192,7 +247,7 @@ func TestAdvanceRefusesWhenTheSemesterMovedOn(t *testing.T) {
 	}
 
 	// And nothing changed.
-	after, err := semesters.SemesterByID(t.Context(), created.ID)
+	after, err := semesters.SemesterByCode(t.Context(), created.Code)
 	if err != nil {
 		t.Fatalf("cannot read back: %v", err)
 	}
@@ -212,9 +267,9 @@ func TestConcurrentAdvancesProduceOneWinner(t *testing.T) {
 
 	semesters, _ := semesters(t)
 
-	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
+	created, err := semesters.EnsureSemester(t.Context(), "2027-SS")
 	if err != nil {
-		t.Fatalf("cannot create: %v", err)
+		t.Fatalf("cannot record: %v", err)
 	}
 
 	var (
@@ -250,16 +305,21 @@ func TestConcurrentAdvancesProduceOneWinner(t *testing.T) {
 	}
 }
 
-func TestAdvanceReportsAMissingSemester(t *testing.T) {
+// TestAdvanceOnAnUnknownRowReadsAsAStalePage records the collapse of two answers into one.
+//
+// There used to be a "no such semester" here, told apart from "the phase moved on" by a second
+// query. Both are gone as distinct cases: the caller ensures the row immediately before, and
+// nothing deletes one, so an id that matches nothing can only mean the page in front of
+// somebody is out of date. The refusal that says "please reload" is the useful one.
+func TestAdvanceOnAnUnknownRowReadsAsAStalePage(t *testing.T) {
 	t.Parallel()
 
 	semesters, _ := semesters(t)
 
 	_, err := semesters.AdvanceSemesterPhase(t.Context(), uuid.New(),
 		policy.PhaseDemandPlanning, policy.PhaseWishes)
-	if !errors.Is(err, domain.ErrNoSuchSemester) {
-		t.Errorf("err = %v, want ErrNoSuchSemester — a broken link and a stale page need "+
-			"different answers", err)
+	if !errors.Is(err, domain.ErrPhaseMovedOn) {
+		t.Errorf("err = %v, want ErrPhaseMovedOn", err)
 	}
 }
 
@@ -274,9 +334,9 @@ func TestPublishingIsIdempotentAndKeepsTheFirstTimestamp(t *testing.T) {
 
 	semesters, _ := semesters(t)
 
-	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
+	created, err := semesters.EnsureSemester(t.Context(), "2027-SS")
 	if err != nil {
-		t.Fatalf("cannot create: %v", err)
+		t.Fatalf("cannot record: %v", err)
 	}
 
 	first, err := semesters.PublishSemesterWishes(t.Context(), created.ID)
@@ -313,7 +373,7 @@ func TestPublishingIsIndependentOfThePhase(t *testing.T) {
 	semesters, _ := semesters(t)
 
 	for _, phase := range policy.AllPhases() {
-		created, err := semesters.CreateSemester(t.Context(), codeFor(t, phase))
+		created, err := semesters.EnsureSemester(t.Context(), codeFor(t, phase))
 		if err != nil {
 			t.Fatalf("cannot create: %v", err)
 		}
@@ -409,9 +469,9 @@ func TestUnknownPhasesCannotBeStored(t *testing.T) {
 	semesters, s := semesters(t)
 	q := s.Queries()
 
-	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
+	created, err := semesters.EnsureSemester(t.Context(), "2027-SS")
 	if err != nil {
-		t.Fatalf("cannot create: %v", err)
+		t.Fatalf("cannot record: %v", err)
 	}
 
 	_, err = q.AdvanceSemesterPhase(t.Context(), store.AdvanceSemesterPhaseParams{

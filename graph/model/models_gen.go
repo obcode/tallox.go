@@ -138,8 +138,13 @@ type ScopeGrantInput struct {
 }
 
 // One semester, and where its planning stands.
+//
+// **Nobody creates a semester.** It is a name for a stretch of time and it is there the way next
+// March is there — `semesters` lists the ones near now, and every code within reach can be asked
+// about. What gets created is a *decision* about one: switching its phase, publishing its wishes.
+// A semester nobody has decided anything about is in `DEMAND_PLANNING` with its wishes
+// confidential, which is the start of the process and needs no act to arrive at.
 type Semester struct {
-	ID string `json:"id"`
 	// The semester in the form `2026-WS` or `2026-SS`: four digits, a hyphen and the term.
 	//
 	// The digits are the year the term *starts* in, so the winter semester 2026/27 is `2026-WS`.
@@ -166,10 +171,12 @@ type Semester struct {
 	// There is no un-publishing. Once colleagues have seen each other's entries, clearing this
 	// would only be a lie about it.
 	WishesPublishedAt *time.Time `json:"wishesPublishedAt,omitempty"`
-	// When the semester was entered into the tool — not when the semester itself begins.
-	CreatedAt time.Time `json:"createdAt"`
-	// When its phase or its publication state last changed. A repeated `publishWishes` does not move it.
-	UpdatedAt time.Time `json:"updatedAt"`
+	// When the last decision about this semester was recorded, or `null` while none has been.
+	//
+	// Not "when the semester was created" — nothing creates one. It is the phase switch or the
+	// publication that this timestamp belongs to, and `null` means the semester is simply sitting
+	// in the calendar, untouched. A repeated `publishWishes` does not move it.
+	DecidedAt *time.Time `json:"decidedAt,omitempty"`
 }
 
 // How the current request is being judged.

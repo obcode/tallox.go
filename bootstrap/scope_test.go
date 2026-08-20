@@ -367,7 +367,7 @@ func TestAMintedTokenIsNarrowedAtTheDoor(t *testing.T) {
 		Build:    buildinfo.Info{Version: "test"},
 		Auth:     auth.Config{Mode: auth.ModeProxy, Users: directory, Tokens: directory},
 		Tokens:   domain.NewTokenService(store.NewTokens(s.Pool), nil),
-		Planning: domain.NewSemesterService(store.NewSemesters(s.Pool)),
+		Planning: domain.NewSemesterService(store.NewSemesters(s.Pool), nil),
 	})
 
 	var minted struct {
@@ -402,9 +402,11 @@ func TestAMintedTokenIsNarrowedAtTheDoor(t *testing.T) {
 	})
 
 	t.Run("and nothing else, although the owner holds the role", func(t *testing.T) {
-		// The dean's office may create a semester. This token may not, and the difference is
-		// the scope alone — which is the point of being able to choose one.
-		resp := c.Do(t, createSemester, map[string]any{"code": "2027-SS"})
+		// The dean's office may switch a semester's phase. This token may not, and the
+		// difference is the scope alone — which is the point of being able to choose one.
+		resp := c.Do(t, advancePhase, map[string]any{
+			"code": "2027-SS", "to": string(policy.PhaseWishes),
+		})
 		assertInsufficientScope(t, resp,
 			policy.Scope{Area: policy.ScopeAreaPlanning, Verb: policy.ScopeVerbWrite})
 	})

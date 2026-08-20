@@ -26,7 +26,7 @@ type QueryResolver interface {
 	DiagnoseAccess(ctx context.Context, mail string) (*model.AccessDiagnosis, error)
 	Me(ctx context.Context) (*model.Person, error)
 	Semesters(ctx context.Context) ([]*model.Semester, error)
-	Semester(ctx context.Context, id string) (*model.Semester, error)
+	Semester(ctx context.Context, code string) (*model.Semester, error)
 	Session(ctx context.Context) (*model.Session, error)
 	MyTokens(ctx context.Context) ([]*model.PersonalAccessToken, error)
 	ZpaSyncRuns(ctx context.Context, limit *int) ([]*model.ZpaSyncRun, error)
@@ -119,14 +119,14 @@ func (ec *executionContext) field_Query_roleGrants_args(ctx context.Context, raw
 func (ec *executionContext) field_Query_semester_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "code",
 		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNID2string(ctx, v)
+			return ec.unmarshalNString2string(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["id"] = arg0
+	args["code"] = arg0
 	return args, nil
 }
 
@@ -579,14 +579,14 @@ func (ec *executionContext) _Query_semester(ctx context.Context, field graphql.C
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().Semester(ctx, fc.Args["id"].(string))
+			return ec.Resolvers.Query().Semester(ctx, fc.Args["code"].(string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Semester) graphql.Marshaler {
-			return ec.marshalOSemester2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSemester(ctx, selections, v)
+			return ec.marshalNSemester2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSemester(ctx, selections, v)
 		},
 		true,
-		false,
+		true,
 	)
 }
 func (ec *executionContext) fieldContext_Query_semester(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1181,7 +1181,7 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_semester(ctx, field)
-				if res == graphql.RequiredNull {
+				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
 				return res

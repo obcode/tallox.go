@@ -31,10 +31,14 @@ enum Phase {
 
 """
 One semester, and where its planning stands.
+
+**Nobody creates a semester.** It is a name for a stretch of time and it is there the way next
+March is there — `semesters` lists the ones near now, and every code within reach can be asked
+about. What gets created is a *decision* about one: switching its phase, publishing its wishes.
+A semester nobody has decided anything about is in `DEMAND_PLANNING` with its wishes
+confidential, which is the start of the process and needs no act to arrive at.
 """
 type Semester {
-  id: ID!
-
   """
   The semester in the form `2026-WS` or `2026-SS`: four digits, a hyphen and the term.
 
@@ -71,16 +75,26 @@ type Semester {
   """
   wishesPublishedAt: Time
 
-  "When the semester was entered into the tool — not when the semester itself begins."
-  createdAt: Time!
+  """
+  When the last decision about this semester was recorded, or `null` while none has been.
 
-  "When its phase or its publication state last changed. A repeated `publishWishes` does not move it."
-  updatedAt: Time!
+  Not "when the semester was created" — nothing creates one. It is the phase switch or the
+  publication that this timestamp belongs to, and `null` means the semester is simply sitting
+  in the calendar, untouched. A repeated `publishWishes` does not move it.
+  """
+  decidedAt: Time
 }
 
 extend type Query {
   """
-  Every semester, newest first.
+  The semesters worth showing, newest first.
+
+  The ones near now — a year back and three years forward — plus every semester anybody has
+  already decided something about, however far out it lies. A plan made for five years ahead
+  took a deliberate act to record and is exactly the one that must not fall off the list.
+
+  The calendar decides what is *offered* here and nothing else; the phase of each one is still
+  a decision somebody made. Use `semester(code:)` for anything outside this window.
 
   Requires a signed-in identity — like everything except `buildInfo` — but no particular role:
   which semester is in which phase is the answer to "may I enter my wishes yet", and hiding it
@@ -88,31 +102,39 @@ extend type Query {
   """
   semesters: [Semester!]! @scope(area: PLANNING, verb: READ)
 
-  "One semester by its id, or `null` if there is none."
-  semester(id: ID!): Semester @scope(area: PLANNING, verb: READ)
+  """
+  One semester by its code — always an answer, never `null`.
+
+  There is no "no such semester": `2031-SS` names a stretch of time that will happen, and
+  saying it does not exist would be false in the ordinary sense of the word. Only a malformed
+  code (`SEMESTER_CODE_INVALID`) or one more than ten years from now
+  (`SEMESTER_OUT_OF_RANGE`) is refused.
+  """
+  semester(code: String!): Semester! @scope(area: PLANNING, verb: READ)
 }
 
+# There is no createSemester, and its absence is the design rather than a gap. A semester does
+# not need to be brought into existence before it can be planned for; the two mutations below
+# record decisions about one, and the first decision is what puts a row behind it.
 extend type Mutation {
-  """
-  Create a semester, at the start of the process.
-
-  The code is upper-cased and trimmed for you, so `2026-ws` is accepted. It is not otherwise
-  repaired: `WS 2026` is refused rather than rearranged — that spelling is only unambiguous if
-  one already knows the year names the term's *start*, and a wrong guess there creates a
-  semester one year out that looks like one somebody chose.
-  """
-  createSemester(
-    "Four digits, a hyphen and SS or WS, for example `2026-WS`."
-    code: String!
-  ): Semester! @scope(area: PLANNING, verb: WRITE)
-
   """
   Move a semester one step through the process, forwards or backwards.
 
-  Only to an adjacent phase — see `reachablePhases`. If somebody else switched the semester
-  between your reading it and this call, you get `PHASE_MOVED_ON` and nothing changes.
+  Only to an adjacent phase — see `reachablePhases`. A semester nobody has touched is in
+  `DEMAND_PLANNING`, so this works on any semester within reach without anything having to be
+  set up first. If somebody else switched it between your reading it and this call, you get
+  `PHASE_MOVED_ON` and nothing changes.
+
+  The code is upper-cased and trimmed for you, so `2026-ws` is accepted. It is not otherwise
+  repaired: `WS 2026` is refused rather than rearranged — that spelling is only unambiguous if
+  one already knows the year names the term's *start*, and a wrong guess there would record a
+  decision about a semester one year out that looks like one somebody chose.
   """
-  advanceSemesterPhase(id: ID!, to: Phase!): Semester! @scope(area: PLANNING, verb: WRITE)
+  advanceSemesterPhase(
+    "Four digits, a hyphen and SS or WS, for example `2026-WS`."
+    code: String!
+    to: Phase!
+  ): Semester! @scope(area: PLANNING, verb: WRITE)
 
   # @interactiveOnly, unlike the two mutations above, and it is the only asymmetry in this
   # file. Not because it needs a stronger role — it is the same one — but because it is the
@@ -127,5 +149,5 @@ extend type Mutation {
   Only in a signed-in browser session: through a Personal Access Token this fails with
   `INTERACTIVE_ONLY`.
   """
-  publishWishes(id: ID!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  publishWishes(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 }

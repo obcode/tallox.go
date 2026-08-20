@@ -17,8 +17,12 @@ func MayReadSemesters(a principal.Actor) bool {
 	return a.Authenticated()
 }
 
-// MayAdministerSemesters reports whether an actor may create a semester and move it through
-// the process.
+// MayAdministerSemesters reports whether an actor may move a semester through the process.
+//
+// Only the phase, because that is all there is to permit. Nobody creates a semester — it is a
+// name for a stretch of time, and it is there whether or not anybody has planned anything for
+// it — so there is no act of creation to hold a right over, and a programme lead may plan for
+// a semester years ahead without asking anybody to open it first.
 //
 // The dean's office runs the process, so the dean's office switches the phases. Two roles are
 // deliberately *not* on this list:
@@ -30,9 +34,9 @@ func MayReadSemesters(a principal.Actor) bool {
 //   - PROGRAMME_LEAD. Programme leads declare demand *within* a phase. Letting one of them end
 //     the wish phase would let one programme's timetable decide the faculty's.
 //
-// Reachable through a Personal Access Token, unlike MayPublishWishes below. Creating next
-// year's semester and stepping it forward is ordinary process work, it is reversible, and a
-// script that rolls the semesters over is exactly the kind of thing the API exists for.
+// Reachable through a Personal Access Token, unlike MayPublishWishes below. Stepping next
+// year's semester forward is ordinary process work, it is reversible, and a script that rolls
+// the semesters over is exactly the kind of thing the API exists for.
 func MayAdministerSemesters(a principal.Actor) bool {
 	return a.Authenticated() && RolesOf(a).Has(RoleDeansOffice)
 }
@@ -56,7 +60,11 @@ func MayPublishWishes(a principal.Actor) bool {
 }
 
 // SemesterAdminReason is what a caller who failed MayAdministerSemesters is told.
-const SemesterAdminReason = "Nur das Dekanat darf Semester anlegen und Phasen umschalten."
+//
+// It says nothing about creating a semester, because nothing creates one. A message offering
+// to have somebody "angelegt" would send colleagues asking the dean's office for a thing that
+// does not exist.
+const SemesterAdminReason = "Nur das Dekanat darf die Phase eines Semesters umschalten."
 
 // PublishWishesReason is what a caller who failed MayPublishWishes is told.
 //

@@ -237,7 +237,7 @@ func Serve(build buildinfo.Info) {
 	directory := store.NewDirectory(pool)
 	tokens := domain.NewTokenService(store.NewTokens(pool), nil)
 	people := domain.NewPeopleService(store.NewPeople(pool), nil)
-	planning := domain.NewSemesterService(store.NewSemesters(pool))
+	planning := domain.NewSemesterService(store.NewSemesters(pool), nil)
 
 	zpaCache := store.NewZPA(pool)
 	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool))

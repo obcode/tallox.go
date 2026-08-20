@@ -2,14 +2,17 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/obcode/tallox.go/internal/auth"
+	"github.com/obcode/tallox.go/internal/principal"
 )
 
 // Directory answers the two questions internal/auth asks: who is this person, and what is
@@ -53,12 +56,18 @@ func (d *Directory) PersonByMail(ctx context.Context, mail string) (*auth.Person
 		return nil, fmt.Errorf("cannot read person by mail: %w", err)
 	}
 
+	scopes, err := roleScopesFrom(row.RoleScopes)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the role scopes of %s: %w", mail, err)
+	}
+
 	return &auth.Person{
-		ID:     row.ID,
-		Mail:   row.Mail,
-		Name:   row.Name,
-		Active: row.Active,
-		Roles:  row.Roles,
+		ID:         row.ID,
+		Mail:       row.Mail,
+		Name:       row.Name,
+		Active:     row.Active,
+		Roles:      row.Roles,
+		RoleScopes: scopes,
 	}, nil
 }
 
@@ -73,6 +82,11 @@ func (d *Directory) TokenByID(ctx context.Context, tokenID string) (*auth.Token,
 		return nil, fmt.Errorf("cannot read token: %w", err)
 	}
 
+	scopes, err := roleScopesFrom(row.RoleScopes)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the role scopes behind token %s: %w", tokenID, err)
+	}
+
 	return &auth.Token{
 		ID:         row.TokenID,
 		SecretHash: row.SecretHash,
@@ -80,13 +94,47 @@ func (d *Directory) TokenByID(ctx context.Context, tokenID string) (*auth.Token,
 		ExpiresAt:  row.ExpiresAt,
 		RevokedAt:  nullableTime(row.RevokedAt),
 		Owner: auth.Person{
-			ID:     row.OwnerID,
-			Mail:   row.Mail,
-			Name:   row.Name,
-			Active: row.Active,
-			Roles:  row.Roles,
+			ID:         row.OwnerID,
+			Mail:       row.Mail,
+			Name:       row.Name,
+			Active:     row.Active,
+			Roles:      row.Roles,
+			RoleScopes: scopes,
 		},
 	}, nil
+}
+
+// roleScopesFrom decodes the jsonb the two authentication queries aggregate.
+//
+// jsonb rather than a second query, because this runs on every request through either door and
+// a second round trip to authenticate is a cost paid a great many times. jsonb rather than a
+// composite array, because sqlc maps that to something nobody wants to scan into.
+//
+// An error here fails authentication rather than yielding an actor with no scopes, and that is
+// the direction to fail in: a programme lead whose scopes could not be read would otherwise look
+// exactly like one who has none, be told to ask an administrator, and be told the same thing
+// again after the administrator had done it.
+func roleScopesFrom(raw []byte) ([]principal.RoleScope, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+
+	var encoded []struct {
+		Role      string    `json:"role"`
+		Programme uuid.UUID `json:"programme"`
+	}
+	if err := json.Unmarshal(raw, &encoded); err != nil {
+		return nil, err
+	}
+	if len(encoded) == 0 {
+		return nil, nil
+	}
+
+	scopes := make([]principal.RoleScope, 0, len(encoded))
+	for _, e := range encoded {
+		scopes = append(scopes, principal.RoleScope{Role: e.Role, ProgrammeID: e.Programme})
+	}
+	return scopes, nil
 }
 
 // MarkTokenUsed records that a token was used, coarsely — the guard is in the SQL.

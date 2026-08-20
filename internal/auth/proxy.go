@@ -107,11 +107,12 @@ func (a *ProxyAuthenticator) Authenticate(ctx context.Context, r *http.Request) 
 	}
 
 	return narrowIfRequested(principal.Actor{
-		ID:    person.ID,
-		Mail:  person.Mail,
-		Name:  person.Name,
-		Roles: person.Roles,
-		Kind:  principal.KindInteractive,
+		ID:         person.ID,
+		Mail:       person.Mail,
+		Name:       person.Name,
+		Roles:      person.Roles,
+		RoleScopes: person.RoleScopes,
+		Kind:       principal.KindInteractive,
 	}, r), nil
 }
 

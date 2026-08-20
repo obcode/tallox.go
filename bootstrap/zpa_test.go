@@ -62,7 +62,7 @@ func importHandler(t *testing.T, configured bool, people ...grants) http.Handler
 		Build: buildinfo.Info{Version: "test"},
 		Auth:  auth.Config{Mode: auth.ModeProxy, Users: directory, Tokens: directory},
 		Import: domain.NewZPASyncService(
-			store.NewZPA(s.Pool), source, store.NewZPALock(s.Pool)),
+			store.NewZPA(s.Pool), source, store.NewZPALock(s.Pool), store.NewCatalogue(s.Pool)),
 	})
 }
 

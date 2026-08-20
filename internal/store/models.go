@@ -11,6 +11,71 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type CourseInstance struct {
+	ID                uuid.UUID
+	SemesterID        uuid.UUID
+	ModuleID          uuid.UUID
+	ProgrammeID       uuid.UUID
+	Track             string
+	ProgrammeSemester *int32
+	CreatedBy         uuid.NullUUID
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type InstancePart struct {
+	ID                  uuid.UUID
+	CourseInstanceID    uuid.UUID
+	Kind                string
+	Position            int32
+	TeachingHours       pgtype.Numeric
+	ServesSiblingTracks bool
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+}
+
+type Module struct {
+	ID                  uuid.UUID
+	HomeProgrammeID     uuid.UUID
+	Name                string
+	CourseType          string
+	CourseTypeSource    string
+	Frequency           string
+	FrequencySource     string
+	ContactHoursPerWeek *int32
+	Credits             *int32
+	Active              bool
+	Official            bool
+	RetiredAt           pgtype.Timestamptz
+	ZpaModuleRef        *int64
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+}
+
+type ModuleComponent struct {
+	ID            uuid.UUID
+	ModuleID      uuid.UUID
+	Kind          string
+	TeachingHours pgtype.Numeric
+	Position      int32
+	CreatedBy     uuid.NullUUID
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
+}
+
+type ModuleOffering struct {
+	ID                   uuid.UUID
+	ModuleID             uuid.UUID
+	SpoID                uuid.UUID
+	IsDuty               bool
+	ModuleCodes          []string
+	Focuses              []string
+	MinProgrammeSemester *int32
+	SourceRows           int32
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
 type Person struct {
 	ID        uuid.UUID
 	Mail      string
@@ -18,6 +83,14 @@ type Person struct {
 	Active    bool
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type PersonProgrammeScope struct {
+	PersonID    uuid.UUID
+	Role        string
+	ProgrammeID uuid.UUID
+	GrantedAt   time.Time
+	GrantedBy   uuid.NullUUID
 }
 
 type PersonRole struct {
@@ -41,6 +114,16 @@ type PersonalAccessToken struct {
 	RevokedAt   pgtype.Timestamptz
 }
 
+type Programme struct {
+	ID              uuid.UUID
+	Code            string
+	Title           string
+	Active          bool
+	ZpaProgrammeRef *int64
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
 type Semester struct {
 	ID                uuid.UUID
 	Code              string
@@ -48,6 +131,17 @@ type Semester struct {
 	WishesPublishedAt pgtype.Timestamptz
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+}
+
+type Spo struct {
+	ID          uuid.UUID
+	ProgrammeID uuid.UUID
+	Version     int32
+	ValidFrom   pgtype.Date
+	PrimussID   *string
+	ZpaSpoRef   *int64
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 type ZpaBasketV struct {
@@ -59,6 +153,26 @@ type ZpaBasketV struct {
 	Focus         string
 	Present       interface{}
 	LastChangedAt time.Time
+}
+
+type ZpaCatalogueProjection struct {
+	ID                uuid.UUID
+	RunID             uuid.NullUUID
+	StartedAt         time.Time
+	FinishedAt        pgtype.Timestamptz
+	Status            string
+	ProgrammesWritten int32
+	ModulesWritten    int32
+	OfferingsWritten  int32
+	OfferingsRemoved  int32
+	Error             *string
+}
+
+type ZpaCatalogueProjectionNote struct {
+	ProjectionID uuid.UUID
+	Code         string
+	Count        int32
+	Sample       []string
 }
 
 type ZpaChange struct {

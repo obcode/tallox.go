@@ -77,7 +77,38 @@ func Narrow(a principal.Actor, selected []Role) principal.Actor {
 
 	a.Roles = effective
 	a.NarrowedFrom = narrowedFrom
+	a.RoleScopes = scopesOfRoles(a.RoleScopes, effective)
 	return a
+}
+
+// scopesOfRoles drops the scopes of roles that are not in the effective set.
+//
+// Without this, narrowing away PROGRAMME_LEAD would leave the programmes it was scoped to on
+// the actor, and the next rule to ask "which programmes may this actor plan" would answer with
+// them — a grant surviving the removal of the grant it belongs to. It is the same failure the
+// composite foreign key on person_programme_scope prevents in the database, one layer up, and
+// it is worth closing in both places: the database one covers a revocation, this one covers a
+// request.
+//
+// The direction matters. Like Narrow itself this can only ever remove, which is what keeps the
+// whole mechanism safe to drive from an unverified header.
+func scopesOfRoles(scopes []principal.RoleScope, effective []string) []principal.RoleScope {
+	if len(scopes) == 0 {
+		return scopes
+	}
+
+	keep := make(map[string]bool, len(effective))
+	for _, role := range effective {
+		keep[role] = true
+	}
+
+	out := make([]principal.RoleScope, 0, len(scopes))
+	for _, scope := range scopes {
+		if keep[scope.Role] {
+			out = append(out, scope)
+		}
+	}
+	return out
 }
 
 // ParseRoles turns a selection as it arrived over the wire into roles, dropping anything this

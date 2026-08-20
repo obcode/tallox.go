@@ -69,7 +69,7 @@ func zpaSyncExitCode(ctx context.Context, cfg Config, dsn string, dryRun bool) i
 		log.Warn().Int("runs", failed).Msg("marked abandoned sync runs as failed")
 	}
 
-	service := domain.NewZPASyncService(cache, client, store.NewZPALock(pool))
+	service := domain.NewZPASyncService(cache, client, store.NewZPALock(pool), store.NewCatalogue(pool))
 
 	// The lock is inside Sync, so this path and the button in the interface cannot end up with
 	// different concurrency behaviour.

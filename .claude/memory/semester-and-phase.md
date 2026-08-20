@@ -41,6 +41,40 @@ jemand so gewollt. Klein- und Leerzeichen werden getrimmt (`  2026-ws  ` geht), 
 - Die deutschen Namen („Sommersemester 2027") macht die GUI, in `$lib/semester.ts`. Der
   Zweijahres-Fall ist die Stelle, an der eine naive Formatierung „Wintersemester 2026" ausgibt.
 
+## Niemand legt ein Semester an
+
+Geändert am 2026-08-20. `createSemester` gibt es **nicht mehr**, und das ist die Entscheidung,
+nicht eine Lücke: ein Semester ist ein Name für einen Zeitraum und ist da, so wie der nächste
+März da ist. Angelegt wird eine **Entscheidung** darüber — Phase umschalten, Wünsche
+veröffentlichen —, und die erste Entscheidung ist es, die die Zeile entstehen lässt
+(`EnsureSemester`, ein einziges `INSERT … ON CONFLICT DO UPDATE`).
+
+Die Zeile ist also **das Protokoll der Entscheidungen**, nicht die Existenz. Kein Zeile heißt
+deshalb weder „fehlt" noch „nicht gefunden", sondern: es hat noch niemand etwas entschieden —
+und das ist exakt `DEMAND_PLANNING` mit vertraulichen Wünschen. `domain.untouched(code)` schreibt
+diese Voreinstellungen einmal hin, damit sie mit den DB-Defaults sichtbar dieselben sind.
+
+**Was die Liste zeigt:** das Kalenderfenster (2 Semester zurück, 6 voraus) **plus** alles, wozu
+es schon eine Zeile gibt. Beide Hälften sind nötig — nur die Zeilen ergäben auf einer frischen
+Installation eine leere Seite ohne Einstieg, nur das Fenster ließe einen Plan für fünf Jahre
+voraus lautlos verschwinden.
+
+**Der Kalender entscheidet nur, was angeboten wird, nie eine Phase.** Das ist die Trennlinie,
+die die Regel „Phase wird geschaltet, nicht ausgerechnet" heil lässt: eine um zwei Wochen
+falsche Semestergrenze verschiebt einen Eintrag in einer Liste, nie eine Frist.
+
+**Adressiert wird über den `code`, nicht über die uuid.** Der Code ist der Name, den das
+Semester in der Fakultät hat und der ein Skript überlebt; die uuid bleibt Primärschlüssel für
+die Tabellen, die später darauf zeigen, geht aber nicht mehr über die Leitung.
+
+**Grenze ±10 Jahre** (`SEMESTER_OUT_OF_RANGE`). Nicht weil der Kalender endlich wäre, sondern
+weil sich hier nichts zurücknehmen lässt: es gibt kein Löschen und kein Un-Veröffentlichen, und
+ein vertippter Jahrgang in einem Skript stünde sonst für immer in der Planung der Fakultät.
+
+**Was das für die Studiengangsleitung heißt:** sie kann für jedes Semester in Reichweite planen,
+ohne dass jemand es vorher „öffnet". Es gibt kein Recht aufs Anlegen mehr, weil es keinen Akt
+des Anlegens mehr gibt — `MayAdministerSemesters` betrifft nur noch die Phase.
+
 ## Ein Schritt zur Zeit, in beide Richtungen
 
 `policy.Phase.MayMoveTo` erlaubt nur Nachbarn. **Rückwärts ist Absicht:** einen Plan wieder
@@ -65,10 +99,12 @@ ist ein toter Link, das andere eine veraltete Seite („bitte neu laden").
 
 ## Wer darf was
 
-| | lesen | anlegen/schalten | veröffentlichen |
+| | lesen | Phase schalten | veröffentlichen |
 | --- | --- | --- | --- |
 | angemeldet | ✓ | | |
 | DEANS_OFFICE | ✓ | ✓ | ✓ (nur Browser) |
+
+Anlegen steht nicht mehr in der Tabelle, weil es den Vorgang nicht mehr gibt.
 
 - **Lesen darf jede:r Angemeldete.** Die Phase ist die Antwort auf „darf ich schon Wünsche
   eintragen" — sie zu verstecken ergäbe ein Werkzeug, das Schreibzugriffe ablehnt, ohne zu sagen

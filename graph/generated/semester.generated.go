@@ -26,29 +26,6 @@ import (
 
 // region    **************************** field.gotpl *****************************
 
-func (ec *executionContext) _Semester_id(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Semester_id(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.ID, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
-			return ec.marshalNID2string(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Semester_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type ID does not have child fields"))
-}
-
 func (ec *executionContext) _Semester_code(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -141,49 +118,26 @@ func (ec *executionContext) fieldContext_Semester_wishesPublishedAt(_ context.Co
 	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
-func (ec *executionContext) _Semester_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
+func (ec *executionContext) _Semester_decidedAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Semester_createdAt(ctx, field)
+			return ec.fieldContext_Semester_decidedAt(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.CreatedAt, nil
+			return obj.DecidedAt, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
-			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
 		},
 		true,
-		true,
+		false,
 	)
 }
-func (ec *executionContext) fieldContext_Semester_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
-}
-
-func (ec *executionContext) _Semester_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Semester_updatedAt(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.UpdatedAt, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
-			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Semester_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Semester_decidedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
@@ -211,11 +165,6 @@ func (ec *executionContext) _Semester(ctx context.Context, sel ast.SelectionSet,
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Semester")
-		case "id":
-			out.Values[i] = ec._Semester_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
 		case "code":
 			out.Values[i] = ec._Semester_code(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -236,14 +185,9 @@ func (ec *executionContext) _Semester(ctx context.Context, sel ast.SelectionSet,
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
-		case "createdAt":
-			out.Values[i] = ec._Semester_createdAt(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "updatedAt":
-			out.Values[i] = ec._Semester_updatedAt(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
+		case "decidedAt":
+			out.Values[i] = ec._Semester_decidedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		default:
@@ -343,13 +287,6 @@ func (ec *executionContext) marshalNSemester2ᚖgithubᚗcomᚋobcodeᚋtallox�
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
 		}
-		return graphql.Null
-	}
-	return ec._Semester(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalOSemester2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSemester(ctx context.Context, sel ast.SelectionSet, v *model.Semester) graphql.Marshaler {
-	if v == nil {
 		return graphql.Null
 	}
 	return ec._Semester(ctx, sel, v)

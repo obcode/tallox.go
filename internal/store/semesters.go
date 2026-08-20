@@ -7,20 +7,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
 )
-
-// uniqueViolation is PostgreSQL's SQLSTATE for a duplicate key.
-//
-// Mapped rather than passed through, and the habit matters more than this one call site: the
-// wish workflow will hit a uniqueness violation whose verbatim text reveals that somebody else
-// has already registered interest, which is exactly what the confidentiality rule withholds.
-// Here the fact is harmless — which semesters exist is not a secret — but the shape of the
-// code is the same one that has to be right there.
-const uniqueViolation = "23505"
 
 // Semesters is the persistence behind domain.SemesterService.
 type Semesters struct {
@@ -49,37 +39,44 @@ func semesterFrom(row Semester) domain.Semester {
 	}
 }
 
-// CreateSemester inserts a semester at the start of the process.
-func (s *Semesters) CreateSemester(ctx context.Context, code string) (domain.Semester, error) {
-	row, err := s.q.CreateSemester(ctx, code)
+// EnsureSemester returns the row for a code, creating it on the first decision about it.
+//
+// The uniqueness of the code is what makes this safe when two people arrive together, and it
+// is doing that work inside a single statement — see the query. A check-then-insert in Go
+// would pass its unit test and lose the race in the meeting where two members of the dean's
+// office switch the same semester at the same moment.
+//
+// A duplicate is therefore not an error and there is no SQLSTATE 23505 to map here — the
+// caller wanted the row for this semester and gets it, whoever inserted it. The habit of
+// mapping that code rather than forwarding it still has to be in place for the wish workflow,
+// where the driver's verbatim text would reveal that a colleague has already registered
+// interest; this is simply no longer a place that can raise it.
+func (s *Semesters) EnsureSemester(ctx context.Context, code string) (domain.Semester, error) {
+	row, err := s.q.EnsureSemester(ctx, code)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
-			return domain.Semester{}, domain.ErrSemesterExists
-		}
-		return domain.Semester{}, fmt.Errorf("cannot insert semester: %w", err)
+		return domain.Semester{}, fmt.Errorf("cannot record semester: %w", err)
 	}
 	return semesterFrom(row), nil
 }
 
-// SemesterByID returns one semester, or domain.ErrNoSuchSemester.
+// SemesterByCode returns the row for a code, or a zero Semester when there is none.
 //
-// An error rather than the (nil, nil) that "not found" gets elsewhere in this codebase: every
-// caller of this one has an id in hand that came from somewhere, so a missing row is a
-// mistaken reference and not an empty result. The convention is worth breaking exactly where
-// the caller would otherwise have to invent the error itself.
-func (s *Semesters) SemesterByID(ctx context.Context, id uuid.UUID) (domain.Semester, error) {
-	row, err := s.q.SemesterByID(ctx, id)
+// No row is not an error and not a missing thing: it is a semester nobody has decided anything
+// about, which is an ordinary and by far the most common state. The domain turns it into the
+// defaults an untouched semester has, in one place, so that this layer does not have to hold
+// an opinion about what DEMAND_PLANNING means.
+func (s *Semesters) SemesterByCode(ctx context.Context, code string) (domain.Semester, error) {
+	row, err := s.q.SemesterByCode(ctx, code)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.Semester{}, domain.ErrNoSuchSemester
+			return domain.Semester{}, nil
 		}
 		return domain.Semester{}, fmt.Errorf("cannot read semester: %w", err)
 	}
 	return semesterFrom(row), nil
 }
 
-// Semesters lists them all, newest first.
+// Semesters lists the recorded ones, newest first.
 func (s *Semesters) Semesters(ctx context.Context) ([]domain.Semester, error) {
 	rows, err := s.q.Semesters(ctx)
 	if err != nil {
@@ -95,10 +92,10 @@ func (s *Semesters) Semesters(ctx context.Context) ([]domain.Semester, error) {
 
 // AdvanceSemesterPhase moves a semester, but only if it is still where the caller thinks.
 //
-// No rows back means the phase changed under the caller. That is reported as
-// domain.ErrPhaseMovedOn and not as "no such semester", because the two need different answers
-// from the interface: one is a stale page that should be reloaded, the other is a broken link.
-// Telling them apart costs a second query only on the failing path.
+// No rows back means the phase changed under the caller, and it can mean nothing else: the
+// caller ensured the row moments ago and there is no way to delete one. So the answer is
+// domain.ErrPhaseMovedOn, whose sentence asks for a reload — which is the useful instruction,
+// because the page in front of whoever clicked is simply out of date.
 func (s *Semesters) AdvanceSemesterPhase(ctx context.Context, id uuid.UUID,
 	from, to policy.Phase,
 ) (domain.Semester, error) {
@@ -114,9 +111,6 @@ func (s *Semesters) AdvanceSemesterPhase(ctx context.Context, id uuid.UUID,
 		return domain.Semester{}, fmt.Errorf("cannot switch phase: %w", err)
 	}
 
-	if _, missing := s.SemesterByID(ctx, id); errors.Is(missing, domain.ErrNoSuchSemester) {
-		return domain.Semester{}, domain.ErrNoSuchSemester
-	}
 	return domain.Semester{}, domain.ErrPhaseMovedOn
 }
 
@@ -125,9 +119,6 @@ func (s *Semesters) PublishSemesterWishes(ctx context.Context, id uuid.UUID,
 ) (domain.Semester, error) {
 	row, err := s.q.PublishSemesterWishes(ctx, id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return domain.Semester{}, domain.ErrNoSuchSemester
-		}
 		return domain.Semester{}, fmt.Errorf("cannot publish wishes: %w", err)
 	}
 	return semesterFrom(row), nil

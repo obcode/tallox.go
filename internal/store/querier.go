@@ -43,17 +43,6 @@ type Querier interface {
 	// The id is supplied by the caller rather than defaulted, so that a fixture, a seed and an
 	// import can all say who they are creating before the insert happens.
 	CreatePerson(ctx context.Context, arg CreatePersonParams) (Person, error)
-	// Semesters and the phase each one is in.
-	//
-	// Two of these are compare-and-set rather than plain updates, and that is the theme of the
-	// file. A phase advance and a publication are both "change this only if it is still what I
-	// think it is": the alternative is to read the row, decide in Go, and write — which is correct
-	// in a unit test and a race in production, because two people from the dean's office clicking
-	// at the same moment is precisely the situation a phase switch happens in.
-	// The code carries the format constraint, so an invalid one is refused by the database and
-	// not only by the service. The phase defaults to DEMAND_PLANNING: a semester that exists but
-	// has not been planned yet is at the start of the process, which is the only sensible reading.
-	CreateSemester(ctx context.Context, code string) (Semester, error)
 	// Personal Access Tokens: the second door.
 	// The secret is generated and hashed by the caller (internal/auth), never here: a secret that
 	// travelled through a query is a secret in a log somewhere.
@@ -70,6 +59,26 @@ type Querier interface {
 	// into a YAML file once. The DO UPDATE therefore writes a column back to itself — a true
 	// no-op that still produces a row to return, which DO NOTHING does not.
 	EnsurePerson(ctx context.Context, arg EnsurePersonParams) (Person, error)
+	// Semesters and the phase each one is in.
+	//
+	// Two of these are compare-and-set rather than plain updates, and that is the theme of the
+	// file. A phase advance and a publication are both "change this only if it is still what I
+	// think it is": the alternative is to read the row, decide in Go, and write — which is correct
+	// in a unit test and a race in production, because two people from the dean's office clicking
+	// at the same moment is precisely the situation a phase switch happens in.
+	// The row for a semester, created if this is the first decision anybody records about it.
+	//
+	// Nobody creates a semester — a semester is a name for a stretch of time and is there the way
+	// next March is there. The row holds the decisions taken about one, so it comes into existence
+	// with the first of them, and its defaults are what an untouched semester already means:
+	// DEMAND_PLANNING, wishes confidential.
+	//
+	// ON CONFLICT DO UPDATE rather than DO NOTHING, because DO NOTHING returns nothing when the
+	// row is already there and would need a second query to find out what it looks like — a race
+	// for the sake of a statement that reads slightly better. Assigning the code to itself is the
+	// idiom for "give me the row either way"; nothing is changed by it, and updated_at stays where
+	// it was so that arriving at a semester does not look like deciding something about it.
+	EnsureSemester(ctx context.Context, code string) (Semester, error)
 	// Called at startup, beside the protected-admin reconciliation.
 	//
 	// A process that dies mid-sync leaves a RUNNING row forever, and forever is long enough that
@@ -164,9 +173,11 @@ type Querier interface {
 	// who could see what, when. The permission lookups above are the ones that filter.
 	RoleGrantsByPerson(ctx context.Context, personID uuid.UUID) ([]RoleGrantsByPersonRow, error)
 	SemesterByCode(ctx context.Context, code string) (Semester, error)
-	SemesterByID(ctx context.Context, id uuid.UUID) (Semester, error)
-	// Newest first, which for this code is also chronological: the year leads and S sorts before
-	// W within a year, in the order the terms actually happen. Ordering by created_at instead
+	// The recorded ones — the semesters somebody has decided something about. The ones nobody has
+	// touched are not here to be listed, and the domain adds them from the calendar.
+	//
+	// Newest first, which for this code is also chronological: the year leads and SS sorts before
+	// WS within a year, in the order the terms actually happen. Ordering by created_at instead
 	// would list them by when somebody got round to entering them.
 	Semesters(ctx context.Context) ([]Semester, error)
 	// Deactivation is how a leaver loses access to everything at once, tokens included.

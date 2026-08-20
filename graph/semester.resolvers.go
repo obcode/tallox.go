@@ -15,23 +15,9 @@ import (
 	"github.com/obcode/tallox.go/internal/principal"
 )
 
-// CreateSemester is the resolver for the createSemester field.
-func (r *mutationResolver) CreateSemester(ctx context.Context, code string) (*model.Semester, error) {
-	created, err := r.Planning.Create(ctx, principal.From(ctx), code)
-	if err != nil {
-		return nil, semesterUserFacing(err)
-	}
-	return semesterModel(created), nil
-}
-
 // AdvanceSemesterPhase is the resolver for the advanceSemesterPhase field.
-func (r *mutationResolver) AdvanceSemesterPhase(ctx context.Context, id string, to policy.Phase) (*model.Semester, error) {
-	semesterUUID, err := semesterID(id)
-	if err != nil {
-		return nil, semesterUserFacing(err)
-	}
-
-	switched, err := r.Planning.AdvancePhase(ctx, principal.From(ctx), semesterUUID, to)
+func (r *mutationResolver) AdvanceSemesterPhase(ctx context.Context, code string, to policy.Phase) (*model.Semester, error) {
+	switched, err := r.Planning.AdvancePhase(ctx, principal.From(ctx), code, to)
 	if err != nil {
 		return nil, semesterUserFacing(err)
 	}
@@ -39,13 +25,8 @@ func (r *mutationResolver) AdvanceSemesterPhase(ctx context.Context, id string, 
 }
 
 // PublishWishes is the resolver for the publishWishes field.
-func (r *mutationResolver) PublishWishes(ctx context.Context, id string) (*model.Semester, error) {
-	semesterUUID, err := semesterID(id)
-	if err != nil {
-		return nil, semesterUserFacing(err)
-	}
-
-	published, err := r.Planning.PublishWishes(ctx, principal.From(ctx), semesterUUID)
+func (r *mutationResolver) PublishWishes(ctx context.Context, code string) (*model.Semester, error) {
+	published, err := r.Planning.PublishWishes(ctx, principal.From(ctx), code)
 	if err != nil {
 		// The publishing refusal names the door as well as the role — a caller who hits it
 		// most often *has* DEANS_OFFICE and is using a token, and "only the dean's office may
@@ -73,20 +54,13 @@ func (r *queryResolver) Semesters(ctx context.Context) ([]*model.Semester, error
 }
 
 // Semester is the resolver for the semester field.
-func (r *queryResolver) Semester(ctx context.Context, id string) (*model.Semester, error) {
-	semesterUUID, err := semesterID(id)
+func (r *queryResolver) Semester(ctx context.Context, code string) (*model.Semester, error) {
+	// Non-nullable, unlike most single-object lookups here, and that is the point of the whole
+	// change: a plannable code always names a semester. What can fail is the code itself —
+	// malformed, or so far out that a decision about it could never be walked back — and both
+	// of those are refusals with something to act on rather than a silent null.
+	found, err := r.Planning.ByCode(ctx, principal.From(ctx), code)
 	if err != nil {
-		// Nullable field, and an unknown id is an ordinary answer rather than a failure — the
-		// same reading `me` gives an anonymous caller. A refusal is reserved for "you may not
-		// ask", which List and this share and which comes out of the policy below.
-		return nil, nil
-	}
-
-	found, err := r.Planning.ByID(ctx, principal.From(ctx), semesterUUID)
-	if err != nil {
-		if errors.Is(err, domain.ErrNoSuchSemester) {
-			return nil, nil
-		}
 		return nil, semesterUserFacing(err)
 	}
 	return semesterModel(found), nil

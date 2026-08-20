@@ -40,6 +40,43 @@ type Spo struct {
 	Programme Programme
 }
 
+// Teacher is somebody who teaches, as the examination office publishes them.
+//
+// Not a user of this installation. Who may sign in is `Person`, a separate and curated list;
+// importing teachers grants nothing. The two are connected by the mail address where both know
+// it, which is why IsUser is derived on every read rather than stored — somebody admitted this
+// morning is connected to their own modules now rather than after the next import.
+type Teacher struct {
+	ID       uuid.UUID
+	Name     string
+	SortName string
+	// Mail is empty for the handful the source gives no address for. Such a person can never be
+	// connected to somebody who signs in.
+	Mail                 string
+	IsProfessor          bool
+	IsLecturerOnContract bool
+	IsHonoraryProfessor  bool
+	IsStaff              bool
+	// Active is the source's own flag, not this system's. Roughly four in five are true, and the
+	// false ones are kept because some of them are still responsible for a module.
+	Active bool
+	// Faculty is absent for more than half of them, so it is a hint and not a filter.
+	Faculty string
+	// LastSemester is in this system's spelling (`2026-WS`), empty where the source says
+	// something that is not a semester.
+	LastSemester string
+	// IsUser is whether somebody with this address may sign in here.
+	IsUser bool
+}
+
+// TeacherFilter narrows the list of people who teach.
+type TeacherFilter struct {
+	// Search matches the name or the address, case-insensitively.
+	Search string
+	// IncludeInactive keeps the ones the source marks as no longer teaching.
+	IncludeInactive bool
+}
+
 // Module is an entry in the module catalogue.
 type Module struct {
 	ID uuid.UUID
@@ -47,8 +84,11 @@ type Module struct {
 	// name field, so there is nothing to borrow one from.
 	Name          string
 	HomeProgramme Programme
-	CourseType    CourseType
-	Frequency     Frequency
+	// Responsible is who the examination office names for this module, or nil. Nil for about one
+	// in thirty: the source names a placeholder, or an address the teacher list does not have.
+	Responsible *Teacher
+	CourseType  CourseType
+	Frequency   Frequency
 	// ContactHoursPerWeek is what a STUDENT attends. Not teaching load; see Components.
 	ContactHoursPerWeek *int
 	Credits             *int
@@ -198,6 +238,8 @@ type ModuleFilter struct {
 	IncludeInactive bool
 	// WithoutComponents keeps only the modules whose hours nobody has split yet — the work list.
 	WithoutComponents bool
+	// Responsible keeps only the modules this teacher is responsible for.
+	Responsible uuid.UUID
 }
 
 // CatalogueReader is what reading the catalogue needs.
@@ -207,6 +249,7 @@ type CatalogueReader interface {
 	ProgrammesByID(ctx context.Context, ids []uuid.UUID) ([]Programme, error)
 	ProgrammeByCode(ctx context.Context, code string) (*Programme, error)
 	Modules(ctx context.Context, filter ModuleFilter) ([]Module, error)
+	Teachers(ctx context.Context, filter TeacherFilter) ([]Teacher, error)
 	ModuleByID(ctx context.Context, id uuid.UUID) (*Module, error)
 	// SetModuleComponents replaces a module's split, as one statement about a set of rows.
 	SetModuleComponents(ctx context.Context, moduleID uuid.UUID, components []ModuleComponent, by uuid.UUID) (*Module, error)

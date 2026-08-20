@@ -140,6 +140,7 @@ func projectionModel(p domain.CatalogueProjection) *model.ZpaCatalogueProjection
 		FinishedAt:        p.FinishedAt,
 		Status:            p.Status,
 		ProgrammesWritten: p.ProgrammesWritten,
+		TeachersWritten:   p.TeachersWritten,
 		ModulesWritten:    p.ModulesWritten,
 		OfferingsWritten:  p.OfferingsWritten,
 		OfferingsRemoved:  p.OfferingsRemoved,

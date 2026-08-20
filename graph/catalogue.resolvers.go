@@ -114,7 +114,43 @@ func (r *queryResolver) Module(ctx context.Context, id string) (*model.Module, e
 	return moduleModel(*module), nil
 }
 
+// Teachers is the resolver for the teachers field.
+func (r *queryResolver) Teachers(ctx context.Context, search *string, includeInactive *bool) ([]*model.Teacher, error) {
+	actor := principal.From(ctx)
+
+	filter := domain.TeacherFilter{}
+	if search != nil {
+		filter.Search = *search
+	}
+	if includeInactive != nil {
+		filter.IncludeInactive = *includeInactive
+	}
+
+	teachers, err := r.Catalogue.Teachers(ctx, actor, filter)
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+
+	out := make([]*model.Teacher, 0, len(teachers))
+	for _, t := range teachers {
+		out = append(out, teacherModel(t))
+	}
+	return out, nil
+}
+
 // Module returns generated.ModuleResolver implementation.
 func (r *Resolver) Module() generated.ModuleResolver { return &moduleResolver{r} }
 
 type moduleResolver struct{ *Resolver }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+	func (r *moduleResolver) Responsible(ctx context.Context, obj *model.Module) (*model.Teacher, error) {
+	panic(fmt.Errorf("not implemented: Responsible - responsible"))
+}
+*/

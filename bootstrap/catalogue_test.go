@@ -52,6 +52,8 @@ func catalogueHandler(t *testing.T, scoped map[string][]string, people ...grants
 	}
 
 	storetest.SeedZPACatalogue(t, s)
+	// After the people, so that the derived "is this teacher a user here" has something to find:
+	// the fixture's ordinary teacher carries the same address as the persona Eins.
 	if _, err := store.NewCatalogue(s.Pool).Project(t.Context(), nil); err != nil {
 		t.Fatalf("cannot project the catalogue: %v", err)
 	}
@@ -677,6 +679,7 @@ func TestTheProjectionCanBeRunOnItsOwnAndReportsWhatItFound(t *testing.T) {
 			RunID             *string
 			Status            string
 			ProgrammesWritten int
+			TeachersWritten   int
 			ModulesWritten    int
 			OfferingsWritten  int
 			Notes             []struct {
@@ -688,7 +691,7 @@ func TestTheProjectionCanBeRunOnItsOwnAndReportsWhatItFound(t *testing.T) {
 	}
 	admin.MustQuery(t, `mutation {
 		projectZpaCatalogue {
-			runId status programmesWritten modulesWritten offeringsWritten
+			runId status programmesWritten teachersWritten modulesWritten offeringsWritten
 			notes { finding count sample }
 		}
 	}`, nil, &out)
@@ -701,8 +704,14 @@ func TestTheProjectionCanBeRunOnItsOwnAndReportsWhatItFound(t *testing.T) {
 	if got.RunID != nil {
 		t.Errorf("a projection nobody's import triggered claims run %s", *got.RunID)
 	}
-	if got.ModulesWritten == 0 || got.OfferingsWritten == 0 {
-		t.Errorf("the projection wrote %d modules and %d offerings",
+	// Every counter, and not only the interesting one. A field that is added to the schema and
+	// to the row type but never filled in the mapping between them reads as zero for ever — the
+	// projection does the work, the page says nothing happened, and nothing is red.
+	if got.ProgrammesWritten == 0 || got.TeachersWritten == 0 ||
+		got.ModulesWritten == 0 || got.OfferingsWritten == 0 {
+		t.Errorf("the projection reports %d programmes, %d teachers, %d modules and %d "+
+			"offerings; a zero here is usually a counter that is never mapped rather than work "+
+			"that did not happen", got.ProgrammesWritten, got.TeachersWritten,
 			got.ModulesWritten, got.OfferingsWritten)
 	}
 
@@ -799,4 +808,127 @@ func TestProjectingIsInteractiveOnlyAndAdministrative(t *testing.T) {
 			Do(t, `{ zpaCatalogueProjections { status } }`, nil)
 		assertRefusal(t, resp, "INTERACTIVE_ONLY")
 	})
+}
+
+// The link the fifth endpoint exists for, seen from the API. Through both doors, because a
+// colleague evaluating "which modules am I responsible for" from a script is a use this API
+// exists for.
+func TestAModuleNamesItsResponsibleTeacher(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil, grants{testdata.Eins, []string{"LECTURER"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct {
+				Modules []struct {
+					Name        string
+					Responsible *struct {
+						Name        string
+						SortName    string
+						Mail        *string
+						IsProfessor bool
+						IsUser      bool
+					}
+				}
+			}
+			c.MustQuery(t, `{
+				modules { name responsible { name sortName mail isProfessor isUser } }
+			}`, nil, &out)
+
+			var named, unnamed int
+			for _, m := range out.Modules {
+				if m.Responsible == nil {
+					unnamed++
+					continue
+				}
+				named++
+				if m.Responsible.SortName == "" {
+					t.Errorf("%s names somebody with no sort name", m.Name)
+				}
+			}
+			if named == 0 {
+				t.Error("no module names anybody as responsible")
+			}
+			// The fixture has one module whose responsible person is a placeholder. Null and not
+			// an empty teacher: about one real module in thirty is in that state.
+			if unnamed == 0 {
+				t.Error("every module names somebody, so the unresolvable case is not covered")
+			}
+		})
+}
+
+// Importing 257 teachers must not admit anybody. The rule lives in the schema — there is no
+// person row and no foreign key — and this is the same assertion from the outside: somebody
+// who teaches and has never been admitted is not a user.
+func TestATeacherIsNotAUserUntilSomebodyAdmitsThem(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil, grants{testdata.Eins, []string{"LECTURER"}})
+
+	c := graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).On(graphqltest.Browser)
+
+	var out struct {
+		Teachers []struct {
+			Name     string
+			SortName string
+			Mail     *string
+			IsUser   bool
+			Active   bool
+		}
+	}
+	c.MustQuery(t, `{ teachers(includeInactive: true) { name sortName mail isUser active } }`,
+		nil, &out)
+
+	if len(out.Teachers) == 0 {
+		t.Fatal("no teachers at all")
+	}
+
+	var users, withoutMail int
+	for _, teacher := range out.Teachers {
+		if teacher.IsUser {
+			users++
+		}
+		if teacher.Mail == nil {
+			withoutMail++
+		}
+	}
+
+	// Exactly the one persona seeded above, who is in the fixture as a teacher and has a person
+	// row. Everybody else teaches and cannot sign in.
+	if users != 1 {
+		t.Errorf("%d of %d teachers read as users of this installation, want the one who was "+
+			"deliberately given a person row", users, len(out.Teachers))
+	}
+	// The address is the link, so a teacher without one can never become a user. Three of the
+	// 257 real ones are like this.
+	if withoutMail == 0 {
+		t.Error("no teacher without an address, so the case that can never be linked is not covered")
+	}
+
+	// The default hides the ones the source marks as no longer teaching.
+	var active struct{ Teachers []struct{ Active bool } }
+	c.MustQuery(t, `{ teachers { active } }`, nil, &active)
+	for _, teacher := range active.Teachers {
+		if !teacher.Active {
+			t.Error("the default list contains somebody the source marks as no longer teaching")
+		}
+	}
+	if len(active.Teachers) >= len(out.Teachers) {
+		t.Error("including the inactive ones changed nothing, so the filter is not exercised")
+	}
+}
+
+// The list of people who teach is not confidential — it is who teaches at the faculty — but it
+// still needs an account, like everything else here.
+func TestTheTeacherListNeedsAnAccount(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil, grants{testdata.Eins, []string{"LECTURER"}})
+
+	resp := graphqltest.New(f.handler).Anonymous().On(graphqltest.Browser).
+		Do(t, `{ teachers { name } }`, nil)
+	if len(resp.Errors) == 0 {
+		t.Fatal("an anonymous caller read the list of people who teach")
+	}
 }

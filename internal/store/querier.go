@@ -225,6 +225,20 @@ type Querier interface {
 	// Loaded whole rather than per programme: 29 rows, and every screen that shows one programme's
 	// versions also has the others in a picker beside it.
 	ListSpos(ctx context.Context) ([]ListSposRow, error)
+	// The people who teach, with whether somebody of that address may sign in here.
+	//
+	// The LEFT JOIN to person is the link between the two lists, and it is done here rather than
+	// stored as a column so that somebody admitted this morning is connected now rather than after
+	// the next import. `mail` is citext on both sides, so the casing the identity provider happens
+	// to use does not decide the answer.
+	//
+	// Retired teachers — ones a successful import stopped mentioning — are left out entirely,
+	// unlike the source's own `active` flag which is a column and a filter. The two are different
+	// questions: "no longer teaching" is worth seeing, "no longer published" is not.
+	// COALESCE, and it is not cosmetic: three of the 257 carry no address, sqlc cannot know that a
+	// cast is nullable, and scanning NULL into a string fails at runtime rather than at build time.
+	// Empty means absent, which is what the domain type says too.
+	ListTeachers(ctx context.Context, arg ListTeachersParams) ([]ListTeachersRow, error)
 	// The token list in the GUI. The secret hash is not in the projection: nothing outside
 	// authentication has a use for it, and a column that is never selected cannot be logged.
 	ListTokensOfPerson(ctx context.Context, ownerID uuid.UUID) ([]ListTokensOfPersonRow, error)
@@ -446,6 +460,11 @@ type Querier interface {
 	// RUNNING row somebody can see, rather than no row at all — which is indistinguishable from a
 	// job that was never scheduled, and is how "the import stopped three weeks ago" happens.
 	StartZPASyncRun(ctx context.Context, arg StartZPASyncRunParams) (ZpaSyncRun, error)
+	// A handful of teachers by id, for attaching them to the modules they are responsible for.
+	// COALESCE, and it is not cosmetic: three of the 257 carry no address, sqlc cannot know that a
+	// cast is nullable, and scanning NULL into a string fails at runtime rather than at build time.
+	// Empty means absent, which is what the domain type says too.
+	TeachersByID(ctx context.Context, ids []uuid.UUID) ([]TeachersByIDRow, error)
 	// The authentication query of the token door, in one round trip: the token, its owner and the
 	// owner's roles.
 	//

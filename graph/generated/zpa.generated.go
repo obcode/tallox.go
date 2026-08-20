@@ -164,6 +164,29 @@ func (ec *executionContext) fieldContext_ZpaCatalogueProjection_programmesWritte
 	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _ZpaCatalogueProjection_teachersWritten(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ZpaCatalogueProjection_teachersWritten(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TeachersWritten, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ZpaCatalogueProjection_teachersWritten(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _ZpaCatalogueProjection_modulesWritten(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -946,6 +969,11 @@ func (ec *executionContext) _ZpaCatalogueProjection(ctx context.Context, sel ast
 			}
 		case "programmesWritten":
 			out.Values[i] = ec._ZpaCatalogueProjection_programmesWritten(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "teachersWritten":
+			out.Values[i] = ec._ZpaCatalogueProjection_teachersWritten(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

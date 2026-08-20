@@ -88,6 +88,19 @@ func (s *CatalogueService) Modules(ctx context.Context, actor principal.Actor, f
 	return s.store.Modules(ctx, filter)
 }
 
+// Teachers lists the people who teach.
+//
+// Readable by anybody with an account and no particular role, like the catalogue itself: it is
+// who teaches at the faculty, and a lecturer looking for the person responsible for a module
+// needs it. It grants nothing and says nothing about who may sign in beyond the one derived
+// flag, which is the same thing the people administration shows anyway.
+func (s *CatalogueService) Teachers(ctx context.Context, actor principal.Actor, filter TeacherFilter) ([]Teacher, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	return s.store.Teachers(ctx, filter)
+}
+
 // ModuleByID returns one module, or (nil, nil).
 func (s *CatalogueService) ModuleByID(ctx context.Context, actor principal.Actor, id uuid.UUID) (*Module, error) {
 	if err := mayRead(actor); err != nil {

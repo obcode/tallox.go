@@ -37,26 +37,28 @@ func (q *Queries) InsertModuleComponent(ctx context.Context, arg InsertModuleCom
 }
 
 const listModules = `-- name: ListModules :many
-SELECT m.id, m.name, m.home_programme_id, m.course_type, m.frequency,
+SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref
 FROM module m
-WHERE ($1::text IS NULL
+WHERE ($1::uuid IS NULL
+       OR m.responsible_teacher_id = $1::uuid)
+  AND ($2::text IS NULL
        OR EXISTS (SELECT 1 FROM programme hp
-                   WHERE hp.id = m.home_programme_id AND hp.code = $1::text)
+                   WHERE hp.id = m.home_programme_id AND hp.code = $2::text)
        OR EXISTS (SELECT 1
                     FROM module_offering o
                     JOIN spo s ON s.id = o.spo_id
                     JOIN programme p ON p.id = s.programme_id
                    WHERE o.module_id = m.id
-                     AND p.code = $1::text
-                     AND ($2::uuid IS NULL OR s.id = $2::uuid)))
+                     AND p.code = $2::text
+                     AND ($3::uuid IS NULL OR s.id = $3::uuid)))
   -- Narrowing to one version without naming a programme still means "counts in this version".
-  AND ($2::uuid IS NULL
+  AND ($3::uuid IS NULL
        OR EXISTS (SELECT 1 FROM module_offering o
-                   WHERE o.module_id = m.id AND o.spo_id = $2::uuid))
-  AND ($3::boolean
-       OR m.frequency = ANY ($4::text[]))
-  AND ($5::text IS NULL OR $1::text IS NULL
+                   WHERE o.module_id = m.id AND o.spo_id = $3::uuid))
+  AND ($4::boolean
+       OR m.frequency = ANY ($5::text[]))
+  AND ($6::text IS NULL OR $2::text IS NULL
        OR (SELECT CASE
                       WHEN bool_and(o.is_duty) THEN 'COMPULSORY'
                       WHEN bool_or(o.is_duty) THEN 'MIXED'
@@ -66,22 +68,23 @@ WHERE ($1::text IS NULL
              JOIN spo s ON s.id = o.spo_id
              JOIN programme p ON p.id = s.programme_id
             WHERE o.module_id = m.id
-              AND p.code = $1::text
-              AND ($2::uuid IS NULL OR s.id = $2::uuid)
-          ) = $5::text)
-  AND ($6::text IS NULL
-       OR m.name ILIKE '%' || $6::text || '%'
+              AND p.code = $2::text
+              AND ($3::uuid IS NULL OR s.id = $3::uuid)
+          ) = $6::text)
+  AND ($7::text IS NULL
+       OR m.name ILIKE '%' || $7::text || '%'
        OR EXISTS (SELECT 1 FROM module_offering o
                    WHERE o.module_id = m.id
                      AND array_to_string(o.module_codes, ' ')
-                         ILIKE '%' || $6::text || '%'))
-  AND ($7::boolean OR (m.active AND m.retired_at IS NULL))
-  AND (NOT $8::boolean
+                         ILIKE '%' || $7::text || '%'))
+  AND ($8::boolean OR (m.active AND m.retired_at IS NULL))
+  AND (NOT $9::boolean
        OR NOT EXISTS (SELECT 1 FROM module_component c WHERE c.module_id = m.id))
 ORDER BY (m.name = ''), m.name, m.id
 `
 
 type ListModulesParams struct {
+	Responsible       uuid.NullUUID
 	Programme         *string
 	Spo               uuid.NullUUID
 	AnyFrequency      bool
@@ -93,17 +96,18 @@ type ListModulesParams struct {
 }
 
 type ListModulesRow struct {
-	ID                  uuid.UUID
-	Name                string
-	HomeProgrammeID     uuid.UUID
-	CourseType          string
-	Frequency           string
-	ContactHoursPerWeek *int32
-	Credits             *int32
-	Active              bool
-	Official            bool
-	RetiredAt           pgtype.Timestamptz
-	ZpaModuleRef        *int64
+	ID                   uuid.UUID
+	Name                 string
+	HomeProgrammeID      uuid.UUID
+	ResponsibleTeacherID uuid.NullUUID
+	CourseType           string
+	Frequency            string
+	ContactHoursPerWeek  *int32
+	Credits              *int32
+	Active               bool
+	Official             bool
+	RetiredAt            pgtype.Timestamptz
+	ZpaModuleRef         *int64
 }
 
 // The catalogue, filtered.
@@ -121,6 +125,7 @@ type ListModulesRow struct {
 // handful of nameless ones at the top of every list in the system.
 func (q *Queries) ListModules(ctx context.Context, arg ListModulesParams) ([]ListModulesRow, error) {
 	rows, err := q.db.Query(ctx, listModules,
+		arg.Responsible,
 		arg.Programme,
 		arg.Spo,
 		arg.AnyFrequency,
@@ -141,6 +146,7 @@ func (q *Queries) ListModules(ctx context.Context, arg ListModulesParams) ([]Lis
 			&i.ID,
 			&i.Name,
 			&i.HomeProgrammeID,
+			&i.ResponsibleTeacherID,
 			&i.CourseType,
 			&i.Frequency,
 			&i.ContactHoursPerWeek,
@@ -256,25 +262,108 @@ func (q *Queries) ListSpos(ctx context.Context) ([]ListSposRow, error) {
 	return items, nil
 }
 
+const listTeachers = `-- name: ListTeachers :many
+SELECT t.id, COALESCE(t.mail::text, '')::text AS mail, t.full_name, t.short_name,
+       t.is_professor, t.is_lecturer_on_contract, t.is_honorary_professor, t.is_staff,
+       t.active, t.faculty, t.last_semester,
+       (p.id IS NOT NULL)::boolean AS is_user
+FROM teacher t
+LEFT JOIN person p ON p.mail = t.mail
+WHERE t.retired_at IS NULL
+  AND ($1::boolean OR t.active)
+  AND ($2::text IS NULL
+       OR t.full_name ILIKE '%' || $2::text || '%'
+       OR t.short_name ILIKE '%' || $2::text || '%'
+       OR t.mail::text ILIKE '%' || $2::text || '%')
+ORDER BY t.short_name, t.id
+`
+
+type ListTeachersParams struct {
+	IncludeInactive bool
+	Search          *string
+}
+
+type ListTeachersRow struct {
+	ID                   uuid.UUID
+	Mail                 string
+	FullName             string
+	ShortName            string
+	IsProfessor          bool
+	IsLecturerOnContract bool
+	IsHonoraryProfessor  bool
+	IsStaff              bool
+	Active               bool
+	Faculty              *string
+	LastSemester         *string
+	IsUser               bool
+}
+
+// The people who teach, with whether somebody of that address may sign in here.
+//
+// The LEFT JOIN to person is the link between the two lists, and it is done here rather than
+// stored as a column so that somebody admitted this morning is connected now rather than after
+// the next import. `mail` is citext on both sides, so the casing the identity provider happens
+// to use does not decide the answer.
+//
+// Retired teachers — ones a successful import stopped mentioning — are left out entirely,
+// unlike the source's own `active` flag which is a column and a filter. The two are different
+// questions: "no longer teaching" is worth seeing, "no longer published" is not.
+// COALESCE, and it is not cosmetic: three of the 257 carry no address, sqlc cannot know that a
+// cast is nullable, and scanning NULL into a string fails at runtime rather than at build time.
+// Empty means absent, which is what the domain type says too.
+func (q *Queries) ListTeachers(ctx context.Context, arg ListTeachersParams) ([]ListTeachersRow, error) {
+	rows, err := q.db.Query(ctx, listTeachers, arg.IncludeInactive, arg.Search)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTeachersRow{}
+	for rows.Next() {
+		var i ListTeachersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Mail,
+			&i.FullName,
+			&i.ShortName,
+			&i.IsProfessor,
+			&i.IsLecturerOnContract,
+			&i.IsHonoraryProfessor,
+			&i.IsStaff,
+			&i.Active,
+			&i.Faculty,
+			&i.LastSemester,
+			&i.IsUser,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const moduleByID = `-- name: ModuleByID :one
-SELECT id, name, home_programme_id, course_type, frequency,
+SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
        contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref
 FROM module
 WHERE id = $1
 `
 
 type ModuleByIDRow struct {
-	ID                  uuid.UUID
-	Name                string
-	HomeProgrammeID     uuid.UUID
-	CourseType          string
-	Frequency           string
-	ContactHoursPerWeek *int32
-	Credits             *int32
-	Active              bool
-	Official            bool
-	RetiredAt           pgtype.Timestamptz
-	ZpaModuleRef        *int64
+	ID                   uuid.UUID
+	Name                 string
+	HomeProgrammeID      uuid.UUID
+	ResponsibleTeacherID uuid.NullUUID
+	CourseType           string
+	Frequency            string
+	ContactHoursPerWeek  *int32
+	Credits              *int32
+	Active               bool
+	Official             bool
+	RetiredAt            pgtype.Timestamptz
+	ZpaModuleRef         *int64
 }
 
 func (q *Queries) ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, error) {
@@ -284,6 +373,7 @@ func (q *Queries) ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, 
 		&i.ID,
 		&i.Name,
 		&i.HomeProgrammeID,
+		&i.ResponsibleTeacherID,
 		&i.CourseType,
 		&i.Frequency,
 		&i.ContactHoursPerWeek,
@@ -490,4 +580,66 @@ DELETE FROM module_component WHERE module_id = $1
 func (q *Queries) ReplaceModuleComponents(ctx context.Context, moduleID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, replaceModuleComponents, moduleID)
 	return err
+}
+
+const teachersByID = `-- name: TeachersByID :many
+SELECT t.id, COALESCE(t.mail::text, '')::text AS mail, t.full_name, t.short_name,
+       t.is_professor, t.is_lecturer_on_contract, t.is_honorary_professor, t.is_staff,
+       t.active, t.faculty, t.last_semester,
+       (p.id IS NOT NULL)::boolean AS is_user
+FROM teacher t
+LEFT JOIN person p ON p.mail = t.mail
+WHERE t.id = ANY ($1::uuid[])
+`
+
+type TeachersByIDRow struct {
+	ID                   uuid.UUID
+	Mail                 string
+	FullName             string
+	ShortName            string
+	IsProfessor          bool
+	IsLecturerOnContract bool
+	IsHonoraryProfessor  bool
+	IsStaff              bool
+	Active               bool
+	Faculty              *string
+	LastSemester         *string
+	IsUser               bool
+}
+
+// A handful of teachers by id, for attaching them to the modules they are responsible for.
+// COALESCE, and it is not cosmetic: three of the 257 carry no address, sqlc cannot know that a
+// cast is nullable, and scanning NULL into a string fails at runtime rather than at build time.
+// Empty means absent, which is what the domain type says too.
+func (q *Queries) TeachersByID(ctx context.Context, ids []uuid.UUID) ([]TeachersByIDRow, error) {
+	rows, err := q.db.Query(ctx, teachersByID, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TeachersByIDRow{}
+	for rows.Next() {
+		var i TeachersByIDRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Mail,
+			&i.FullName,
+			&i.ShortName,
+			&i.IsProfessor,
+			&i.IsLecturerOnContract,
+			&i.IsHonoraryProfessor,
+			&i.IsStaff,
+			&i.Active,
+			&i.Faculty,
+			&i.LastSemester,
+			&i.IsUser,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

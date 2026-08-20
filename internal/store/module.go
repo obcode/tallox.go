@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -115,6 +116,61 @@ func (m *Modules) ProgrammeByCode(ctx context.Context, code string) (*domain.Pro
 	return nil, nil
 }
 
+// Teachers lists the people who teach.
+func (m *Modules) Teachers(ctx context.Context, filter domain.TeacherFilter) ([]domain.Teacher, error) {
+	params := ListTeachersParams{IncludeInactive: filter.IncludeInactive}
+	if filter.Search != "" {
+		params.Search = &filter.Search
+	}
+
+	rows, err := New(m.pool).ListTeachers(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the teachers: %w", err)
+	}
+
+	out := make([]domain.Teacher, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, teacherFrom(teacherRow(row)))
+	}
+	return out, nil
+}
+
+// teacherRow is the shape both teacher queries produce.
+//
+// sqlc emits one type per query; they are structurally identical because the SELECT lists are.
+// Converting rather than copying field by field makes that a compile-time claim.
+type teacherRow struct {
+	ID                   uuid.UUID
+	Mail                 string
+	FullName             string
+	ShortName            string
+	IsProfessor          bool
+	IsLecturerOnContract bool
+	IsHonoraryProfessor  bool
+	IsStaff              bool
+	Active               bool
+	Faculty              *string
+	LastSemester         *string
+	IsUser               bool
+}
+
+func teacherFrom(row teacherRow) domain.Teacher {
+	return domain.Teacher{
+		ID:                   row.ID,
+		Name:                 row.FullName,
+		SortName:             row.ShortName,
+		Mail:                 row.Mail,
+		IsProfessor:          row.IsProfessor,
+		IsLecturerOnContract: row.IsLecturerOnContract,
+		IsHonoraryProfessor:  row.IsHonoraryProfessor,
+		IsStaff:              row.IsStaff,
+		Active:               row.Active,
+		Faculty:              stringOrEmpty(row.Faculty),
+		LastSemester:         stringOrEmpty(row.LastSemester),
+		IsUser:               row.IsUser,
+	}
+}
+
 // Modules lists the catalogue, filtered, with each module's split and offerings attached.
 func (m *Modules) Modules(ctx context.Context, filter domain.ModuleFilter) ([]domain.Module, error) {
 	q := New(m.pool)
@@ -143,6 +199,9 @@ func (m *Modules) Modules(ctx context.Context, filter domain.ModuleFilter) ([]do
 	}
 	if filter.Search != "" {
 		params.Search = &filter.Search
+	}
+	if filter.Responsible != uuid.Nil {
+		params.Responsible = uuid.NullUUID{UUID: filter.Responsible, Valid: true}
 	}
 
 	rows, err := q.ListModules(ctx, params)
@@ -201,6 +260,26 @@ func (m *Modules) attach(ctx context.Context, q *Queries, modules []domain.Modul
 		byID[p.ID] = domain.Programme{ID: p.ID, Code: p.Code, Title: p.Title, Active: p.Active}
 	}
 
+	// The people the listed modules name as responsible, in one statement. About eighty distinct
+	// people across the whole catalogue, so a query per module would be a great many round trips
+	// for a handful of rows.
+	responsibleIDs := make([]uuid.UUID, 0, len(modules))
+	for i := range modules {
+		if modules[i].Responsible != nil && !slices.Contains(responsibleIDs, modules[i].Responsible.ID) {
+			responsibleIDs = append(responsibleIDs, modules[i].Responsible.ID)
+		}
+	}
+	teachersByID := make(map[uuid.UUID]domain.Teacher, len(responsibleIDs))
+	if len(responsibleIDs) > 0 {
+		rows, err := q.TeachersByID(ctx, responsibleIDs)
+		if err != nil {
+			return fmt.Errorf("cannot read the responsible teachers: %w", err)
+		}
+		for _, row := range rows {
+			teachersByID[row.ID] = teacherFrom(teacherRow(row))
+		}
+	}
+
 	components, err := q.ModuleComponentsFor(ctx, ids)
 	if err != nil {
 		return fmt.Errorf("cannot read the module components: %w", err)
@@ -246,6 +325,15 @@ func (m *Modules) attach(ctx context.Context, q *Queries, modules []domain.Modul
 		modules[i].HomeProgramme = byID[modules[i].HomeProgramme.ID]
 		modules[i].Components = componentsByModule[modules[i].ID]
 		modules[i].Offerings = offeringsByModule[modules[i].ID]
+		if modules[i].Responsible != nil {
+			if teacher, ok := teachersByID[modules[i].Responsible.ID]; ok {
+				modules[i].Responsible = &teacher
+			} else {
+				// The row is gone between the two statements. Rare and harmless, and a module
+				// with no responsible person is a state the schema already allows.
+				modules[i].Responsible = nil
+			}
+		}
 	}
 	return nil
 }
@@ -308,6 +396,10 @@ func moduleFrom(row ListModulesRow) domain.Module {
 		Active:              row.Active,
 		Official:            row.Official,
 		ZpaID:               row.ZpaModuleRef,
+	}
+	if row.ResponsibleTeacherID.Valid {
+		// Only the id here; attach() fills in the rest in one statement for the whole list.
+		module.Responsible = &domain.Teacher{ID: row.ResponsibleTeacherID.UUID}
 	}
 	if row.RetiredAt.Valid {
 		at := row.RetiredAt.Time

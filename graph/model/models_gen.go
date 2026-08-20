@@ -38,6 +38,55 @@ type CreatedPersonalAccessToken struct {
 	Secret string `json:"secret"`
 }
 
+// One unit of a module's split, on the way in.
+type ModuleComponentInput struct {
+	// What kind of teaching this unit is.
+	Kind domain.InstancePartKind `json:"kind"`
+	// Hours per week for one unit of this kind. Greater than zero.
+	TeachingHours float64 `json:"teachingHours"`
+}
+
+// Which modules to list.
+//
+// An input type rather than separate arguments, unlike `people(search:, includeInactive:)`
+// elsewhere in this schema: six filters is past the point where positional arguments read, the set
+// will grow as subject groups and competences arrive, and an interface's form maps onto it field
+// for field.
+type ModuleFilter struct {
+	// Relevant for this study programme, by its short code.
+	//
+	// Two things at once, and the second half is not redundant: the module counts in one of the
+	// programme's sets of regulations, **or** the programme is its home. Twenty-six active modules
+	// are only reachable through the second half, ten of them in the faculty's largest programme —
+	// and the first thing somebody does is look for a module they are responsible for.
+	Programme *string `json:"programme,omitempty"`
+	// Narrow to one version of the regulations.
+	//
+	// No default, deliberately. Unfiltered, a programme's list is the union over every version it
+	// has: a module dropped from the newest one is still being taught to the students of the older.
+	Spo *string `json:"spo,omitempty"`
+	// Keep only modules with one of these frequencies.
+	//
+	// To find what could run in a winter semester, ask for `EVERY_WINTER_SEMESTER`,
+	// `EVERY_SEMESTER`, `ALTERNATING_WITHIN_SUBJECT_GROUP`, `ON_ANNOUNCEMENT` and `UNKNOWN` — the
+	// last three say nothing about the term and are together more than half the catalogue, so
+	// leaving them out hides far more than it removes.
+	Frequency []domain.Frequency `json:"frequency,omitempty"`
+	// Compulsory or elective. Requires `programme`, and is ignored without it — the answer is a
+	// property of a module *in a programme*, not of a module.
+	Duty *domain.DutyStatus `json:"duty,omitempty"`
+	// A substring of the name or of one of the module codes. Case-insensitive.
+	Search *string `json:"search,omitempty"`
+	// Include modules the examination office has retired. About a hundred of them.
+	IncludeInactive *bool `json:"includeInactive,omitempty"`
+	// Keep only modules whose hours have not been split into teachable units yet.
+	//
+	// The work list. A programme lead getting ready for a semester needs to know which of their
+	// modules cannot be declared yet, and that is a bounded, finishable task rather than an open
+	// form.
+	WithoutComponents *bool `json:"withoutComponents,omitempty"`
+}
+
 // Everything that changes something.
 //
 // All of it is `@interactiveOnly` for now: writing happens in a signed-in browser session, not

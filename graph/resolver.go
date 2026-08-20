@@ -36,4 +36,11 @@ type Resolver struct {
 	// called ZpaSyncRuns would be shadowed by the generated queryResolver method of the same
 	// name, and the resulting error takes a minute to read.
 	Import *domain.ZPASyncService
+	// Catalogue is the module catalogue: programmes, regulations, modules and how a module's
+	// hours divide.
+	//
+	// Named for the area rather than for the type, for the reason Planning and Import are: a
+	// field called Modules would be shadowed by the generated queryResolver method of the same
+	// name, and the error that produces takes a minute to read.
+	Catalogue *domain.CatalogueService
 }

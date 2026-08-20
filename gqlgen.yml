@@ -88,6 +88,23 @@ models:
     model: github.com/obcode/tallox.go/internal/domain.ZPASyncStatus
   ZpaChangeType:
     model: github.com/obcode/tallox.go/internal/domain.ZPAChangeType
+  # The catalogue vocabularies, bound for the same reason as Role and Phase. Frequency,
+  # CourseType and InstancePartKind each have the three homes Role has — the schema,
+  # internal/domain and a CHECK constraint in db/migrations — and binding removes one of them;
+  # store.TestDatabaseAndDomainAgreeOnFrequencies and its two neighbours compare the rest.
+  # DutyStatus has only two, because it is folded from a boolean rather than stored.
+  Frequency:
+    model: github.com/obcode/tallox.go/internal/domain.Frequency
+  CourseType:
+    model: github.com/obcode/tallox.go/internal/domain.CourseType
+  InstancePartKind:
+    model: github.com/obcode/tallox.go/internal/domain.InstancePartKind
+  DutyStatus:
+    model: github.com/obcode/tallox.go/internal/domain.DutyStatus
+  # A calendar day, not an instant. The type carries its own marshalling; the reasoning is in
+  # graph/model/date.go and repeated for readers of the schema on the scalar itself.
+  Date:
+    model: github.com/obcode/tallox.go/graph/model.Date
   # Timestamps travel as RFC 3339 strings. gqlgen's Time scalar does the marshalling, so
   # nothing in the domain has to know about the wire format.
   Time:

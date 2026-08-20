@@ -69,6 +69,8 @@ type Options struct {
 	Planning *domain.SemesterService
 	// Import is the module master data import. Nil in tests that do not exercise it.
 	Import *domain.ZPASyncService
+	// Catalogue is the module catalogue, on the same terms.
+	Catalogue *domain.CatalogueService
 }
 
 // Serve parses flags, sets up logging and runs the HTTP server until a signal arrives.
@@ -240,8 +242,9 @@ func Serve(build buildinfo.Info) {
 	planning := domain.NewSemesterService(store.NewSemesters(pool), nil)
 
 	zpaCache := store.NewZPA(pool)
-	catalogue := store.NewCatalogue(pool)
-	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool), catalogue)
+	catalogueProjection := store.NewCatalogue(pool)
+	catalogue := domain.NewCatalogueService(store.NewModules(pool))
+	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool), catalogueProjection)
 
 	// Beside reconcileProtectedAdmins, and for a related reason: a process that died mid-sync
 	// leaves a RUNNING row that the interface would show as a run in progress forever. Not
@@ -264,10 +267,11 @@ func Serve(build buildinfo.Info) {
 				Tokens:  directory,
 				DevUser: cfg.Auth.DevUser,
 			},
-			Tokens:   tokens,
-			People:   people,
-			Planning: planning,
-			Import:   imports,
+			Tokens:    tokens,
+			People:    people,
+			Planning:  planning,
+			Import:    imports,
+			Catalogue: catalogue,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -445,11 +449,12 @@ func router(opts Options) http.Handler {
 func graphqlHandler(opts Options) http.Handler {
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{
 		Resolvers: &graph.Resolver{
-			Build:    opts.Build,
-			Tokens:   opts.Tokens,
-			People:   opts.People,
-			Planning: opts.Planning,
-			Import:   opts.Import,
+			Build:     opts.Build,
+			Tokens:    opts.Tokens,
+			People:    opts.People,
+			Planning:  opts.Planning,
+			Import:    opts.Import,
+			Catalogue: opts.Catalogue,
 		},
 		// The generated code fails closed on a directive with no implementation — the field
 		// errors with "directive interactiveOnly is not implemented" rather than passing

@@ -316,7 +316,7 @@ SELECT
         JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
         WHERE s.person_id = p.id
           AND (r.expires_at IS NULL OR r.expires_at > now())
-    ), '[]'::jsonb)::jsonb AS role_scopes
+    ), '[]'::jsonb)::jsonb AS role_scopes  -- cast: without it sqlc types the column interface{}
 FROM person p
 LEFT JOIN person_role pr
     ON pr.person_id = p.id

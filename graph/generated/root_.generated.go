@@ -24,6 +24,7 @@ func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
+	Module() ModuleResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
 }
@@ -51,6 +52,40 @@ type ComplexityRoot struct {
 		Token  func(childComplexity int) int
 	}
 
+	Module struct {
+		Active              func(childComplexity int) int
+		ComponentHours      func(childComplexity int) int
+		Components          func(childComplexity int) int
+		ContactHoursPerWeek func(childComplexity int) int
+		CourseType          func(childComplexity int) int
+		Credits             func(childComplexity int) int
+		DutyStatus          func(childComplexity int, programme string) int
+		Frequency           func(childComplexity int) int
+		HomeProgramme       func(childComplexity int) int
+		ID                  func(childComplexity int) int
+		InCatalogue         func(childComplexity int, programme string) int
+		Name                func(childComplexity int) int
+		Offerings           func(childComplexity int) int
+		Official            func(childComplexity int) int
+		RetiredAt           func(childComplexity int) int
+		ZpaID               func(childComplexity int) int
+	}
+
+	ModuleComponent struct {
+		ID            func(childComplexity int) int
+		Kind          func(childComplexity int) int
+		Position      func(childComplexity int) int
+		TeachingHours func(childComplexity int) int
+	}
+
+	ModuleOffering struct {
+		Focuses              func(childComplexity int) int
+		IsDuty               func(childComplexity int) int
+		MinProgrammeSemester func(childComplexity int) int
+		ModuleCodes          func(childComplexity int) int
+		Spo                  func(childComplexity int) int
+	}
+
 	Mutation struct {
 		AdvanceSemesterPhase      func(childComplexity int, code string, to policy.Phase) int
 		CreatePerson              func(childComplexity int, mail string, name *string) int
@@ -58,6 +93,7 @@ type ComplexityRoot struct {
 		PublishWishes             func(childComplexity int, code string) int
 		RenamePerson              func(childComplexity int, id string, name string) int
 		RevokePersonalAccessToken func(childComplexity int, id string) int
+		SetModuleComponents       func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
 		SetPersonActive           func(childComplexity int, id string, active bool) int
 		SetPersonRoles            func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
 		SyncZpaNow                func(childComplexity int) int
@@ -86,13 +122,24 @@ type ComplexityRoot struct {
 		Rule    func(childComplexity int) int
 	}
 
+	Programme struct {
+		Active func(childComplexity int) int
+		Code   func(childComplexity int) int
+		Spos   func(childComplexity int) int
+		Title  func(childComplexity int) int
+	}
+
 	Query struct {
 		BuildInfo      func(childComplexity int) int
 		DiagnoseAccess func(childComplexity int, mail string) int
 		Me             func(childComplexity int) int
+		Module         func(childComplexity int, id string) int
+		Modules        func(childComplexity int, filter *model.ModuleFilter) int
 		MyTokens       func(childComplexity int) int
 		People         func(childComplexity int, search *string, includeInactive *bool) int
 		Person         func(childComplexity int, id string) int
+		Programme      func(childComplexity int, code string) int
+		Programmes     func(childComplexity int) int
 		RoleGrants     func(childComplexity int, personID string) int
 		Semester       func(childComplexity int, code string) int
 		Semesters      func(childComplexity int) int
@@ -123,6 +170,14 @@ type ComplexityRoot struct {
 		Interactive    func(childComplexity int) int
 		Narrowed       func(childComplexity int) int
 		Person         func(childComplexity int) int
+	}
+
+	Spo struct {
+		ID        func(childComplexity int) int
+		PrimussID func(childComplexity int) int
+		Programme func(childComplexity int) int
+		ValidFrom func(childComplexity int) int
+		Version   func(childComplexity int) int
 	}
 
 	ZpaChange struct {
@@ -229,6 +284,169 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.CreatedPersonalAccessToken.Token(childComplexity), true
 
+	case "Module.active":
+		if e.ComplexityRoot.Module.Active == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Active(childComplexity), true
+	case "Module.componentHours":
+		if e.ComplexityRoot.Module.ComponentHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.ComponentHours(childComplexity), true
+	case "Module.components":
+		if e.ComplexityRoot.Module.Components == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Components(childComplexity), true
+	case "Module.contactHoursPerWeek":
+		if e.ComplexityRoot.Module.ContactHoursPerWeek == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.ContactHoursPerWeek(childComplexity), true
+	case "Module.courseType":
+		if e.ComplexityRoot.Module.CourseType == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.CourseType(childComplexity), true
+	case "Module.credits":
+		if e.ComplexityRoot.Module.Credits == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Credits(childComplexity), true
+	case "Module.dutyStatus":
+		if e.ComplexityRoot.Module.DutyStatus == nil {
+			break
+		}
+
+		args, err := ec.field_Module_dutyStatus_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Module.DutyStatus(childComplexity, args["programme"].(string)), true
+	case "Module.frequency":
+		if e.ComplexityRoot.Module.Frequency == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Frequency(childComplexity), true
+	case "Module.homeProgramme":
+		if e.ComplexityRoot.Module.HomeProgramme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.HomeProgramme(childComplexity), true
+	case "Module.id":
+		if e.ComplexityRoot.Module.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.ID(childComplexity), true
+	case "Module.inCatalogue":
+		if e.ComplexityRoot.Module.InCatalogue == nil {
+			break
+		}
+
+		args, err := ec.field_Module_inCatalogue_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Module.InCatalogue(childComplexity, args["programme"].(string)), true
+	case "Module.name":
+		if e.ComplexityRoot.Module.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Name(childComplexity), true
+	case "Module.offerings":
+		if e.ComplexityRoot.Module.Offerings == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Offerings(childComplexity), true
+	case "Module.official":
+		if e.ComplexityRoot.Module.Official == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Official(childComplexity), true
+	case "Module.retiredAt":
+		if e.ComplexityRoot.Module.RetiredAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.RetiredAt(childComplexity), true
+	case "Module.zpaId":
+		if e.ComplexityRoot.Module.ZpaID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.ZpaID(childComplexity), true
+
+	case "ModuleComponent.id":
+		if e.ComplexityRoot.ModuleComponent.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleComponent.ID(childComplexity), true
+	case "ModuleComponent.kind":
+		if e.ComplexityRoot.ModuleComponent.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleComponent.Kind(childComplexity), true
+	case "ModuleComponent.position":
+		if e.ComplexityRoot.ModuleComponent.Position == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleComponent.Position(childComplexity), true
+	case "ModuleComponent.teachingHours":
+		if e.ComplexityRoot.ModuleComponent.TeachingHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleComponent.TeachingHours(childComplexity), true
+
+	case "ModuleOffering.focuses":
+		if e.ComplexityRoot.ModuleOffering.Focuses == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleOffering.Focuses(childComplexity), true
+	case "ModuleOffering.isDuty":
+		if e.ComplexityRoot.ModuleOffering.IsDuty == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleOffering.IsDuty(childComplexity), true
+	case "ModuleOffering.minProgrammeSemester":
+		if e.ComplexityRoot.ModuleOffering.MinProgrammeSemester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleOffering.MinProgrammeSemester(childComplexity), true
+	case "ModuleOffering.moduleCodes":
+		if e.ComplexityRoot.ModuleOffering.ModuleCodes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleOffering.ModuleCodes(childComplexity), true
+	case "ModuleOffering.spo":
+		if e.ComplexityRoot.ModuleOffering.Spo == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleOffering.Spo(childComplexity), true
+
 	case "Mutation.advanceSemesterPhase":
 		if e.ComplexityRoot.Mutation.AdvanceSemesterPhase == nil {
 			break
@@ -295,6 +513,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RevokePersonalAccessToken(childComplexity, args["id"].(string)), true
+	case "Mutation.setModuleComponents":
+		if e.ComplexityRoot.Mutation.SetModuleComponents == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setModuleComponents_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetModuleComponents(childComplexity, args["moduleId"].(string), args["components"].([]*model.ModuleComponentInput)), true
 	case "Mutation.setPersonActive":
 		if e.ComplexityRoot.Mutation.SetPersonActive == nil {
 			break
@@ -411,6 +640,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.PolicyDecision.Rule(childComplexity), true
 
+	case "Programme.active":
+		if e.ComplexityRoot.Programme.Active == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Programme.Active(childComplexity), true
+	case "Programme.code":
+		if e.ComplexityRoot.Programme.Code == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Programme.Code(childComplexity), true
+	case "Programme.spos":
+		if e.ComplexityRoot.Programme.Spos == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Programme.Spos(childComplexity), true
+	case "Programme.title":
+		if e.ComplexityRoot.Programme.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Programme.Title(childComplexity), true
+
 	case "Query.buildInfo":
 		if e.ComplexityRoot.Query.BuildInfo == nil {
 			break
@@ -435,6 +689,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Me(childComplexity), true
+	case "Query.module":
+		if e.ComplexityRoot.Query.Module == nil {
+			break
+		}
+
+		args, err := ec.field_Query_module_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Module(childComplexity, args["id"].(string)), true
+	case "Query.modules":
+		if e.ComplexityRoot.Query.Modules == nil {
+			break
+		}
+
+		args, err := ec.field_Query_modules_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Modules(childComplexity, args["filter"].(*model.ModuleFilter)), true
 	case "Query.myTokens":
 		if e.ComplexityRoot.Query.MyTokens == nil {
 			break
@@ -463,6 +739,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Person(childComplexity, args["id"].(string)), true
+	case "Query.programme":
+		if e.ComplexityRoot.Query.Programme == nil {
+			break
+		}
+
+		args, err := ec.field_Query_programme_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Programme(childComplexity, args["code"].(string)), true
+	case "Query.programmes":
+		if e.ComplexityRoot.Query.Programmes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Programmes(childComplexity), true
 	case "Query.roleGrants":
 		if e.ComplexityRoot.Query.RoleGrants == nil {
 			break
@@ -618,6 +911,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Session.Person(childComplexity), true
 
+	case "Spo.id":
+		if e.ComplexityRoot.Spo.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Spo.ID(childComplexity), true
+	case "Spo.primussId":
+		if e.ComplexityRoot.Spo.PrimussID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Spo.PrimussID(childComplexity), true
+	case "Spo.programme":
+		if e.ComplexityRoot.Spo.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Spo.Programme(childComplexity), true
+	case "Spo.validFrom":
+		if e.ComplexityRoot.Spo.ValidFrom == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Spo.ValidFrom(childComplexity), true
+	case "Spo.version":
+		if e.ComplexityRoot.Spo.Version == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Spo.Version(childComplexity), true
+
 	case "ZpaChange.change":
 		if e.ComplexityRoot.ZpaChange.Change == nil {
 			break
@@ -767,6 +1091,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputModuleComponentInput,
+		ec.unmarshalInputModuleFilter,
 		ec.unmarshalInputScopeGrantInput,
 	)
 	first := true
@@ -990,6 +1316,441 @@ extend type Mutation {
   setPersonActive(id: ID!, active: Boolean!): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 }
 `, BuiltIn: false},
+	{Name: "../catalogue.graphqls", Input: `# The module catalogue: study programmes, their examination regulations, and the modules that
+# count in them.
+#
+# This is the first planning data in the schema, and the fields the ` + "`" + `ADMIN` + "`" + ` scope area has been
+# promising since the import shipped — "when the modules themselves become readable they will be
+# planning data and will say so". They do, below.
+#
+# Read by everybody with an account and no particular role. The catalogue is not confidential:
+# it is published by the examination office, a lecturer has to see a module before they can say
+# they would like to teach it, and hiding it would produce a tool that refuses without saying
+# why. What is scoped is writing, and only to the study programme somebody actually leads.
+
+"""
+A calendar day, in the form ` + "`" + `2026-10-01` + "`" + `.
+
+Not an instant. Regulations that apply from the first of October do not apply from midnight,
+and a deadline sent as a timestamp would let a reader's timezone decide which day was meant.
+"""
+scalar Date
+
+"""
+How often a module is offered.
+
+Useful as a filter: a module taught only in the summer is not a candidate for a winter
+semester's demand, and 89 of them are. Three of the values say nothing about the term and
+together are more than half the catalogue, so a term filter that hid them would remove most of
+what somebody is looking for — see the note on ` + "`" + `ModuleFilter.frequency` + "`" + `.
+"""
+enum Frequency {
+  "Offered in both terms."
+  EVERY_SEMESTER
+  "Offered in winter terms only."
+  EVERY_WINTER_SEMESTER
+  "Offered in summer terms only."
+  EVERY_SUMMER_SEMESTER
+  """
+  Takes turns with other subjects of the same subject group. Which term it lands in is a
+  decision inside the group rather than a rule, so it is not a term restriction.
+  """
+  ALTERNATING_WITHIN_SUBJECT_GROUP
+  "Offered when it is announced. The largest group in the catalogue."
+  ON_ANNOUNCEMENT
+  """
+  The catalogue says nothing, or says something this version of the software does not
+  recognise. The two are distinguished on the import page rather than here.
+  """
+  UNKNOWN
+}
+
+"""
+How the teaching of a module is broken up, as the catalogue describes it.
+
+The template a module's split is proposed from, and nothing more: it does not say how the hours
+divide and it does not say how many parallel groups there are. The first is stated once per
+module in ` + "`" + `ModuleComponent` + "`" + `; the second is decided per instance.
+"""
+enum CourseType {
+  "Seminar-style teaching with a laboratory. The largest group in the catalogue."
+  SU_WITH_LAB
+  "Seminar-style teaching with an exercise class."
+  SU_WITH_EXERCISE
+  "A seminar."
+  SEMINAR
+  "A laboratory on its own."
+  LAB
+  "Seminar-style teaching on its own."
+  SU
+  "An exercise class on its own."
+  EXERCISE
+  "A project."
+  PROJECT
+  "Independent work — a thesis, a study project. Usually carries no hours per week at all."
+  SELF_STUDY
+  "The catalogue declining to say, for a slot whose content varies. Also the value anything unrecognised becomes."
+  DEPENDS_ON_SUBJECT
+}
+
+"""
+One assignable unit of teaching.
+
+The same vocabulary describes a module's canonical split and the parts an actual offering runs,
+because the second is made from the first. Two lists that had to agree without a compiler saying
+so would drift.
+"""
+enum InstancePartKind {
+  "A lecture. The part that can be held once for several parallel cohorts."
+  LECTURE
+  "A laboratory group. Usually the part that exists several times over."
+  LAB
+  "An exercise group."
+  EXERCISE
+  "A seminar group."
+  SEMINAR
+  "A project group."
+  PROJECT
+  "Anything the five above do not name."
+  OTHER
+}
+
+"""
+Whether a module is compulsory or elective in a study programme.
+
+Three-valued rather than a boolean, because asked about a programme without naming a version of
+its regulations the honest answer is sometimes neither. Measured over the whole catalogue, four
+modules are compulsory under one version and elective under another — picking one silently would
+be wrong for those four and unexplainable to whoever is looking at them.
+"""
+enum DutyStatus {
+  "Compulsory under every version of the regulations asked about."
+  COMPULSORY
+  "Elective under every version asked about."
+  ELECTIVE
+  "Compulsory under some versions and elective under others."
+  MIXED
+}
+
+"""
+A study programme of the faculty.
+
+Addressed by its short code — IF, IG, DA, DC — which is the name the faculty says out loud and
+the examination office publishes. The same argument ` + "`" + `Semester.code` + "`" + ` makes: short, stable, and
+belongs in a URL and in a colleague's script.
+"""
+type Programme {
+  "IF, IG, DA, DC. Upper case, at most ten characters."
+  code: String!
+  """
+  The long name, maintained here rather than imported.
+
+  The examination office publishes no long name — the field that looks like one carries the code
+  again — so this is written by a person and the nightly import never touches it. Empty until
+  somebody types one, and an interface should fall back to the code.
+  """
+  title: String!
+  """
+  False for a programme the examination office publishes no current regulations for.
+
+  One such programme exists. Its modules are still planable, which is why it is here at all
+  rather than treated as a data error; it simply does not belong in a picker.
+  """
+  active: Boolean!
+  "Its versions of the examination regulations, newest first."
+  spos: [Spo!]!
+}
+
+"""
+One version of one study programme's examination regulations.
+
+Present in this schema because a module counts *in* one, and because narrowing the catalogue to
+one version is a useful question. It is deliberately **not** part of what identifies a course
+instance — see ` + "`" + `CourseInstance` + "`" + `.
+"""
+type Spo {
+  id: ID!
+  "The year, as the examination office numbers them: 2019, 2023, 2025."
+  version: Int!
+  "The day this version starts applying."
+  validFrom: Date
+  """
+  The identifier the campus management system uses, for example ` + "`" + `07-IF-2025` + "`" + `, or ` + "`" + `null` + "`" + ` while
+  the version is still being entered.
+
+  That emptiness is the only reliable signal that a version is unfinished, which matters because
+  an unfinished one holds a fraction of its eventual modules and would otherwise look like a
+  catalogue that lost most of them.
+  """
+  primussId: String
+  "The study programme these regulations belong to."
+  programme: Programme!
+}
+
+"""
+An entry in the module catalogue.
+
+Modules are **not** what gets planned — instances are. A module is the catalogue entry an
+instance is an offering of, and it survives a change of regulations: measured against the
+source, a module keeps its identity across up to 19 sets of regulations and 9 programmes.
+"""
+type Module {
+  id: ID!
+  """
+  The name, which is empty for a handful of modules.
+
+  The examination office's module records carry no name field at all — the name exists only
+  inside an association with a set of regulations, so a module that appears in none has none
+  anywhere. Kept and rendered by its identifier rather than hidden, because the person
+  responsible for it has to be able to find it.
+  """
+  name: String!
+  "The programme that plans this module. Every module has exactly one."
+  homeProgramme: Programme!
+  "How the teaching is broken up, as the catalogue describes it."
+  courseType: CourseType!
+  "How often it runs."
+  frequency: Frequency!
+  """
+  Contact hours a **student** attends per week, as the catalogue states them.
+
+  **Not teaching load.** The teaching held for one instance is the sum over its parts and is
+  routinely larger: a four-hour module running one lecture and three laboratory groups costs the
+  faculty eight hours. Summing this field is the plausible-looking wrong answer.
+  """
+  contactHoursPerWeek: Int
+  "ECTS credits, as the catalogue states them."
+  credits: Int
+  """
+  False for a module the examination office has retired but still publishes.
+
+  Distinct from a module it has stopped publishing altogether, which is ` + "`" + `retiredAt` + "`" + `.
+  """
+  active: Boolean!
+  "False for a module the examination office has not made official."
+  official: Boolean!
+  "When a successful import stopped mentioning this module, or ` + "`" + `null` + "`" + `. Modules are never deleted."
+  retiredAt: Time
+  """
+  The examination office's identifier, for cross-referencing.
+
+  Information, never an argument. Making an imported identifier the thing external scripts key
+  on is the mistake the whole import layer is arranged to avoid — undoing it later would mean
+  changing somebody else's script rather than this schema.
+  """
+  zpaId: String
+  """
+  How the module's hours divide between teachable units — two of lecture and two of laboratory,
+  say.
+
+  **Empty means nobody has stated it yet**, and that is a normal state rather than an error: the
+  examination office publishes one total and no split, so this is the faculty's own knowledge.
+  An instance cannot be declared for a module whose split is empty, because the parts of the
+  instance are made from these.
+  """
+  components: [ModuleComponent!]!
+  "The sum of the components, or ` + "`" + `null` + "`" + ` while there are none. Compare with ` + "`" + `contactHoursPerWeek` + "`" + `."
+  componentHours: Float
+  """
+  Where this module counts: one entry per version of a programme's regulations.
+
+  The union over every programme and version, unfiltered. A module dropped from the newest
+  version of one programme's regulations is still being taught to the students of the older one.
+  """
+  offerings: [ModuleOffering!]!
+  """
+  Compulsory or elective in one programme, folded over every version of its regulations, or
+  ` + "`" + `null` + "`" + ` if the module does not appear in that programme's catalogue at all.
+
+  ` + "`" + `MIXED` + "`" + ` is the honest answer where the versions disagree, which happens.
+  """
+  dutyStatus(
+    "The programme's short code."
+    programme: String!
+  ): DutyStatus
+  """
+  Whether this module appears in the named programme's catalogue.
+
+  ` + "`" + `false` + "`" + ` together with a ` + "`" + `homeProgramme` + "`" + ` of that programme is a real and common state — the
+  module is the programme's own and does not currently count in any version of its regulations.
+  Twenty-six active modules are in it, which is why a programme's module list is the union of its
+  catalogue and its own modules rather than the catalogue alone.
+  """
+  inCatalogue(
+    "The programme's short code."
+    programme: String!
+  ): Boolean!
+}
+
+"""
+How one module's hours divide between teachable units.
+
+Stated once per module by the people who know it, and stable — a new version of the regulations
+does not change it. The examination office publishes one figure per module and a phrase
+describing the breakdown; whether four hours are two of lecture and two of laboratory, or three
+and one, exists nowhere in the source.
+"""
+type ModuleComponent {
+  id: ID!
+  "What kind of teaching this unit is."
+  kind: InstancePartKind!
+  """
+  Hours per week for **one** unit of this kind.
+
+  A module with two hours of laboratory has one entry saying two, however many parallel groups
+  an instance later runs — the multiplicity belongs to the instance.
+  """
+  teachingHours: Float!
+  "Order within the module."
+  position: Int!
+}
+
+"""
+This module counts in this version of these regulations.
+
+One entry per module per version, folded from the catalogue slots the module sits in. Rebuilt
+from the examination office's data on every import and never edited here: it is a statement
+about somebody else's regulations, and an editable copy would be a second version of them that
+nobody in the faculty is authorised to keep.
+"""
+type ModuleOffering {
+  "The version of the regulations this module counts in."
+  spo: Spo!
+  "Compulsory or elective, as the catalogue slot says."
+  isDuty: Boolean!
+  """
+  The codes this module carries in these regulations, possibly several.
+
+  Display only, never an identifier. The code belongs to the module-regulations-slot triple
+  rather than to the module: 85 module/version pairs carry more than one because the
+  specialisation is inside the code, one module carries eight across the catalogue, and a fifth
+  of the source rows carry none at all.
+  """
+  moduleCodes: [String!]!
+  "The specialisations whose catalogue this module sits in."
+  focuses: [String!]!
+  """
+  The earliest programme semester a student may take it in.
+
+  A floor, not a cohort year and not a timetable slot. Nearly half the source rows say 1, which
+  for an elective means "no restriction".
+  """
+  minProgrammeSemester: Int
+}
+
+"""
+Which modules to list.
+
+An input type rather than separate arguments, unlike ` + "`" + `people(search:, includeInactive:)` + "`" + `
+elsewhere in this schema: six filters is past the point where positional arguments read, the set
+will grow as subject groups and competences arrive, and an interface's form maps onto it field
+for field.
+"""
+input ModuleFilter {
+  """
+  Relevant for this study programme, by its short code.
+
+  Two things at once, and the second half is not redundant: the module counts in one of the
+  programme's sets of regulations, **or** the programme is its home. Twenty-six active modules
+  are only reachable through the second half, ten of them in the faculty's largest programme —
+  and the first thing somebody does is look for a module they are responsible for.
+  """
+  programme: String
+  """
+  Narrow to one version of the regulations.
+
+  No default, deliberately. Unfiltered, a programme's list is the union over every version it
+  has: a module dropped from the newest one is still being taught to the students of the older.
+  """
+  spo: ID
+  """
+  Keep only modules with one of these frequencies.
+
+  To find what could run in a winter semester, ask for ` + "`" + `EVERY_WINTER_SEMESTER` + "`" + `,
+  ` + "`" + `EVERY_SEMESTER` + "`" + `, ` + "`" + `ALTERNATING_WITHIN_SUBJECT_GROUP` + "`" + `, ` + "`" + `ON_ANNOUNCEMENT` + "`" + ` and ` + "`" + `UNKNOWN` + "`" + ` — the
+  last three say nothing about the term and are together more than half the catalogue, so
+  leaving them out hides far more than it removes.
+  """
+  frequency: [Frequency!]
+  """
+  Compulsory or elective. Requires ` + "`" + `programme` + "`" + `, and is ignored without it — the answer is a
+  property of a module *in a programme*, not of a module.
+  """
+  duty: DutyStatus
+  "A substring of the name or of one of the module codes. Case-insensitive."
+  search: String
+  "Include modules the examination office has retired. About a hundred of them."
+  includeInactive: Boolean = false
+  """
+  Keep only modules whose hours have not been split into teachable units yet.
+
+  The work list. A programme lead getting ready for a semester needs to know which of their
+  modules cannot be declared yet, and that is a bounded, finishable task rather than an open
+  form.
+  """
+  withoutComponents: Boolean = false
+}
+
+"""
+One unit of a module's split, on the way in.
+"""
+input ModuleComponentInput {
+  "What kind of teaching this unit is."
+  kind: InstancePartKind!
+  "Hours per week for one unit of this kind. Greater than zero."
+  teachingHours: Float!
+}
+
+extend type Query {
+  """
+  Every study programme, by code.
+
+  Includes the one with no current regulations, marked ` + "`" + `active: false` + "`" + `, because its modules are
+  still planable.
+  """
+  programmes: [Programme!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  One study programme by its short code, or ` + "`" + `null` + "`" + ` if there is no such programme.
+  """
+  programme(code: String!): Programme @scope(area: PLANNING, verb: READ)
+
+  """
+  The module catalogue, filtered.
+
+  Requires an account and no particular role: the catalogue is published by the examination
+  office and a lecturer has to see a module before they can register interest in it.
+  """
+  modules(filter: ModuleFilter): [Module!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  One module by its id, or ` + "`" + `null` + "`" + `.
+  """
+  module(id: ID!): Module @scope(area: PLANNING, verb: READ)
+}
+
+extend type Mutation {
+  """
+  State how a module's hours divide between teachable units.
+
+  Replaces the whole split rather than editing one entry: the entries only mean anything
+  together, and a per-entry mutation would allow a moment where a module's hours add up to
+  something nobody intended.
+
+  Allowed for the study programme lead of the module's **home** programme and for the dean's
+  office. Not for a lead in whose catalogue the module merely counts — the module is planned
+  where it is at home, and two programmes editing one split would disagree in the database.
+
+  Passing an empty list clears the split, which makes the module undeclarable again. That is
+  allowed on purpose: a split entered wrongly should be removable by the person who entered it.
+  """
+  setModuleComponents(
+    moduleId: ID!
+    "In order. At least one entry, or none at all to clear the split."
+    components: [ModuleComponentInput!]!
+  ): Module! @scope(area: PLANNING, verb: WRITE)
+}
+`, BuiltIn: false},
 	{Name: "../directives.graphqls", Input: `# Why a real directive rather than a check inside each resolver: generated code calls it, so
 # no resolver can forget it. A rule that depends on every future author remembering it is not
 # a rule. Implementation in graph/directives.go, decision in policy.MayReadInteractiveOnly.
@@ -1094,7 +1855,8 @@ enum ScopeArea {
   The first area worth narrowing a token to. ` + "`" + `PUBLIC` + "`" + ` and ` + "`" + `PROFILE` + "`" + ` are you describing
   yourself; ` + "`" + `TOKENS` + "`" + ` and ` + "`" + `ADMIN` + "`" + ` are unreachable through a token at all.
 
-  Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `publishWishes` + "`" + `.
+  Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `, ` + "`" + `module` + "`" + `,
+  ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `publishWishes` + "`" + `, ` + "`" + `setModuleComponents` + "`" + `.
   """
   PLANNING
 
@@ -1111,11 +1873,11 @@ enum ScopeArea {
   ` + "`" + `@interactiveOnly` + "`" + `, for the same reason.
 
   The import is here rather than under ` + "`" + `PLANNING` + "`" + ` because what these fields expose is the
-  operation — did the nightly job run, what did it change, run it now — and not the catalogue
-  it produces. When the modules themselves become readable they will be planning data and will
-  say so. An area of its own was considered and rejected: every field it could hold is
-  unreachable through a token anyway, so it would be a promise in an enum that colleagues can
-  read via introspection and never use.
+  operation — did the nightly job run, what did it change, run it now, what did it make of the
+  untidy parts — and not the catalogue it produces. The catalogue itself is planning data and
+  lives under ` + "`" + `PLANNING` + "`" + `. An area of its own was considered and rejected: every field it could
+  hold is unreachable through a token anyway, so it would be a promise in an enum that
+  colleagues can read via introspection and never use.
 
   Fields: ` + "`" + `people` + "`" + `, ` + "`" + `person` + "`" + `, ` + "`" + `roleGrants` + "`" + `, ` + "`" + `diagnoseAccess` + "`" + `, ` + "`" + `createPerson` + "`" + `, ` + "`" + `renamePerson` + "`" + `,
   ` + "`" + `setPersonRoles` + "`" + `, ` + "`" + `setPersonActive` + "`" + `, ` + "`" + `zpaSyncRuns` + "`" + `, ` + "`" + `zpaSyncRun` + "`" + `, ` + "`" + `zpaChanges` + "`" + `, ` + "`" + `syncZpaNow` + "`" + `.
@@ -1841,6 +2603,74 @@ func (ec *executionContext) childFields_CreatedPersonalAccessToken(ctx context.C
 	return nil, fmt.Errorf("no field named %q was found under type CreatedPersonalAccessToken", field.Name)
 }
 
+func (ec *executionContext) childFields_Module(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Module_id(ctx, field)
+	case "name":
+		return ec.fieldContext_Module_name(ctx, field)
+	case "homeProgramme":
+		return ec.fieldContext_Module_homeProgramme(ctx, field)
+	case "courseType":
+		return ec.fieldContext_Module_courseType(ctx, field)
+	case "frequency":
+		return ec.fieldContext_Module_frequency(ctx, field)
+	case "contactHoursPerWeek":
+		return ec.fieldContext_Module_contactHoursPerWeek(ctx, field)
+	case "credits":
+		return ec.fieldContext_Module_credits(ctx, field)
+	case "active":
+		return ec.fieldContext_Module_active(ctx, field)
+	case "official":
+		return ec.fieldContext_Module_official(ctx, field)
+	case "retiredAt":
+		return ec.fieldContext_Module_retiredAt(ctx, field)
+	case "zpaId":
+		return ec.fieldContext_Module_zpaId(ctx, field)
+	case "components":
+		return ec.fieldContext_Module_components(ctx, field)
+	case "componentHours":
+		return ec.fieldContext_Module_componentHours(ctx, field)
+	case "offerings":
+		return ec.fieldContext_Module_offerings(ctx, field)
+	case "dutyStatus":
+		return ec.fieldContext_Module_dutyStatus(ctx, field)
+	case "inCatalogue":
+		return ec.fieldContext_Module_inCatalogue(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Module", field.Name)
+}
+
+func (ec *executionContext) childFields_ModuleComponent(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_ModuleComponent_id(ctx, field)
+	case "kind":
+		return ec.fieldContext_ModuleComponent_kind(ctx, field)
+	case "teachingHours":
+		return ec.fieldContext_ModuleComponent_teachingHours(ctx, field)
+	case "position":
+		return ec.fieldContext_ModuleComponent_position(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ModuleComponent", field.Name)
+}
+
+func (ec *executionContext) childFields_ModuleOffering(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "spo":
+		return ec.fieldContext_ModuleOffering_spo(ctx, field)
+	case "isDuty":
+		return ec.fieldContext_ModuleOffering_isDuty(ctx, field)
+	case "moduleCodes":
+		return ec.fieldContext_ModuleOffering_moduleCodes(ctx, field)
+	case "focuses":
+		return ec.fieldContext_ModuleOffering_focuses(ctx, field)
+	case "minProgrammeSemester":
+		return ec.fieldContext_ModuleOffering_minProgrammeSemester(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ModuleOffering", field.Name)
+}
+
 func (ec *executionContext) childFields_Person(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "id":
@@ -1887,6 +2717,20 @@ func (ec *executionContext) childFields_PolicyDecision(ctx context.Context, fiel
 	return nil, fmt.Errorf("no field named %q was found under type PolicyDecision", field.Name)
 }
 
+func (ec *executionContext) childFields_Programme(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "code":
+		return ec.fieldContext_Programme_code(ctx, field)
+	case "title":
+		return ec.fieldContext_Programme_title(ctx, field)
+	case "active":
+		return ec.fieldContext_Programme_active(ctx, field)
+	case "spos":
+		return ec.fieldContext_Programme_spos(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Programme", field.Name)
+}
+
 func (ec *executionContext) childFields_RoleGrant(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "role":
@@ -1931,6 +2775,22 @@ func (ec *executionContext) childFields_Session(ctx context.Context, field graph
 		return ec.fieldContext_Session_interactive(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Session", field.Name)
+}
+
+func (ec *executionContext) childFields_Spo(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Spo_id(ctx, field)
+	case "version":
+		return ec.fieldContext_Spo_version(ctx, field)
+	case "validFrom":
+		return ec.fieldContext_Spo_validFrom(ctx, field)
+	case "primussId":
+		return ec.fieldContext_Spo_primussId(ctx, field)
+	case "programme":
+		return ec.fieldContext_Spo_programme(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Spo", field.Name)
 }
 
 func (ec *executionContext) childFields_ZpaChange(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

@@ -1,0 +1,71 @@
+Writing — when each part of the planning may be changed, and by whom
+===================================================================
+
+Generated from internal/policy (TestWriteMatrix). Do not edit by hand:
+
+    go test ./internal/policy/ -update-golden
+
+The rule
+--------
+
+The planning runs through four phases, and this table says what may be written in each. It is a
+table rather than a condition somewhere in the code, for two reasons: it is an artefact the
+faculty has to be able to read and agree with, and closing something later should be one row and
+one reviewed diff.
+
+Read it as "when". It does not say *which* study programme somebody reaches — that is the
+planning matrix, and the two are intersected. Both have to say yes.
+
+The one that surprises people
+-----------------------------
+
+**The demand may be changed in every phase, FINAL included.** That is a decision and not an
+oversight.
+
+A course instance declared during the assignment is a correction: somebody falls ill, a cohort
+turns out larger than the numbers said, a module was forgotten. Corrections happen, and a tool
+that refuses one does not prevent it — it moves it into a spreadsheet passed around by mail,
+which is the thing this system replaces. Its own figures then become the wrong ones.
+
+What protects a plan already being worked on is therefore not a closed phase. It is the refusal
+to withdraw an instance that something already hangs off, which is enforced on the row itself and
+says nothing about what that something is.
+
+Notes
+-----
+
+  · The phase is stored on the semester and advanced by an audited mutation, never derived from
+    the calendar.
+  · A phase this binary does not recognise permits nothing. The plausible guess would be
+    DEMAND_PLANNING — the most permissive phase there is — so guessing would turn a database
+    this binary cannot read into one it writes to.
+  · ADMIN writes nothing here, the same decision the other two tables make: running the system
+    is a different job from planning with it.
+  · Doors are not a dimension of this rule. Demand is neither confidential nor personnel data,
+    so a Personal Access Token reaches exactly as far as a browser session does.
+
+DEMAND
+------
+
+Role                DEMAND_PLANNING  WISHES   ASSIGNMENT  FINAL
+---------------------------------------------------------------
+LECTURER            no               no       no          no
+SUBJECT_GROUP_LEAD  no               no       no          no
+PROGRAMME_LEAD      yes              yes      yes         yes
+DEANS_OFFICE        yes              yes      yes         yes
+ADMIN               no               no       no          no
+
+(unknown phase)     no               no       no          no
+
+How this combines with the planning matrix
+-----------------------------------------
+
+    may write = (this table says yes for the phase) AND (the planning matrix says yes for the
+                study programme)
+
+Neither half is redundant. A programme lead in an open phase may still only write for their own
+programmes; the dean's office reaches every programme but is still bound by the phase.
+
+The refusal names which half said no, because the repair differs: an unassigned programme lead
+needs an administrator, the lead of another programme needs the right programme, and a closed
+phase needs the phase moved.

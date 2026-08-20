@@ -274,6 +274,21 @@ enum ZpaProjectionFinding {
   "Folded with the lower value: the catalogue slots of one set of regulations disagree about the earliest semester."
   MIN_SEMESTER_CONFLICT
   """
+  Not stored: the source names a responsible person the teacher list does not contain.
+
+  About one module in thirty. Either a placeholder rather than a person, or the address of
+  somebody who is not in the list. The value stays in the cached payload; carrying it into the
+  catalogue would put a mail address in the tables about modules.
+  """
+  MODULE_RESPONSIBLE_UNKNOWN
+  """
+  Kept: somebody who teaches and for whom the source gives no address.
+
+  The address is the link to somebody who signs in, so such a person can never be connected to
+  one — worth seeing, not worth refusing.
+  """
+  TEACHER_WITHOUT_MAIL
+  """
   The one that is an alarm rather than a note, and it should always be absent.
 
   A module's entry per set of regulations is folded from up to four catalogue slots, and that

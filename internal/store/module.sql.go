@@ -499,6 +499,67 @@ func (q *Queries) ModuleOfferingsFor(ctx context.Context, moduleIds []uuid.UUID)
 	return items, nil
 }
 
+const modulesByIDs = `-- name: ModulesByIDs :many
+SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
+       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref
+FROM module
+WHERE id = ANY ($1::uuid[])
+ORDER BY (name = ''), name, id
+`
+
+type ModulesByIDsRow struct {
+	ID                   uuid.UUID
+	Name                 string
+	HomeProgrammeID      uuid.UUID
+	ResponsibleTeacherID uuid.NullUUID
+	CourseType           string
+	Frequency            string
+	ContactHoursPerWeek  *int32
+	Credits              *int32
+	Active               bool
+	Official             bool
+	RetiredAt            pgtype.Timestamptz
+	ZpaModuleRef         *int64
+}
+
+// A handful of modules by id, for attaching them to the instances that offer them.
+//
+// The demand of a semester names tens of modules and the catalogue holds 506, so the list query
+// with a filter would read the whole table to answer a question about twenty rows. Same ordering
+// as the list, so that a screen sorted by module reads the same way in both places.
+func (q *Queries) ModulesByIDs(ctx context.Context, ids []uuid.UUID) ([]ModulesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, modulesByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ModulesByIDsRow{}
+	for rows.Next() {
+		var i ModulesByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.HomeProgrammeID,
+			&i.ResponsibleTeacherID,
+			&i.CourseType,
+			&i.Frequency,
+			&i.ContactHoursPerWeek,
+			&i.Credits,
+			&i.Active,
+			&i.Official,
+			&i.RetiredAt,
+			&i.ZpaModuleRef,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const programmeByCode = `-- name: ProgrammeByCode :one
 SELECT id, code, title, active
 FROM programme

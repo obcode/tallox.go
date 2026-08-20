@@ -244,6 +244,37 @@ func (m *Modules) ModuleByID(ctx context.Context, id uuid.UUID) (*domain.Module,
 	return &modules[0], nil
 }
 
+// ModulesByID returns a handful of modules with everything attached, keyed by nothing — the
+// caller matches them up.
+//
+// For the demand, whose instances name tens of modules out of 506. Filtering the list query
+// would read the catalogue to answer a question about twenty rows, and a Module assembled
+// differently here than there would be a Module whose empty split means something else — and an
+// empty split is what stops an instance being declared.
+func (m *Modules) ModulesByID(ctx context.Context, ids []uuid.UUID) ([]domain.Module, error) {
+	if len(ids) == 0 {
+		return []domain.Module{}, nil
+	}
+
+	q := New(m.pool)
+
+	rows, err := q.ModulesByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the modules: %w", err)
+	}
+
+	modules := make([]domain.Module, 0, len(rows))
+	found := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		modules = append(modules, moduleFrom(ListModulesRow(row)))
+		found = append(found, row.ID)
+	}
+	if err := m.attach(ctx, q, modules, found); err != nil {
+		return nil, err
+	}
+	return modules, nil
+}
+
 // attach fills in the home programme, the split and the offerings of a set of modules.
 //
 // Three statements regardless of how many modules there are, which is the whole point.

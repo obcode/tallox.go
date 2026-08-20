@@ -35,21 +35,22 @@ type InstancePart struct {
 }
 
 type Module struct {
-	ID                  uuid.UUID
-	HomeProgrammeID     uuid.UUID
-	Name                string
-	CourseType          string
-	CourseTypeSource    string
-	Frequency           string
-	FrequencySource     string
-	ContactHoursPerWeek *int32
-	Credits             *int32
-	Active              bool
-	Official            bool
-	RetiredAt           pgtype.Timestamptz
-	ZpaModuleRef        *int64
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
+	ID                   uuid.UUID
+	HomeProgrammeID      uuid.UUID
+	Name                 string
+	CourseType           string
+	CourseTypeSource     string
+	Frequency            string
+	FrequencySource      string
+	ContactHoursPerWeek  *int32
+	Credits              *int32
+	Active               bool
+	Official             bool
+	RetiredAt            pgtype.Timestamptz
+	ZpaModuleRef         *int64
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	ResponsibleTeacherID uuid.NullUUID
 }
 
 type ModuleComponent struct {
@@ -144,6 +145,24 @@ type Spo struct {
 	UpdatedAt   time.Time
 }
 
+type Teacher struct {
+	ID                   uuid.UUID
+	ZpaTeacherRef        *int64
+	Mail                 *string
+	FullName             string
+	ShortName            string
+	IsProfessor          bool
+	IsLecturerOnContract bool
+	IsHonoraryProfessor  bool
+	IsStaff              bool
+	Active               bool
+	Faculty              *string
+	LastSemester         *string
+	RetiredAt            pgtype.Timestamptz
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
 type ZpaBasketV struct {
 	BasketID      int64
 	Name          string
@@ -166,6 +185,7 @@ type ZpaCatalogueProjection struct {
 	OfferingsWritten  int32
 	OfferingsRemoved  int32
 	Error             *string
+	TeachersWritten   int32
 }
 
 type ZpaCatalogueProjectionNote struct {
@@ -267,4 +287,20 @@ type ZpaSyncRunKind struct {
 	Status  string
 	Fetched int32
 	Error   *string
+}
+
+type ZpaTeacherV struct {
+	TeacherID            int64
+	Mail                 string
+	FullName             string
+	ShortName            string
+	IsProfessor          bool
+	IsLecturerOnContract bool
+	IsHonoraryProfessor  bool
+	IsStaff              bool
+	Active               bool
+	Faculty              string
+	LastSemester         interface{}
+	Present              interface{}
+	LastChangedAt        time.Time
 }

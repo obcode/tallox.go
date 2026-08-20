@@ -44,6 +44,9 @@ import (
 //	             106 its home programme is the string "None"
 //	             107 belongs to PZ, and its only association points at vanished regulations
 //	             108 a frequency and a course type this version has never seen
+//	Teachers     201 the person every module names as responsible
+//	             202 no address at all — can never be connected to somebody who signs in
+//	Module 108 names a responsible person the teacher list does not contain.
 const (
 	// FixtureProgrammeA is the ordinary programme: two sets of regulations, both real.
 	FixtureProgrammeA = "PA"
@@ -78,6 +81,12 @@ const (
 	FixtureModuleWithoutHome       = 106
 	FixtureModuleOfProgrammeZ      = 107
 	FixtureModuleUnknownVocabulary = 108
+
+	// FixtureTeacherOrdinary is named as responsible by every module but one.
+	FixtureTeacherOrdinary = 201
+	// FixtureTeacherWithoutMail is the case that can never be linked to a person in this
+	// installation, because the address is the link. Three of 257 real ones are like this.
+	FixtureTeacherWithoutMail = 202
 )
 
 // zpaObject is one row of the landing table, in the shape the importer writes.
@@ -167,7 +176,40 @@ func basket(id int64, name string, isDuty bool, focus string) zpaObject {
 	return zpaObject{kind: "BASKET", zpaID: id, payload: payload}
 }
 
+func teacher(id int64, mail, fullName, shortName string, isProf, active bool, faculty string) zpaObject {
+	return zpaObject{
+		kind:  "TEACHER",
+		zpaID: id,
+		payload: map[string]any{
+			// The one endpoint that types its values: a real integer id and real booleans, not
+			// the strings every other kind arrives as.
+			"person_id":        id,
+			"email":            mail,
+			"person_fullname":  fullName,
+			"person_shortname": shortName,
+			"is_prof":          isProf,
+			"is_lba":           false,
+			"is_profhc":        false,
+			"is_staff":         !isProf,
+			"is_active":        active,
+			"fk":               faculty,
+			// The source's own spelling, with a space. The view turns it into this system's.
+			"last_semester": "2026 WS",
+		},
+		label: shortName,
+	}
+}
+
 func module(id int64, owner, courseType, frequency string, sws, credits int, active bool) zpaObject {
+	return moduleResponsibleTo(id, owner, courseType, frequency, sws, credits, active,
+		"prof.eins@example.org")
+}
+
+// moduleResponsibleTo is module() with the responsible person spelled out, for the one fixture
+// that names somebody the teacher list does not contain.
+func moduleResponsibleTo(id int64, owner, courseType, frequency string, sws, credits int,
+	active bool, responsible string,
+) zpaObject {
 	return zpaObject{
 		kind:  "MODULE",
 		zpaID: id,
@@ -184,9 +226,10 @@ func module(id int64, owner, courseType, frequency string, sws, credits int, act
 			"active":        pythonBool(active),
 			"official":      "True",
 			"repeater_exam": "False",
-			// A mail address, in the shape the source publishes it. It is here on purpose: the
-			// test that asserts the projection never copies one needs a row that has one.
-			"responsible": "prof.eins@example.org",
+			// A mail address, in the shape the source publishes it. It is here on purpose twice
+			// over: the projection has to resolve it to a teacher, and the test that asserts it
+			// never lands in the module table needs a row that has one.
+			"responsible": responsible,
 			"languages":   "DE",
 			"std_lang":    "DE",
 			"effort":      "30 Präsenzstunden Vorlesung, 30 Präsenzstunden Praktikum",
@@ -280,8 +323,18 @@ func catalogueObjects() []zpaObject {
 		// A phrase in each vocabulary that this version has never seen. Both must become the
 		// safe value *and* a report line — a silent fall to the default is how a filter starts
 		// hiding the wrong modules.
-		module(FixtureModuleUnknownVocabulary, FixtureProgrammeA, "Blockveranstaltung",
-			"alle drei Jahre", 4, 5, true),
+		// Also the module whose responsible person cannot be resolved: the source writes a
+		// placeholder rather than an address for seven real modules, and nine more name an
+		// address the teacher list does not contain.
+		moduleResponsibleTo(FixtureModuleUnknownVocabulary, FixtureProgrammeA,
+			"Blockveranstaltung", "alle drei Jahre", 4, 5, true, "N.N"),
+
+		// --- Teachers -----------------------------------------------------------------------
+		teacher(FixtureTeacherOrdinary, "prof.eins@example.org", "Prof. Dr. Eins",
+			"Eins, Prof.", true, true, "FK07"),
+		// No address. The link to a person in this installation is the address, so this one
+		// cannot have one — and that is worth reporting rather than refusing.
+		teacher(FixtureTeacherWithoutMail, "", "Ohne Adresse", "Adresse, Ohne", false, false, ""),
 
 		// --- Associations ------------------------------------------------------------------
 		//

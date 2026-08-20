@@ -73,6 +73,13 @@ const (
 	// NoteMinSemesterConflict is a module whose catalogue slots within one set of regulations
 	// disagree about the earliest semester. Folded with the lowest.
 	NoteMinSemesterConflict ProjectionNoteCode = "MIN_SEMESTER_CONFLICT"
+	// NoteModuleResponsibleUnknown is a module whose responsible person the teacher list does
+	// not contain. Reported rather than stored: a mail address belongs in the table about
+	// people.
+	NoteModuleResponsibleUnknown ProjectionNoteCode = "MODULE_RESPONSIBLE_UNKNOWN"
+	// NoteTeacherWithoutMail is a teacher the source gives no address for. Such a person can
+	// never be connected to somebody who signs in, because the address is the link.
+	NoteTeacherWithoutMail ProjectionNoteCode = "TEACHER_WITHOUT_MAIL"
 	// NoteDutyConflict is the alarm rather than a note. The grain of an offering rests on
 	// compulsory-or-elective being determined by module and regulations together; if the source
 	// ever contradicts that, the fold silently picks an answer and this says so.
@@ -89,6 +96,8 @@ func AllProjectionNoteCodes() []ProjectionNoteCode {
 		NoteProgrammeWithoutRegulations,
 		NoteModuleWithoutName,
 		NoteModuleInactive,
+		NoteModuleResponsibleUnknown,
+		NoteTeacherWithoutMail,
 		NoteFrequencyUnmapped,
 		NoteCourseTypeUnmapped,
 		NoteMinSemesterConflict,
@@ -127,6 +136,7 @@ type CatalogueProjection struct {
 	Status     ProjectionStatus
 
 	ProgrammesWritten int
+	TeachersWritten   int
 	ModulesWritten    int
 	OfferingsWritten  int
 	OfferingsRemoved  int

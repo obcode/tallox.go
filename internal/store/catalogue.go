@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/obcode/tallox.go/internal/domain"
@@ -67,6 +69,7 @@ func (c *Catalogue) Project(ctx context.Context, runID *uuid.UUID) (domain.Catal
 		ID:                started.ID,
 		Status:            string(status),
 		ProgrammesWritten: int32(counts.Programmes),
+		TeachersWritten:   int32(counts.Teachers),
 		ModulesWritten:    int32(counts.Modules),
 		OfferingsWritten:  int32(counts.Offerings),
 		OfferingsRemoved:  int32(counts.OfferingsRemoved),
@@ -76,7 +79,7 @@ func (c *Catalogue) Project(ctx context.Context, runID *uuid.UUID) (domain.Catal
 		return domain.CatalogueProjection{}, fmt.Errorf("cannot finish the projection: %w", err)
 	}
 
-	result := projectionFrom(finished)
+	result := projectionFrom(projectionRow(finished))
 	result.Notes = notes
 	if projectErr != nil {
 		return result, projectErr
@@ -87,6 +90,7 @@ func (c *Catalogue) Project(ctx context.Context, runID *uuid.UUID) (domain.Catal
 // counts is what the four writing statements reported.
 type counts struct {
 	Programmes       int
+	Teachers         int
 	Modules          int
 	Offerings        int
 	OfferingsRemoved int
@@ -118,6 +122,13 @@ func (c *Catalogue) project(ctx context.Context, projectionID uuid.UUID) (counts
 		return done, nil, fmt.Errorf("cannot project the regulations: %w", err)
 	}
 
+	// Before the modules, because a module names one of them.
+	teachers, err := q.ProjectTeachers(ctx)
+	if err != nil {
+		return done, nil, fmt.Errorf("cannot project the teachers: %w", err)
+	}
+	done.Teachers = int(teachers)
+
 	frequencyPhrases, frequencyValues := domain.FrequencyPhraseMapping()
 	courseTypePhrases, courseTypeValues := domain.CourseTypePhraseMapping()
 	modules, err := q.ProjectModules(ctx, ProjectModulesParams{
@@ -130,6 +141,11 @@ func (c *Catalogue) project(ctx context.Context, projectionID uuid.UUID) (counts
 		return done, nil, fmt.Errorf("cannot project the modules: %w", err)
 	}
 	done.Modules = int(modules)
+
+	// After both, because it needs both.
+	if _, err := q.LinkModuleResponsibles(ctx); err != nil {
+		return done, nil, fmt.Errorf("cannot link the responsible teachers: %w", err)
+	}
 
 	offerings, err := q.ProjectModuleOfferings(ctx)
 	if err != nil {
@@ -202,6 +218,14 @@ func gatherNotes(ctx context.Context, q *Queries) ([]domain.CatalogueProjectionN
 			r, err := q.CountAssociationsWithUnknownRegulations(ctx)
 			return noteRow(r), err
 		}},
+		{domain.NoteModuleResponsibleUnknown, func() (noteRow, error) {
+			r, err := q.CountModulesWithUnknownResponsible(ctx)
+			return noteRow(r), err
+		}},
+		{domain.NoteTeacherWithoutMail, func() (noteRow, error) {
+			r, err := q.CountTeachersWithoutMail(ctx)
+			return noteRow(r), err
+		}},
 		{domain.NoteFrequencyUnmapped, func() (noteRow, error) {
 			r, err := q.CountUnmappedFrequencies(ctx)
 			return noteRow(r), err
@@ -270,7 +294,7 @@ func (c *Catalogue) LatestProjections(ctx context.Context, limit int) ([]domain.
 
 	out := make([]domain.CatalogueProjection, 0, len(rows))
 	for _, row := range rows {
-		projection := projectionFrom(row)
+		projection := projectionFrom(projectionRow(row))
 		notes, err := q.CatalogueProjectionNotes(ctx, row.ID)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read the report of %s: %w", row.ID, err)
@@ -294,12 +318,33 @@ func (c *Catalogue) LatestProjections(ctx context.Context, limit int) ([]domain.
 	return out, nil
 }
 
-func projectionFrom(row ZpaCatalogueProjection) domain.CatalogueProjection {
+// projectionRow is the shape all three projection queries produce.
+//
+// sqlc emits a distinct type per query once the RETURNING list stops matching the table's column
+// order — which it did the moment a column was appended by a later migration. Converting rather
+// than copying field by field keeps that identity a compile-time claim: a column added to the
+// table without being returned stops this compiling instead of silently reading a zero.
+type projectionRow struct {
+	ID                uuid.UUID
+	RunID             uuid.NullUUID
+	StartedAt         time.Time
+	FinishedAt        pgtype.Timestamptz
+	Status            string
+	ProgrammesWritten int32
+	TeachersWritten   int32
+	ModulesWritten    int32
+	OfferingsWritten  int32
+	OfferingsRemoved  int32
+	Error             *string
+}
+
+func projectionFrom(row projectionRow) domain.CatalogueProjection {
 	projection := domain.CatalogueProjection{
 		ID:                row.ID,
 		StartedAt:         row.StartedAt,
 		Status:            domain.ProjectionStatus(row.Status),
 		ProgrammesWritten: int(row.ProgrammesWritten),
+		TeachersWritten:   int(row.TeachersWritten),
 		ModulesWritten:    int(row.ModulesWritten),
 		OfferingsWritten:  int(row.OfferingsWritten),
 		OfferingsRemoved:  int(row.OfferingsRemoved),

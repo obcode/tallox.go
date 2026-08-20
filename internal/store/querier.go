@@ -50,6 +50,13 @@ type Querier interface {
 	// state in two versions of the regulations at once, and printing its identifier twice would
 	// read as two different modules.
 	CountMinSemesterConflicts(ctx context.Context) (CountMinSemesterConflictsRow, error)
+	// The source names somebody the teacher list does not contain.
+	//
+	// Sixteen of 506 today: seven placeholders ("N.N", "ex_prof_003") and nine addresses. The
+	// sample carries the module identifiers rather than the addresses — the whole reason these are
+	// not stored is that a mail address belongs in the table about people, and a report is not an
+	// exception to that.
+	CountModulesWithUnknownResponsible(ctx context.Context) (CountModulesWithUnknownResponsibleRow, error)
 	// The report
 	// ----------
 	//
@@ -81,6 +88,9 @@ type Querier interface {
 	// Projected and marked inactive. Their modules stay planable, which is the point: the real one
 	// has six modules behind it and four of them are still active.
 	CountProgrammesWithoutRegulations(ctx context.Context) (CountProgrammesWithoutRegulationsRow, error)
+	// A teacher the source gives no address for. Three of 257, and they can never be connected to a
+	// person in this installation — worth seeing, not worth refusing.
+	CountTeachersWithoutMail(ctx context.Context) (CountTeachersWithoutMailRow, error)
 	// Became DEPENDS_ON_SUBJECT. Same reasoning, and the same exclusion of the empty phrase —
 	// except that the source really does write "je nach Fach", which maps to the same value and is
 	// therefore excluded here too, or 23 modules would be reported as a problem every night.
@@ -153,7 +163,7 @@ type Querier interface {
 	// the interface would show a run in progress that nothing is progressing. The cutoff is passed
 	// in rather than hard-coded here so the caller's reasoning about it stays in Go.
 	FailAbandonedZPASyncRuns(ctx context.Context, olderThan time.Time) ([]uuid.UUID, error)
-	FinishCatalogueProjection(ctx context.Context, arg FinishCatalogueProjectionParams) (ZpaCatalogueProjection, error)
+	FinishCatalogueProjection(ctx context.Context, arg FinishCatalogueProjectionParams) (FinishCatalogueProjectionRow, error)
 	FinishZPASyncRun(ctx context.Context, arg FinishZPASyncRunParams) (ZpaSyncRun, error)
 	// Idempotent in the sense that matters: granting a role somebody already holds updates its
 	// expiry rather than failing, so "give me DEANS_OFFICE for another hour" is one call and not
@@ -167,7 +177,17 @@ type Querier interface {
 	// recent. PARTIAL counts: it fetched something, and a run that got three of four endpoints is
 	// not the silence this is watching for.
 	LastSuccessfulZPASyncRun(ctx context.Context) (LastSuccessfulZPASyncRunRow, error)
-	LatestCatalogueProjections(ctx context.Context, limit int32) ([]ZpaCatalogueProjection, error)
+	LatestCatalogueProjections(ctx context.Context, limit int32) ([]LatestCatalogueProjectionsRow, error)
+	// Connect each module to the person the source names as responsible for it.
+	//
+	// Runs after both, because it needs both. Matched on the address, lower-cased on the teacher
+	// side by the view and here on the module side — the source writes it as somebody typed it.
+	//
+	// The 16 that do not resolve are set to NULL rather than left as they were: a module whose
+	// responsible person the source has changed to somebody unknown must not keep pointing at the
+	// previous one. What they were is reported, not stored — a mail address belongs in the table
+	// about people.
+	LinkModuleResponsibles(ctx context.Context) (int64, error)
 	// The catalogue, filtered.
 	//
 	// The programme filter is a union of two conditions and the second is not redundant: a module
@@ -339,6 +359,18 @@ type Querier interface {
 	// a version and a date but no programme, and a set of regulations belonging to no programme is
 	// the same pathology as a module whose owner is the string "None", one level up.
 	ProjectSpos(ctx context.Context) (int64, error)
+	// The people who teach, as the examination office publishes them.
+	//
+	// Before the modules, because a module names one. Everybody is taken, including the 49 the
+	// source marks inactive: five of them are still named as responsible for a module, and a
+	// filter here would leave those modules pointing at nobody for a reason nobody could see. The
+	// flag is a column, and the filtering happens where somebody is looking at a list.
+	//
+	// Note what this does NOT do: it creates no person rows and grants nothing. A teacher is
+	// imported master data; who may use this installation is a decision somebody makes in the
+	// people administration. Six of the 257 carry addresses the identity provider will never
+	// assert, so the two sets are not the same even in principle.
+	ProjectTeachers(ctx context.Context) (int64, error)
 	// Idempotent, and it keeps the *first* timestamp.
 	//
 	// Publishing twice is not an error — the second caller wanted the wishes published and they
@@ -409,7 +441,7 @@ type Querier interface {
 	// --------------------------------
 	// Written before the first statement, like the sync run it mirrors: a projection that crashed
 	// leaves a row somebody can see rather than no row at all.
-	StartCatalogueProjection(ctx context.Context, runID uuid.NullUUID) (ZpaCatalogueProjection, error)
+	StartCatalogueProjection(ctx context.Context, runID uuid.NullUUID) (StartCatalogueProjectionRow, error)
 	// Written before the first fetch, not after the last one. A run that crashes then leaves a
 	// RUNNING row somebody can see, rather than no row at all — which is indistinguishable from a
 	// job that was never scheduled, and is how "the import stopped three weeks ago" happens.

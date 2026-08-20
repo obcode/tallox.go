@@ -146,6 +146,66 @@ SET home_programme_id      = EXCLUDED.home_programme_id,
     retired_at             = EXCLUDED.retired_at,
     updated_at             = now();
 
+-- name: ProjectTeachers :execrows
+-- The people who teach, as the examination office publishes them.
+--
+-- Before the modules, because a module names one. Everybody is taken, including the 49 the
+-- source marks inactive: five of them are still named as responsible for a module, and a
+-- filter here would leave those modules pointing at nobody for a reason nobody could see. The
+-- flag is a column, and the filtering happens where somebody is looking at a list.
+--
+-- Note what this does NOT do: it creates no person rows and grants nothing. A teacher is
+-- imported master data; who may use this installation is a decision somebody makes in the
+-- people administration. Six of the 257 carry addresses the identity provider will never
+-- assert, so the two sets are not the same even in principle.
+INSERT INTO teacher (zpa_teacher_ref, mail, full_name, short_name,
+                     is_professor, is_lecturer_on_contract, is_honorary_professor, is_staff,
+                     active, faculty, last_semester, retired_at)
+SELECT t.teacher_id,
+       t.mail,
+       COALESCE(t.full_name, ''),
+       COALESCE(t.short_name, ''),
+       COALESCE(t.is_professor, false),
+       COALESCE(t.is_lecturer_on_contract, false),
+       COALESCE(t.is_honorary_professor, false),
+       COALESCE(t.is_staff, false),
+       COALESCE(t.active, true),
+       t.faculty,
+       t.last_semester,
+       CASE WHEN NOT t.present THEN now() END
+FROM zpa_teacher_v t
+ON CONFLICT (zpa_teacher_ref) DO UPDATE
+SET mail                    = EXCLUDED.mail,
+    full_name               = EXCLUDED.full_name,
+    short_name              = EXCLUDED.short_name,
+    is_professor            = EXCLUDED.is_professor,
+    is_lecturer_on_contract = EXCLUDED.is_lecturer_on_contract,
+    is_honorary_professor   = EXCLUDED.is_honorary_professor,
+    is_staff                = EXCLUDED.is_staff,
+    active                  = EXCLUDED.active,
+    faculty                 = EXCLUDED.faculty,
+    last_semester           = EXCLUDED.last_semester,
+    retired_at              = EXCLUDED.retired_at,
+    updated_at              = now();
+
+-- name: LinkModuleResponsibles :execrows
+-- Connect each module to the person the source names as responsible for it.
+--
+-- Runs after both, because it needs both. Matched on the address, lower-cased on the teacher
+-- side by the view and here on the module side — the source writes it as somebody typed it.
+--
+-- The 16 that do not resolve are set to NULL rather than left as they were: a module whose
+-- responsible person the source has changed to somebody unknown must not keep pointing at the
+-- previous one. What they were is reported, not stored — a mail address belongs in the table
+-- about people.
+UPDATE module m
+SET responsible_teacher_id = t.id,
+    updated_at             = now()
+FROM zpa_module_v z
+LEFT JOIN teacher t ON t.mail = lower(btrim(z.responsible))::citext
+WHERE m.zpa_module_ref = z.module_id
+  AND m.responsible_teacher_id IS DISTINCT FROM t.id;
+
 -- name: ProjectModuleOfferings :execrows
 -- Where each module counts, folded to one row per module per set of regulations.
 --
@@ -311,6 +371,30 @@ SELECT count(*)::integer AS count,
        )::text[] AS sample
 FROM conflicting;
 
+-- name: CountModulesWithUnknownResponsible :one
+-- The source names somebody the teacher list does not contain.
+--
+-- Sixteen of 506 today: seven placeholders ("N.N", "ex_prof_003") and nine addresses. The
+-- sample carries the module identifiers rather than the addresses — the whole reason these are
+-- not stored is that a mail address belongs in the table about people, and a report is not an
+-- exception to that.
+SELECT count(*)::integer AS count,
+       (array_agg(module_id::text ORDER BY module_id))[1:20]::text[] AS sample
+FROM zpa_module_v z
+WHERE z.present
+  AND z.responsible IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM teacher t WHERE t.mail = lower(btrim(z.responsible))::citext
+  );
+
+-- name: CountTeachersWithoutMail :one
+-- A teacher the source gives no address for. Three of 257, and they can never be connected to a
+-- person in this installation — worth seeing, not worth refusing.
+SELECT count(*)::integer AS count,
+       (array_agg(zpa_teacher_ref::text ORDER BY zpa_teacher_ref))[1:20]::text[] AS sample
+FROM teacher
+WHERE mail IS NULL AND retired_at IS NULL;
+
 -- name: CountDutyConflicts :one
 -- Must be zero, and is the one line here that is an alarm rather than a note.
 --
@@ -339,21 +423,22 @@ FROM conflicting;
 -- leaves a row somebody can see rather than no row at all.
 INSERT INTO zpa_catalogue_projection (run_id)
 VALUES (sqlc.narg(run_id))
-RETURNING id, run_id, started_at, finished_at, status,
-          programmes_written, modules_written, offerings_written, offerings_removed, error;
+RETURNING id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
+          modules_written, offerings_written, offerings_removed, error;
 
 -- name: FinishCatalogueProjection :one
 UPDATE zpa_catalogue_projection
 SET status             = sqlc.arg(status),
     finished_at        = now(),
     programmes_written = sqlc.arg(programmes_written),
+    teachers_written   = sqlc.arg(teachers_written),
     modules_written    = sqlc.arg(modules_written),
     offerings_written  = sqlc.arg(offerings_written),
     offerings_removed  = sqlc.arg(offerings_removed),
     error              = sqlc.narg(error)
 WHERE id = sqlc.arg(id)
-RETURNING id, run_id, started_at, finished_at, status,
-          programmes_written, modules_written, offerings_written, offerings_removed, error;
+RETURNING id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
+          modules_written, offerings_written, offerings_removed, error;
 
 -- name: RecordCatalogueProjectionNote :exec
 -- Only ever called with a positive count — a note saying "nothing happened" is noise in a
@@ -364,8 +449,8 @@ ON CONFLICT (projection_id, code) DO UPDATE
 SET count = EXCLUDED.count, sample = EXCLUDED.sample;
 
 -- name: LatestCatalogueProjections :many
-SELECT id, run_id, started_at, finished_at, status,
-       programmes_written, modules_written, offerings_written, offerings_removed, error
+SELECT id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
+       modules_written, offerings_written, offerings_removed, error
 FROM zpa_catalogue_projection
 ORDER BY started_at DESC
 LIMIT $1;

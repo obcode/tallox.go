@@ -299,3 +299,14 @@ func (s *SemesterService) plannable(code string) (string, error) {
 func untouched(code string) Semester {
 	return Semester{Code: code, Phase: policy.PhaseDemandPlanning}
 }
+
+// ensure returns the row for a semester, creating it if this is the first decision recorded
+// about it.
+//
+// Unexported and without a permission check, for the other services in this package: by the
+// time one of them calls this, it has already decided that the caller may record the decision
+// it is about to record. Exporting it would be exporting "create a semester", which is the one
+// thing this service says nobody does.
+func (s *SemesterService) ensure(ctx context.Context, code string) (Semester, error) {
+	return s.store.EnsureSemester(ctx, code)
+}

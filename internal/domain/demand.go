@@ -63,6 +63,8 @@ var (
 	ErrNotSharedAcrossTracks = errors.New("dieser Teil wird nicht für mehrere Züge gehalten")
 	// ErrNoSiblingTracks is asking to share a part where there is nobody to share it with.
 	ErrNoSiblingTracks = errors.New("für dieses Modul gibt es in diesem Semester nur einen Zug")
+	// ErrSameSemester is copying a semester's demand into itself.
+	ErrSameSemester = errors.New("das Quell- und das Zielsemester sind dasselbe")
 )
 
 // MaxPartsPerInstance bounds one instance.

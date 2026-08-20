@@ -48,6 +48,7 @@ func (p *People) ListPeople(ctx context.Context, search string,
 	}
 
 	people := make([]domain.Person, 0, len(rows))
+	ids := make([]uuid.UUID, 0, len(rows))
 	for _, row := range rows {
 		people = append(people, domain.Person{
 			ID:     row.ID,
@@ -56,8 +57,43 @@ func (p *People) ListPeople(ctx context.Context, search string,
 			Active: row.Active,
 			Roles:  knownRoles(row.Roles),
 		})
+		ids = append(ids, row.ID)
+	}
+
+	// One statement for the whole list rather than one per row: the administration screen shows
+	// which programmes each lead is assigned to, and a query per person would make that screen
+	// cost a round trip per colleague.
+	if err := p.attachProgrammes(ctx, people, ids); err != nil {
+		return nil, err
 	}
 	return people, nil
+}
+
+// attachProgrammes fills in the study programmes each person's leadership applies to.
+func (p *People) attachProgrammes(ctx context.Context, people []domain.Person, ids []uuid.UUID) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	rows, err := New(p.pool).ProgrammeScopesFor(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("cannot read the programme assignments: %w", err)
+	}
+
+	byPerson := make(map[uuid.UUID][]domain.Programme, len(ids))
+	for _, row := range rows {
+		byPerson[row.PersonID] = append(byPerson[row.PersonID], domain.Programme{
+			ID:     row.ProgrammeID,
+			Code:   row.Code,
+			Title:  row.Title,
+			Active: row.Active,
+		})
+	}
+
+	for i := range people {
+		people[i].Programmes = byPerson[people[i].ID]
+	}
+	return nil
 }
 
 // PersonByID resolves one person. "Not found" is (nil, nil), the convention throughout this
@@ -70,13 +106,18 @@ func (p *People) PersonByID(ctx context.Context, id uuid.UUID) (*domain.Person, 
 	if err != nil {
 		return nil, fmt.Errorf("cannot read person: %w", err)
 	}
-	return &domain.Person{
+	person := domain.Person{
 		ID:     row.ID,
 		Mail:   row.Mail,
 		Name:   row.Name,
 		Active: row.Active,
 		Roles:  knownRoles(row.Roles),
-	}, nil
+	}
+	people := []domain.Person{person}
+	if err := p.attachProgrammes(ctx, people, []uuid.UUID{row.ID}); err != nil {
+		return nil, err
+	}
+	return &people[0], nil
 }
 
 // PersonByMail resolves one person by the address the proxy asserts.
@@ -88,13 +129,17 @@ func (p *People) PersonByMail(ctx context.Context, mail string) (*domain.Person,
 	if err != nil {
 		return nil, fmt.Errorf("cannot read person by mail: %w", err)
 	}
-	return &domain.Person{
+	people := []domain.Person{{
 		ID:     row.ID,
 		Mail:   row.Mail,
 		Name:   row.Name,
 		Active: row.Active,
 		Roles:  knownRoles(row.Roles),
-	}, nil
+	}}
+	if err := p.attachProgrammes(ctx, people, []uuid.UUID{row.ID}); err != nil {
+		return nil, err
+	}
+	return &people[0], nil
 }
 
 // CreatePerson adds somebody, with no roles.
@@ -295,4 +340,63 @@ func knownRoles(raw []string) []policy.Role {
 		}
 	}
 	return out
+}
+
+// SetPersonProgrammes replaces the study programmes one person's leadership applies to.
+//
+// In a transaction, because delete-then-insert has a moment in between where the person leads
+// nothing — and leading nothing has a meaning here: it is the state in which a programme lead
+// may plan nothing at all. Somebody's request landing in that moment would be refused for a
+// reason that was never true.
+//
+// The codes are resolved to programmes here rather than by the caller, so that an unknown one is
+// a refusal with a name in it rather than a foreign key violation.
+func (p *People) SetPersonProgrammes(ctx context.Context, personID uuid.UUID, codes []string,
+	grantedBy uuid.UUID) error {
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("cannot begin: %w", err)
+	}
+	// Rollback after a successful commit is a no-op, so this needs no branching.
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	programmes := make([]uuid.UUID, 0, len(codes))
+	for _, code := range codes {
+		row, err := q.ProgrammeByCode(ctx, code)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("%w: %q", domain.ErrUnknownProgramme, code)
+		}
+		if err != nil {
+			return fmt.Errorf("cannot read the programme %q: %w", code, err)
+		}
+		programmes = append(programmes, row.ID)
+	}
+
+	if err := q.UnassignProgrammes(ctx, UnassignProgrammesParams{
+		PersonID: personID,
+		Role:     string(policy.RoleProgrammeLead),
+	}); err != nil {
+		return fmt.Errorf("cannot clear the programme assignments: %w", err)
+	}
+
+	for _, programme := range programmes {
+		if err := q.AssignProgramme(ctx, AssignProgrammeParams{
+			PersonID:    personID,
+			Role:        string(policy.RoleProgrammeLead),
+			ProgrammeID: programme,
+			GrantedBy:   nullUUID(nonNilUUID(grantedBy)),
+		}); err != nil {
+			// The foreign key to person_role is what refuses an assignment to somebody who does
+			// not hold the role. The service checks for it first so that the ordinary case gets
+			// a sentence; this is the race the constraint closes.
+			return fmt.Errorf("cannot assign a programme: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("cannot commit: %w", err)
+	}
+	return nil
 }

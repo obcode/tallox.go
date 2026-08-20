@@ -20,6 +20,13 @@ type Querier interface {
 	// would write ASSIGNMENT over the first one's WISHES — a skipped phase, arrived at by nobody's
 	// decision, and invisible afterwards because the row looks like somebody chose it.
 	AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterPhaseParams) (Semester, error)
+	// Give somebody's grant one more programme.
+	//
+	// ON CONFLICT DO NOTHING rather than an error: setting the same list twice is not a mistake, and
+	// the caller replaces the whole set anyway. The foreign key to person_role is what refuses an
+	// assignment to somebody who does not hold the role — the check is the schema's, not a race
+	// somebody has to remember here.
+	AssignProgramme(ctx context.Context, arg AssignProgrammeParams) error
 	CatalogueProjectionNotes(ctx context.Context, projectionID uuid.UUID) ([]CatalogueProjectionNotesRow, error)
 	// Not projected, and the largest of the nine: 665 real rows over 12 sets of regulations the
 	// endpoint stopped returning — the historical ones and a placeholder dated 2099.
@@ -155,11 +162,26 @@ type Querier interface {
 	// granted_at is refreshed with it. The row records the grant that is in force, and a
 	// timestamp that pointed at a superseded one would be the wrong answer to the audit question.
 	GrantRole(ctx context.Context, arg GrantRoleParams) error
+	InsertModuleComponent(ctx context.Context, arg InsertModuleComponentParams) error
 	// The one number the interface shows largest, and the one the deploy smoke check asserts is
 	// recent. PARTIAL counts: it fetched something, and a run that got three of four endpoints is
 	// not the silence this is watching for.
 	LastSuccessfulZPASyncRun(ctx context.Context) (LastSuccessfulZPASyncRunRow, error)
 	LatestCatalogueProjections(ctx context.Context, limit int32) ([]ZpaCatalogueProjection, error)
+	// The catalogue, filtered.
+	//
+	// The programme filter is a union of two conditions and the second is not redundant: a module
+	// counts in one of the programme's sets of regulations, OR the programme is its home. Measured
+	// against the real catalogue, 26 active modules are reachable only through the second half, ten
+	// of them in the largest programme — and the first thing a programme lead does is look for a
+	// module they are responsible for.
+	//
+	// The duty filter is applied through the same subquery rather than beside it, so that
+	// "compulsory in this programme" cannot accidentally mean "compulsory anywhere". MIXED is
+	// expressed as "has both", which is what makes it a filter rather than a label.
+	// A module with no name sorts last rather than first: the empty string would otherwise put the
+	// handful of nameless ones at the top of every list in the system.
+	ListModules(ctx context.Context, arg ListModulesParams) ([]ListModulesRow, error)
 	// The administration screen: everybody, or everybody active, optionally narrowed by a
 	// substring of the mail address or the name.
 	//
@@ -167,6 +189,22 @@ type Querier interface {
 	// table whose rows move between reloads is one where somebody eventually clicks the wrong
 	// row. People with no name yet sort first, which is also where the work is.
 	ListPeople(ctx context.Context, arg ListPeopleParams) ([]ListPeopleRow, error)
+	// Reading the module catalogue.
+	//
+	// The shape of this file is set by one decision: a list of modules is loaded in a fixed number
+	// of statements rather than one per row. Four for a filtered list — the modules, their
+	// components, their offerings, and the programmes — stitched together in Go. The catalogue is
+	// 506 modules and 1784 offerings, so loading what a screen needs and joining it in memory is
+	// both simpler than a loader framework and faster than the query-per-field it replaces.
+	// Every study programme, including the one with no current regulations.
+	//
+	// Ordered by code, which is how the faculty says them and how a picker should show them.
+	ListProgrammes(ctx context.Context) ([]ListProgrammesRow, error)
+	// Every version of every programme's regulations, newest first within a programme.
+	//
+	// Loaded whole rather than per programme: 29 rows, and every screen that shows one programme's
+	// versions also has the others in a picker beside it.
+	ListSpos(ctx context.Context) ([]ListSposRow, error)
 	// The token list in the GUI. The secret hash is not in the projection: nothing outside
 	// authentication has a use for it, and a column that is never selected cannot be logged.
 	ListTokensOfPerson(ctx context.Context, ownerID uuid.UUID) ([]ListTokensOfPersonRow, error)
@@ -195,6 +233,16 @@ type Querier interface {
 	// serialises the requests of a single script against itself and makes the busiest tokens the
 	// slowest ones.
 	MarkTokenUsed(ctx context.Context, tokenID string) error
+	ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, error)
+	// The splits of a set of modules, in one statement.
+	ModuleComponentsFor(ctx context.Context, moduleIds []uuid.UUID) ([]ModuleComponentsForRow, error)
+	// Where a set of modules counts, in one statement, joined to the regulations they count in.
+	//
+	// Unfiltered by programme on purpose, even when the list was filtered by one. A module's
+	// offerings are what "where does this count" means, and answering it with only the programme
+	// somebody happened to filter by would make the same module look different depending on how it
+	// was found.
+	ModuleOfferingsFor(ctx context.Context, moduleIds []uuid.UUID) ([]ModuleOfferingsForRow, error)
 	PersonByID(ctx context.Context, id uuid.UUID) (PersonByIDRow, error)
 	// The authentication query of the browser door. mail is citext, so the comparison is
 	// case-insensitive without a lower() that would defeat the unique index.
@@ -209,6 +257,20 @@ type Querier interface {
 	// is exactly that. The composite foreign key means a scope cannot outlive a *revoked* grant;
 	// this covers the one that merely ran out.
 	PersonByMail(ctx context.Context, mail string) (PersonByMailRow, error)
+	ProgrammeByCode(ctx context.Context, code string) (ProgrammeByCodeRow, error)
+	// Which study programmes a set of people lead.
+	//
+	// For a list of people in one statement rather than one per row, the same shape the catalogue
+	// uses. Joined through person_role with the expiry filter, so a grant the database considers
+	// over carries no programmes — the composite foreign key covers a revoked grant, and this covers
+	// one that merely ran out.
+	ProgrammeScopesFor(ctx context.Context, personIds []uuid.UUID) ([]ProgrammeScopesForRow, error)
+	// A handful of programmes by id, without their regulations.
+	//
+	// For `me`, which has to turn the programme ids an actor carries into codes a person reads. The
+	// full list with its regulations attached would be two statements and 29 rows of examination
+	// regulations for a field that renders two letters.
+	ProgrammesByIDs(ctx context.Context, ids []uuid.UUID) ([]ProgrammesByIDsRow, error)
 	// Where each module counts, folded to one row per module per set of regulations.
 	//
 	// The fold is the point. A module sits in up to four catalogue slots of one version — the
@@ -292,6 +354,12 @@ type Querier interface {
 	RecordCatalogueProjectionNote(ctx context.Context, arg RecordCatalogueProjectionNoteParams) error
 	RecordZPAChange(ctx context.Context, arg RecordZPAChangeParams) error
 	RecordZPASyncRunKind(ctx context.Context, arg RecordZPASyncRunKindParams) error
+	// Clear a module's split, so the caller can write the new one in the same transaction.
+	//
+	// Delete-then-insert rather than a diff, because the entries only mean anything together: what
+	// is being replaced is one statement about a module, not a set of independent rows. Inside a
+	// transaction, so nobody reads the empty moment in between.
+	ReplaceModuleComponents(ctx context.Context, moduleID uuid.UUID) error
 	// Mark everything of one kind that a successful fetch did not mention.
 	//
 	// Only ever called after a fetch that succeeded and returned something — the client refuses an
@@ -366,6 +434,12 @@ type Querier interface {
 	// there — a WHERE on the right-hand table of a LEFT JOIN makes it an inner one, which would
 	// turn "this person has no live roles" into "this token does not exist".
 	TokenByID(ctx context.Context, tokenID string) (TokenByIDRow, error)
+	// Take away every programme of one grant, so the caller can write the new set in the same
+	// transaction.
+	//
+	// Delete-then-insert rather than a diff: what is being replaced is one statement about who leads
+	// what, and inside a transaction nobody reads the empty moment in between.
+	UnassignProgrammes(ctx context.Context, arg UnassignProgrammesParams) error
 	// The cache of the examination office's module master data, its runs and its changes.
 	//
 	// The theme of this file is that a sync never deletes and never overwrites blindly. Every

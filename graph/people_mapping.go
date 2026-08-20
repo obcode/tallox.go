@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -20,12 +21,17 @@ import (
 
 // personModel reshapes a domain person for the wire.
 func personModel(p domain.Person) *model.Person {
-	return &model.Person{
-		ID:    p.ID.String(),
-		Mail:  p.Mail,
-		Name:  p.Name,
-		Roles: p.Roles,
+	out := &model.Person{
+		ID:         p.ID.String(),
+		Mail:       p.Mail,
+		Name:       p.Name,
+		Roles:      p.Roles,
+		Programmes: make([]*model.Programme, 0, len(p.Programmes)),
 	}
+	for _, programme := range p.Programmes {
+		out.Programmes = append(out.Programmes, programmeModel(programme))
+	}
+	return out
 }
 
 // personModels reshapes a list, preserving order.
@@ -148,6 +154,15 @@ func peopleFacing(err error) error {
 			fmt.Sprintf("Der Name darf höchstens %d Zeichen lang sein.", domain.MaxNameLength))
 	case errors.Is(err, domain.ErrUnknownRole):
 		return refusal("UNKNOWN_ROLE", "Diese Rolle gibt es nicht.")
+	case errors.Is(err, domain.ErrUnknownProgramme):
+		return refusal("UNKNOWN_PROGRAMME", "Diesen Studiengang gibt es nicht.")
+	case errors.Is(err, domain.ErrNotAProgrammeLead):
+		// Its own code because the repair is specific: grant the role first. Folded into the
+		// generic refusal, an administrator would see "that did not work" for a mistake with an
+		// obvious next step.
+		return refusal("NOT_A_PROGRAMME_LEAD",
+			"Diese Person ist keine Studiengangsleitung. Erst die Rolle vergeben, dann die "+
+				"Studiengänge zuordnen.")
 	case errors.Is(err, domain.ErrGrantExpiryOutOfRange):
 		return refusal("GRANT_EXPIRY_OUT_OF_RANGE",
 			fmt.Sprintf("Eine befristete Rolle läuft höchstens %d Tage.",
@@ -155,6 +170,21 @@ func peopleFacing(err error) error {
 	default:
 		return refusal("INTERNAL", "Die Aktion konnte nicht ausgeführt werden.")
 	}
+}
+
+// programmeList names the programmes somebody leads, for a sentence a person reads.
+//
+// Codes rather than long names, because the codes are what the faculty says out loud and what
+// the person reading the diagnosis will compare against the list they were given.
+func programmeList(programmes []domain.Programme) string {
+	if len(programmes) == 0 {
+		return "keinen Studiengang"
+	}
+	codes := make([]string, 0, len(programmes))
+	for _, p := range programmes {
+		codes = append(codes, p.Code)
+	}
+	return strings.Join(codes, ", ")
 }
 
 // diagnose renders what the rules answer for one person, without reading anything the rules
@@ -176,7 +206,21 @@ func diagnose(p domain.Person) []*model.PolicyDecision {
 		for _, r := range p.Roles {
 			roles = append(roles, string(r))
 		}
-		return principal.Actor{ID: p.ID, Mail: p.Mail, Name: p.Name, Roles: roles, Kind: kind}
+		// The programme assignments travel with the roles, because the rule about planning
+		// depends on both and a diagnosis built from the roles alone would report that a
+		// correctly assigned lead may plan nothing.
+		scopes := make([]principal.RoleScope, 0, len(p.Programmes))
+		for _, programme := range p.Programmes {
+			scopes = append(scopes, principal.RoleScope{
+				Role:        string(policy.RoleProgrammeLead),
+				ProgrammeID: programme.ID,
+			})
+		}
+
+		return principal.Actor{
+			ID: p.ID, Mail: p.Mail, Name: p.Name,
+			Roles: roles, RoleScopes: scopes, Kind: kind,
+		}
 	}
 
 	interactive := asPerson(principal.KindInteractive)
@@ -207,6 +251,35 @@ func diagnose(p domain.Person) []*model.PolicyDecision {
 			Reason: "Dasselbe über ein Token. Immer nein: ein Token ist langlebig und " +
 				"entkoppelt „wer hat das gesehen“ von einer Anmeldung.",
 		},
+	}
+
+	// The support question this release creates. A programme lead who has been granted the role
+	// and not assigned a programme looks, from every other line here, exactly like one who has
+	// been set up correctly — and the difference is the whole reason they cannot do their job.
+	scope := policy.PlanningScope(interactive)
+	switch {
+	case scope.All:
+		decisions = append(decisions, &model.PolicyDecision{
+			Rule:    "policy.PlanningScope",
+			Allowed: true,
+			Reason: "Bedarf festlegen. Das Dekanat für alle Studiengänge — auch für " +
+				"Studiengänge, die es heute noch nicht gibt.",
+		})
+	case policy.HoldsProgrammeLeadWithoutScope(interactive):
+		decisions = append(decisions, &model.PolicyDecision{
+			Rule:    "policy.PlanningScope",
+			Allowed: false,
+			Reason: "Bedarf festlegen. Diese Person ist Studiengangsleitung, ist aber " +
+				"keinem Studiengang zugeordnet — und darf deshalb für keinen etwas " +
+				"festlegen. Zuordnen in der Personenverwaltung.",
+		})
+	default:
+		decisions = append(decisions, &model.PolicyDecision{
+			Rule:    "policy.PlanningScope",
+			Allowed: len(scope.IDs) > 0,
+			Reason: "Bedarf festlegen, für " + programmeList(p.Programmes) + ". Nur für die " +
+				"zugeordneten Studiengänge, nie für andere.",
+		})
 	}
 
 	if !p.Active {

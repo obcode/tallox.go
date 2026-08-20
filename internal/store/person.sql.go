@@ -13,6 +13,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const assignProgramme = `-- name: AssignProgramme :exec
+INSERT INTO person_programme_scope (person_id, role, programme_id, granted_by)
+VALUES ($1, $2, $3, $4)
+ON CONFLICT (person_id, role, programme_id) DO NOTHING
+`
+
+type AssignProgrammeParams struct {
+	PersonID    uuid.UUID
+	Role        string
+	ProgrammeID uuid.UUID
+	GrantedBy   uuid.NullUUID
+}
+
+// Give somebody's grant one more programme.
+//
+// ON CONFLICT DO NOTHING rather than an error: setting the same list twice is not a mistake, and
+// the caller replaces the whole set anyway. The foreign key to person_role is what refuses an
+// assignment to somebody who does not hold the role — the check is the schema's, not a race
+// somebody has to remember here.
+func (q *Queries) AssignProgramme(ctx context.Context, arg AssignProgrammeParams) error {
+	_, err := q.db.Exec(ctx, assignProgramme,
+		arg.PersonID,
+		arg.Role,
+		arg.ProgrammeID,
+		arg.GrantedBy,
+	)
+	return err
+}
+
 const countOtherActiveAdmins = `-- name: CountOtherActiveAdmins :one
 SELECT count(*)
 FROM person_role pr
@@ -316,7 +345,7 @@ SELECT
         JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
         WHERE s.person_id = p.id
           AND (r.expires_at IS NULL OR r.expires_at > now())
-    ), '[]'::jsonb)::jsonb AS role_scopes
+    ), '[]'::jsonb)::jsonb AS role_scopes  -- cast: without it sqlc types the column interface{}
 FROM person p
 LEFT JOIN person_role pr
     ON pr.person_id = p.id
@@ -358,6 +387,58 @@ func (q *Queries) PersonByMail(ctx context.Context, mail string) (PersonByMailRo
 		&i.RoleScopes,
 	)
 	return i, err
+}
+
+const programmeScopesFor = `-- name: ProgrammeScopesFor :many
+SELECT s.person_id, s.role, p.id AS programme_id, p.code, p.title, p.active
+FROM person_programme_scope s
+JOIN programme p ON p.id = s.programme_id
+JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+WHERE s.person_id = ANY ($1::uuid[])
+  AND (r.expires_at IS NULL OR r.expires_at > now())
+ORDER BY s.person_id, p.code
+`
+
+type ProgrammeScopesForRow struct {
+	PersonID    uuid.UUID
+	Role        string
+	ProgrammeID uuid.UUID
+	Code        string
+	Title       string
+	Active      bool
+}
+
+// Which study programmes a set of people lead.
+//
+// For a list of people in one statement rather than one per row, the same shape the catalogue
+// uses. Joined through person_role with the expiry filter, so a grant the database considers
+// over carries no programmes — the composite foreign key covers a revoked grant, and this covers
+// one that merely ran out.
+func (q *Queries) ProgrammeScopesFor(ctx context.Context, personIds []uuid.UUID) ([]ProgrammeScopesForRow, error) {
+	rows, err := q.db.Query(ctx, programmeScopesFor, personIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProgrammeScopesForRow{}
+	for rows.Next() {
+		var i ProgrammeScopesForRow
+		if err := rows.Scan(
+			&i.PersonID,
+			&i.Role,
+			&i.ProgrammeID,
+			&i.Code,
+			&i.Title,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const revokeRole = `-- name: RevokeRole :exec
@@ -463,5 +544,24 @@ type SetPersonNameParams struct {
 // one in the audit log.
 func (q *Queries) SetPersonName(ctx context.Context, arg SetPersonNameParams) error {
 	_, err := q.db.Exec(ctx, setPersonName, arg.ID, arg.Name)
+	return err
+}
+
+const unassignProgrammes = `-- name: UnassignProgrammes :exec
+DELETE FROM person_programme_scope WHERE person_id = $1 AND role = $2
+`
+
+type UnassignProgrammesParams struct {
+	PersonID uuid.UUID
+	Role     string
+}
+
+// Take away every programme of one grant, so the caller can write the new set in the same
+// transaction.
+//
+// Delete-then-insert rather than a diff: what is being replaced is one statement about who leads
+// what, and inside a transaction nobody reads the empty moment in between.
+func (q *Queries) UnassignProgrammes(ctx context.Context, arg UnassignProgrammesParams) error {
+	_, err := q.db.Exec(ctx, unassignProgrammes, arg.PersonID, arg.Role)
 	return err
 }

@@ -498,6 +498,36 @@ func (s *ZPASyncService) Runs(ctx context.Context, limit int) ([]ZPASyncRun, err
 	return s.store.Runs(ctx, limit)
 }
 
+// ProjectCatalogue rebuilds the catalogue from what the cache already holds, without fetching.
+//
+// The reason this exists as an act somebody can perform, rather than only as a step inside the
+// import: the projection makes nine decisions about untidy input, and those rules change. A
+// changed rule has to be applicable to data already held — without waiting for the night, and
+// without reaching into another institution's system to re-fetch 3861 objects that have not
+// moved.
+//
+// It does not take the sync lock. The two do different things to different tables, and a
+// projection waiting on a fetch that takes eight seconds would look broken; what they must not
+// do is run twice at once, and the projection is one transaction, so the second one waits on
+// the first at the database rather than at a lock.
+func (s *ZPASyncService) ProjectCatalogue(ctx context.Context) (CatalogueProjection, error) {
+	if s.catalogue == nil {
+		return CatalogueProjection{}, ErrZPANotConfigured
+	}
+	return s.catalogue.Project(ctx, nil)
+}
+
+// CatalogueProjections returns the recent projections, newest first, each with its report.
+func (s *ZPASyncService) CatalogueProjections(ctx context.Context, limit int) ([]CatalogueProjection, error) {
+	if s.catalogue == nil {
+		return nil, nil
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	return s.catalogue.LatestProjections(ctx, limit)
+}
+
 // RunByID returns one run with its per-endpoint results, or (nil, nil).
 func (s *ZPASyncService) RunByID(ctx context.Context, id uuid.UUID) (*ZPASyncRun, error) {
 	return s.store.RunByID(ctx, id)

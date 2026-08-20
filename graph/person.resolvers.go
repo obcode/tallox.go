@@ -33,10 +33,29 @@ func (r *queryResolver) Me(ctx context.Context) (*model.Person, error) {
 		return nil, nil
 	}
 
-	return &model.Person{
-		ID:    actor.ID.String(),
-		Mail:  actor.Mail,
-		Name:  actor.Name,
-		Roles: policy.RolesOf(actor).Sorted(),
-	}, nil
+	me := &model.Person{
+		ID:         actor.ID.String(),
+		Mail:       actor.Mail,
+		Name:       actor.Name,
+		Roles:      policy.RolesOf(actor).Sorted(),
+		Programmes: []*model.Programme{},
+	}
+
+	// The actor carries the ids of the programmes it leads and nothing else. Resolving them to
+	// codes is one small query, and it is worth it here: "which programmes may I plan" is the
+	// first thing the interface and a script both need.
+	//
+	// Nil in the handful of tests that never reach a catalogue field, on the same terms as every
+	// other service on the resolver.
+	if r.Catalogue != nil {
+		programmes, err := r.Catalogue.MyProgrammes(ctx, actor)
+		if err != nil {
+			return nil, catalogueUserFacing(actor, err)
+		}
+		for _, p := range programmes {
+			me.Programmes = append(me.Programmes, programmeModel(p))
+		}
+	}
+
+	return me, nil
 }

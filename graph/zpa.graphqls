@@ -1,17 +1,18 @@
 # The module master data import, as far as it is visible from outside.
 #
-# Deliberately only the runs and what they changed — never the objects themselves. Three
-# reasons, and the third is the one that decides it:
+# Deliberately only the runs, what they changed, and what the projection made of the untidy parts
+# — never the objects themselves. Two reasons:
 #
 #   1. A field here is a published contract. Exporting somebody else's payload publishes their
 #      schema as ours, and theirs has already changed once.
 #   2. It would need a JSON scalar, which this schema does not have. A field whose shape
 #      introspection cannot describe cuts against the reason introspection is left on in
 #      production.
-#   3. Tallox has no module type yet, because what identifies a course instance is not decided.
-#      Publishing the imported ids first would make them the thing colleagues' scripts key on —
-#      which is the mistake this cache exists to avoid, one layer up, where undoing it means
-#      changing somebody else's script rather than our schema.
+#
+# There used to be a third: Tallox had no module type, so publishing the imported ids would have
+# made them the thing colleagues' scripts key on. The module type exists now, in
+# catalogue.graphqls, and it is addressed by a uuid of its own — the imported id appears there as
+# `Module.zpaId`, for cross-referencing, and is never an argument to anything.
 
 """
 What kind of object the examination office's interface published.
@@ -201,4 +202,159 @@ extend type Mutation {
   asked for it should be a person who signed in rather than a token in a script.
   """
   syncZpaNow: ZpaSyncRun! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+}
+
+# The projection is a second thing that can be stale, and it is deliberately visible as one.
+#
+# The import caches somebody else's payloads; the projection turns them into the catalogue this
+# system plans with. They can disagree — a run that succeeded and a projection that failed leaves
+# fresh payloads behind a stale catalogue — and an interface that showed only the first would say
+# everything is fine while the module list is a week old.
+
+"""
+How a projection of the catalogue ended.
+
+Three values rather than the import's four. There is no `PARTIAL`: the whole projection is one
+transaction, so either the catalogue moved or it did not.
+"""
+enum ZpaProjectionStatus {
+  "Still going, or the process that started it did not finish."
+  RUNNING
+  "The catalogue was rebuilt."
+  SUCCEEDED
+  "Nothing was written. The catalogue is exactly as it was."
+  FAILED
+}
+
+"""
+One decision the projection made about input the examination office left untidy.
+
+Every one of these is a decision with a reason, and none of them is a silent drop: a projection
+that quietly discarded rows would be indistinguishable from a catalogue that never had them, and
+the first person to notice would be a programme lead who cannot find a module they are
+responsible for.
+"""
+enum ZpaProjectionFinding {
+  "Skipped: the source names no home programme for the module, and every module has exactly one."
+  MODULE_WITHOUT_HOME_PROGRAMME
+  "Skipped, with its modules: a programme code this system cannot store."
+  PROGRAMME_CODE_MALFORMED
+  """
+  Not projected: the association points at regulations the source no longer publishes.
+
+  The largest of these by far, and mostly historical. There is no path from such a row to a
+  programme, so it cannot become an entry in a module's list of where it counts.
+  """
+  ASSOCIATION_WITH_UNKNOWN_REGULATIONS
+  """
+  Kept, and marked inactive: a programme named only by the modules that call it home.
+
+  Its modules stay planable, which is why it is kept at all rather than treated as an error.
+  """
+  PROGRAMME_WITHOUT_REGULATIONS
+  """
+  Kept with an empty name: the source's module records carry no name field, and this module
+  appears in no set of regulations to borrow one from.
+  """
+  MODULE_WITHOUT_NAME
+  "Kept and flagged: the examination office has retired the module."
+  MODULE_INACTIVE
+  "Became `UNKNOWN`: a phrase for how often a module runs that this version does not recognise."
+  FREQUENCY_UNMAPPED
+  "The same, for how the teaching is broken up."
+  COURSE_TYPE_UNMAPPED
+  "Folded with the lower value: the catalogue slots of one set of regulations disagree about the earliest semester."
+  MIN_SEMESTER_CONFLICT
+  """
+  The one that is an alarm rather than a note, and it should always be absent.
+
+  A module's entry per set of regulations is folded from up to four catalogue slots, and that
+  fold is only safe because the slots never disagree about compulsory-or-elective — measured at
+  zero conflicts across the whole catalogue. If this appears, the fold has been picking an
+  answer.
+  """
+  DUTY_CONFLICT
+}
+
+"""
+One line of a projection's report: what it found, how often, and a few examples.
+
+Counts and samples rather than a row per object. The useful sentence is "665 associations across
+12 sets of regulations", and whoever wants to chase one needs a handful of identifiers rather
+than all of them.
+"""
+type ZpaProjectionNote {
+  "What was found."
+  finding: ZpaProjectionFinding!
+  "How many objects it applies to."
+  count: Int!
+  """
+  Up to twenty examples: examination office identifiers, or the phrases that were not
+  recognised, or the programme codes — whichever is the useful thing to look at for this
+  finding.
+  """
+  sample: [String!]!
+}
+
+"""
+One rebuild of the module catalogue out of the cached payloads.
+"""
+type ZpaCatalogueProjection {
+  id: ID!
+  """
+  The import run that triggered this, or `null` for a projection somebody asked for on its own.
+
+  Both happen: every successful import projects, and the rules of the projection change often
+  enough that applying a new one to data already held has to be possible.
+  """
+  runId: ID
+  "When it started. Written before the first statement, so a projection that crashed is still visible."
+  startedAt: Time!
+  "When it ended, or `null` while it is still going."
+  finishedAt: Time
+  "How it ended."
+  status: ZpaProjectionStatus!
+  "How many study programmes were written."
+  programmesWritten: Int!
+  "How many modules were written."
+  modulesWritten: Int!
+  "How many entries of 'this module counts in these regulations' were written."
+  offeringsWritten: Int!
+  """
+  How many such entries were removed because the source stopped supporting them.
+
+  The only thing a projection deletes, and it is safe because nothing points at one. A module
+  that disappears keeps its row and gains a retirement date instead.
+  """
+  offeringsRemoved: Int!
+  "Why it failed, or `null`."
+  error: String
+  "What the projection made of the parts of the source that are not tidy."
+  notes: [ZpaProjectionNote!]!
+}
+
+extend type Query {
+  """
+  The recent rebuilds of the module catalogue, newest first.
+
+  Worth looking at beside `zpaSyncRuns` rather than instead of it. A successful import with a
+  failed projection means fresh payloads behind a stale catalogue, and only this field says so.
+  """
+  zpaCatalogueProjections(limit: Int = 20): [ZpaCatalogueProjection!]!
+    @interactiveOnly @scope(area: ADMIN, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Rebuild the module catalogue from the payloads already cached, without fetching anything.
+
+  For when the rules of the projection change: a new rule has to be applicable to data already
+  held, without waiting for the nightly job and without asking another institution's system for
+  3861 objects that have not moved.
+
+  Unlike `syncZpaNow` this reaches nothing outside this database, so there is nothing to hammer
+  and no cooling-off period. Interactive only all the same — it rewrites the catalogue everybody
+  plans with, and that should be attributable to somebody who signed in.
+  """
+  projectZpaCatalogue: ZpaCatalogueProjection! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 }

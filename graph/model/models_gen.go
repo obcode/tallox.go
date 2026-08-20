@@ -38,6 +38,55 @@ type CreatedPersonalAccessToken struct {
 	Secret string `json:"secret"`
 }
 
+// One unit of a module's split, on the way in.
+type ModuleComponentInput struct {
+	// What kind of teaching this unit is.
+	Kind domain.InstancePartKind `json:"kind"`
+	// Hours per week for one unit of this kind. Greater than zero.
+	TeachingHours float64 `json:"teachingHours"`
+}
+
+// Which modules to list.
+//
+// An input type rather than separate arguments, unlike `people(search:, includeInactive:)`
+// elsewhere in this schema: six filters is past the point where positional arguments read, the set
+// will grow as subject groups and competences arrive, and an interface's form maps onto it field
+// for field.
+type ModuleFilter struct {
+	// Relevant for this study programme, by its short code.
+	//
+	// Two things at once, and the second half is not redundant: the module counts in one of the
+	// programme's sets of regulations, **or** the programme is its home. Twenty-six active modules
+	// are only reachable through the second half, ten of them in the faculty's largest programme —
+	// and the first thing somebody does is look for a module they are responsible for.
+	Programme *string `json:"programme,omitempty"`
+	// Narrow to one version of the regulations.
+	//
+	// No default, deliberately. Unfiltered, a programme's list is the union over every version it
+	// has: a module dropped from the newest one is still being taught to the students of the older.
+	Spo *string `json:"spo,omitempty"`
+	// Keep only modules with one of these frequencies.
+	//
+	// To find what could run in a winter semester, ask for `EVERY_WINTER_SEMESTER`,
+	// `EVERY_SEMESTER`, `ALTERNATING_WITHIN_SUBJECT_GROUP`, `ON_ANNOUNCEMENT` and `UNKNOWN` — the
+	// last three say nothing about the term and are together more than half the catalogue, so
+	// leaving them out hides far more than it removes.
+	Frequency []domain.Frequency `json:"frequency,omitempty"`
+	// Compulsory or elective. Requires `programme`, and is ignored without it — the answer is a
+	// property of a module *in a programme*, not of a module.
+	Duty *domain.DutyStatus `json:"duty,omitempty"`
+	// A substring of the name or of one of the module codes. Case-insensitive.
+	Search *string `json:"search,omitempty"`
+	// Include modules the examination office has retired. About a hundred of them.
+	IncludeInactive *bool `json:"includeInactive,omitempty"`
+	// Keep only modules whose hours have not been split into teachable units yet.
+	//
+	// The work list. A programme lead getting ready for a semester needs to know which of their
+	// modules cannot be declared yet, and that is a bounded, finishable task rather than an open
+	// form.
+	WithoutComponents *bool `json:"withoutComponents,omitempty"`
+}
+
 // Everything that changes something.
 //
 // All of it is `@interactiveOnly` for now: writing happens in a signed-in browser session, not
@@ -56,6 +105,16 @@ type Person struct {
 	Name string `json:"name"`
 	// The roles this person holds, in a stable order.
 	Roles []policy.Role `json:"roles"`
+	// The study programmes this person's study-programme leadership applies to.
+	//
+	// Empty for everybody who does not lead one — and empty for a lead nobody has assigned a
+	// programme to yet, which is a state with consequences rather than a gap: such a lead may
+	// declare no demand at all. An empty list here is **not** "every programme". The role leads
+	// one; the role that means all of them is the dean's office.
+	//
+	// Readable through both doors, like `roles`: which programmes you may plan is the first thing a
+	// script needs to know, and on `me` it is your own data.
+	Programmes []*Programme `json:"programmes"`
 }
 
 // A Personal Access Token, as its owner sees it.
@@ -208,6 +267,37 @@ type Session struct {
 	Interactive bool `json:"interactive"`
 }
 
+// One rebuild of the module catalogue out of the cached payloads.
+type ZpaCatalogueProjection struct {
+	ID string `json:"id"`
+	// The import run that triggered this, or `null` for a projection somebody asked for on its own.
+	//
+	// Both happen: every successful import projects, and the rules of the projection change often
+	// enough that applying a new one to data already held has to be possible.
+	RunID *string `json:"runId,omitempty"`
+	// When it started. Written before the first statement, so a projection that crashed is still visible.
+	StartedAt time.Time `json:"startedAt"`
+	// When it ended, or `null` while it is still going.
+	FinishedAt *time.Time `json:"finishedAt,omitempty"`
+	// How it ended.
+	Status domain.ProjectionStatus `json:"status"`
+	// How many study programmes were written.
+	ProgrammesWritten int `json:"programmesWritten"`
+	// How many modules were written.
+	ModulesWritten int `json:"modulesWritten"`
+	// How many entries of 'this module counts in these regulations' were written.
+	OfferingsWritten int `json:"offeringsWritten"`
+	// How many such entries were removed because the source stopped supporting them.
+	//
+	// The only thing a projection deletes, and it is safe because nothing points at one. A module
+	// that disappears keeps its row and gains a retirement date instead.
+	OfferingsRemoved int `json:"offeringsRemoved"`
+	// Why it failed, or `null`.
+	Error *string `json:"error,omitempty"`
+	// What the projection made of the parts of the source that are not tidy.
+	Notes []*ZpaProjectionNote `json:"notes"`
+}
+
 // One line of a run's report.
 //
 // Deliberately without the payloads. They are kept in the database for the durable answer months
@@ -233,6 +323,22 @@ type ZpaChange struct {
 	ChangedKeys []string `json:"changedKeys"`
 	// When this was noticed.
 	DetectedAt time.Time `json:"detectedAt"`
+}
+
+// One line of a projection's report: what it found, how often, and a few examples.
+//
+// Counts and samples rather than a row per object. The useful sentence is "665 associations across
+// 12 sets of regulations", and whoever wants to chase one needs a handful of identifiers rather
+// than all of them.
+type ZpaProjectionNote struct {
+	// What was found.
+	Finding domain.ProjectionNoteCode `json:"finding"`
+	// How many objects it applies to.
+	Count int `json:"count"`
+	// Up to twenty examples: examination office identifiers, or the phrases that were not
+	// recognised, or the programme codes — whichever is the useful thing to look at for this
+	// finding.
+	Sample []string `json:"sample"`
 }
 
 // One run of the module master data import.

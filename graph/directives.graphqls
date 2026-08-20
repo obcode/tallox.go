@@ -102,7 +102,8 @@ enum ScopeArea {
   The first area worth narrowing a token to. `PUBLIC` and `PROFILE` are you describing
   yourself; `TOKENS` and `ADMIN` are unreachable through a token at all.
 
-  Fields: `semesters`, `semester`, `advanceSemesterPhase`, `publishWishes`.
+  Fields: `semesters`, `semester`, `programmes`, `programme`, `modules`, `module`,
+  `advanceSemesterPhase`, `publishWishes`, `setModuleComponents`.
   """
   PLANNING
 
@@ -119,14 +120,15 @@ enum ScopeArea {
   `@interactiveOnly`, for the same reason.
 
   The import is here rather than under `PLANNING` because what these fields expose is the
-  operation — did the nightly job run, what did it change, run it now — and not the catalogue
-  it produces. When the modules themselves become readable they will be planning data and will
-  say so. An area of its own was considered and rejected: every field it could hold is
-  unreachable through a token anyway, so it would be a promise in an enum that colleagues can
-  read via introspection and never use.
+  operation — did the nightly job run, what did it change, run it now, what did it make of the
+  untidy parts — and not the catalogue it produces. The catalogue itself is planning data and
+  lives under `PLANNING`. An area of its own was considered and rejected: every field it could
+  hold is unreachable through a token anyway, so it would be a promise in an enum that
+  colleagues can read via introspection and never use.
 
   Fields: `people`, `person`, `roleGrants`, `diagnoseAccess`, `createPerson`, `renamePerson`,
-  `setPersonRoles`, `setPersonActive`, `zpaSyncRuns`, `zpaSyncRun`, `zpaChanges`, `syncZpaNow`.
+  `setPersonRoles`, `setPersonActive`, `setPersonProgrammes`, `zpaSyncRuns`, `zpaSyncRun`,
+  `zpaChanges`, `zpaCatalogueProjections`, `syncZpaNow`, `projectZpaCatalogue`.
   """
   ADMIN
 }

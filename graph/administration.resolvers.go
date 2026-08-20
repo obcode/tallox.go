@@ -68,6 +68,19 @@ func (r *mutationResolver) SetPersonActive(ctx context.Context, id string, activ
 	return personModel(*person), nil
 }
 
+// SetPersonProgrammes is the resolver for the setPersonProgrammes field.
+func (r *mutationResolver) SetPersonProgrammes(ctx context.Context, id string, programmes []string) (*model.Person, error) {
+	personID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
+	person, err := r.People.SetProgrammes(ctx, principal.From(ctx), personID, programmes)
+	if err != nil {
+		return nil, peopleFacing(err)
+	}
+	return personModel(*person), nil
+}
+
 // People is the resolver for the people field.
 func (r *queryResolver) People(ctx context.Context, search *string, includeInactive *bool) ([]*model.Person, error) {
 	people, err := r.Resolver.People.List(ctx, principal.From(ctx), deref(search), deref(includeInactive))

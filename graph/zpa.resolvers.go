@@ -9,7 +9,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
@@ -41,6 +40,19 @@ func (r *mutationResolver) SyncZpaNow(ctx context.Context) (*model.ZpaSyncRun, e
 		return nil, zpaUserFacing(err)
 	}
 	return zpaRunModel(run), nil
+}
+
+// ProjectZpaCatalogue is the resolver for the projectZpaCatalogue field.
+func (r *mutationResolver) ProjectZpaCatalogue(ctx context.Context) (*model.ZpaCatalogueProjection, error) {
+	if !policy.MayTriggerZPASync(principal.From(ctx)) {
+		return nil, zpaForbidden()
+	}
+
+	projection, err := r.Import.ProjectCatalogue(ctx)
+	if err != nil {
+		return nil, zpaUserFacing(err)
+	}
+	return projectionModel(projection), nil
 }
 
 // ZpaSyncRuns is the resolver for the zpaSyncRuns field.
@@ -109,6 +121,29 @@ func (r *queryResolver) ZpaChanges(ctx context.Context, runID string) ([]*model.
 	out := make([]*model.ZpaChange, 0, len(changes))
 	for _, change := range changes {
 		out = append(out, zpaChangeModel(change))
+	}
+	return out, nil
+}
+
+// ZpaCatalogueProjections is the resolver for the zpaCatalogueProjections field.
+func (r *queryResolver) ZpaCatalogueProjections(ctx context.Context, limit *int) ([]*model.ZpaCatalogueProjection, error) {
+	if err := mayReadImport(principal.From(ctx)); err != nil {
+		return nil, err
+	}
+
+	wanted := 20
+	if limit != nil {
+		wanted = *limit
+	}
+
+	projections, err := r.Import.CatalogueProjections(ctx, wanted)
+	if err != nil {
+		return nil, zpaUserFacing(err)
+	}
+
+	out := make([]*model.ZpaCatalogueProjection, 0, len(projections))
+	for _, p := range projections {
+		out = append(out, projectionModel(p))
 	}
 	return out, nil
 }

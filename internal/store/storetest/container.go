@@ -18,10 +18,14 @@ const containerImage = "postgres:18-alpine"
 
 // startContainer boots a throwaway PostgreSQL and returns its DSN.
 //
-// Called at most once per test binary (see the sync.OnceValues in storetest.go). The container
-// is deliberately never terminated from Go: Testcontainers' Ryuk sidecar reaps it when the
-// test process exits, including when that process is killed or panics — which is exactly the
-// case a t.Cleanup would miss.
+// Called at most once per test binary (see the sync.OnceValues in storetest.go) — note that
+// ./internal/store/... is two of them, so a parallel `go test` boots two containers. The
+// container is deliberately never terminated from Go: Testcontainers' Ryuk sidecar reaps it
+// when the test process exits, including when that process is killed or panics — which is
+// exactly the case a t.Cleanup would miss.
+//
+// CI is the exception and sets TESTCONTAINERS_RYUK_DISABLED: the runner is thrown away
+// anyway, and Ryuk is a per-session singleton that two binaries starting at once race for.
 func startContainer() (string, error) {
 	// Generous, because this budget covers pulling the image on a cold CI runner, not just
 	// starting it. Too tight here and the first run of the day fails for a reason that looks

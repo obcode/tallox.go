@@ -104,6 +104,12 @@ jobs:
     env:
       TALLOX_TEST_DB: container
       TALLOX_TEST_DB_REQUIRED: "1"
+      # The runner is thrown away after the job, so nothing needs reaping -- and Ryuk is a
+      # per-session singleton that two test binaries starting at the same moment race each
+      # other for. That race killed a running PostgreSQL mid-suite on 2026-08-20 (SQLSTATE
+      # 57P01, "unexpected postmaster exit") and failed the reaper handshake in the run
+      # before it. Locally Ryuk stays on: there the container would outlive the test process.
+      TESTCONTAINERS_RYUK_DISABLED: "true"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -111,8 +117,13 @@ jobs:
           go-version-file: go.mod
       # Only the packages that touch the database. The rest gains nothing from a container and
       # would just pay for it in wall-clock time.
+      #
+      # -p 1 because ./internal/store/... is two test binaries, and each of them boots its own
+      # PostgreSQL (see storetest.startContainer). Run in parallel they cost twice the memory
+      # for no gain and fight over the reaper; one after the other they take a container's
+      # startup longer and are reliable.
       - name: integration tests on a throwaway PostgreSQL
-        run: go test -count=1 -v ./internal/store/...
+        run: go test -count=1 -p 1 -v ./internal/store/...
 
   vulncheck:
     runs-on: ubuntu-latest

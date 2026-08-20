@@ -26,6 +26,128 @@ type AccessDiagnosis struct {
 	Decisions []*PolicyDecision `json:"decisions"`
 }
 
+// A sibling cohort's shared part, seen from the cohort it is held for.
+type BorrowedPart struct {
+	// The part itself, as its owning cohort holds it.
+	Part *InstancePart `json:"part"`
+	// The cohort that owns the row — the A in "held together with IF3A".
+	//
+	// Empty is possible and means the sibling has no letter, which happens while somebody is in the
+	// middle of splitting a single cohort into two.
+	FromTrack string `json:"fromTrack"`
+}
+
+// What copying a semester's demand did.
+//
+// Reported even when nothing happened. A copy into a semester that already holds the same instances
+// writes nothing at all, and "nothing happened" is indistinguishable from "it failed" to the person
+// who pressed the button.
+type CopyDemandReport struct {
+	// The semester copied from.
+	From string `json:"from"`
+	// The semester copied into.
+	To string `json:"to"`
+	// The study programme whose demand was copied.
+	Programme *Programme `json:"programme"`
+	// How many instances were declared.
+	Created int `json:"created"`
+	// How many were already declared in the target and were left exactly as they are.
+	//
+	// A copy never overwrites work in the semester it copies into — including a cohort year somebody
+	// has since corrected there.
+	Skipped int `json:"skipped"`
+	// How many parts came with the new instances.
+	PartsCreated int `json:"partsCreated"`
+	// The demand of the target semester afterwards — the whole list, not only the new rows.
+	//
+	// So that a screen can render the result of the copy from the answer to the copy, rather than
+	// asking again and rendering a moment that is one round trip old.
+	Instances []*CourseInstance `json:"instances"`
+}
+
+// One module, offered in one semester, for one study programme, to one parallel cohort.
+//
+// **This is what gets planned, and its parts are what get assigned.** The faculty's own sentence is
+// "one person holds the lecture, another the laboratory", so a wish and an assignment will point at
+// an `InstancePart` and never at the instance.
+//
+// The identity is the semester, the module, the programme and the cohort. Two things are
+// deliberately not part of it:
+//
+//   - **The version of the examination regulations.** One lecture in the winter serves every valid
+//     version at once — students under IF-2019 and IF-2025 sit in the same room with the same
+//     person — so an instance per version would be the same event two to four times in every list.
+//     Where the version matters, it is a question about `Module.offerings`.
+//   - **The kind of teaching.** A lecture and its laboratories are one instance with several parts,
+//     not several instances.
+//
+// The cohort *is* part of it, and that is the one people are surprised by. An instance is normally
+// assigned to one person, and Software Engineering I runs in two cohorts held by two people — so if
+// the cohort were a multiplicity inside the instance, "assign IF3A to somebody" would not be a
+// sentence this schema could express.
+type CourseInstance struct {
+	ID string `json:"id"`
+	// The semester, in this system's spelling: `2026-WS`.
+	//
+	// The year is the one the semester *starts* in, so the winter of 2026/27 is `2026-WS`.
+	Semester string `json:"semester"`
+	// Whose demand this is.
+	//
+	// Not necessarily the module's home programme. A module at home in one programme and offered by
+	// another is exactly what the dean's office's import/export figures are about, and the difference
+	// between the two declarations is the export.
+	Programme *Programme `json:"programme"`
+	// The catalogue entry this is an offering of, with its split and its offerings attached.
+	//
+	// The same `Module` the catalogue serves, so that "is this compulsory here" and "how do its hours
+	// divide" are answerable on a demand screen without a second lookup.
+	Module *Module `json:"module"`
+	// The parallel cohort — the A in IF3A — and empty for a module that runs once, which is the
+	// ordinary case.
+	//
+	// The letter only. The label a person reads is the programme's code, the cohort year and this,
+	// assembled where they are read: storing the assembled string would denormalise two facts and go
+	// stale on the third.
+	Track string `json:"track"`
+	// Which cohort year this is for — the 3 in IF3A — or `null` where nobody has said and the
+	// regulations do not either.
+	//
+	// Seeded from the regulations when the instance is declared and a decision afterwards, rather
+	// than derived on every read. Derived it would be a *set* rather than a number: 23 of 1076
+	// module/programme pairs disagree across versions of the regulations, and it would change
+	// retroactively when a new version lands, renaming a cohort that has already been taught.
+	ProgrammeSemester *int `json:"programmeSemester,omitempty"`
+	// The assignable units this cohort holds itself, in order.
+	//
+	// Made from the module's split when the instance is declared — one part per unit — and edited
+	// afterwards. The number of laboratory *groups* is a planning decision and lives here, not in the
+	// module: a two-hour laboratory in the split is one entry however many groups a cohort runs.
+	Parts []*InstancePart `json:"parts"`
+	// Parts of a sibling cohort that are held for this one as well.
+	//
+	// The other half of `InstancePart.sharedAcrossTracks`. A lecture given once for IF3A and IF3B is
+	// one row, owned by one of them — and the other has to render it, or its screen shows a cohort
+	// with laboratories and no lecture and looks like a planning mistake.
+	//
+	// Never counted in `teachingHours`: the point of holding a lecture once is that it costs the
+	// faculty once.
+	BorrowedParts []*BorrowedPart `json:"borrowedParts"`
+	// What this instance costs the faculty: the sum over the parts it holds.
+	//
+	// **Not the module's own `contactHoursPerWeek`**, which is what a student attends. A four-hour
+	// module running one lecture and three laboratory groups costs eight hours per cohort, and
+	// summing the module's figure would give four — a plausible-looking wrong answer.
+	//
+	// A part whose hours nobody has stated yet contributes nothing rather than making the sum
+	// unanswerable: an instance can be declared before the detail is settled, which is what a demand
+	// deadline that comes before the detail requires.
+	TeachingHours float64 `json:"teachingHours"`
+	// When this instance was declared.
+	CreatedAt time.Time `json:"createdAt"`
+	// When it was last changed.
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // A newly created token: the record, and the one and only sight of the secret.
 type CreatedPersonalAccessToken struct {
 	// The token as it will appear in your list from now on.
@@ -36,6 +158,52 @@ type CreatedPersonalAccessToken struct {
 	// this token and create another one. That is a two-second inconvenience, and it is the reason
 	// a leak of the database is not a leak of anybody's credentials.
 	Secret string `json:"secret"`
+}
+
+// A demand about to be declared.
+type DeclareCourseInstanceInput struct {
+	// Four digits, a hyphen and SS or WS, for example `2027-SS`. Upper-cased and trimmed for you.
+	Semester string `json:"semester"`
+	// The study programme whose demand this is, by its short code.
+	Programme string `json:"programme"`
+	// The module, by id.
+	//
+	// It must have a split — `Module.components` — because the instance's parts are made from it.
+	// Without one the answer is `MODULE_NOT_DECOMPOSED`, and the repair is `setModuleComponents`.
+	ModuleID string `json:"moduleId"`
+	// The parallel cohort, or empty for a module that runs once. One to three characters, upper-cased
+	// and trimmed for you.
+	//
+	// Leave it empty at first: turning one cohort into two is `duplicateCourseInstance`, which names
+	// both letters at once.
+	Track *string `json:"track,omitempty"`
+	// The cohort year, or `null` to take what the programme's regulations say — the earliest semester
+	// the module may be taken in, across every version of them.
+	ProgrammeSemester *int `json:"programmeSemester,omitempty"`
+}
+
+// One assignable unit of an instance: a lecture, a laboratory group, a seminar.
+//
+// What a wish and an assignment will point at.
+type InstancePart struct {
+	ID string `json:"id"`
+	// What kind of teaching this part is: a lecture, a laboratory group, a seminar.
+	Kind domain.InstancePartKind `json:"kind"`
+	// Order within the instance.
+	Position int `json:"position"`
+	// What a **lecturer** is credited with for holding this part.
+	//
+	// Starts as what the module's split says and is editable afterwards: the two are different
+	// quantities that merely begin equal. `null` while nobody has stated it, which is a normal state
+	// for an instance declared before the detail was settled.
+	TeachingHours *float64 `json:"teachingHours,omitempty"`
+	// This part is held once and serves the other cohorts of the same module as well.
+	//
+	// The shared lecture: one person gives it for IF3A and IF3B, it happens once, and its hours count
+	// once — here, at the cohort that owns the row. Not the default and never automatic: a cohort
+	// holds its own teaching unless somebody says otherwise, because sharing by default would make
+	// the faculty's hours look smaller than they are until somebody noticed.
+	SharedAcrossTracks bool `json:"sharedAcrossTracks"`
 }
 
 // One unit of a module's split, on the way in.

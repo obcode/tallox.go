@@ -178,10 +178,27 @@ func (a *ProxyAuthenticator) developmentActor() principal.Actor {
 	}
 
 	return principal.Actor{
-		ID:    uuid.NewSHA1(uuid.NameSpaceURL, []byte("mailto:"+a.devUser)),
+		ID:    DevUserID(a.devUser),
 		Mail:  a.devUser,
-		Name:  "Development User",
+		Name:  DevUserName,
 		Roles: roles,
 		Kind:  principal.KindInteractive,
 	}
+}
+
+// DevUserName is what the development user is called wherever a name is rendered.
+const DevUserName = "Development User"
+
+// DevUserMail is the address the development user signs in as: the configured one, or the
+// default when the file says nothing.
+func DevUserMail(configured string) string { return devUserOr(configured) }
+
+// DevUserID is the person id the development user carries.
+//
+// Derived from the address rather than random, so that it is the same across restarts — and
+// exported because bootstrap has to put a person row behind it. Without one, every write that
+// records who did something fails on a foreign key: the actor exists in the request and not in
+// the database, which is a state the rest of this system is built never to be in.
+func DevUserID(mail string) uuid.UUID {
+	return uuid.NewSHA1(uuid.NameSpaceURL, []byte("mailto:"+devUserOr(mail)))
 }

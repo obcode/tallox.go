@@ -158,3 +158,19 @@ func reconcileOne(ctx context.Context, pool *pgxpool.Pool,
 // something meaningless. The three-way agreement between schema, policy and constraint is
 // tested elsewhere in this package.
 const roleAdmin = "ADMIN"
+
+// EnsureDevelopmentUser gives the development identity a person row, and returns the id it
+// actually has.
+//
+// Separate from ReconcileProtectedAdmins although both call the same query, because they are
+// different acts: that one restores access somebody is entitled to and grants ADMIN; this one
+// only makes an id referenceable, and grants nothing at all. Folding them together would put a
+// role grant one boolean away from a mode meant for a laptop.
+func EnsureDevelopmentUser(ctx context.Context, pool *pgxpool.Pool,
+	id uuid.UUID, mail, name string) (uuid.UUID, error) {
+	row, err := New(pool).EnsurePerson(ctx, EnsurePersonParams{ID: id, Mail: mail, Name: name})
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("cannot ensure the development user: %w", err)
+	}
+	return row.ID, nil
+}

@@ -233,6 +233,7 @@ func Serve(build buildinfo.Info) {
 	// — and it is the way back in after an administrator has been removed by accident. See
 	// store.ReconcileProtectedAdmins.
 	reconcileProtectedAdmins(ctx, pool, cfg.Auth.ProtectedAdmins)
+	reconcileDevelopmentUser(ctx, pool, mode, cfg.Auth.DevUser)
 
 	defer pool.Close()
 
@@ -336,6 +337,49 @@ func reconcileProtectedAdmins(ctx context.Context, pool store.Pool, admins []Pro
 			Bool("reactivated", o.Reactivated).
 			Bool("granted", o.Granted).
 			Msg("protected administrator restored from the configuration file")
+	}
+}
+
+// reconcileDevelopmentUser gives auth.mode=dev's synthetic user a person row.
+//
+// The development door hands out an identity nobody logged in as, with an id derived from its
+// address so that it is stable across restarts. That was enough while nothing referenced the
+// actor: the roles are synthesised too, and the policy asks about roles.
+//
+// It stopped being enough the moment a write recorded who performed it. `created_by` is a
+// foreign key to person, and an actor that exists in the request and not in the database fails
+// it — so the first thing a developer tried after the catalogue landed was refused with a
+// generic error, in a mode whose entire purpose is that the ordinary path works.
+//
+// The row alone, deliberately: no roles are granted. Which roles the development user has stays
+// a property of the mode (every one of them, see auth.developmentActor) rather than of a row
+// somebody could edit into a different answer — that would make the dev door quietly diverge
+// from what it says it does.
+//
+// Not fatal. A development database that cannot take this row is broken in a way the next
+// query will report more clearly than a startup abort would.
+func reconcileDevelopmentUser(ctx context.Context, pool store.Pool, mode auth.Mode, mail string) {
+	if mode != auth.ModeDev {
+		return
+	}
+
+	address := auth.DevUserMail(mail)
+
+	id, err := store.EnsureDevelopmentUser(ctx, pool, auth.DevUserID(mail), address,
+		auth.DevUserName)
+	if err != nil {
+		log.Warn().Err(err).Msg("cannot give the development user a person row — writes that " +
+			"record who performed them will fail")
+		return
+	}
+	if id != auth.DevUserID(mail) {
+		// Somebody created this address by hand with a different id. The synthetic actor still
+		// carries the derived one, so the foreign key will still refuse — and saying so here is
+		// better than the generic refusal it turns into three screens later.
+		log.Warn().
+			Str("mail", address).
+			Msg("the development user's address belongs to a person row with a different id; " +
+				"remove that row or run with a real identity")
 	}
 }
 

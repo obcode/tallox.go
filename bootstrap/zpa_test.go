@@ -202,3 +202,44 @@ func TestARefusalNamesNoInternals(t *testing.T) {
 			append(graphqltest.DatabaseNoise(), "zpa_object", "zpa_sync_run", "zpa.cs.hm.edu")...)
 	}
 }
+
+// The development door hands out an identity nobody logged in as. That was harmless while
+// nothing referenced the actor, and stopped being harmless the moment a write recorded who
+// performed it: `created_by` is a foreign key to person, and an actor that exists in the request
+// and not in the database fails it.
+//
+// The mode whose whole purpose is that the ordinary path works must not be the one where the
+// ordinary path is refused.
+func TestTheDevelopmentUserHasAPersonRow(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	id, err := store.EnsureDevelopmentUser(t.Context(), s.Pool,
+		auth.DevUserID(""), auth.DevUserMail(""), auth.DevUserName)
+	if err != nil {
+		t.Fatalf("cannot give the development user a person row: %v", err)
+	}
+	if id != auth.DevUserID("") {
+		t.Errorf("the row has id %s and the synthetic actor carries %s — a foreign key to it "+
+			"would still be refused", id, auth.DevUserID(""))
+	}
+
+	// Twice is a no-op: this runs on every start.
+	again, err := store.EnsureDevelopmentUser(t.Context(), s.Pool,
+		auth.DevUserID(""), auth.DevUserMail(""), auth.DevUserName)
+	if err != nil || again != id {
+		t.Errorf("a second start produced %s / %v, want the same row", again, err)
+	}
+
+	// And it grants nothing. Which roles the development user has is a property of the mode, not
+	// of a row somebody could edit into a different answer.
+	var roles int
+	if err := s.Pool.QueryRow(t.Context(),
+		`SELECT count(*) FROM person_role WHERE person_id = $1`, id).Scan(&roles); err != nil {
+		t.Fatalf("cannot count the roles: %v", err)
+	}
+	if roles != 0 {
+		t.Errorf("the development user was granted %d role(s) in the database", roles)
+	}
+}

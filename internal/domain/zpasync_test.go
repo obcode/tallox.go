@@ -158,7 +158,7 @@ func TestASyncRecordsOnlyWhatActuallyMoved(t *testing.T) {
 	source := &fakeZPASource{objects: map[domain.ZPAKind][]domain.ZPAObject{
 		domain.ZPAKindSPO: {object(801, `{"spo_id":"801","version":"2025"}`)},
 	}}
-	service := domain.NewZPASyncService(store, source, nil)
+	service := domain.NewZPASyncService(store, source, nil, nil)
 
 	if _, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil); err != nil {
 		t.Fatalf("first sync: %v", err)
@@ -189,7 +189,7 @@ func TestReorderedKeysAreNotAChange(t *testing.T) {
 	source := &fakeZPASource{objects: map[domain.ZPAKind][]domain.ZPAObject{
 		domain.ZPAKindSPO: {object(801, `{"spo_id":"801","version":"2025"}`)},
 	}}
-	service := domain.NewZPASyncService(store, source, nil)
+	service := domain.NewZPASyncService(store, source, nil, nil)
 
 	if _, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil); err != nil {
 		t.Fatalf("first sync: %v", err)
@@ -221,7 +221,7 @@ func TestAFailedKindRetiresNothing(t *testing.T) {
 		domain.ZPAKindSPO:    {object(801, `{"spo_id":"801"}`)},
 		domain.ZPAKindModule: {object(501, `{"module_id":"501"}`)},
 	}}
-	service := domain.NewZPASyncService(store, source, nil)
+	service := domain.NewZPASyncService(store, source, nil, nil)
 
 	if _, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil); err != nil {
 		t.Fatalf("seeding sync: %v", err)
@@ -265,7 +265,7 @@ func TestEveryEndpointIsTriedEvenAfterOneFails(t *testing.T) {
 		source.objects[kind] = []domain.ZPAObject{object(1, `{"id":"1"}`)}
 	}
 
-	service := domain.NewZPASyncService(newFakeZPAStore(), source, nil)
+	service := domain.NewZPASyncService(newFakeZPAStore(), source, nil, nil)
 	run, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil)
 	if err != nil {
 		t.Fatalf("sync: %v", err)
@@ -289,7 +289,7 @@ func TestAllEndpointsFailingIsAFailureNotAPartial(t *testing.T) {
 		source.fail[kind] = errors.New("down")
 	}
 
-	run, err := domain.NewZPASyncService(newFakeZPAStore(), source, nil).
+	run, err := domain.NewZPASyncService(newFakeZPAStore(), source, nil, nil).
 		Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil)
 	if err != nil {
 		t.Fatalf("sync: %v", err)
@@ -310,7 +310,7 @@ func TestAReturningObjectIsReportedAsSuchAndNotAsNew(t *testing.T) {
 	source := &fakeZPASource{objects: map[domain.ZPAKind][]domain.ZPAObject{
 		domain.ZPAKindSPO: {object(801, `{"spo_id":"801"}`)},
 	}}
-	service := domain.NewZPASyncService(store, source, nil)
+	service := domain.NewZPASyncService(store, source, nil, nil)
 
 	if _, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil); err != nil {
 		t.Fatalf("first sync: %v", err)
@@ -345,7 +345,7 @@ func TestAChangeNamesTheKeysThatMoved(t *testing.T) {
 	source := &fakeZPASource{objects: map[domain.ZPAKind][]domain.ZPAObject{
 		domain.ZPAKindModule: {object(501, `{"module_id":"501","sws":"4","credits":"5"}`)},
 	}}
-	service := domain.NewZPASyncService(store, source, nil)
+	service := domain.NewZPASyncService(store, source, nil, nil)
 
 	if _, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil); err != nil {
 		t.Fatalf("first sync: %v", err)
@@ -377,7 +377,7 @@ func TestAChangeNamesTheKeysThatMoved(t *testing.T) {
 func TestAnUnconfiguredImportRefusesToRunAndStillReads(t *testing.T) {
 	t.Parallel()
 
-	service := domain.NewZPASyncService(newFakeZPAStore(), nil, nil)
+	service := domain.NewZPASyncService(newFakeZPAStore(), nil, nil, nil)
 
 	if service.Configured() {
 		t.Error("a service with no source reports itself configured")
@@ -400,7 +400,7 @@ func TestAManualSyncIsRefusedRightAfterASuccessfulOne(t *testing.T) {
 	t.Parallel()
 
 	store := newFakeZPAStore()
-	service := domain.NewZPASyncService(store, &fakeZPASource{}, nil)
+	service := domain.NewZPASyncService(store, &fakeZPASource{}, nil, nil)
 
 	if err := service.MayStartManualSync(t.Context()); err != nil {
 		t.Errorf("the first ever sync was refused: %v", err)
@@ -416,5 +416,115 @@ func TestAManualSyncIsRefusedRightAfterASuccessfulOne(t *testing.T) {
 	store.lastRun = &domain.ZPASyncRun{Status: domain.ZPASyncSucceeded, FinishedAt: &older}
 	if err := service.MayStartManualSync(t.Context()); err != nil {
 		t.Errorf("a sync after the interval was refused: %v", err)
+	}
+}
+
+// fakeCatalogue records what the sync asked it to do.
+//
+// Enough of a double for the question at hand, which is *whether* the projection is asked for
+// after which kinds of run. What the projection actually does is a statement about SQL and is
+// tested against a real database in internal/store.
+type fakeCatalogue struct {
+	runs []*uuid.UUID
+	fail error
+}
+
+func (f *fakeCatalogue) Project(_ context.Context, runID *uuid.UUID) (domain.CatalogueProjection, error) {
+	f.runs = append(f.runs, runID)
+	if f.fail != nil {
+		return domain.CatalogueProjection{Status: domain.ProjectionFailed}, f.fail
+	}
+	return domain.CatalogueProjection{Status: domain.ProjectionSucceeded}, nil
+}
+
+func (f *fakeCatalogue) LatestProjections(context.Context, int) ([]domain.CatalogueProjection, error) {
+	return nil, nil
+}
+
+// TestAPartialRunDoesNotProject.
+//
+// The projection removes offerings the source no longer supports. After a partial fetch, "no
+// longer supports" and "was not asked" are the same thing seen from here — so projecting would
+// retire a fifth of the catalogue because one endpoint timed out.
+//
+// The same discipline as a partial run only retiring the kinds it actually fetched: an
+// operation that can remove things is never driven by an incomplete read.
+func TestAPartialRunDoesNotProject(t *testing.T) {
+	t.Parallel()
+
+	catalogue := &fakeCatalogue{}
+	source := &fakeZPASource{
+		objects: map[domain.ZPAKind][]domain.ZPAObject{
+			domain.ZPAKindSPO:    {object(901, `{"spo_id":"901"}`)},
+			domain.ZPAKindModule: {object(902, `{"module_id":"902"}`)},
+		},
+		fail: map[domain.ZPAKind]error{domain.ZPAKindMSBA: errors.New("timeout")},
+	}
+	service := domain.NewZPASyncService(newFakeZPAStore(), source, nil, catalogue)
+
+	run, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil)
+	if err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+	if run.Status != domain.ZPASyncPartial {
+		t.Fatalf("the run ended as %s; this test needs a PARTIAL one", run.Status)
+	}
+
+	if len(catalogue.runs) != 0 {
+		t.Error("the catalogue was projected out of a partial fetch. The endpoint that failed " +
+			"returned nothing, and everything it would have supported reads as withdrawn.")
+	}
+}
+
+// The other half: a run in which everything arrived projects, and the projection knows which
+// run it belongs to — which is what lets the import page show one freshness rather than two.
+func TestASuccessfulRunProjectsTheCatalogue(t *testing.T) {
+	t.Parallel()
+
+	catalogue := &fakeCatalogue{}
+	source := &fakeZPASource{objects: map[domain.ZPAKind][]domain.ZPAObject{
+		domain.ZPAKindSPO: {object(903, `{"spo_id":"903"}`)},
+	}}
+	service := domain.NewZPASyncService(newFakeZPAStore(), source, nil, catalogue)
+
+	run, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil)
+	if err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+	if run.Status != domain.ZPASyncSucceeded {
+		t.Fatalf("the run ended as %s", run.Status)
+	}
+
+	if len(catalogue.runs) != 1 {
+		t.Fatalf("the catalogue was projected %d time(s) after one successful run, want once",
+			len(catalogue.runs))
+	}
+	if catalogue.runs[0] == nil || *catalogue.runs[0] != run.ID {
+		t.Errorf("the projection was told run %v, want %v", catalogue.runs[0], run.ID)
+	}
+}
+
+// A projection that failed does not fail the run, and the reason is not leniency.
+//
+// The fetch succeeded and the payloads are cached — a true and useful state, and one the
+// projection can be repeated against without reaching into the examination office's system
+// again. Turning the run red would say the import is broken, send somebody to look at the
+// network, and stop the retry from being the cheap thing it is. The failure is visible on the
+// projection's own record.
+func TestAFailedProjectionDoesNotFailTheImport(t *testing.T) {
+	t.Parallel()
+
+	catalogue := &fakeCatalogue{fail: errors.New("the catalogue is having a day")}
+	source := &fakeZPASource{objects: map[domain.ZPAKind][]domain.ZPAObject{
+		domain.ZPAKindSPO: {object(904, `{"spo_id":"904"}`)},
+	}}
+	service := domain.NewZPASyncService(newFakeZPAStore(), source, nil, catalogue)
+
+	run, err := service.Sync(t.Context(), domain.ZPASyncTriggerSchedule, nil)
+	if err != nil {
+		t.Fatalf("a failing projection failed the whole sync: %v", err)
+	}
+	if run.Status != domain.ZPASyncSucceeded {
+		t.Errorf("the run reads as %s although every endpoint was fetched and applied", run.Status)
 	}
 }

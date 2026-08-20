@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 )
 
 // The refusals, as sentinels with a code the interface branches on.
@@ -183,10 +184,11 @@ type RecordedZPAChange struct {
 // which one of them can behave differently from the other — which is the same argument the two
 // authentication doors make about sharing one handler.
 type ZPASyncService struct {
-	store  ZPAStore
-	source ZPASource
-	locker ZPASyncLocker
-	now    func() time.Time
+	store     ZPAStore
+	source    ZPASource
+	locker    ZPASyncLocker
+	catalogue CatalogueStore
+	now       func() time.Time
 }
 
 // NewZPASyncService wires the service.
@@ -194,8 +196,18 @@ type ZPASyncService struct {
 // A nil source is the unconfigured case: every read still works, and starting a run refuses
 // with ErrZPANotConfigured. A nil locker means no cross-process serialisation, which is what
 // the service tests want and what production must never have.
-func NewZPASyncService(store ZPAStore, source ZPASource, locker ZPASyncLocker) *ZPASyncService {
-	return &ZPASyncService{store: store, source: source, locker: locker, now: time.Now}
+//
+// A nil catalogue means the payloads are cached and nothing is projected out of them. That is
+// what the sync tests want — they are about fetching and diffing, and a real projection needs a
+// database they do not have — and it is not a state production should be in.
+func NewZPASyncService(store ZPAStore, source ZPASource, locker ZPASyncLocker, catalogue CatalogueStore) *ZPASyncService {
+	return &ZPASyncService{
+		store:     store,
+		source:    source,
+		locker:    locker,
+		catalogue: catalogue,
+		now:       time.Now,
+	}
 }
 
 // Configured reports whether a sync can run at all.
@@ -277,7 +289,70 @@ func (s *ZPASyncService) sync(ctx context.Context, trigger ZPASyncTrigger, start
 		return run, fmt.Errorf("cannot finish the sync run: %w", err)
 	}
 	finished.Kinds = run.Kinds
+
+	s.projectCatalogue(ctx, finished)
+
 	return finished, nil
+}
+
+// projectCatalogue rebuilds the catalogue out of what the run just cached.
+//
+// # Why here and not on a schedule of its own
+//
+// The named failure mode of this import is not a wrong answer — it is a job that quietly
+// stopped weeks ago while everything looks healthy and the planning uses stale data. A
+// projection running on its own timer would be a second, independent way for that to happen,
+// and from the outside the two are indistinguishable. Attached to the run, there is one thing
+// to watch and one page that answers "how fresh is the catalogue".
+//
+// It also inherits the advisory lock the whole sync holds, so two processes cannot project at
+// once without anything having to say so.
+//
+// # Why only after a run that fully succeeded
+//
+// A PARTIAL run is one where some endpoints arrived and others did not. The projection deletes
+// offerings the source no longer supports, and after a partial fetch "no longer supports" is
+// indistinguishable from "was not asked". Projecting then would retire a fifth of the catalogue
+// because one endpoint timed out.
+//
+// This is the same discipline as a partial run only retiring the kinds it actually fetched, and
+// as the protected-administrator list being additive only: an operation that can remove things
+// is never driven by an incomplete read.
+//
+// # Why a failure here does not fail the run
+//
+// The fetch succeeded and the payloads are cached; that is a true and useful state, and the
+// projection can be repeated against them without touching the examination office's system. The
+// failure is not swallowed — it is a FAILED row on the projection's own record, which is what
+// the import page reads.
+func (s *ZPASyncService) projectCatalogue(ctx context.Context, run ZPASyncRun) {
+	if s.catalogue == nil {
+		return
+	}
+	if run.Status != ZPASyncSucceeded {
+		log.Info().
+			Str("status", string(run.Status)).
+			Str("run", run.ID.String()).
+			Msg("catalogue not projected: the import did not fully succeed")
+		return
+	}
+
+	runID := run.ID
+	projection, err := s.catalogue.Project(ctx, &runID)
+	if err != nil {
+		log.Error().Err(err).
+			Str("run", runID.String()).
+			Msg("cannot project the module catalogue")
+		return
+	}
+
+	log.Info().
+		Int("programmes", projection.ProgrammesWritten).
+		Int("modules", projection.ModulesWritten).
+		Int("offerings", projection.OfferingsWritten).
+		Int("offeringsRemoved", projection.OfferingsRemoved).
+		Int("findings", len(projection.Notes)).
+		Msg("module catalogue projected")
 }
 
 type kindResult struct {

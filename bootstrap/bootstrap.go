@@ -240,7 +240,8 @@ func Serve(build buildinfo.Info) {
 	planning := domain.NewSemesterService(store.NewSemesters(pool), nil)
 
 	zpaCache := store.NewZPA(pool)
-	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool))
+	catalogue := store.NewCatalogue(pool)
+	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool), catalogue)
 
 	// Beside reconcileProtectedAdmins, and for a related reason: a process that died mid-sync
 	// leaves a RUNNING row that the interface would show as a run in progress forever. Not

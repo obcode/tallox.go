@@ -71,6 +71,8 @@ type Options struct {
 	Import *domain.ZPASyncService
 	// Catalogue is the module catalogue, on the same terms.
 	Catalogue *domain.CatalogueService
+	// Demand is the demand planning, on the same terms.
+	Demand *domain.DemandService
 }
 
 // Serve parses flags, sets up logging and runs the HTTP server until a signal arrives.
@@ -244,7 +246,9 @@ func Serve(build buildinfo.Info) {
 
 	zpaCache := store.NewZPA(pool)
 	catalogueProjection := store.NewCatalogue(pool)
-	catalogue := domain.NewCatalogueService(store.NewModules(pool))
+	modules := store.NewModules(pool)
+	catalogue := domain.NewCatalogueService(modules)
+	demand := domain.NewDemandService(store.NewDemand(pool, modules), modules, planning)
 	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool), catalogueProjection)
 
 	// Beside reconcileProtectedAdmins, and for a related reason: a process that died mid-sync
@@ -273,6 +277,7 @@ func Serve(build buildinfo.Info) {
 			Planning:  planning,
 			Import:    imports,
 			Catalogue: catalogue,
+			Demand:    demand,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -499,6 +504,7 @@ func graphqlHandler(opts Options) http.Handler {
 			Planning:  opts.Planning,
 			Import:    opts.Import,
 			Catalogue: opts.Catalogue,
+			Demand:    opts.Demand,
 		},
 		// The generated code fails closed on a directive with no implementation — the field
 		// errors with "directive interactiveOnly is not implemented" rather than passing

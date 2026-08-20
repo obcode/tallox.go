@@ -1,0 +1,450 @@
+package domain
+
+import (
+	"context"
+	"errors"
+	"regexp"
+	"strings"
+
+	"github.com/google/uuid"
+
+	"github.com/obcode/tallox.go/internal/policy"
+	"github.com/obcode/tallox.go/internal/principal"
+)
+
+// Two more refusals, both about the shape of what was asked rather than about permission.
+var (
+	// ErrProgrammeNotFound is a code that names no study programme.
+	ErrProgrammeNotFound = errors.New("diesen Studiengang gibt es nicht")
+	// ErrProgrammeSemesterInvalid is a cohort year outside what a degree has.
+	ErrProgrammeSemesterInvalid = errors.New("das Fachsemester muss zwischen 1 und 12 liegen")
+	// ErrPhaseClosed is the phase refusing a write.
+	//
+	// The sentence a person reads is policy.PhaseClosedReason — the refusal is produced by the
+	// table there, so the wording belongs there too, next to the decision it explains. This one
+	// is what the sentinel says when something prints it.
+	ErrPhaseClosed = errors.New("die Phase lässt diese Änderung nicht zu")
+)
+
+// trackPattern is the same shape the database enforces in course_instance_track_is_a_label.
+//
+// Both, deliberately, and for the reason the semester code gives one file over: here so that the
+// caller gets a sentence they can act on, and in the database so that a future import or admin
+// command cannot write something no interface would accept.
+var trackPattern = regexp.MustCompile(`^[A-Z0-9]{0,3}$`)
+
+// DemandService is the demand planning: declare what a study programme needs, split it into
+// parallel cohorts, and say what each of them is made of.
+//
+// # What it is allowed to decide
+//
+// Nothing about who may do it. Every write here asks policy.MayWriteDemand, which intersects
+// the phase table with the programme scope, and the two halves of that are maintained where
+// they are decided rather than here. What this service owns is the shape of a request — a
+// parallel cohort is a short label, hours are a small positive number, an instance holds a
+// bounded number of parts — and the order in which the pieces are read.
+//
+// # Why the phase is read from the instance
+//
+// Every write path reads the row it is about before deciding, and the row carries the phase of
+// its semester. That is one round trip that answers both halves of the rule at once, and it
+// removes the case where a caller names a semester and an instance that are not the same one.
+type DemandService struct {
+	store     DemandStore
+	catalogue CatalogueReader
+	semesters *SemesterService
+}
+
+// NewDemandService wires the service.
+func NewDemandService(store DemandStore, catalogue CatalogueReader, semesters *SemesterService) *DemandService {
+	return &DemandService{store: store, catalogue: catalogue, semesters: semesters}
+}
+
+// Instances lists the demand of a semester.
+//
+// Readable by anybody with an account and no particular role, like the catalogue and the
+// semester list. The demand is not confidential — it is what the wish phase is about, and a
+// lecturer who cannot see which instances exist has nothing to register interest in. What is
+// scoped is writing it.
+func (s *DemandService) Instances(ctx context.Context, actor principal.Actor,
+	filter DemandFilter,
+) ([]CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+
+	semester, err := s.semesters.ByCode(ctx, actor, filter.SemesterCode)
+	if err != nil {
+		return nil, err
+	}
+	filter.SemesterCode = semester.Code
+	filter.Programme = normaliseProgrammeCode(filter.Programme)
+
+	return s.store.CourseInstances(ctx, filter)
+}
+
+// Instance returns one instance, or (nil, nil).
+func (s *DemandService) Instance(ctx context.Context, actor principal.Actor, id uuid.UUID) (*CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	return s.store.CourseInstanceByID(ctx, id)
+}
+
+// DeclareInstance is a demand about to be declared, as the interface states it.
+//
+// The semester and the programme arrive as the names they have in the faculty rather than as
+// ids: those are what a URL, a script and a conversation carry.
+type DeclareInstance struct {
+	SemesterCode string
+	Programme    string
+	ModuleID     uuid.UUID
+	// Track is the parallel cohort, empty for a module that runs once — which is the ordinary
+	// case and therefore the default.
+	Track string
+	// ProgrammeSemester is the cohort year, or nil to take what the programme's regulations say.
+	ProgrammeSemester *int
+}
+
+// Declare records that a study programme needs this module in this semester, for this cohort.
+//
+// This is the mutation the whole area exists for, and it is where a semester row comes into
+// existence for the third time in the system: nobody creates a semester, but declaring a demand
+// for one is a decision about it, and the row is the record of that decision.
+func (s *DemandService) Declare(ctx context.Context, actor principal.Actor, spec DeclareInstance) (*CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+
+	programme, err := s.programme(ctx, spec.Programme)
+	if err != nil {
+		return nil, err
+	}
+
+	// ByCode rather than a bare lookup: it validates the code, refuses one too far from now to
+	// plan, and answers for a semester nobody has touched — which is the ordinary state of the
+	// semester somebody is about to declare the first demand for.
+	semester, err := s.semesters.ByCode(ctx, actor, spec.SemesterCode)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.mayWrite(actor, programme.ID, semester.Phase); err != nil {
+		return nil, err
+	}
+
+	track, err := normaliseTrack(spec.Track)
+	if err != nil {
+		return nil, err
+	}
+	if err := validProgrammeSemester(spec.ProgrammeSemester); err != nil {
+		return nil, err
+	}
+
+	recorded, err := s.semesters.ensure(ctx, semester.Code)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.store.CreateCourseInstance(ctx, NewCourseInstance{
+		SemesterID:        recorded.ID,
+		ModuleID:          spec.ModuleID,
+		ProgrammeID:       programme.ID,
+		Track:             track,
+		ProgrammeSemester: spec.ProgrammeSemester,
+		CreatedBy:         actor.ID,
+	})
+}
+
+// Duplicate copies an instance to a second parallel cohort.
+//
+// sourceTrack renames the original, and it is the whole reason this is one operation rather than
+// two: a single cohort becoming two is one decision, and doing it in two steps leaves a moment
+// in which the pair does not look like a pair.
+func (s *DemandService) Duplicate(ctx context.Context, actor principal.Actor, id uuid.UUID,
+	track, sourceTrack string,
+) (*CourseInstance, error) {
+	instance, err := s.writable(ctx, actor, id)
+	if err != nil {
+		return nil, err
+	}
+
+	newTrack, err := normaliseTrack(track)
+	if err != nil {
+		return nil, err
+	}
+	renamed, err := normaliseTrack(sourceTrack)
+	if err != nil {
+		return nil, err
+	}
+	if newTrack == "" {
+		// The second cohort of a module is what makes a cohort letter mean anything. Without
+		// one the copy would collide with its own source on the identity, and the message for
+		// that ("already declared") would describe the symptom rather than the mistake.
+		return nil, ErrTrackInvalid
+	}
+
+	return s.store.DuplicateCourseInstance(ctx, instance.ID, newTrack, renamed, actor.ID)
+}
+
+// Change writes the two editable things about an instance: its cohort and its cohort year.
+func (s *DemandService) Change(ctx context.Context, actor principal.Actor, id uuid.UUID,
+	track string, programmeSemester *int,
+) (*CourseInstance, error) {
+	instance, err := s.writable(ctx, actor, id)
+	if err != nil {
+		return nil, err
+	}
+
+	newTrack, err := normaliseTrack(track)
+	if err != nil {
+		return nil, err
+	}
+	if err := validProgrammeSemester(programmeSemester); err != nil {
+		return nil, err
+	}
+
+	return s.store.UpdateCourseInstance(ctx, instance.ID, newTrack, programmeSemester)
+}
+
+// Withdraw removes an instance that is not needed after all.
+func (s *DemandService) Withdraw(ctx context.Context, actor principal.Actor, id uuid.UUID) error {
+	instance, err := s.writable(ctx, actor, id)
+	if err != nil {
+		return err
+	}
+	return s.store.DeleteCourseInstance(ctx, instance.ID)
+}
+
+// AddPart appends a part — the second laboratory group, the tutorial nobody planned for.
+//
+// How the multiplicity of a module's split is expressed: the split says a laboratory is two
+// hours, and how many groups of it a cohort runs is a planning decision made here.
+func (s *DemandService) AddPart(ctx context.Context, actor principal.Actor, instanceID uuid.UUID,
+	kind InstancePartKind, hours *float64,
+) (*CourseInstance, error) {
+	instance, err := s.writable(ctx, actor, instanceID)
+	if err != nil {
+		return nil, err
+	}
+	if len(instance.Parts) >= MaxPartsPerInstance {
+		return nil, ErrTooManyParts
+	}
+	if err := validPart(kind, hours); err != nil {
+		return nil, err
+	}
+	return s.store.AddInstancePart(ctx, instance.ID, kind, hours)
+}
+
+// ChangePart writes a part's kind and hours.
+func (s *DemandService) ChangePart(ctx context.Context, actor principal.Actor, partID uuid.UUID,
+	kind InstancePartKind, hours *float64,
+) (*CourseInstance, error) {
+	if _, err := s.writablePart(ctx, actor, partID); err != nil {
+		return nil, err
+	}
+	if err := validPart(kind, hours); err != nil {
+		return nil, err
+	}
+	return s.store.UpdateInstancePart(ctx, partID, kind, hours)
+}
+
+// RemovePart removes one.
+func (s *DemandService) RemovePart(ctx context.Context, actor principal.Actor, partID uuid.UUID) (*CourseInstance, error) {
+	if _, err := s.writablePart(ctx, actor, partID); err != nil {
+		return nil, err
+	}
+	return s.store.DeleteInstancePart(ctx, partID)
+}
+
+// SharePartAcrossTracks makes one part serve the sibling cohorts too: the lecture given once for
+// IF3A and IF3B, whose hours count once.
+//
+// Deliberately not the default. A cohort holds its own teaching unless somebody says otherwise,
+// because that is what usually happens and because the other way round — sharing by default,
+// unshared on request — would make the faculty's hours look smaller than they are until somebody
+// noticed.
+func (s *DemandService) SharePartAcrossTracks(ctx context.Context, actor principal.Actor,
+	partID uuid.UUID,
+) (*CourseInstance, error) {
+	if _, err := s.writablePart(ctx, actor, partID); err != nil {
+		return nil, err
+	}
+	return s.store.ShareInstancePartAcrossTracks(ctx, partID)
+}
+
+// SplitPartAcrossTracks undoes that, and every cohort holds its own again.
+func (s *DemandService) SplitPartAcrossTracks(ctx context.Context, actor principal.Actor,
+	partID uuid.UUID,
+) (*CourseInstance, error) {
+	if _, err := s.writablePart(ctx, actor, partID); err != nil {
+		return nil, err
+	}
+	return s.store.SplitInstancePartAcrossTracks(ctx, partID)
+}
+
+// CopyFrom declares in one semester what the same programme declared in another.
+//
+// The permission is about the target semester and nothing else: what is being written is next
+// year's demand, and reading last year's is something anybody with an account may do anyway.
+//
+// The report is returned even when nothing happened. A copy into a semester that already holds
+// the same instances writes nothing, and "nothing happened" is indistinguishable from "it
+// failed" to the person who pressed the button.
+func (s *DemandService) CopyFrom(ctx context.Context, actor principal.Actor,
+	fromCode, toCode, programmeCode string,
+) (CopyReport, error) {
+	if err := mayRead(actor); err != nil {
+		return CopyReport{}, err
+	}
+
+	programme, err := s.programme(ctx, programmeCode)
+	if err != nil {
+		return CopyReport{}, err
+	}
+
+	from, err := s.semesters.ByCode(ctx, actor, fromCode)
+	if err != nil {
+		return CopyReport{}, err
+	}
+	to, err := s.semesters.ByCode(ctx, actor, toCode)
+	if err != nil {
+		return CopyReport{}, err
+	}
+	if from.Code == to.Code {
+		return CopyReport{}, ErrSameSemester
+	}
+
+	if err := s.mayWrite(actor, programme.ID, to.Phase); err != nil {
+		return CopyReport{}, err
+	}
+
+	report := CopyReport{From: from.Code, To: to.Code, Programme: *programme}
+
+	// A source nobody has recorded anything about holds no demand, so there is nothing to copy
+	// and no row to create for it. The target gets its row either way, because copying into it
+	// is a decision about it even when the copy turns out to be empty.
+	recordedTo, err := s.semesters.ensure(ctx, to.Code)
+	if err != nil {
+		return report, err
+	}
+	if from.Recorded() {
+		counts, err := s.store.CopyDemand(ctx, from, recordedTo, programme.ID, actor.ID)
+		if err != nil {
+			return report, err
+		}
+		report.Counts = counts
+	}
+
+	instances, err := s.store.CourseInstances(ctx, DemandFilter{
+		SemesterCode: to.Code,
+		Programme:    programme.Code,
+	})
+	if err != nil {
+		return report, err
+	}
+	report.Instances = instances
+	return report, nil
+}
+
+// writable reads the instance a write is about and decides whether this actor may write it.
+//
+// One read, both halves: the row names its programme and carries its semester's phase.
+func (s *DemandService) writable(ctx context.Context, actor principal.Actor, id uuid.UUID) (*CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+
+	instance, err := s.store.CourseInstanceByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if instance == nil {
+		return nil, ErrInstanceNotFound
+	}
+	if err := s.mayWrite(actor, instance.Programme.ID, instance.SemesterPhase); err != nil {
+		return nil, err
+	}
+	return instance, nil
+}
+
+// writablePart is the same for an operation named by one of an instance's parts.
+func (s *DemandService) writablePart(ctx context.Context, actor principal.Actor, partID uuid.UUID) (*CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+
+	instance, err := s.store.CourseInstanceByPartID(ctx, partID)
+	if err != nil {
+		return nil, err
+	}
+	if instance == nil {
+		return nil, ErrPartNotFound
+	}
+	if err := s.mayWrite(actor, instance.Programme.ID, instance.SemesterPhase); err != nil {
+		return nil, err
+	}
+	return instance, nil
+}
+
+// mayWrite asks the policy and picks which refusal to report.
+//
+// Two sentinels rather than one, because the repairs differ and the interface has to be able to
+// say which: a phase that is closed is moved by the dean's office, a programme somebody does not
+// lead is not.
+func (s *DemandService) mayWrite(actor principal.Actor, programmeID uuid.UUID, phase policy.Phase) error {
+	if policy.MayWriteDemand(actor, programmeID, phase) {
+		return nil
+	}
+	if !policy.MayPlanProgramme(actor, programmeID) {
+		return ErrNotYourProgramme
+	}
+	return ErrPhaseClosed
+}
+
+func (s *DemandService) programme(ctx context.Context, code string) (*Programme, error) {
+	programme, err := s.catalogue.ProgrammeByCode(ctx, normaliseProgrammeCode(code))
+	if err != nil {
+		return nil, err
+	}
+	if programme == nil {
+		return nil, ErrProgrammeNotFound
+	}
+	return programme, nil
+}
+
+// normaliseTrack accepts what somebody types for a parallel cohort and stores what the schema
+// holds: `a` and `A` are the same cohort to a person, and refusing the first would be pedantry.
+func normaliseTrack(track string) (string, error) {
+	track = strings.ToUpper(strings.TrimSpace(track))
+	if !trackPattern.MatchString(track) {
+		return "", ErrTrackInvalid
+	}
+	return track, nil
+}
+
+func validProgrammeSemester(n *int) error {
+	if n == nil {
+		return nil
+	}
+	if *n < 1 || *n > 12 {
+		return ErrProgrammeSemesterInvalid
+	}
+	return nil
+}
+
+// validPart is the shape of a part, not its meaning.
+//
+// The hours may be absent — an instance can be declared before the detail is settled, which is
+// what a demand deadline that comes before the detail requires. What they may not be is zero or
+// negative: a part that credits nobody with anything is a statement nobody meant to make, and
+// the database says the same thing in instance_part_hours_are_plausible.
+func validPart(kind InstancePartKind, hours *float64) error {
+	if _, ok := ParseInstancePartKind(string(kind)); !ok {
+		return ErrPartInvalid
+	}
+	if hours != nil && (*hours <= 0 || *hours > 20) {
+		return ErrPartInvalid
+	}
+	return nil
+}

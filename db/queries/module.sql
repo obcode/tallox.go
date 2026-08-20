@@ -182,3 +182,15 @@ SELECT t.id, COALESCE(t.mail::text, '')::text AS mail, t.full_name, t.short_name
 FROM teacher t
 LEFT JOIN person p ON p.mail = t.mail
 WHERE t.id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- name: ModulesByIDs :many
+-- A handful of modules by id, for attaching them to the instances that offer them.
+--
+-- The demand of a semester names tens of modules and the catalogue holds 506, so the list query
+-- with a filter would read the whole table to answer a question about twenty rows. Same ordering
+-- as the list, so that a screen sorted by module reads the same way in both places.
+SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
+       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref
+FROM module
+WHERE id = ANY (sqlc.arg(ids)::uuid[])
+ORDER BY (name = ''), name, id;

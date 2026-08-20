@@ -43,4 +43,10 @@ type Resolver struct {
 	// field called Modules would be shadowed by the generated queryResolver method of the same
 	// name, and the error that produces takes a minute to read.
 	Catalogue *domain.CatalogueService
+	// Demand is the demand planning: which instances a study programme needs in a semester.
+	//
+	// Named for the area rather than for the type, for the reason the four above are: a field
+	// called CourseInstances would be shadowed by the generated queryResolver method of the same
+	// name, and the error that produces takes a minute to read.
+	Demand *domain.DemandService
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/obcode/tallox.go/graph/model"
+	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
 	gqlparser "github.com/vektah/gqlparser/v2"
 	"github.com/vektah/gqlparser/v2/ast"
@@ -41,15 +42,52 @@ type ComplexityRoot struct {
 		Person    func(childComplexity int) int
 	}
 
+	BorrowedPart struct {
+		FromTrack func(childComplexity int) int
+		Part      func(childComplexity int) int
+	}
+
 	BuildInfo struct {
 		BuiltAt func(childComplexity int) int
 		Commit  func(childComplexity int) int
 		Version func(childComplexity int) int
 	}
 
+	CopyDemandReport struct {
+		Created      func(childComplexity int) int
+		From         func(childComplexity int) int
+		Instances    func(childComplexity int) int
+		PartsCreated func(childComplexity int) int
+		Programme    func(childComplexity int) int
+		Skipped      func(childComplexity int) int
+		To           func(childComplexity int) int
+	}
+
+	CourseInstance struct {
+		BorrowedParts     func(childComplexity int) int
+		CreatedAt         func(childComplexity int) int
+		ID                func(childComplexity int) int
+		Module            func(childComplexity int) int
+		Parts             func(childComplexity int) int
+		Programme         func(childComplexity int) int
+		ProgrammeSemester func(childComplexity int) int
+		Semester          func(childComplexity int) int
+		TeachingHours     func(childComplexity int) int
+		Track             func(childComplexity int) int
+		UpdatedAt         func(childComplexity int) int
+	}
+
 	CreatedPersonalAccessToken struct {
 		Secret func(childComplexity int) int
 		Token  func(childComplexity int) int
+	}
+
+	InstancePart struct {
+		ID                 func(childComplexity int) int
+		Kind               func(childComplexity int) int
+		Position           func(childComplexity int) int
+		SharedAcrossTracks func(childComplexity int) int
+		TeachingHours      func(childComplexity int) int
 	}
 
 	Module struct {
@@ -88,18 +126,28 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AdvanceSemesterPhase      func(childComplexity int, code string, to policy.Phase) int
-		CreatePerson              func(childComplexity int, mail string, name *string) int
-		CreatePersonalAccessToken func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput) int
-		ProjectZpaCatalogue       func(childComplexity int) int
-		PublishWishes             func(childComplexity int, code string) int
-		RenamePerson              func(childComplexity int, id string, name string) int
-		RevokePersonalAccessToken func(childComplexity int, id string) int
-		SetModuleComponents       func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
-		SetPersonActive           func(childComplexity int, id string, active bool) int
-		SetPersonProgrammes       func(childComplexity int, id string, programmes []string) int
-		SetPersonRoles            func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
-		SyncZpaNow                func(childComplexity int) int
+		AddInstancePart               func(childComplexity int, instanceID string, kind domain.InstancePartKind, teachingHours *float64) int
+		AdvanceSemesterPhase          func(childComplexity int, code string, to policy.Phase) int
+		ChangeCourseInstance          func(childComplexity int, id string, track string, programmeSemester *int) int
+		ChangeInstancePart            func(childComplexity int, id string, kind domain.InstancePartKind, teachingHours *float64) int
+		CopyDemandFromSemester        func(childComplexity int, from string, to string, programme string) int
+		CreatePerson                  func(childComplexity int, mail string, name *string) int
+		CreatePersonalAccessToken     func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput) int
+		DeclareCourseInstance         func(childComplexity int, input model.DeclareCourseInstanceInput) int
+		DuplicateCourseInstance       func(childComplexity int, id string, track string, sourceTrack *string) int
+		ProjectZpaCatalogue           func(childComplexity int) int
+		PublishWishes                 func(childComplexity int, code string) int
+		RemoveInstancePart            func(childComplexity int, id string) int
+		RenamePerson                  func(childComplexity int, id string, name string) int
+		RevokePersonalAccessToken     func(childComplexity int, id string) int
+		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
+		SetPersonActive               func(childComplexity int, id string, active bool) int
+		SetPersonProgrammes           func(childComplexity int, id string, programmes []string) int
+		SetPersonRoles                func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
+		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
+		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
+		SyncZpaNow                    func(childComplexity int) int
+		WithdrawCourseInstance        func(childComplexity int, id string) int
 	}
 
 	Person struct {
@@ -135,6 +183,8 @@ type ComplexityRoot struct {
 
 	Query struct {
 		BuildInfo               func(childComplexity int) int
+		CourseInstance          func(childComplexity int, id string) int
+		CourseInstances         func(childComplexity int, semester string, programme *string, module *string) int
 		DiagnoseAccess          func(childComplexity int, mail string) int
 		Me                      func(childComplexity int) int
 		Module                  func(childComplexity int, id string) int
@@ -294,6 +344,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.AccessDiagnosis.Person(childComplexity), true
 
+	case "BorrowedPart.fromTrack":
+		if e.ComplexityRoot.BorrowedPart.FromTrack == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BorrowedPart.FromTrack(childComplexity), true
+	case "BorrowedPart.part":
+		if e.ComplexityRoot.BorrowedPart.Part == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BorrowedPart.Part(childComplexity), true
+
 	case "BuildInfo.builtAt":
 		if e.ComplexityRoot.BuildInfo.BuiltAt == nil {
 			break
@@ -313,6 +376,116 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.BuildInfo.Version(childComplexity), true
 
+	case "CopyDemandReport.created":
+		if e.ComplexityRoot.CopyDemandReport.Created == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CopyDemandReport.Created(childComplexity), true
+	case "CopyDemandReport.from":
+		if e.ComplexityRoot.CopyDemandReport.From == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CopyDemandReport.From(childComplexity), true
+	case "CopyDemandReport.instances":
+		if e.ComplexityRoot.CopyDemandReport.Instances == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CopyDemandReport.Instances(childComplexity), true
+	case "CopyDemandReport.partsCreated":
+		if e.ComplexityRoot.CopyDemandReport.PartsCreated == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CopyDemandReport.PartsCreated(childComplexity), true
+	case "CopyDemandReport.programme":
+		if e.ComplexityRoot.CopyDemandReport.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CopyDemandReport.Programme(childComplexity), true
+	case "CopyDemandReport.skipped":
+		if e.ComplexityRoot.CopyDemandReport.Skipped == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CopyDemandReport.Skipped(childComplexity), true
+	case "CopyDemandReport.to":
+		if e.ComplexityRoot.CopyDemandReport.To == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CopyDemandReport.To(childComplexity), true
+
+	case "CourseInstance.borrowedParts":
+		if e.ComplexityRoot.CourseInstance.BorrowedParts == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.BorrowedParts(childComplexity), true
+	case "CourseInstance.createdAt":
+		if e.ComplexityRoot.CourseInstance.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.CreatedAt(childComplexity), true
+	case "CourseInstance.id":
+		if e.ComplexityRoot.CourseInstance.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.ID(childComplexity), true
+	case "CourseInstance.module":
+		if e.ComplexityRoot.CourseInstance.Module == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.Module(childComplexity), true
+	case "CourseInstance.parts":
+		if e.ComplexityRoot.CourseInstance.Parts == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.Parts(childComplexity), true
+	case "CourseInstance.programme":
+		if e.ComplexityRoot.CourseInstance.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.Programme(childComplexity), true
+	case "CourseInstance.programmeSemester":
+		if e.ComplexityRoot.CourseInstance.ProgrammeSemester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.ProgrammeSemester(childComplexity), true
+	case "CourseInstance.semester":
+		if e.ComplexityRoot.CourseInstance.Semester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.Semester(childComplexity), true
+	case "CourseInstance.teachingHours":
+		if e.ComplexityRoot.CourseInstance.TeachingHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.TeachingHours(childComplexity), true
+	case "CourseInstance.track":
+		if e.ComplexityRoot.CourseInstance.Track == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.Track(childComplexity), true
+	case "CourseInstance.updatedAt":
+		if e.ComplexityRoot.CourseInstance.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.UpdatedAt(childComplexity), true
+
 	case "CreatedPersonalAccessToken.secret":
 		if e.ComplexityRoot.CreatedPersonalAccessToken.Secret == nil {
 			break
@@ -325,6 +498,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CreatedPersonalAccessToken.Token(childComplexity), true
+
+	case "InstancePart.id":
+		if e.ComplexityRoot.InstancePart.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InstancePart.ID(childComplexity), true
+	case "InstancePart.kind":
+		if e.ComplexityRoot.InstancePart.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InstancePart.Kind(childComplexity), true
+	case "InstancePart.position":
+		if e.ComplexityRoot.InstancePart.Position == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InstancePart.Position(childComplexity), true
+	case "InstancePart.sharedAcrossTracks":
+		if e.ComplexityRoot.InstancePart.SharedAcrossTracks == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InstancePart.SharedAcrossTracks(childComplexity), true
+	case "InstancePart.teachingHours":
+		if e.ComplexityRoot.InstancePart.TeachingHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InstancePart.TeachingHours(childComplexity), true
 
 	case "Module.active":
 		if e.ComplexityRoot.Module.Active == nil {
@@ -495,6 +699,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ModuleOffering.Spo(childComplexity), true
 
+	case "Mutation.addInstancePart":
+		if e.ComplexityRoot.Mutation.AddInstancePart == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addInstancePart_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.AddInstancePart(childComplexity, args["instanceId"].(string), args["kind"].(domain.InstancePartKind), args["teachingHours"].(*float64)), true
 	case "Mutation.advanceSemesterPhase":
 		if e.ComplexityRoot.Mutation.AdvanceSemesterPhase == nil {
 			break
@@ -506,6 +721,39 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.AdvanceSemesterPhase(childComplexity, args["code"].(string), args["to"].(policy.Phase)), true
+	case "Mutation.changeCourseInstance":
+		if e.ComplexityRoot.Mutation.ChangeCourseInstance == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_changeCourseInstance_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ChangeCourseInstance(childComplexity, args["id"].(string), args["track"].(string), args["programmeSemester"].(*int)), true
+	case "Mutation.changeInstancePart":
+		if e.ComplexityRoot.Mutation.ChangeInstancePart == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_changeInstancePart_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ChangeInstancePart(childComplexity, args["id"].(string), args["kind"].(domain.InstancePartKind), args["teachingHours"].(*float64)), true
+	case "Mutation.copyDemandFromSemester":
+		if e.ComplexityRoot.Mutation.CopyDemandFromSemester == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_copyDemandFromSemester_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CopyDemandFromSemester(childComplexity, args["from"].(string), args["to"].(string), args["programme"].(string)), true
 	case "Mutation.createPerson":
 		if e.ComplexityRoot.Mutation.CreatePerson == nil {
 			break
@@ -528,6 +776,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreatePersonalAccessToken(childComplexity, args["description"].(string), args["expiresInDays"].(*int), args["scopes"].([]*model.ScopeGrantInput)), true
+	case "Mutation.declareCourseInstance":
+		if e.ComplexityRoot.Mutation.DeclareCourseInstance == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_declareCourseInstance_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeclareCourseInstance(childComplexity, args["input"].(model.DeclareCourseInstanceInput)), true
+	case "Mutation.duplicateCourseInstance":
+		if e.ComplexityRoot.Mutation.DuplicateCourseInstance == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_duplicateCourseInstance_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DuplicateCourseInstance(childComplexity, args["id"].(string), args["track"].(string), args["sourceTrack"].(*string)), true
 	case "Mutation.projectZpaCatalogue":
 		if e.ComplexityRoot.Mutation.ProjectZpaCatalogue == nil {
 			break
@@ -545,6 +815,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.PublishWishes(childComplexity, args["code"].(string)), true
+	case "Mutation.removeInstancePart":
+		if e.ComplexityRoot.Mutation.RemoveInstancePart == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_removeInstancePart_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RemoveInstancePart(childComplexity, args["id"].(string)), true
 	case "Mutation.renamePerson":
 		if e.ComplexityRoot.Mutation.RenamePerson == nil {
 			break
@@ -611,12 +892,45 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetPersonRoles(childComplexity, args["id"].(string), args["roles"].([]policy.Role), args["expiresAt"].(*time.Time)), true
+	case "Mutation.shareInstancePartAcrossTracks":
+		if e.ComplexityRoot.Mutation.ShareInstancePartAcrossTracks == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_shareInstancePartAcrossTracks_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ShareInstancePartAcrossTracks(childComplexity, args["id"].(string)), true
+	case "Mutation.splitInstancePartAcrossTracks":
+		if e.ComplexityRoot.Mutation.SplitInstancePartAcrossTracks == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_splitInstancePartAcrossTracks_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SplitInstancePartAcrossTracks(childComplexity, args["id"].(string)), true
 	case "Mutation.syncZpaNow":
 		if e.ComplexityRoot.Mutation.SyncZpaNow == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Mutation.SyncZpaNow(childComplexity), true
+	case "Mutation.withdrawCourseInstance":
+		if e.ComplexityRoot.Mutation.WithdrawCourseInstance == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_withdrawCourseInstance_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.WithdrawCourseInstance(childComplexity, args["id"].(string)), true
 
 	case "Person.id":
 		if e.ComplexityRoot.Person.ID == nil {
@@ -742,6 +1056,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.BuildInfo(childComplexity), true
+	case "Query.courseInstance":
+		if e.ComplexityRoot.Query.CourseInstance == nil {
+			break
+		}
+
+		args, err := ec.field_Query_courseInstance_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.CourseInstance(childComplexity, args["id"].(string)), true
+	case "Query.courseInstances":
+		if e.ComplexityRoot.Query.CourseInstances == nil {
+			break
+		}
+
+		args, err := ec.field_Query_courseInstances_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.CourseInstances(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string)), true
 	case "Query.diagnoseAccess":
 		if e.ComplexityRoot.Query.DiagnoseAccess == nil {
 			break
@@ -1349,6 +1685,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputDeclareCourseInstanceInput,
 		ec.unmarshalInputModuleComponentInput,
 		ec.unmarshalInputModuleFilter,
 		ec.unmarshalInputScopeGrantInput,
@@ -2119,6 +2456,374 @@ extend type Mutation {
   ): Module! @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
+	{Name: "../demand.graphqls", Input: `# The demand: which course instances a study programme needs in a semester.
+#
+# The first area of the planning process itself, and the one the other three hang off. A wish is
+# an interest in a *part* of an instance; an assignment fills one; the dean's office's
+# import/export figures are sums over the programme an instance belongs to.
+#
+# Readable by anybody with an account and no particular role, like the catalogue: the demand is
+# what the wish phase is about, and a lecturer who cannot see which instances exist has nothing
+# to register interest in. What is scoped is writing it, and only to the study programme somebody
+# actually leads.
+
+"""
+One module, offered in one semester, for one study programme, to one parallel cohort.
+
+**This is what gets planned, and its parts are what get assigned.** The faculty's own sentence is
+"one person holds the lecture, another the laboratory", so a wish and an assignment will point at
+an ` + "`" + `InstancePart` + "`" + ` and never at the instance.
+
+The identity is the semester, the module, the programme and the cohort. Two things are
+deliberately not part of it:
+
+* **The version of the examination regulations.** One lecture in the winter serves every valid
+  version at once — students under IF-2019 and IF-2025 sit in the same room with the same
+  person — so an instance per version would be the same event two to four times in every list.
+  Where the version matters, it is a question about ` + "`" + `Module.offerings` + "`" + `.
+* **The kind of teaching.** A lecture and its laboratories are one instance with several parts,
+  not several instances.
+
+The cohort *is* part of it, and that is the one people are surprised by. An instance is normally
+assigned to one person, and Software Engineering I runs in two cohorts held by two people — so if
+the cohort were a multiplicity inside the instance, "assign IF3A to somebody" would not be a
+sentence this schema could express.
+"""
+type CourseInstance {
+  id: ID!
+  """
+  The semester, in this system's spelling: ` + "`" + `2026-WS` + "`" + `.
+
+  The year is the one the semester *starts* in, so the winter of 2026/27 is ` + "`" + `2026-WS` + "`" + `.
+  """
+  semester: String!
+  """
+  Whose demand this is.
+
+  Not necessarily the module's home programme. A module at home in one programme and offered by
+  another is exactly what the dean's office's import/export figures are about, and the difference
+  between the two declarations is the export.
+  """
+  programme: Programme!
+  """
+  The catalogue entry this is an offering of, with its split and its offerings attached.
+
+  The same ` + "`" + `Module` + "`" + ` the catalogue serves, so that "is this compulsory here" and "how do its hours
+  divide" are answerable on a demand screen without a second lookup.
+  """
+  module: Module!
+  """
+  The parallel cohort — the A in IF3A — and empty for a module that runs once, which is the
+  ordinary case.
+
+  The letter only. The label a person reads is the programme's code, the cohort year and this,
+  assembled where they are read: storing the assembled string would denormalise two facts and go
+  stale on the third.
+  """
+  track: String!
+  """
+  Which cohort year this is for — the 3 in IF3A — or ` + "`" + `null` + "`" + ` where nobody has said and the
+  regulations do not either.
+
+  Seeded from the regulations when the instance is declared and a decision afterwards, rather
+  than derived on every read. Derived it would be a *set* rather than a number: 23 of 1076
+  module/programme pairs disagree across versions of the regulations, and it would change
+  retroactively when a new version lands, renaming a cohort that has already been taught.
+  """
+  programmeSemester: Int
+  """
+  The assignable units this cohort holds itself, in order.
+
+  Made from the module's split when the instance is declared — one part per unit — and edited
+  afterwards. The number of laboratory *groups* is a planning decision and lives here, not in the
+  module: a two-hour laboratory in the split is one entry however many groups a cohort runs.
+  """
+  parts: [InstancePart!]!
+  """
+  Parts of a sibling cohort that are held for this one as well.
+
+  The other half of ` + "`" + `InstancePart.sharedAcrossTracks` + "`" + `. A lecture given once for IF3A and IF3B is
+  one row, owned by one of them — and the other has to render it, or its screen shows a cohort
+  with laboratories and no lecture and looks like a planning mistake.
+
+  Never counted in ` + "`" + `teachingHours` + "`" + `: the point of holding a lecture once is that it costs the
+  faculty once.
+  """
+  borrowedParts: [BorrowedPart!]!
+  """
+  What this instance costs the faculty: the sum over the parts it holds.
+
+  **Not the module's own ` + "`" + `contactHoursPerWeek` + "`" + `**, which is what a student attends. A four-hour
+  module running one lecture and three laboratory groups costs eight hours per cohort, and
+  summing the module's figure would give four — a plausible-looking wrong answer.
+
+  A part whose hours nobody has stated yet contributes nothing rather than making the sum
+  unanswerable: an instance can be declared before the detail is settled, which is what a demand
+  deadline that comes before the detail requires.
+  """
+  teachingHours: Float!
+  "When this instance was declared."
+  createdAt: Time!
+  "When it was last changed."
+  updatedAt: Time!
+}
+
+"""
+One assignable unit of an instance: a lecture, a laboratory group, a seminar.
+
+What a wish and an assignment will point at.
+"""
+type InstancePart {
+  id: ID!
+  "What kind of teaching this part is: a lecture, a laboratory group, a seminar."
+  kind: InstancePartKind!
+  "Order within the instance."
+  position: Int!
+  """
+  What a **lecturer** is credited with for holding this part.
+
+  Starts as what the module's split says and is editable afterwards: the two are different
+  quantities that merely begin equal. ` + "`" + `null` + "`" + ` while nobody has stated it, which is a normal state
+  for an instance declared before the detail was settled.
+  """
+  teachingHours: Float
+  """
+  This part is held once and serves the other cohorts of the same module as well.
+
+  The shared lecture: one person gives it for IF3A and IF3B, it happens once, and its hours count
+  once — here, at the cohort that owns the row. Not the default and never automatic: a cohort
+  holds its own teaching unless somebody says otherwise, because sharing by default would make
+  the faculty's hours look smaller than they are until somebody noticed.
+  """
+  sharedAcrossTracks: Boolean!
+}
+
+"""
+A sibling cohort's shared part, seen from the cohort it is held for.
+"""
+type BorrowedPart {
+  "The part itself, as its owning cohort holds it."
+  part: InstancePart!
+  """
+  The cohort that owns the row — the A in "held together with IF3A".
+
+  Empty is possible and means the sibling has no letter, which happens while somebody is in the
+  middle of splitting a single cohort into two.
+  """
+  fromTrack: String!
+}
+
+"""
+What copying a semester's demand did.
+
+Reported even when nothing happened. A copy into a semester that already holds the same instances
+writes nothing at all, and "nothing happened" is indistinguishable from "it failed" to the person
+who pressed the button.
+"""
+type CopyDemandReport {
+  "The semester copied from."
+  from: String!
+  "The semester copied into."
+  to: String!
+  "The study programme whose demand was copied."
+  programme: Programme!
+  "How many instances were declared."
+  created: Int!
+  """
+  How many were already declared in the target and were left exactly as they are.
+
+  A copy never overwrites work in the semester it copies into — including a cohort year somebody
+  has since corrected there.
+  """
+  skipped: Int!
+  "How many parts came with the new instances."
+  partsCreated: Int!
+  """
+  The demand of the target semester afterwards — the whole list, not only the new rows.
+
+  So that a screen can render the result of the copy from the answer to the copy, rather than
+  asking again and rendering a moment that is one round trip old.
+  """
+  instances: [CourseInstance!]!
+}
+
+"""
+A demand about to be declared.
+"""
+input DeclareCourseInstanceInput {
+  "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `. Upper-cased and trimmed for you."
+  semester: String!
+  "The study programme whose demand this is, by its short code."
+  programme: String!
+  """
+  The module, by id.
+
+  It must have a split — ` + "`" + `Module.components` + "`" + ` — because the instance's parts are made from it.
+  Without one the answer is ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `, and the repair is ` + "`" + `setModuleComponents` + "`" + `.
+  """
+  moduleId: ID!
+  """
+  The parallel cohort, or empty for a module that runs once. One to three characters, upper-cased
+  and trimmed for you.
+
+  Leave it empty at first: turning one cohort into two is ` + "`" + `duplicateCourseInstance` + "`" + `, which names
+  both letters at once.
+  """
+  track: String = ""
+  """
+  The cohort year, or ` + "`" + `null` + "`" + ` to take what the programme's regulations say — the earliest semester
+  the module may be taken in, across every version of them.
+  """
+  programmeSemester: Int
+}
+
+extend type Query {
+  """
+  The demand of a semester: which instances have been declared, with their parts.
+
+  The semester is required and has no default. Without one this would be a question about every
+  semester at once, which is not a screen anybody wants and is a large answer to produce by
+  accident.
+  """
+  courseInstances(
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
+    semester: String!
+    "One study programme, by its short code. Omit for every programme's demand in that semester."
+    programme: String
+    "One module, across its cohorts."
+    module: ID
+  ): [CourseInstance!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  One course instance by its id, or ` + "`" + `null` + "`" + `.
+  """
+  courseInstance(id: ID!): CourseInstance @scope(area: PLANNING, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Declare that a study programme needs this module in this semester, for this cohort.
+
+  Allowed for the lead of **that** programme and for the dean's office — and in every phase,
+  including ` + "`" + `FINAL` + "`" + `. An instance declared during the assignment is a correction, and corrections
+  happen; a tool that refuses one moves it into a spreadsheet passed around by mail.
+
+  The parts are made from the module's split, one per unit, each credited with the hours the
+  split states. A module with no split is refused with ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `.
+
+  Declaring the same cohort twice is ` + "`" + `TRACK_TAKEN` + "`" + `.
+  """
+  declareCourseInstance(input: DeclareCourseInstanceInput!): CourseInstance!
+    @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Copy an instance to a second parallel cohort — IF1 becomes IF1A and IF1B.
+
+  ` + "`" + `sourceTrack` + "`" + ` renames the original in the same act, and that is why this is one mutation rather
+  than two: a single cohort becoming two is one decision, and doing it in two steps leaves a
+  moment in which the pair does not look like a pair and every label is wrong.
+
+  A part that is already held for the sibling cohorts is **not** copied — it already serves the
+  new one, and copying it would be the same lecture twice with its hours counted twice.
+  """
+  duplicateCourseInstance(
+    id: ID!
+    "The new cohort's letter. Required: without one the copy would collide with its own source."
+    track: String!
+    "What the source cohort should be called from now on. Omit to leave it as it is."
+    sourceTrack: String
+  ): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Change the two editable things about an instance: its cohort and its cohort year.
+
+  The module, the programme and the semester are not among them. Changing one of those is not an
+  edit of this instance — it is a different instance, and the parts, and later the wishes, belong
+  to the one that was declared.
+  """
+  changeCourseInstance(id: ID!, track: String!, programmeSemester: Int): CourseInstance!
+    @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Withdraw an instance that is not needed after all. Its parts go with it.
+
+  Refused with ` + "`" + `INSTANCE_IN_USE` + "`" + ` once anything hangs off it. That refusal deliberately says
+  nothing about *what* — no count, no kind of thing named. The first table to point at an
+  instance part will be the wish table, and "this instance has three wishes" is the confidential
+  fact with the names taken out.
+
+  Returns the id of the withdrawn instance, so that a list can drop it without asking again.
+  """
+  withdrawCourseInstance(id: ID!): ID! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Add a part to an instance — the second laboratory group, the tutorial nobody planned for.
+
+  This is how the multiplicity of a module's split is expressed. The split says a laboratory is
+  two hours; how many groups of it a cohort runs is a planning decision and belongs here.
+  """
+  addInstancePart(
+    instanceId: ID!
+    kind: InstancePartKind!
+    "What a lecturer is credited with. Omit while it is not settled."
+    teachingHours: Float
+  ): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Correct a part's kind or hours.
+  """
+  changeInstancePart(id: ID!, kind: InstancePartKind!, teachingHours: Float): CourseInstance!
+    @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Remove a part. Refused with ` + "`" + `INSTANCE_IN_USE` + "`" + ` once anything hangs off it.
+  """
+  removeInstancePart(id: ID!): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Hold this part once for all the parallel cohorts of its module.
+
+  The shared lecture: one person gives it for IF3A and IF3B, it happens once, and its hours count
+  once. The sibling cohorts' own parts of the same kind are removed in the same act — a database
+  in which only the flag was written has a cohort attending two lectures.
+
+  Refused with ` + "`" + `NO_SIBLING_TRACKS` + "`" + ` where there is no second cohort to share with, and with
+  ` + "`" + `INSTANCE_IN_USE` + "`" + ` if one of the parts that would go is already spoken for.
+  """
+  shareInstancePartAcrossTracks(id: ID!): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Undo that: every cohort holds its own again, with the same hours.
+
+  As easy as the merge on purpose, because sharing is a judgement that gets revised — the person
+  who was going to give both lectures is on sabbatical. A cohort that already has a part of that
+  kind is left alone rather than given a second one.
+  """
+  splitInstancePartAcrossTracks(id: ID!): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Declare in one semester what the same programme declared in another.
+
+  What it carries over is the previous semester's *instances and their parts*, not the modules'
+  splits — so the number of laboratory groups, which is a planning decision somebody made last
+  year, comes with it. That is the difference between this and declaring each instance by hand,
+  and the reason it exists.
+
+  Instances already declared in the target are left untouched and counted as skipped. A shared
+  lecture stays shared, because its sibling cohort is copied too.
+
+  The permission is about the **target** semester: what is being written is next year's demand.
+  """
+  copyDemandFromSemester(
+    "The semester to copy from."
+    from: String!
+    "The semester to copy into."
+    to: String!
+    "The study programme, by its short code."
+    programme: String!
+  ): CopyDemandReport! @scope(area: PLANNING, verb: WRITE)
+}
+`, BuiltIn: false},
 	{Name: "../directives.graphqls", Input: `# Why a real directive rather than a check inside each resolver: generated code calls it, so
 # no resolver can forget it. A rule that depends on every future author remembering it is not
 # a rule. Implementation in graph/directives.go, decision in policy.MayReadInteractiveOnly.
@@ -2224,7 +2929,11 @@ enum ScopeArea {
   yourself; ` + "`" + `TOKENS` + "`" + ` and ` + "`" + `ADMIN` + "`" + ` are unreachable through a token at all.
 
   Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `, ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
-  ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `publishWishes` + "`" + `, ` + "`" + `setModuleComponents` + "`" + `.
+  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `publishWishes` + "`" + `,
+  ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
+  ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
+  ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
+  ` + "`" + `copyDemandFromSemester` + "`" + `.
   """
   PLANNING
 
@@ -3143,6 +3852,16 @@ func (ec *executionContext) childFields_AccessDiagnosis(ctx context.Context, fie
 	return nil, fmt.Errorf("no field named %q was found under type AccessDiagnosis", field.Name)
 }
 
+func (ec *executionContext) childFields_BorrowedPart(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "part":
+		return ec.fieldContext_BorrowedPart_part(ctx, field)
+	case "fromTrack":
+		return ec.fieldContext_BorrowedPart_fromTrack(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type BorrowedPart", field.Name)
+}
+
 func (ec *executionContext) childFields_BuildInfo(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "version":
@@ -3155,6 +3874,54 @@ func (ec *executionContext) childFields_BuildInfo(ctx context.Context, field gra
 	return nil, fmt.Errorf("no field named %q was found under type BuildInfo", field.Name)
 }
 
+func (ec *executionContext) childFields_CopyDemandReport(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "from":
+		return ec.fieldContext_CopyDemandReport_from(ctx, field)
+	case "to":
+		return ec.fieldContext_CopyDemandReport_to(ctx, field)
+	case "programme":
+		return ec.fieldContext_CopyDemandReport_programme(ctx, field)
+	case "created":
+		return ec.fieldContext_CopyDemandReport_created(ctx, field)
+	case "skipped":
+		return ec.fieldContext_CopyDemandReport_skipped(ctx, field)
+	case "partsCreated":
+		return ec.fieldContext_CopyDemandReport_partsCreated(ctx, field)
+	case "instances":
+		return ec.fieldContext_CopyDemandReport_instances(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type CopyDemandReport", field.Name)
+}
+
+func (ec *executionContext) childFields_CourseInstance(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_CourseInstance_id(ctx, field)
+	case "semester":
+		return ec.fieldContext_CourseInstance_semester(ctx, field)
+	case "programme":
+		return ec.fieldContext_CourseInstance_programme(ctx, field)
+	case "module":
+		return ec.fieldContext_CourseInstance_module(ctx, field)
+	case "track":
+		return ec.fieldContext_CourseInstance_track(ctx, field)
+	case "programmeSemester":
+		return ec.fieldContext_CourseInstance_programmeSemester(ctx, field)
+	case "parts":
+		return ec.fieldContext_CourseInstance_parts(ctx, field)
+	case "borrowedParts":
+		return ec.fieldContext_CourseInstance_borrowedParts(ctx, field)
+	case "teachingHours":
+		return ec.fieldContext_CourseInstance_teachingHours(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_CourseInstance_createdAt(ctx, field)
+	case "updatedAt":
+		return ec.fieldContext_CourseInstance_updatedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type CourseInstance", field.Name)
+}
+
 func (ec *executionContext) childFields_CreatedPersonalAccessToken(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "token":
@@ -3163,6 +3930,22 @@ func (ec *executionContext) childFields_CreatedPersonalAccessToken(ctx context.C
 		return ec.fieldContext_CreatedPersonalAccessToken_secret(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type CreatedPersonalAccessToken", field.Name)
+}
+
+func (ec *executionContext) childFields_InstancePart(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_InstancePart_id(ctx, field)
+	case "kind":
+		return ec.fieldContext_InstancePart_kind(ctx, field)
+	case "position":
+		return ec.fieldContext_InstancePart_position(ctx, field)
+	case "teachingHours":
+		return ec.fieldContext_InstancePart_teachingHours(ctx, field)
+	case "sharedAcrossTracks":
+		return ec.fieldContext_InstancePart_sharedAcrossTracks(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type InstancePart", field.Name)
 }
 
 func (ec *executionContext) childFields_Module(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

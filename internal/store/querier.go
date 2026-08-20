@@ -27,6 +27,17 @@ type Querier interface {
 	// assignment to somebody who does not hold the role — the check is the schema's, not a race
 	// somebody has to remember here.
 	AssignProgramme(ctx context.Context, arg AssignProgrammeParams) error
+	// The parts of *sibling* cohorts that are held for this one as well.
+	//
+	// The other half of instance_part.serves_sibling_tracks. A lecture given once for IF3A and IF3B
+	// is one row, owned by one of them; the other has to render it, or its screen shows a cohort
+	// with laboratories and no lecture and looks like a planning mistake.
+	//
+	// Siblings are the instances of the same module, in the same semester, for the same programme —
+	// which is the identity minus the parallel cohort, and exactly what course_instance_cohort_idx
+	// covers. Sharing reaches no further than that on purpose: a part shared between two programmes
+	// would belong to both, and the import/export figure would lose its denominator.
+	BorrowedInstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]BorrowedInstancePartsForRow, error)
 	CatalogueProjectionNotes(ctx context.Context, projectionID uuid.UUID) ([]CatalogueProjectionNotesRow, error)
 	// Not projected, and the largest of the nine: 665 real rows over 12 sets of regulations the
 	// endpoint stopped returning — the historical ones and a placeholder dated 2099.
@@ -99,6 +110,19 @@ type Querier interface {
 	// be in, and eleven modules are in it — burying the genuinely new phrases under them would
 	// defeat the purpose of the line.
 	CountUnmappedFrequencies(ctx context.Context) (CountUnmappedFrequenciesRow, error)
+	CourseInstanceByID(ctx context.Context, id uuid.UUID) (CourseInstanceByIDRow, error)
+	// The instance a part belongs to, for the permission check on a part-level write.
+	//
+	// One statement rather than "read the part, then read its instance": the thing being decided is
+	// whether this actor may write this programme's demand in this phase, and both halves of that
+	// come off the instance.
+	CourseInstanceByPartID(ctx context.Context, id uuid.UUID) (CourseInstanceByPartIDRow, error)
+	// The source rows of a copy: what one programme declared in one semester, by id.
+	//
+	// Addressed by semester id rather than code, unlike the list above, because the copy already
+	// holds both semesters as rows — it had to, to write into the target — and looking them up again
+	// by code inside the transaction would be a second chance to disagree about which they are.
+	CourseInstancesToCopy(ctx context.Context, arg CourseInstancesToCopyParams) ([]CourseInstancesToCopyRow, error)
 	// People and their role grants.
 	//
 	// Every read that resolves an identity returns the roles with it, in one round trip. Two
@@ -118,6 +142,22 @@ type Querier interface {
 	// The secret is generated and hashed by the caller (internal/auth), never here: a secret that
 	// travelled through a query is a secret in a log somewhere.
 	CreateToken(ctx context.Context, arg CreateTokenParams) (CreateTokenRow, error)
+	// Withdraw an instance. Its parts go with it; anything else pointing at it stops it.
+	//
+	// instance_part is ON DELETE CASCADE, which is what makes this one statement. Everything that
+	// will later hang off a part — a wish, an assignment — is a foreign key that refuses, and the Go
+	// side maps that refusal to one opaque answer without a count. A message naming what stopped the
+	// withdrawal would be a wish oracle: "this instance has 3 wishes" is the confidential fact, with
+	// the names removed and nothing else.
+	DeleteCourseInstance(ctx context.Context, id uuid.UUID) (int64, error)
+	DeleteInstancePart(ctx context.Context, id uuid.UUID) (int64, error)
+	// The other half of merging a part across the parallel cohorts: the siblings' own copies of it
+	// go away, because from now on this one is held for them too.
+	//
+	// By kind rather than by id, because that is what "the lecture" means to the person doing it: a
+	// cohort has one lecture, and after the merge the faculty holds one lecture for both. A sibling
+	// part that something already hangs off refuses to go, and the merge fails as a whole.
+	DeleteInstancePartsOfKind(ctx context.Context, arg DeleteInstancePartsOfKindParams) (int64, error)
 	// Offerings the source no longer supports.
 	//
 	// The only catalogue table anything is deleted from, and it is safe for one reason that is
@@ -172,7 +212,25 @@ type Querier interface {
 	// granted_at is refreshed with it. The row records the grant that is in force, and a
 	// timestamp that pointed at a superseded one would be the wrong answer to the audit question.
 	GrantRole(ctx context.Context, arg GrantRoleParams) error
+	// Declare an instance. The unique key is the identity — semester, module, programme, cohort.
+	//
+	// A conflict is reported rather than absorbed: somebody declaring IF3A twice has made a mistake
+	// worth naming, and the demand is not confidential, so naming it leaks nothing. The copy path is
+	// the one place that wants a conflict to be a no-op, and it uses the statement below.
+	InsertCourseInstance(ctx context.Context, arg InsertCourseInstanceParams) (uuid.UUID, error)
+	// The copy path's insert: an instance that is already declared is left exactly as it is.
+	//
+	// DO NOTHING with a RETURNING of the id, so "created" and "was already there" are distinguished
+	// by whether a row comes back rather than by a count read afterwards. DO UPDATE would overwrite
+	// a cohort year somebody has since corrected in the target semester — a copy must never silently
+	// undo work in the semester it is copying into.
+	InsertCourseInstanceIfAbsent(ctx context.Context, arg InsertCourseInstanceIfAbsentParams) (uuid.UUID, error)
+	InsertInstancePart(ctx context.Context, arg InsertInstancePartParams) (uuid.UUID, error)
 	InsertModuleComponent(ctx context.Context, arg InsertModuleComponentParams) error
+	// The parts of a set of instances, in one statement.
+	InstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]InstancePartsForRow, error)
+	// Whether a cohort already has a part of this kind, so that undoing a merge does not give it two.
+	InstancePartsOfKindExist(ctx context.Context, arg InstancePartsOfKindExistParams) (bool, error)
 	// The one number the interface shows largest, and the one the deploy smoke check asserts is
 	// recent. PARTIAL counts: it fetched something, and a run that got three of four endpoints is
 	// not the silence this is watching for.
@@ -188,6 +246,28 @@ type Querier interface {
 	// previous one. What they were is reported, not stored — a mail address belongs in the table
 	// about people.
 	LinkModuleResponsibles(ctx context.Context) (int64, error)
+	// The demand: which course instances a study programme needs in a semester.
+	//
+	// Same shape as the catalogue file next to it — a list costs a fixed number of statements and is
+	// stitched in Go — and for the same measured reason. A semester's demand for one programme is
+	// tens of instances with a handful of parts each, so "load the instances, load their parts, join
+	// them here" is two statements where a field resolver per relation would be one per row.
+	//
+	// Two things in here are transactions rather than statements, and both are in this file's Go
+	// neighbour: declaring an instance writes the instance and the parts made from the module's
+	// split, and copying a semester's demand writes all of it or none of it. A half-copied semester
+	// is worse than an uncopied one, because the person looking at it cannot tell which half.
+	// The demand of a semester, optionally narrowed to one programme or one module.
+	//
+	// The semester is addressed by its code rather than its id, the way it is everywhere outside
+	// this package: the code is what a URL and a colleague's script carry.
+	//
+	// Ordered the way the demand is read — by cohort year, then by module, then by parallel cohort,
+	// so that IF3A and IF3B sit next to each other and a programme's list walks up the semesters.
+	// The module's name is ordered by without being selected: it is attached from the catalogue
+	// afterwards, and selecting it here would be a second copy of the same string that could drift
+	// from the one the interface shows.
+	ListCourseInstances(ctx context.Context, arg ListCourseInstancesParams) ([]ListCourseInstancesRow, error)
 	// The catalogue, filtered.
 	//
 	// The programme filter is a union of two conditions and the second is not redundant: a module
@@ -277,6 +357,17 @@ type Querier interface {
 	// somebody happened to filter by would make the same module look different depending on how it
 	// was found.
 	ModuleOfferingsFor(ctx context.Context, moduleIds []uuid.UUID) ([]ModuleOfferingsForRow, error)
+	// A handful of modules by id, for attaching them to the instances that offer them.
+	//
+	// The demand of a semester names tens of modules and the catalogue holds 506, so the list query
+	// with a filter would read the whole table to answer a question about twenty rows. Same ordering
+	// as the list, so that a screen sorted by module reads the same way in both places.
+	ModulesByIDs(ctx context.Context, ids []uuid.UUID) ([]ModulesByIDsRow, error)
+	// Where a newly added part goes: after the last one.
+	//
+	// COALESCE with the cast outside, for the same reason as above — MAX over no rows is NULL, and
+	// an instance with no parts yet is the ordinary state of one whose module has an empty split.
+	NextInstancePartPosition(ctx context.Context, courseInstanceID uuid.UUID) (int32, error)
 	PersonByID(ctx context.Context, id uuid.UUID) (PersonByIDRow, error)
 	// The authentication query of the browser door. mail is citext, so the comparison is
 	// case-insensitive without a lower() that would defeat the unique index.
@@ -432,6 +523,17 @@ type Querier interface {
 	// by X, expired on Wednesday" is the answer to the only question this table gets asked —
 	// who could see what, when. The permission lookups above are the ones that filter.
 	RoleGrantsByPerson(ctx context.Context, personID uuid.UUID) ([]RoleGrantsByPersonRow, error)
+	// Which cohort year to propose for a new instance, from the regulations of its programme.
+	//
+	// The earliest the module may be taken in, across every version of that programme's regulations.
+	// 23 of 1076 module/programme pairs disagree across versions, and the earliest is the one that
+	// makes the instance appear where somebody looking for it expects it — the same choice the
+	// catalogue projection makes for the same conflict.
+	//
+	// Zero means "the regulations do not say", which the CHECK on the column (1 to 12) makes an
+	// unambiguous answer. COALESCE with the cast on the outside: without it sqlc types the aggregate
+	// as an interface, and MIN over no rows is NULL, which is exactly the case this seeds for.
+	SeedProgrammeSemester(ctx context.Context, arg SeedProgrammeSemesterParams) (int32, error)
 	SemesterByCode(ctx context.Context, code string) (Semester, error)
 	// The recorded ones — the semesters somebody has decided something about. The ones nobody has
 	// touched are not here to be listed, and the domain adds them from the calendar.
@@ -440,6 +542,7 @@ type Querier interface {
 	// WS within a year, in the order the terms actually happen. Ordering by created_at instead
 	// would list them by when somebody got round to entering them.
 	Semesters(ctx context.Context) ([]Semester, error)
+	SetInstancePartShared(ctx context.Context, arg SetInstancePartSharedParams) error
 	// Deactivation is how a leaver loses access to everything at once, tokens included.
 	//
 	// The guard against deactivating the last administrator is not here. It cannot be: it depends
@@ -451,6 +554,8 @@ type Querier interface {
 	// here that is not a permission change, and mixing it in would make every rename look like
 	// one in the audit log.
 	SetPersonName(ctx context.Context, arg SetPersonNameParams) error
+	// The other parallel cohorts of one instance's module, in the same semester and programme.
+	SiblingInstanceIDs(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error)
 	// The projection's own bookkeeping
 	// --------------------------------
 	// Written before the first statement, like the sync run it mirrors: a projection that crashed
@@ -491,6 +596,13 @@ type Querier interface {
 	// Delete-then-insert rather than a diff: what is being replaced is one statement about who leads
 	// what, and inside a transaction nobody reads the empty moment in between.
 	UnassignProgrammes(ctx context.Context, arg UnassignProgrammesParams) error
+	// The two things about an instance that are editable: which cohort it is, and which year.
+	//
+	// The module, the programme and the semester are not. Changing one of those is not an edit of
+	// this instance, it is a different instance — and its parts, and later its wishes, belong to the
+	// one that was declared.
+	UpdateCourseInstance(ctx context.Context, arg UpdateCourseInstanceParams) error
+	UpdateInstancePart(ctx context.Context, arg UpdateInstancePartParams) error
 	// The cache of the examination office's module master data, its runs and its changes.
 	//
 	// The theme of this file is that a sync never deletes and never overwrites blindly. Every

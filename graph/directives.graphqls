@@ -103,7 +103,11 @@ enum ScopeArea {
   yourself; `TOKENS` and `ADMIN` are unreachable through a token at all.
 
   Fields: `semesters`, `semester`, `programmes`, `programme`, `modules`, `module`, `teachers`,
-  `advanceSemesterPhase`, `publishWishes`, `setModuleComponents`.
+  `courseInstances`, `courseInstance`, `advanceSemesterPhase`, `publishWishes`,
+  `setModuleComponents`, `declareCourseInstance`, `duplicateCourseInstance`,
+  `changeCourseInstance`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
+  `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
+  `copyDemandFromSemester`.
   """
   PLANNING
 

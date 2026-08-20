@@ -1319,11 +1319,14 @@ type Semester {
   id: ID!
 
   """
-  The semester in the form ` + "`" + `2027S` + "`" + ` or ` + "`" + `2026W` + "`" + `: four digits and a letter.
+  The semester in the form ` + "`" + `2026-WS` + "`" + ` or ` + "`" + `2026-SS` + "`" + `: four digits, a hyphen and the term.
 
-  The letter is the term and the digits are the year the term *starts* in, so the winter
-  semester 2026/27 is ` + "`" + `2026W` + "`" + `. Sorts chronologically as plain text, which is why it is worth
-  having in a filename or a script rather than the id.
+  The digits are the year the term *starts* in, so the winter semester 2026/27 is ` + "`" + `2026-WS` + "`" + `.
+  This is the spelling the faculty already uses — the examination office writes ` + "`" + `WS 2026` + "`" + `, and
+  the hyphen is here because a space has to be quoted in a URL, a filename or a shell argument.
+
+  Sorts chronologically as plain text (` + "`" + `2026-SS` + "`" + ` < ` + "`" + `2026-WS` + "`" + ` < ` + "`" + `2027-SS` + "`" + `), which is why it is
+  worth having in a filename or a script rather than the id.
   """
   code: String!
 
@@ -1376,11 +1379,13 @@ extend type Mutation {
   """
   Create a semester, at the start of the process.
 
-  The code is upper-cased and trimmed for you, so ` + "`" + `2027s` + "`" + ` is accepted. It is not otherwise
-  repaired: ` + "`" + `SS2027` + "`" + ` is refused rather than guessed at.
+  The code is upper-cased and trimmed for you, so ` + "`" + `2026-ws` + "`" + ` is accepted. It is not otherwise
+  repaired: ` + "`" + `WS 2026` + "`" + ` is refused rather than rearranged — that spelling is only unambiguous if
+  one already knows the year names the term's *start*, and a wrong guess there creates a
+  semester one year out that looks like one somebody chose.
   """
   createSemester(
-    "Four digits and S or W, for example ` + "`" + `2027S` + "`" + `."
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2026-WS` + "`" + `."
     code: String!
   ): Semester! @scope(area: PLANNING, verb: WRITE)
 

@@ -17,10 +17,21 @@ getestet); dieser Schritt war der Körper.
 
 ## Identität: uuid als PK, `code` als natürlicher Schlüssel
 
-`code` ist `2027S` / `2026W` — vier Ziffern und ein Buchstabe, das Jahr ist das, in dem das
-Semester **beginnt**. Wintersemester 2026/27 heißt also `2026W`.
+`code` ist `2026-WS` / `2026-SS` — vier Ziffern, Bindestrich, Term; das Jahr ist das, in dem
+das Semester **beginnt**. Wintersemester 2026/27 heißt also `2026-WS`.
 
-- **Sortiert als reiner Text chronologisch**, weil das Jahr führt und S vor W kommt — was auch
+Ursprünglich war es `2026W`, geändert am 2026-08-20 (Migration 7). Grund ist nicht Ästhetik:
+das ZPA schreibt „WS 2026", Plexams schreibt `2026-WS`, und ein selbst erfundenes drittes
+Format kostet in jedem Export, jeder URL und jedem Auswertungsskript einer Kollegin eine
+Übersetzung. Der Bindestrich statt des ZPA-Leerzeichens, weil ein Leerzeichen in URL,
+Dateiname und Shell-Argument gequotet werden muss.
+
+**Nicht repariert wird die ZPA-Schreibweise selbst:** `WS 2026` wird abgelehnt statt
+umgestellt. Sie ist nur eindeutig, wenn man weiß, dass die Jahreszahl den *Beginn* meint — und
+ein falscher Rateversuch legt ein Semester ein Jahr daneben an, das aussieht, als hätte es
+jemand so gewollt. Klein- und Leerzeichen werden getrimmt (`  2026-ws  ` geht), mehr nicht.
+
+- **Sortiert als reiner Text chronologisch**, weil das Jahr führt und SS vor WS kommt — was auch
   die Reihenfolge ist, in der die Semester stattfinden. Darauf verlässt sich inzwischen jedes
   `ORDER BY`, deshalb steht das Format als CHECK-Constraint in der Migration und nicht nur als
   Regex in Go.

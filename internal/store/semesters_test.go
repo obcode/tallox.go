@@ -26,14 +26,14 @@ func TestCreateAndReadSemester(t *testing.T) {
 
 	semesters, _ := semesters(t)
 
-	created, err := semesters.CreateSemester(t.Context(), "2027S")
+	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
 	if err != nil {
 		t.Fatalf("cannot create: %v", err)
 	}
 
 	switch {
-	case created.Code != "2027S":
-		t.Errorf("code = %q, want 2027S", created.Code)
+	case created.Code != "2027-SS":
+		t.Errorf("code = %q, want 2027-SS", created.Code)
 	case created.Phase != policy.PhaseDemandPlanning:
 		t.Errorf("phase = %s, want %s — a new semester is at the start of the process",
 			created.Phase, policy.PhaseDemandPlanning)
@@ -68,11 +68,11 @@ func TestDuplicateSemesterIsRefusedWithoutTheDriverMessage(t *testing.T) {
 
 	semesters, _ := semesters(t)
 
-	if _, err := semesters.CreateSemester(t.Context(), "2027S"); err != nil {
+	if _, err := semesters.CreateSemester(t.Context(), "2027-SS"); err != nil {
 		t.Fatalf("cannot create: %v", err)
 	}
 
-	_, err := semesters.CreateSemester(t.Context(), "2027S")
+	_, err := semesters.CreateSemester(t.Context(), "2027-SS")
 	if !errors.Is(err, domain.ErrSemesterExists) {
 		t.Fatalf("err = %v, want ErrSemesterExists", err)
 	}
@@ -96,7 +96,13 @@ func TestSemesterCodeFormatIsEnforcedByTheDatabase(t *testing.T) {
 	_, s := semesters(t)
 	q := s.Queries()
 
-	for _, code := range []string{"SS2027", "2027", "27S", "2027X", "2027s", "", "2027SW"} {
+	// "2027S" is in the list because it is the shape this column held until migration 7: the
+	// old form has to be refused now, or the two spellings would coexist and the sort below
+	// would be lexicographic without being chronological.
+	for _, code := range []string{
+		"2027S", "WS 2026", "2026 WS", "SS2027", "2027", "27S", "2027X", "2026-ws", "",
+		"2026-W", "2026-SW", "2026_WS",
+	} {
 		if _, err := q.CreateSemester(t.Context(), code); err == nil {
 			t.Errorf("the database accepted the code %q", code)
 		}
@@ -106,14 +112,14 @@ func TestSemesterCodeFormatIsEnforcedByTheDatabase(t *testing.T) {
 // TestSemestersSortChronologically is the property the whole system's ORDER BY relies on, and
 // the reason the code has the shape it has.
 //
-// Lexicographic on the code is chronological because the year leads and S precedes W within a
-// year — which is also the order the terms happen in. Seeded out of order on purpose.
+// Lexicographic on the code is chronological because the year leads and SS precedes WS within
+// a year — which is also the order the terms happen in. Seeded out of order on purpose.
 func TestSemestersSortChronologically(t *testing.T) {
 	t.Parallel()
 
 	semesters, _ := semesters(t)
 
-	for _, code := range []string{"2027S", "2025W", "2026W", "2027W", "2026S"} {
+	for _, code := range []string{"2027-SS", "2025-WS", "2026-WS", "2027-WS", "2026-SS"} {
 		if _, err := semesters.CreateSemester(t.Context(), code); err != nil {
 			t.Fatalf("cannot create %s: %v", code, err)
 		}
@@ -129,7 +135,7 @@ func TestSemestersSortChronologically(t *testing.T) {
 		got = append(got, s.Code)
 	}
 
-	want := []string{"2027W", "2027S", "2026W", "2026S", "2025W"}
+	want := []string{"2027-WS", "2027-SS", "2026-WS", "2026-SS", "2025-WS"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("order = %v, want %v (newest first)", got, want)
 	}
@@ -140,7 +146,7 @@ func TestAdvanceSemesterPhase(t *testing.T) {
 
 	semesters, _ := semesters(t)
 
-	created, err := semesters.CreateSemester(t.Context(), "2027S")
+	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
 	if err != nil {
 		t.Fatalf("cannot create: %v", err)
 	}
@@ -169,7 +175,7 @@ func TestAdvanceRefusesWhenTheSemesterMovedOn(t *testing.T) {
 
 	semesters, _ := semesters(t)
 
-	created, err := semesters.CreateSemester(t.Context(), "2027S")
+	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
 	if err != nil {
 		t.Fatalf("cannot create: %v", err)
 	}
@@ -206,7 +212,7 @@ func TestConcurrentAdvancesProduceOneWinner(t *testing.T) {
 
 	semesters, _ := semesters(t)
 
-	created, err := semesters.CreateSemester(t.Context(), "2027S")
+	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
 	if err != nil {
 		t.Fatalf("cannot create: %v", err)
 	}
@@ -268,7 +274,7 @@ func TestPublishingIsIdempotentAndKeepsTheFirstTimestamp(t *testing.T) {
 
 	semesters, _ := semesters(t)
 
-	created, err := semesters.CreateSemester(t.Context(), "2027S")
+	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
 	if err != nil {
 		t.Fatalf("cannot create: %v", err)
 	}
@@ -344,7 +350,7 @@ func codeFor(t *testing.T, phase policy.Phase) string {
 
 	for i, known := range policy.AllPhases() {
 		if known == phase {
-			return "202" + string(rune('0'+i)) + "S"
+			return "202" + string(rune('0'+i)) + "-SS"
 		}
 	}
 	t.Fatalf("unknown phase %s", phase)
@@ -403,7 +409,7 @@ func TestUnknownPhasesCannotBeStored(t *testing.T) {
 	semesters, s := semesters(t)
 	q := s.Queries()
 
-	created, err := semesters.CreateSemester(t.Context(), "2027S")
+	created, err := semesters.CreateSemester(t.Context(), "2027-SS")
 	if err != nil {
 		t.Fatalf("cannot create: %v", err)
 	}

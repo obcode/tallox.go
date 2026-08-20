@@ -57,7 +57,8 @@ func semesterUserFacing(err error) error {
 		return refusal("FORBIDDEN", policy.SemesterAdminReason)
 	case errors.Is(err, domain.ErrSemesterCodeInvalid):
 		return refusal("SEMESTER_CODE_INVALID",
-			"Ein Semesterkürzel besteht aus vier Ziffern und S oder W, zum Beispiel 2027S.")
+			"Ein Semesterkürzel besteht aus vier Ziffern, einem Bindestrich und SS oder WS, "+
+				"zum Beispiel 2026-WS. Die Jahreszahl ist die des Semesterbeginns.")
 	case errors.Is(err, domain.ErrSemesterExists):
 		return refusal("SEMESTER_EXISTS", "Dieses Semester gibt es bereits.")
 	case errors.Is(err, domain.ErrNoSuchSemester):

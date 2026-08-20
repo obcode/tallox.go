@@ -25,8 +25,8 @@ FROM semester
 WHERE code = $1;
 
 -- name: Semesters :many
--- Newest first, which for this code is also chronological: the year leads and S sorts before
--- W within a year, in the order the terms actually happen. Ordering by created_at instead
+-- Newest first, which for this code is also chronological: the year leads and SS sorts before
+-- WS within a year, in the order the terms actually happen. Ordering by created_at instead
 -- would list them by when somebody got round to entering them.
 SELECT id, code, phase, wishes_published_at, created_at, updated_at
 FROM semester

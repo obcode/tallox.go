@@ -113,7 +113,7 @@ func TestALecturerSeesTheProcessThroughBothDoors(t *testing.T) {
 	t.Parallel()
 
 	h := planningHandler(t, deansOffice(), lecturer())
-	seedSemester(t, h, "2027S")
+	seedSemester(t, h, "2027-SS")
 
 	graphqltest.EachDoor(t, h, testdata.Eins.Mail, testdata.Eins.Token,
 		func(t *testing.T, c *graphqltest.Client) {
@@ -124,8 +124,8 @@ func TestALecturerSeesTheProcessThroughBothDoors(t *testing.T) {
 				t.Fatalf("got %d semesters, want 1", len(out.Semesters))
 			}
 			got := out.Semesters[0]
-			if got.Code != "2027S" || got.Phase != string(policy.PhaseDemandPlanning) {
-				t.Errorf("got %s in %s, want 2027S in %s",
+			if got.Code != "2027-SS" || got.Phase != string(policy.PhaseDemandPlanning) {
+				t.Errorf("got %s in %s, want 2027-SS in %s",
 					got.Code, got.Phase, policy.PhaseDemandPlanning)
 			}
 			if got.WishesPublishedAt != nil {
@@ -138,7 +138,7 @@ func TestAnAnonymousCallerSeesNoSemesters(t *testing.T) {
 	t.Parallel()
 
 	h := planningHandler(t, deansOffice())
-	seedSemester(t, h, "2027S")
+	seedSemester(t, h, "2027-SS")
 
 	for _, door := range []graphqltest.Door{graphqltest.Browser, graphqltest.Token} {
 		t.Run(door.Name, func(t *testing.T) {
@@ -183,9 +183,9 @@ func TestOnlyTheDeansOfficeAdministersSemesters(t *testing.T) {
 			// forgets on the token path.
 			graphqltest.EachDoor(t, h, tt.who.who.Mail, tt.who.who.Token,
 				func(t *testing.T, c *graphqltest.Client) {
-					code := "2027S"
+					code := "2027-SS"
 					if c.Door() == graphqltest.Token {
-						code = "2027W" // the browser subtest may already have taken 2027S
+						code = "2027-WS" // the browser subtest may already have taken 2027-SS
 					}
 
 					resp := c.Do(t, createSemester, map[string]any{"code": code})
@@ -213,22 +213,27 @@ func TestSemesterCodeIsValidatedAtTheAPI(t *testing.T) {
 				Code string `json:"code"`
 			} `json:"createSemester"`
 		}
-		c.MustQuery(t, createSemester, map[string]any{"code": " 2027s "}, &out)
+		c.MustQuery(t, createSemester, map[string]any{"code": " 2027-ss "}, &out)
 
-		if out.CreateSemester.Code != "2027S" {
-			t.Errorf("code = %q, want 2027S", out.CreateSemester.Code)
+		if out.CreateSemester.Code != "2027-SS" {
+			t.Errorf("code = %q, want 2027-SS", out.CreateSemester.Code)
 		}
 	})
 
 	t.Run("a plausible-looking wrong shape is refused rather than guessed at", func(t *testing.T) {
-		resp := c.Do(t, createSemester, map[string]any{"code": "SS2027"})
-		assertRefusal(t, resp, "SEMESTER_CODE_INVALID")
+		// "WS 2026" is the examination office's own spelling, and it is refused on purpose: it
+		// is only unambiguous once one knows that the year names the term's start, and a guess
+		// there produces a semester one year out that looks like one somebody chose.
+		for _, code := range []string{"SS2027", "WS 2026", "2027S"} {
+			resp := c.Do(t, createSemester, map[string]any{"code": code})
+			assertRefusal(t, resp, "SEMESTER_CODE_INVALID")
+		}
 	})
 
 	t.Run("a duplicate says so without the driver's vocabulary", func(t *testing.T) {
-		c.MustQuery(t, createSemester, map[string]any{"code": "2028S"}, nil)
+		c.MustQuery(t, createSemester, map[string]any{"code": "2028-SS"}, nil)
 
-		resp := c.Do(t, createSemester, map[string]any{"code": "2028S"})
+		resp := c.Do(t, createSemester, map[string]any{"code": "2028-SS"})
 		assertRefusal(t, resp, "SEMESTER_EXISTS")
 
 		// Leak channel 2. Harmless here — which semesters exist is not confidential — and the
@@ -245,7 +250,7 @@ func TestPhaseMovesOneStepAtATime(t *testing.T) {
 	t.Parallel()
 
 	h := planningHandler(t, deansOffice())
-	id := seedSemester(t, h, "2027S")
+	id := seedSemester(t, h, "2027-SS")
 	c := graphqltest.New(h).AsUser(testdata.Fuenf.Mail)
 
 	var out struct {
@@ -309,7 +314,7 @@ func TestPublishingIsBrowserOnly(t *testing.T) {
 	t.Parallel()
 
 	h := planningHandler(t, deansOffice())
-	id := seedSemester(t, h, "2027S")
+	id := seedSemester(t, h, "2027-SS")
 
 	t.Run("token", func(t *testing.T) {
 		t.Parallel()
@@ -349,7 +354,7 @@ func TestALecturerCannotPublish(t *testing.T) {
 	t.Parallel()
 
 	h := planningHandler(t, deansOffice(), lecturer())
-	id := seedSemester(t, h, "2027S")
+	id := seedSemester(t, h, "2027-SS")
 
 	resp := graphqltest.New(h).AsUser(testdata.Eins.Mail).
 		Do(t, publishWishes, map[string]any{"id": id})
@@ -386,7 +391,7 @@ func TestAScopedTokenIsHeldToItsArea(t *testing.T) {
 	})
 
 	t.Run("and cannot write it, although the role would allow it", func(t *testing.T) {
-		resp := c.Do(t, createSemester, map[string]any{"code": "2027S"})
+		resp := c.Do(t, createSemester, map[string]any{"code": "2027-SS"})
 		assertRefusal(t, resp, "INSUFFICIENT_SCOPE")
 	})
 

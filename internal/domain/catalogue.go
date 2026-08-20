@@ -1,5 +1,7 @@
 package domain
 
+import "sort"
+
 // The vocabularies of the module catalogue.
 //
 // Three of them, and all three arrive as German prose from the examination office. Each gets a
@@ -271,4 +273,41 @@ func (c CourseType) ProposedComponents(hours int) []InstancePartKind {
 	default:
 		return []InstancePartKind{PartKindOther}
 	}
+}
+
+// FrequencyPhraseMapping returns the phrase-to-value pairs as two parallel slices, sorted by
+// phrase so the order is stable.
+//
+// It exists so that the projection can carry the mapping into SQL as a pair of arrays rather
+// than restating it as a CASE expression. That matters: the vocabulary already has three homes
+// that cannot import one another, and a fourth — inside a query — would be the one nobody
+// remembers to update, in the place where being wrong is silent.
+func FrequencyPhraseMapping() (phrases, values []string) {
+	phrases = make([]string, 0, len(frequencyPhrases))
+	for phrase := range frequencyPhrases {
+		phrases = append(phrases, phrase)
+	}
+	sort.Strings(phrases)
+
+	values = make([]string, 0, len(phrases))
+	for _, phrase := range phrases {
+		values = append(values, string(frequencyPhrases[phrase]))
+	}
+	return phrases, values
+}
+
+// CourseTypePhraseMapping is FrequencyPhraseMapping for the course type, and exists for the
+// same reason.
+func CourseTypePhraseMapping() (phrases, values []string) {
+	phrases = make([]string, 0, len(courseTypePhrases))
+	for phrase := range courseTypePhrases {
+		phrases = append(phrases, phrase)
+	}
+	sort.Strings(phrases)
+
+	values = make([]string, 0, len(phrases))
+	for _, phrase := range phrases {
+		values = append(values, string(courseTypePhrases[phrase]))
+	}
+	return phrases, values
 }

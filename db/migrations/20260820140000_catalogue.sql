@@ -597,6 +597,11 @@ CREATE TABLE zpa_catalogue_projection_note (
     CONSTRAINT zpa_catalogue_projection_note_code_is_known CHECK (code IN (
         -- Skipped: the home programme is mandatory and the source says "None".
         'MODULE_WITHOUT_HOME_PROGRAMME',
+        -- Skipped: a programme code this schema cannot store. Every real one is two to four
+        -- upper-case letters, so this is defence rather than expectation — but a code that
+        -- failed the constraint would otherwise abort the whole projection, and take the
+        -- modules of every other programme with it.
+        'PROGRAMME_CODE_MALFORMED',
         -- Kept, programme marked inactive: no set of regulations the source still publishes.
         'PROGRAMME_WITHOUT_REGULATIONS',
         -- Kept with an empty name: the source has no name field and no association to borrow from.

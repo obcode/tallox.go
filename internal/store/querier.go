@@ -20,6 +20,49 @@ type Querier interface {
 	// would write ASSIGNMENT over the first one's WISHES — a skipped phase, arrived at by nobody's
 	// decision, and invisible afterwards because the row looks like somebody chose it.
 	AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterPhaseParams) (Semester, error)
+	CatalogueProjectionNotes(ctx context.Context, projectionID uuid.UUID) ([]CatalogueProjectionNotesRow, error)
+	// Not projected, and the largest of the nine: 665 real rows over 12 sets of regulations the
+	// endpoint stopped returning — the historical ones and a placeholder dated 2099.
+	//
+	// Grouped by regulations in the sample rather than by association, because the useful thing to
+	// see is which twelve, not which six hundred.
+	CountAssociationsWithUnknownRegulations(ctx context.Context) (CountAssociationsWithUnknownRegulationsRow, error)
+	// Must be zero, and is the one line here that is an alarm rather than a note.
+	//
+	// The grain of module_offering rests on compulsory-or-elective being determined by (module,
+	// regulations) — measured at 0 conflicts over 2386 pairs. If the source ever contradicts that,
+	// the fold silently picks one answer, and this is what says so.
+	CountDutyConflicts(ctx context.Context) (CountDutyConflictsRow, error)
+	// Projected with the flag, never hidden. "What did this programme offer in 2024" is a question
+	// worth being able to answer.
+	CountInactiveModules(ctx context.Context) (CountInactiveModulesRow, error)
+	// Folded with min(). Two real pairs are in this state, and both are a module sitting in an
+	// ordinary catalogue slot and a specialisation of the same version that disagree about the
+	// earliest semester a student may take it.
+	// The count is of pairs and the sample is of modules, deliberately: one module can be in this
+	// state in two versions of the regulations at once, and printing its identifier twice would
+	// read as two different modules.
+	CountMinSemesterConflicts(ctx context.Context) (CountMinSemesterConflictsRow, error)
+	// The report
+	// ----------
+	//
+	// Nine things the projection decides about untidy input, each counted with a handful of
+	// examples. Counts and samples rather than a row per object: the useful sentence is "665
+	// associations across 12 sets of regulations", and whoever wants to chase one needs a few
+	// identifiers, not all of them.
+	//
+	// Every one of these runs inside the same transaction as the statements above, against the same
+	// snapshot — so the report describes the projection that happened rather than the cache as it
+	// looked a moment later.
+	// Skipped entirely. The source writes the string "None" and zpa_text() has already turned it
+	// into a NULL, which is the difference between "absent" and "a programme called None".
+	CountModulesWithoutHomeProgramme(ctx context.Context) (CountModulesWithoutHomeProgrammeRow, error)
+	// Projected with an empty name, because the alternative is worse.
+	//
+	// The source's module objects carry no name field at all; the name is borrowed from an
+	// association row, so a module in no set of regulations has none anywhere. Skipping them would
+	// mean a programme lead searching for a module they are responsible for and not finding it.
+	CountModulesWithoutName(ctx context.Context) (CountModulesWithoutNameRow, error)
 	// How many people other than this one could still administer the installation.
 	//
 	// "Could still": active person, unexpired grant. A deactivated administrator and one whose
@@ -28,6 +71,17 @@ type Querier interface {
 	//
 	// Called under the advisory lock, never on its own.
 	CountOtherActiveAdmins(ctx context.Context, personID uuid.UUID) (int64, error)
+	// Projected and marked inactive. Their modules stay planable, which is the point: the real one
+	// has six modules behind it and four of them are still active.
+	CountProgrammesWithoutRegulations(ctx context.Context) (CountProgrammesWithoutRegulationsRow, error)
+	// Became DEPENDS_ON_SUBJECT. Same reasoning, and the same exclusion of the empty phrase —
+	// except that the source really does write "je nach Fach", which maps to the same value and is
+	// therefore excluded here too, or 23 modules would be reported as a problem every night.
+	CountUnmappedCourseTypes(ctx context.Context, dependsOnSubjectPhrase string) (CountUnmappedCourseTypesRow, error)
+	// Became UNKNOWN. An empty phrase is not counted: absent is a state the source is entitled to
+	// be in, and eleven modules are in it — burying the genuinely new phrases under them would
+	// defeat the purpose of the line.
+	CountUnmappedFrequencies(ctx context.Context) (CountUnmappedFrequenciesRow, error)
 	// People and their role grants.
 	//
 	// Every read that resolves an identity returns the roles with it, in one round trip. Two
@@ -47,6 +101,13 @@ type Querier interface {
 	// The secret is generated and hashed by the caller (internal/auth), never here: a secret that
 	// travelled through a query is a secret in a log somewhere.
 	CreateToken(ctx context.Context, arg CreateTokenParams) (CreateTokenRow, error)
+	// Offerings the source no longer supports.
+	//
+	// The only catalogue table anything is deleted from, and it is safe for one reason that is
+	// asserted by a test rather than assumed: nothing references an offering. A module keeps its
+	// row and gains retired_at; a programme keeps its row and loses `active`; an offering is a
+	// claim about somebody else's regulations, and when they stop making it the claim goes.
+	DeleteStaleModuleOfferings(ctx context.Context) (int64, error)
 	// Get this mail address a person row, creating one if there is none.
 	//
 	// The reconciliation of the protected administrators runs through here on every start, so it
@@ -85,6 +146,7 @@ type Querier interface {
 	// the interface would show a run in progress that nothing is progressing. The cutoff is passed
 	// in rather than hard-coded here so the caller's reasoning about it stays in Go.
 	FailAbandonedZPASyncRuns(ctx context.Context, olderThan time.Time) ([]uuid.UUID, error)
+	FinishCatalogueProjection(ctx context.Context, arg FinishCatalogueProjectionParams) (ZpaCatalogueProjection, error)
 	FinishZPASyncRun(ctx context.Context, arg FinishZPASyncRunParams) (ZpaSyncRun, error)
 	// Idempotent in the sense that matters: granting a role somebody already holds updates its
 	// expiry rather than failing, so "give me DEANS_OFFICE for another hour" is one call and not
@@ -97,6 +159,7 @@ type Querier interface {
 	// recent. PARTIAL counts: it fetched something, and a run that got three of four endpoints is
 	// not the silence this is watching for.
 	LastSuccessfulZPASyncRun(ctx context.Context) (LastSuccessfulZPASyncRunRow, error)
+	LatestCatalogueProjections(ctx context.Context, limit int32) ([]ZpaCatalogueProjection, error)
 	// The administration screen: everybody, or everybody active, optionally narrowed by a
 	// substring of the mail address or the name.
 	//
@@ -123,6 +186,8 @@ type Querier interface {
 	// which is what lets the integration tests run in parallel, and it needs no magic number that
 	// somebody else could pick again for something unrelated.
 	LockAdminGrants(ctx context.Context) error
+	// The codes ProjectProgrammes had to leave out, so the report can name them.
+	MalformedProgrammeCodes(ctx context.Context) ([]string, error)
 	// Coarse on purpose. "Last used" is answering "is this token still in use, can I revoke it",
 	// and five-minute resolution answers that as well as microsecond resolution would.
 	//
@@ -134,6 +199,74 @@ type Querier interface {
 	// The authentication query of the browser door. mail is citext, so the comparison is
 	// case-insensitive without a lower() that would defeat the unique index.
 	PersonByMail(ctx context.Context, mail string) (PersonByMailRow, error)
+	// Where each module counts, folded to one row per module per set of regulations.
+	//
+	// The fold is the point. A module sits in up to four catalogue slots of one version — the
+	// ordinary catalogue and the specialisations — and the slots differ in the module code and
+	// sometimes in the earliest semester. Measured over the whole catalogue they never differ in
+	// compulsory-or-elective, which is what makes this grain safe and one grain coarser unsafe.
+	//
+	// bool_and rather than bool_or, so that if the assumption ever breaks the result is the weaker
+	// claim rather than the stronger one. DutyConflicts below reports it either way.
+	// Both joins are inner, and each one drops a documented case: an association whose module was
+	// skipped for having no home programme, and an association pointing at regulations the source
+	// no longer returns. The second is 665 real rows and is reported by
+	// AssociationsWithUnknownRegulations.
+	ProjectModuleOfferings(ctx context.Context) (int64, error)
+	// The catalogue itself.
+	//
+	// The two vocabularies arrive as German prose and are translated through a mapping passed in
+	// from internal/domain, rather than through a CASE expression written here. The mapping already
+	// has three homes that cannot import one another; a fourth inside a query would be the one
+	// nobody updates, in the place where being wrong is silent.
+	//
+	// An unrecognised phrase becomes the safe value and is counted by UnmappedVocabulary below. It
+	// must never be only the safe value: UNKNOWN is what the term filter treats as "show it
+	// anyway", so a phrase that quietly fell to it would hide nothing and explain nothing.
+	//
+	// Modules whose home programme is absent are dropped by the inner join, which is the whole
+	// mechanism — the column is NOT NULL by decision, and zpa_text() has already turned the
+	// source's "None" into a real NULL. WithoutHomeProgramme below counts what fell out.
+	ProjectModules(ctx context.Context, arg ProjectModulesParams) (int64, error)
+	// The module catalogue, projected out of the cached payloads.
+	//
+	// The theme of this file is that the projection is a fold, not a copy. The source publishes one
+	// row per module per set of regulations per catalogue slot; what planning asks about is a
+	// module, a programme and whether the module is compulsory there. Every statement below turns
+	// the first into the second, and every one of them is written so that running it twice changes
+	// nothing.
+	//
+	// Two rules hold throughout. Nothing here joins a domain row to the cache at request time — the
+	// zpa_*_ref columns are matched once, in these statements, and never again. And nothing here
+	// writes a module's `responsible` field into a domain table: it is a colleague's mail address,
+	// and this repository is public.
+	// Every programme the source knows, from either direction.
+	//
+	// Two directions, because the source disagrees with itself about which programmes exist. Nineteen
+	// appear in the regulations endpoint; nineteen are named as the home of a module; and they are
+	// not the same nineteen. One programme has regulations and not a single module, another has six
+	// modules and no regulations at all. Deriving the list from either side alone loses the other's
+	// odd one out — and losing the second costs four active modules, because a module's home
+	// programme is mandatory.
+	//
+	// `active` is exactly "the regulations endpoint knows it". A programme nobody publishes
+	// regulations for is not an error and not a normal choice either: its modules stay planable and
+	// it stays out of the pickers.
+	//
+	// `title` is written on insert only — never in the DO UPDATE. The source has no long name (its
+	// `title` field carries the code again), so the column is for a human, and a projection that
+	// refreshed it would overwrite what they typed on the next nightly run.
+	// Defence rather than expectation: every real code is two to four upper-case letters. Without
+	// the filter, one malformed code would abort the whole projection and take every other
+	// programme's modules with it. What is filtered out is counted by MalformedProgrammeCodes below.
+	ProjectProgrammes(ctx context.Context) (int64, error)
+	// One row per version of one programme's regulations.
+	//
+	// Only the ones the endpoint returns. The 12 the association rows reference and the endpoint
+	// does not are deliberately not synthesised from the copy embedded in those rows: that copy has
+	// a version and a date but no programme, and a set of regulations belonging to no programme is
+	// the same pathology as a module whose owner is the string "None", one level up.
+	ProjectSpos(ctx context.Context) (int64, error)
 	// Idempotent, and it keeps the *first* timestamp.
 	//
 	// Publishing twice is not an error — the second caller wanted the wishes published and they
@@ -144,6 +277,9 @@ type Querier interface {
 	// updated_at stays untouched when nothing changed, so a repeated call does not make the row
 	// look edited.
 	PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Semester, error)
+	// Only ever called with a positive count — a note saying "nothing happened" is noise in a
+	// report whose whole value is that every line means something.
+	RecordCatalogueProjectionNote(ctx context.Context, arg RecordCatalogueProjectionNoteParams) error
 	RecordZPAChange(ctx context.Context, arg RecordZPAChangeParams) error
 	RecordZPASyncRunKind(ctx context.Context, arg RecordZPASyncRunKindParams) error
 	// Mark everything of one kind that a successful fetch did not mention.
@@ -191,6 +327,11 @@ type Querier interface {
 	// here that is not a permission change, and mixing it in would make every rename look like
 	// one in the audit log.
 	SetPersonName(ctx context.Context, arg SetPersonNameParams) error
+	// The projection's own bookkeeping
+	// --------------------------------
+	// Written before the first statement, like the sync run it mirrors: a projection that crashed
+	// leaves a row somebody can see rather than no row at all.
+	StartCatalogueProjection(ctx context.Context, runID uuid.NullUUID) (ZpaCatalogueProjection, error)
 	// Written before the first fetch, not after the last one. A run that crashes then leaves a
 	// RUNNING row somebody can see, rather than no row at all — which is indistinguishable from a
 	// job that was never scheduled, and is how "the import stopped three weeks ago" happens.

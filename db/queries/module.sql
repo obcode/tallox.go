@@ -128,3 +128,14 @@ DELETE FROM module_component WHERE module_id = $1;
 -- name: InsertModuleComponent :exec
 INSERT INTO module_component (module_id, kind, teaching_hours, position, created_by)
 VALUES ($1, $2, $3, $4, sqlc.narg(created_by));
+
+-- name: ProgrammesByIDs :many
+-- A handful of programmes by id, without their regulations.
+--
+-- For `me`, which has to turn the programme ids an actor carries into codes a person reads. The
+-- full list with its regulations attached would be two statements and 29 rows of examination
+-- regulations for a field that renders two letters.
+SELECT id, code, title, active
+FROM programme
+WHERE id = ANY (sqlc.arg(ids)::uuid[])
+ORDER BY code;

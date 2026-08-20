@@ -48,6 +48,29 @@ func (s *CatalogueService) Programmes(ctx context.Context, actor principal.Actor
 	return s.store.Programmes(ctx)
 }
 
+// MyProgrammes resolves the study programmes an actor's leadership applies to.
+//
+// The actor carries their ids and nothing else — internal/principal holds grants without
+// interpreting them, and a code is as much an interpretation as a name. This turns them into
+// programmes for the one field that renders somebody's own assignments.
+//
+// Deliberately not a permission check beyond having an account: these are the caller's own
+// grants, and a script needs them before it can ask anything useful.
+func (s *CatalogueService) MyProgrammes(ctx context.Context, actor principal.Actor) ([]Programme, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+
+	scope := policy.PlanningScope(actor)
+	if scope.All {
+		// The dean's office reaches every programme, including ones that do not exist yet, so
+		// there is no list to enumerate — and enumerating today's would be a snapshot pretending
+		// to be a rule. The field is about assignments, and the dean's office has none.
+		return nil, nil
+	}
+	return s.store.ProgrammesByID(ctx, scope.IDs)
+}
+
 // ProgrammeByCode returns one programme, or (nil, nil) when there is none with that code.
 func (s *CatalogueService) ProgrammeByCode(ctx context.Context, actor principal.Actor, code string) (*Programme, error) {
 	if err := mayRead(actor); err != nil {

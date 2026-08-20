@@ -105,6 +105,16 @@ type Person struct {
 	Name string `json:"name"`
 	// The roles this person holds, in a stable order.
 	Roles []policy.Role `json:"roles"`
+	// The study programmes this person's study-programme leadership applies to.
+	//
+	// Empty for everybody who does not lead one — and empty for a lead nobody has assigned a
+	// programme to yet, which is a state with consequences rather than a gap: such a lead may
+	// declare no demand at all. An empty list here is **not** "every programme". The role leads
+	// one; the role that means all of them is the dean's office.
+	//
+	// Readable through both doors, like `roles`: which programmes you may plan is the first thing a
+	// script needs to know, and on `me` it is your own data.
+	Programmes []*Programme `json:"programmes"`
 }
 
 // A Personal Access Token, as its owner sees it.

@@ -95,15 +95,17 @@ type ComplexityRoot struct {
 		RevokePersonalAccessToken func(childComplexity int, id string) int
 		SetModuleComponents       func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
 		SetPersonActive           func(childComplexity int, id string, active bool) int
+		SetPersonProgrammes       func(childComplexity int, id string, programmes []string) int
 		SetPersonRoles            func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
 		SyncZpaNow                func(childComplexity int) int
 	}
 
 	Person struct {
-		ID    func(childComplexity int) int
-		Mail  func(childComplexity int) int
-		Name  func(childComplexity int) int
-		Roles func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Mail       func(childComplexity int) int
+		Name       func(childComplexity int) int
+		Programmes func(childComplexity int) int
+		Roles      func(childComplexity int) int
 	}
 
 	PersonalAccessToken struct {
@@ -535,6 +537,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetPersonActive(childComplexity, args["id"].(string), args["active"].(bool)), true
+	case "Mutation.setPersonProgrammes":
+		if e.ComplexityRoot.Mutation.SetPersonProgrammes == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setPersonProgrammes_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetPersonProgrammes(childComplexity, args["id"].(string), args["programmes"].([]string)), true
 	case "Mutation.setPersonRoles":
 		if e.ComplexityRoot.Mutation.SetPersonRoles == nil {
 			break
@@ -571,6 +584,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Person.Name(childComplexity), true
+	case "Person.programmes":
+		if e.ComplexityRoot.Person.Programmes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Person.Programmes(childComplexity), true
 	case "Person.roles":
 		if e.ComplexityRoot.Person.Roles == nil {
 			break
@@ -1314,6 +1333,28 @@ extend type Mutation {
   refusal as taking their ADMIN away, because it has the same consequence.
   """
   setPersonActive(id: ID!, active: Boolean!): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+
+  """
+  Set which study programmes somebody's leadership applies to.
+
+  The whole set at once, like ` + "`" + `setPersonRoles` + "`" + ` and for the same reason: a per-programme mutation
+  would let the two halves of a swap be separated, and in between somebody leads a programme
+  nobody meant them to.
+
+  The person has to hold ` + "`" + `PROGRAMME_LEAD` + "`" + ` already, or this is refused with
+  ` + "`" + `NOT_A_PROGRAMME_LEAD` + "`" + ` — grant the role first. An unknown code is refused with
+  ` + "`" + `UNKNOWN_PROGRAMME` + "`" + ` rather than silently dropped.
+
+  An empty list is allowed and means they lead none. That is the state a fresh grant is in, and
+  it is **not** "all of them": such a lead may declare no demand until somebody assigns them a
+  programme. The refusal they meet says exactly that, so nobody goes asking for a role they
+  already hold.
+  """
+  setPersonProgrammes(
+    id: ID!
+    "Short codes, for example ` + "`" + `[\"IF\", \"IG\"]` + "`" + `. Upper-cased and de-duplicated for you."
+    programmes: [String!]!
+  ): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../catalogue.graphqls", Input: `# The module catalogue: study programmes, their examination regulations, and the modules that
@@ -1880,7 +1921,8 @@ enum ScopeArea {
   colleagues can read via introspection and never use.
 
   Fields: ` + "`" + `people` + "`" + `, ` + "`" + `person` + "`" + `, ` + "`" + `roleGrants` + "`" + `, ` + "`" + `diagnoseAccess` + "`" + `, ` + "`" + `createPerson` + "`" + `, ` + "`" + `renamePerson` + "`" + `,
-  ` + "`" + `setPersonRoles` + "`" + `, ` + "`" + `setPersonActive` + "`" + `, ` + "`" + `zpaSyncRuns` + "`" + `, ` + "`" + `zpaSyncRun` + "`" + `, ` + "`" + `zpaChanges` + "`" + `, ` + "`" + `syncZpaNow` + "`" + `.
+  ` + "`" + `setPersonRoles` + "`" + `, ` + "`" + `setPersonActive` + "`" + `, ` + "`" + `setPersonProgrammes` + "`" + `, ` + "`" + `zpaSyncRuns` + "`" + `, ` + "`" + `zpaSyncRun` + "`" + `,
+  ` + "`" + `zpaChanges` + "`" + `, ` + "`" + `syncZpaNow` + "`" + `.
   """
   ADMIN
 }
@@ -1959,6 +2001,18 @@ type Person {
   name: String!
   "The roles this person holds, in a stable order."
   roles: [Role!]!
+  """
+  The study programmes this person's study-programme leadership applies to.
+
+  Empty for everybody who does not lead one — and empty for a lead nobody has assigned a
+  programme to yet, which is a state with consequences rather than a gap: such a lead may
+  declare no demand at all. An empty list here is **not** "every programme". The role leads
+  one; the role that means all of them is the dean's office.
+
+  Readable through both doors, like ` + "`" + `roles` + "`" + `: which programmes you may plan is the first thing a
+  script needs to know, and on ` + "`" + `me` + "`" + ` it is your own data.
+  """
+  programmes: [Programme!]!
 }
 
 extend type Query {
@@ -2681,6 +2735,8 @@ func (ec *executionContext) childFields_Person(ctx context.Context, field graphq
 		return ec.fieldContext_Person_name(ctx, field)
 	case "roles":
 		return ec.fieldContext_Person_roles(ctx, field)
+	case "programmes":
+		return ec.fieldContext_Person_programmes(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Person", field.Name)
 }

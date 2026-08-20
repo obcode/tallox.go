@@ -220,3 +220,37 @@ VALUES ($1, $2, $3)
 ON CONFLICT (mail) DO UPDATE
 SET updated_at = person.updated_at
 RETURNING id, mail, name, active, created_at, updated_at;
+
+-- name: ProgrammeScopesFor :many
+-- Which study programmes a set of people lead.
+--
+-- For a list of people in one statement rather than one per row, the same shape the catalogue
+-- uses. Joined through person_role with the expiry filter, so a grant the database considers
+-- over carries no programmes — the composite foreign key covers a revoked grant, and this covers
+-- one that merely ran out.
+SELECT s.person_id, s.role, p.id AS programme_id, p.code, p.title, p.active
+FROM person_programme_scope s
+JOIN programme p ON p.id = s.programme_id
+JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+WHERE s.person_id = ANY (sqlc.arg(person_ids)::uuid[])
+  AND (r.expires_at IS NULL OR r.expires_at > now())
+ORDER BY s.person_id, p.code;
+
+-- name: AssignProgramme :exec
+-- Give somebody's grant one more programme.
+--
+-- ON CONFLICT DO NOTHING rather than an error: setting the same list twice is not a mistake, and
+-- the caller replaces the whole set anyway. The foreign key to person_role is what refuses an
+-- assignment to somebody who does not hold the role — the check is the schema's, not a race
+-- somebody has to remember here.
+INSERT INTO person_programme_scope (person_id, role, programme_id, granted_by)
+VALUES ($1, $2, $3, sqlc.narg(granted_by))
+ON CONFLICT (person_id, role, programme_id) DO NOTHING;
+
+-- name: UnassignProgrammes :exec
+-- Take away every programme of one grant, so the caller can write the new set in the same
+-- transaction.
+--
+-- Delete-then-insert rather than a diff: what is being replaced is one statement about who leads
+-- what, and inside a transaction nobody reads the empty moment in between.
+DELETE FROM person_programme_scope WHERE person_id = $1 AND role = $2;

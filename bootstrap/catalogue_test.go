@@ -2,6 +2,7 @@ package bootstrap_test
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -76,6 +77,7 @@ func catalogueHandler(t *testing.T, scoped map[string][]string, people ...grants
 				Users:  store.NewDirectory(s.Pool),
 				Tokens: store.NewDirectory(s.Pool),
 			},
+			People:    domain.NewPeopleService(store.NewPeople(s.Pool), nil),
 			Catalogue: domain.NewCatalogueService(store.NewModules(s.Pool)),
 		}),
 	}
@@ -451,5 +453,210 @@ func TestASplitWithImpossibleHoursIsRefused(t *testing.T) {
 
 		assertRefusal(t, resp, "COMPONENTS_INVALID")
 		graphqltest.AssertNoLeak(t, resp.Errors[0].Message, graphqltest.DatabaseNoise()...)
+	}
+}
+
+// Assigning programmes is the deploy step this release creates, and the screen that has to ship
+// with it — without it, PROGRAMME_LEAD is a role nobody can use.
+func TestAssigningProgrammesToALead(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil,
+		grants{testdata.Sechs, []string{"LECTURER", "ADMIN"}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		grants{testdata.Eins, []string{"LECTURER"}})
+
+	admin := graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).On(graphqltest.Browser)
+
+	var people struct {
+		People []struct {
+			ID         string
+			Mail       string
+			Programmes []struct{ Code string }
+		}
+	}
+	admin.MustQuery(t, `{ people { id mail programmes { code } } }`, nil, &people)
+
+	id := func(mail string) string {
+		t.Helper()
+		for _, p := range people.People {
+			if p.Mail == mail {
+				return p.ID
+			}
+		}
+		t.Fatalf("%s is not in the list", mail)
+		return ""
+	}
+
+	// A fresh lead leads nothing, and that is a state with consequences rather than a gap.
+	for _, p := range people.People {
+		if p.Mail == testdata.Vier.Mail && len(p.Programmes) != 0 {
+			t.Errorf("a lead nobody has assigned anything to already leads %d programme(s)",
+				len(p.Programmes))
+		}
+	}
+
+	const assign = `mutation($id: ID!, $p: [String!]!) {
+		setPersonProgrammes(id: $id, programmes: $p) { programmes { code } }
+	}`
+
+	var out struct {
+		SetPersonProgrammes struct{ Programmes []struct{ Code string } }
+	}
+	// Lower case and a duplicate, both of which a person types.
+	admin.MustQuery(t, assign, map[string]any{
+		"id": id(testdata.Vier.Mail),
+		"p":  []string{"pa", "PA", storetest.FixtureProgrammeB},
+	}, &out)
+
+	if len(out.SetPersonProgrammes.Programmes) != 2 {
+		t.Fatalf("the lead now leads %d programme(s), want 2 — the duplicate should have been "+
+			"folded and the lower-case code accepted", len(out.SetPersonProgrammes.Programmes))
+	}
+
+	// Replacing, not adding: the whole set at once is what stops the two halves of a swap being
+	// separated.
+	admin.MustQuery(t, assign, map[string]any{
+		"id": id(testdata.Vier.Mail),
+		"p":  []string{storetest.FixtureProgrammeB},
+	}, &out)
+	if len(out.SetPersonProgrammes.Programmes) != 1 ||
+		out.SetPersonProgrammes.Programmes[0].Code != storetest.FixtureProgrammeB {
+		t.Errorf("setting the list to one programme left %v", out.SetPersonProgrammes.Programmes)
+	}
+
+	t.Run("an unknown code is named rather than dropped", func(t *testing.T) {
+		resp := admin.Do(t, assign, map[string]any{
+			"id": id(testdata.Vier.Mail), "p": []string{"NOPE"},
+		})
+		assertRefusal(t, resp, "UNKNOWN_PROGRAMME")
+	})
+
+	t.Run("somebody who does not lead is refused with the repair", func(t *testing.T) {
+		resp := admin.Do(t, assign, map[string]any{
+			"id": id(testdata.Eins.Mail), "p": []string{storetest.FixtureProgrammeA},
+		})
+		// Its own code: the next step is to grant the role, and a generic refusal would not say
+		// so.
+		assertRefusal(t, resp, "NOT_A_PROGRAMME_LEAD")
+	})
+
+	t.Run("only an administrator may", func(t *testing.T) {
+		lead := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+		resp := lead.Do(t, assign, map[string]any{
+			"id": id(testdata.Vier.Mail), "p": []string{storetest.FixtureProgrammeA},
+		})
+		assertRefusal(t, resp, "FORBIDDEN")
+	})
+}
+
+// Granting access from a long-lived token in a script would decouple the granting of access
+// from any sign-in. Asserted per door rather than through EachDoor, because this is one of the
+// places the two are supposed to differ.
+func TestAssigningProgrammesIsInteractiveOnly(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil,
+		grants{testdata.Sechs, []string{"LECTURER", "ADMIN"}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}})
+
+	var people struct{ People []struct{ ID, Mail string } }
+	graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).On(graphqltest.Browser).
+		MustQuery(t, `{ people { id mail } }`, nil, &people)
+
+	var leadID string
+	for _, p := range people.People {
+		if p.Mail == testdata.Vier.Mail {
+			leadID = p.ID
+		}
+	}
+
+	resp := graphqltest.New(f.handler).WithToken(testdata.Sechs.Token).On(graphqltest.Token).
+		Do(t, `mutation($id: ID!) {
+			setPersonProgrammes(id: $id, programmes: []) { id }
+		}`, map[string]any{"id": leadID})
+
+	assertRefusal(t, resp, "INTERACTIVE_ONLY")
+}
+
+// Which programmes you may plan is the first thing a script needs to know, and on `me` it is
+// your own data — so it answers through both doors, like `roles`.
+func TestYourOwnProgrammesAreReadableThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct {
+				Me struct {
+					Programmes []struct{ Code string }
+				}
+			}
+			c.MustQuery(t, `{ me { programmes { code } } }`, nil, &out)
+
+			if len(out.Me.Programmes) != 1 ||
+				out.Me.Programmes[0].Code != storetest.FixtureProgrammeA {
+				t.Errorf("me.programmes is %v, want the one programme this lead was assigned",
+					out.Me.Programmes)
+			}
+		})
+}
+
+// The diagnosis exists to answer "why can my colleague not do this", and this release creates a
+// new way for the answer to be "because nobody assigned them a programme" — which looks, from
+// every other line, exactly like being set up correctly.
+func TestTheDiagnosisNamesAMissingProgrammeAssignment(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t,
+		map[string][]string{testdata.Drei.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Sechs, []string{"LECTURER", "ADMIN"}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		grants{testdata.Drei, []string{"LECTURER", "PROGRAMME_LEAD"}})
+
+	admin := graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).On(graphqltest.Browser)
+
+	diagnosisOf := func(mail string) (bool, string) {
+		t.Helper()
+		var out struct {
+			DiagnoseAccess struct {
+				Decisions []struct {
+					Rule    string
+					Allowed bool
+					Reason  string
+				}
+			}
+		}
+		admin.MustQuery(t, `query($m: String!) {
+			diagnoseAccess(mail: $m) { decisions { rule allowed reason } }
+		}`, map[string]any{"m": mail}, &out)
+
+		for _, d := range out.DiagnoseAccess.Decisions {
+			if d.Rule == "policy.PlanningScope" {
+				return d.Allowed, d.Reason
+			}
+		}
+		t.Fatalf("the diagnosis of %s says nothing about planning", mail)
+		return false, ""
+	}
+
+	allowed, reason := diagnosisOf(testdata.Vier.Mail)
+	if allowed {
+		t.Error("a lead with no programme is diagnosed as able to plan")
+	}
+	if !strings.Contains(reason, "keinem Studiengang zugeordnet") {
+		t.Errorf("the reason is %q; it has to name the thing that is missing, or an "+
+			"administrator reads it as 'the role is wrong'", reason)
+	}
+
+	allowed, reason = diagnosisOf(testdata.Drei.Mail)
+	if !allowed {
+		t.Error("a lead who was assigned a programme is diagnosed as unable to plan")
+	}
+	if !strings.Contains(reason, storetest.FixtureProgrammeA) {
+		t.Errorf("the reason is %q; it should name the programmes they lead", reason)
 	}
 }

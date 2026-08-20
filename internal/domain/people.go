@@ -47,6 +47,14 @@ var (
 	ErrNoSuchPerson = errors.New("no such person")
 	// ErrUnknownRole: a role string internal/policy does not recognise.
 	ErrUnknownRole = errors.New("no such role")
+	// ErrUnknownProgramme: a study programme code no programme has.
+	ErrUnknownProgramme = errors.New("no such study programme")
+	// ErrNotAProgrammeLead: assigning programmes to somebody who does not lead one.
+	//
+	// A refusal rather than a silent no-op, because the two ways of getting here are different
+	// mistakes: setting the roles and the programmes in the wrong order, or assigning a
+	// programme to the wrong person entirely.
+	ErrNotAProgrammeLead = errors.New("this person does not hold the study programme lead role")
 	// ErrGrantExpiryOutOfRange: an expiry in the past, or further out than the ceiling.
 	ErrGrantExpiryOutOfRange = fmt.Errorf(
 		"a temporary grant runs from now to at most %d days from now", MaxTemporaryGrantDays)
@@ -73,6 +81,12 @@ type Person struct {
 	// Roles are the grants in force right now — expired ones are not here. RoleGrants is
 	// where the full history of a person's grants lives.
 	Roles []policy.Role
+	// Programmes are the study programmes this person's PROGRAMME_LEAD grant applies to.
+	//
+	// Empty for everybody else, and empty for a lead nobody has assigned one to yet — which is
+	// a state with consequences rather than a gap: an unassigned lead may plan nothing, and
+	// telling them that is different from telling them they are not allowed.
+	Programmes []Programme
 }
 
 // RoleGrant is one grant, as stored, expired ones included.
@@ -114,6 +128,10 @@ type PeopleStore interface {
 	// RevokeRole refuses with ErrLastAdmin when the role is ADMIN and nobody else holds it.
 	RevokeRole(ctx context.Context, personID uuid.UUID, role policy.Role) error
 	RoleGrants(ctx context.Context, personID uuid.UUID) ([]RoleGrant, error)
+	// SetPersonProgrammes replaces the study programmes one person's PROGRAMME_LEAD grant
+	// applies to. Refuses with ErrUnknownProgramme for a code no programme has.
+	SetPersonProgrammes(ctx context.Context, personID uuid.UUID, codes []string,
+		grantedBy uuid.UUID) error
 }
 
 // PeopleService is user administration: who may use this installation, and as what.
@@ -319,6 +337,61 @@ func (s *PeopleService) SetRoles(ctx context.Context, actor principal.Actor,
 		}
 	}
 
+	return s.Get(ctx, actor, id)
+}
+
+// SetProgrammes replaces the study programmes somebody's leadership applies to.
+//
+// The whole set at once, like SetRoles and for the same reason: a per-programme mutation would
+// let the two calls of a swap be separated, and the interval between them is one in which
+// somebody leads a programme nobody meant them to.
+//
+// An empty list is allowed and means they lead none, which is the state a fresh grant is in.
+// That state is not "unrestricted": a lead with no programme may plan nothing, deliberately —
+// see policy.PlanningScope.
+//
+// Administration only, and interactive only, on the same terms as every other grant: this is
+// the granting of access, and doing it from a long-lived token in a script would decouple it
+// from any sign-in.
+func (s *PeopleService) SetProgrammes(ctx context.Context, actor principal.Actor,
+	id uuid.UUID, codes []string) (*Person, error) {
+	if !policy.MayAdministerPeople(actor) {
+		return nil, ErrNotAdministrator
+	}
+
+	person, err := s.Get(ctx, actor, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Refused rather than silently stored. The grant is what the scope narrows, so a scope
+	// without one is a row the database would refuse anyway — reporting it here turns a
+	// foreign-key violation into a sentence about what the caller did.
+	leads := false
+	for _, r := range person.Roles {
+		if r == policy.RoleProgrammeLead {
+			leads = true
+			break
+		}
+	}
+	if !leads && len(codes) > 0 {
+		return nil, ErrNotAProgrammeLead
+	}
+
+	normalised := make([]string, 0, len(codes))
+	seen := make(map[string]bool, len(codes))
+	for _, code := range codes {
+		code = strings.ToUpper(strings.TrimSpace(code))
+		if code == "" || seen[code] {
+			continue
+		}
+		seen[code] = true
+		normalised = append(normalised, code)
+	}
+
+	if err := s.store.SetPersonProgrammes(ctx, id, normalised, actor.ID); err != nil {
+		return nil, err
+	}
 	return s.Get(ctx, actor, id)
 }
 

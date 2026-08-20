@@ -203,6 +203,8 @@ type ModuleFilter struct {
 // CatalogueReader is what reading the catalogue needs.
 type CatalogueReader interface {
 	Programmes(ctx context.Context) ([]Programme, error)
+	// ProgrammesByID resolves a handful of ids, without their regulations.
+	ProgrammesByID(ctx context.Context, ids []uuid.UUID) ([]Programme, error)
 	ProgrammeByCode(ctx context.Context, code string) (*Programme, error)
 	Modules(ctx context.Context, filter ModuleFilter) ([]Module, error)
 	ModuleByID(ctx context.Context, id uuid.UUID) (*Module, error)

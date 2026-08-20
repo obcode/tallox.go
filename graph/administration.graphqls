@@ -143,4 +143,26 @@ extend type Mutation {
   refusal as taking their ADMIN away, because it has the same consequence.
   """
   setPersonActive(id: ID!, active: Boolean!): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+
+  """
+  Set which study programmes somebody's leadership applies to.
+
+  The whole set at once, like `setPersonRoles` and for the same reason: a per-programme mutation
+  would let the two halves of a swap be separated, and in between somebody leads a programme
+  nobody meant them to.
+
+  The person has to hold `PROGRAMME_LEAD` already, or this is refused with
+  `NOT_A_PROGRAMME_LEAD` — grant the role first. An unknown code is refused with
+  `UNKNOWN_PROGRAMME` rather than silently dropped.
+
+  An empty list is allowed and means they lead none. That is the state a fresh grant is in, and
+  it is **not** "all of them": such a lead may declare no demand until somebody assigns them a
+  programme. The refusal they meet says exactly that, so nobody goes asking for a role they
+  already hold.
+  """
+  setPersonProgrammes(
+    id: ID!
+    "Short codes, for example `[\"IF\", \"IG\"]`. Upper-cased and de-duplicated for you."
+    programmes: [String!]!
+  ): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 }

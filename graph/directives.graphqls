@@ -127,7 +127,8 @@ enum ScopeArea {
   colleagues can read via introspection and never use.
 
   Fields: `people`, `person`, `roleGrants`, `diagnoseAccess`, `createPerson`, `renamePerson`,
-  `setPersonRoles`, `setPersonActive`, `zpaSyncRuns`, `zpaSyncRun`, `zpaChanges`, `syncZpaNow`.
+  `setPersonRoles`, `setPersonActive`, `setPersonProgrammes`, `zpaSyncRuns`, `zpaSyncRun`,
+  `zpaChanges`, `syncZpaNow`.
   """
   ADMIN
 }

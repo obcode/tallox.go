@@ -434,6 +434,50 @@ func (q *Queries) ProgrammeByCode(ctx context.Context, code string) (ProgrammeBy
 	return i, err
 }
 
+const programmesByIDs = `-- name: ProgrammesByIDs :many
+SELECT id, code, title, active
+FROM programme
+WHERE id = ANY ($1::uuid[])
+ORDER BY code
+`
+
+type ProgrammesByIDsRow struct {
+	ID     uuid.UUID
+	Code   string
+	Title  string
+	Active bool
+}
+
+// A handful of programmes by id, without their regulations.
+//
+// For `me`, which has to turn the programme ids an actor carries into codes a person reads. The
+// full list with its regulations attached would be two statements and 29 rows of examination
+// regulations for a field that renders two letters.
+func (q *Queries) ProgrammesByIDs(ctx context.Context, ids []uuid.UUID) ([]ProgrammesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, programmesByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProgrammesByIDsRow{}
+	for rows.Next() {
+		var i ProgrammesByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Title,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const replaceModuleComponents = `-- name: ReplaceModuleComponents :exec
 DELETE FROM module_component WHERE module_id = $1
 `

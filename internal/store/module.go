@@ -78,6 +78,26 @@ func (m *Modules) Programmes(ctx context.Context) ([]domain.Programme, error) {
 	return out, nil
 }
 
+// ProgrammesByID resolves a handful of programmes by id, without their regulations.
+func (m *Modules) ProgrammesByID(ctx context.Context, ids []uuid.UUID) ([]domain.Programme, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	rows, err := New(m.pool).ProgrammesByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the programmes: %w", err)
+	}
+
+	out := make([]domain.Programme, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, domain.Programme{
+			ID: row.ID, Code: row.Code, Title: row.Title, Active: row.Active,
+		})
+	}
+	return out, nil
+}
+
 // ProgrammeByCode returns one programme with its regulations, or (nil, nil).
 func (m *Modules) ProgrammeByCode(ctx context.Context, code string) (*domain.Programme, error) {
 	// Through the list rather than a query of its own: there are twenty programmes, the list is

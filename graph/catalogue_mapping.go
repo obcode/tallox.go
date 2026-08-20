@@ -76,6 +76,9 @@ func moduleModel(m domain.Module) *model.Module {
 		Source:              m,
 	}
 
+	if m.Responsible != nil {
+		out.Responsible = teacherModel(*m.Responsible)
+	}
 	if m.ZpaID != nil {
 		id := strconv.FormatInt(*m.ZpaID, 10)
 		out.ZpaID = &id
@@ -99,6 +102,37 @@ func moduleModel(m domain.Module) *model.Module {
 			Focuses:              o.Focuses,
 			MinProgrammeSemester: o.MinProgrammeSemester,
 		})
+	}
+	return out
+}
+
+// teacherModel reshapes somebody who teaches for the wire.
+func teacherModel(t domain.Teacher) *model.Teacher {
+	out := &model.Teacher{
+		ID:                   t.ID.String(),
+		Name:                 t.Name,
+		SortName:             t.SortName,
+		IsProfessor:          t.IsProfessor,
+		IsLecturerOnContract: t.IsLecturerOnContract,
+		IsHonoraryProfessor:  t.IsHonoraryProfessor,
+		IsStaff:              t.IsStaff,
+		Active:               t.Active,
+		IsUser:               t.IsUser,
+	}
+	// The three that are absent rather than empty. A mail address the source does not have is
+	// null and not "", because the difference decides whether this person can ever be connected
+	// to somebody who signs in.
+	if t.Mail != "" {
+		mail := t.Mail
+		out.Mail = &mail
+	}
+	if t.Faculty != "" {
+		faculty := t.Faculty
+		out.Faculty = &faculty
+	}
+	if t.LastSemester != "" {
+		semester := t.LastSemester
+		out.LastSemester = &semester
 	}
 	return out
 }
@@ -141,6 +175,13 @@ func moduleFilterFrom(in *model.ModuleFilter) (domain.ModuleFilter, error) {
 	}
 	if in.WithoutComponents != nil {
 		filter.WithoutComponents = *in.WithoutComponents
+	}
+	if in.Responsible != nil {
+		id, err := uuid.Parse(*in.Responsible)
+		if err != nil {
+			return filter, badRequest("TEACHER_NOT_FOUND", "Diese Person gibt es nicht.")
+		}
+		filter.Responsible = id
 	}
 	return filter, nil
 }

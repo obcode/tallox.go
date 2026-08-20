@@ -533,3 +533,24 @@ func TestAnExpiredGrantCarriesNoProgrammes(t *testing.T) {
 			len(person.RoleScopes))
 	}
 }
+
+// The projection findings, third side of the same triangle as the roles and the phases.
+//
+// The list lives in internal/domain, in this CHECK constraint and in the GraphQL enum. graph
+// compares the first and the third; this compares the first and the second. Two of them drifted
+// once already — two findings were added to the domain and to the constraint and forgotten in
+// the schema — which is what these three comparisons exist to make impossible in every
+// direction.
+func TestDatabaseAndDomainAgreeOnProjectionFindings(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	known := make([]string, 0, len(domain.AllProjectionNoteCodes()))
+	for _, c := range domain.AllProjectionNoteCodes() {
+		known = append(known, string(c))
+	}
+	assertVocabulariesAgree(t,
+		constraintDef(t, s, "zpa_catalogue_projection_note_code_is_known"), known,
+		func(v string) bool { _, ok := domain.ParseProjectionNoteCode(v); return ok })
+}

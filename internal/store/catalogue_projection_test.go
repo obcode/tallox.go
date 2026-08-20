@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/obcode/tallox.go/internal/domain"
@@ -560,7 +561,13 @@ func TestTheDeliberateFallbackPhraseIsNotReportedAsUnmapped(t *testing.T) {
 }
 
 // Both repositories are public and the source's module objects carry a colleague's mail address.
-// A comment is not enough here: this walks every text column of every domain table and looks.
+// A comment is not enough here: this walks every text column of every catalogue table and looks.
+//
+// `teacher` is deliberately not in the list, and that absence is the point rather than an
+// oversight: it is the table *about people*, its `mail` column is the link to whoever signs in,
+// and it holds exactly the addresses this test keeps out of everywhere else. The list below is
+// the catalogue — what a module is, where it counts, how it is split — and none of that is ever
+// about a person.
 func TestProjectionNeverCopiesTheResponsibleMail(t *testing.T) {
 	t.Parallel()
 
@@ -615,5 +622,245 @@ func TestProjectionNeverCopiesTheResponsibleMail(t *testing.T) {
 					table, c.name, found)
 			}
 		}
+	}
+}
+
+// The link the whole fifth endpoint exists for: the source writes an address into the module,
+// and the module ends up pointing at a row about that person.
+func TestProjectionLinksTheResponsibleTeacher(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+
+	result := project(t, s)
+
+	if result.TeachersWritten == 0 {
+		t.Fatal("no teachers were projected")
+	}
+
+	var shortName, mail string
+	err := s.Pool.QueryRow(ctx,
+		`SELECT t.short_name, t.mail::text
+		   FROM module m JOIN teacher t ON t.id = m.responsible_teacher_id
+		  WHERE m.zpa_module_ref = $1`, storetest.FixtureModuleOrdinary).Scan(&shortName, &mail)
+	if err != nil {
+		t.Fatalf("the module is not linked to anybody: %v", err)
+	}
+	if shortName != "Eins, Prof." {
+		t.Errorf("the module points at %q", shortName)
+	}
+	if mail != "prof.eins@example.org" {
+		t.Errorf("the linked teacher carries the address %q", mail)
+	}
+
+	// The address is matched case-insensitively on both sides, because the source writes it as
+	// somebody typed it and the identity provider decides the casing on the other.
+	if _, err := s.Pool.Exec(ctx,
+		`UPDATE zpa_object
+		    SET payload = jsonb_set(payload, '{responsible}', '"PROF.Eins@Example.ORG"')
+		  WHERE kind = 'MODULE' AND zpa_id = $1`, storetest.FixtureModuleOrdinary); err != nil {
+		t.Fatalf("cannot change the spelling: %v", err)
+	}
+	project(t, s)
+
+	var stillLinked int
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT count(*) FROM module WHERE zpa_module_ref = $1 AND responsible_teacher_id IS NOT NULL`,
+		storetest.FixtureModuleOrdinary).Scan(&stillLinked); err != nil {
+		t.Fatalf("cannot read the module: %v", err)
+	}
+	if stillLinked != 1 {
+		t.Error("a differently cased address broke the link. The casing comes from the identity " +
+			"provider on one side and from whoever typed it on the other; neither decides whether " +
+			"a colleague is connected to her own modules.")
+	}
+}
+
+// Sixteen of 506 real modules name somebody the teacher list does not contain — seven
+// placeholders and nine addresses. Neither is stored: an address belongs in the table about
+// people, and a placeholder is not a person.
+func TestProjectionReportsAResponsibleItCannotResolve(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+
+	result := project(t, s)
+
+	var linked *string
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT responsible_teacher_id::text FROM module WHERE zpa_module_ref = $1`,
+		storetest.FixtureModuleUnknownVocabulary).Scan(&linked); err != nil {
+		t.Fatalf("cannot read the module: %v", err)
+	}
+	if linked != nil {
+		t.Error("a module whose responsible person is a placeholder was linked to somebody")
+	}
+
+	n := note(result, domain.NoteModuleResponsibleUnknown)
+	if n == nil {
+		t.Fatal("the module names nobody the teacher list knows and the report says nothing")
+	}
+	if n.Count != 1 {
+		t.Errorf("the report counts %d, want the one in the fixture", n.Count)
+	}
+	// Module identifiers, not addresses. The reason the value is not stored is that a mail
+	// address belongs in the table about people, and a report is not an exception to that.
+	for _, sample := range n.Sample {
+		if strings.Contains(sample, "@") {
+			t.Errorf("the report carries the address %q", sample)
+		}
+	}
+}
+
+// A link that the source withdraws has to be withdrawn here too. Leaving the old one would make
+// a module keep pointing at somebody who is no longer responsible for it — the quiet kind of
+// wrong, since nothing about the row would look unusual.
+func TestProjectionUnlinksAResponsibleTheSourceChanged(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+
+	project(t, s)
+
+	if _, err := s.Pool.Exec(ctx,
+		`UPDATE zpa_object SET payload = jsonb_set(payload, '{responsible}', '"N.N"')
+		  WHERE kind = 'MODULE' AND zpa_id = $1`, storetest.FixtureModuleOrdinary); err != nil {
+		t.Fatalf("cannot change the source: %v", err)
+	}
+	project(t, s)
+
+	var linked *string
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT responsible_teacher_id::text FROM module WHERE zpa_module_ref = $1`,
+		storetest.FixtureModuleOrdinary).Scan(&linked); err != nil {
+		t.Fatalf("cannot read the module: %v", err)
+	}
+	if linked != nil {
+		t.Error("the module still points at the person the source no longer names")
+	}
+}
+
+// Three of 257 real teachers carry no address. They are kept — the source publishes them and a
+// module could name one — and reported, because the address is the only link to somebody who
+// signs in and without it there can never be one.
+func TestProjectionKeepsATeacherWithoutAnAddress(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+
+	result := project(t, s)
+
+	var mail *string
+	var shortName string
+	err := s.Pool.QueryRow(ctx,
+		`SELECT mail::text, short_name FROM teacher WHERE zpa_teacher_ref = $1`,
+		storetest.FixtureTeacherWithoutMail).Scan(&mail, &shortName)
+	if err != nil {
+		t.Fatalf("the teacher with no address was dropped: %v", err)
+	}
+	if mail != nil {
+		t.Errorf("the teacher carries the address %q; the fixture has grown one", *mail)
+	}
+	if shortName == "" {
+		t.Error("the teacher has no name either, so nothing identifies the row")
+	}
+
+	if note(result, domain.NoteTeacherWithoutMail) == nil {
+		t.Error("a teacher who can never be connected to a sign-in is not reported")
+	}
+}
+
+// The decision this migration is really about. Importing the examination office's list of
+// teachers must not admit anybody: `person` is the access control of this installation, and
+// moving that decision into another institution's database as a side effect of an import is
+// exactly what the table structure exists to prevent.
+func TestProjectingTeachersAdmitsNobody(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+
+	project(t, s)
+
+	var people, teachers int
+	err := s.Pool.QueryRow(ctx,
+		`SELECT (SELECT count(*) FROM person), (SELECT count(*) FROM teacher)`).
+		Scan(&people, &teachers)
+	if err != nil {
+		t.Fatalf("cannot count: %v", err)
+	}
+	if teachers == 0 {
+		t.Fatal("no teachers were projected, so this proves nothing")
+	}
+	if people != 0 {
+		t.Errorf("%d person row(s) appeared from an import. Whoever may use this installation "+
+			"is a decision somebody makes; six of the 257 real teachers carry addresses the "+
+			"identity provider will never assert.", people)
+	}
+
+	// And no foreign key runs from a teacher to a person: the two are connected by the mail
+	// address, which is always current, rather than by a column that is as fresh as the last
+	// projection.
+	rows, err := s.Pool.Query(ctx,
+		`SELECT c.conname FROM pg_constraint c
+		   JOIN pg_class t ON t.oid = c.conrelid
+		   JOIN pg_class r ON r.oid = c.confrelid
+		   JOIN pg_namespace n ON n.oid = t.relnamespace
+		  WHERE c.contype = 'f' AND n.nspname = current_schema()
+		    AND t.relname = 'teacher' AND r.relname = 'person'`)
+	if err != nil {
+		t.Fatalf("cannot read the foreign keys: %v", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatalf("cannot read a row: %v", err)
+		}
+		t.Errorf("teacher.%s points at person. The link is the mail address, so that somebody "+
+			"admitted this morning is connected to their own modules now rather than tonight.",
+			name)
+	}
+}
+
+// "2026 WS" in the source, `2026-WS` here, so that it can be compared with a semester code —
+// and NULL for the thirteen that say "unknown", which is what every guarded coercion in this
+// layer does with something it cannot parse.
+func TestATeachersLastSemesterIsTranslatedIntoThisSystemsSpelling(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+
+	project(t, s)
+
+	var code *string
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT last_semester FROM teacher WHERE zpa_teacher_ref = $1`,
+		storetest.FixtureTeacherOrdinary).Scan(&code); err != nil {
+		t.Fatalf("cannot read the teacher: %v", err)
+	}
+	if code == nil || *code != "2026-WS" {
+		t.Errorf("last_semester is %v, want 2026-WS", code)
+	}
+
+	if _, err := s.Pool.Exec(ctx,
+		`UPDATE zpa_object SET payload = jsonb_set(payload, '{last_semester}', '"unknown"')
+		  WHERE kind = 'TEACHER' AND zpa_id = $1`, storetest.FixtureTeacherOrdinary); err != nil {
+		t.Fatalf("cannot change the source: %v", err)
+	}
+	project(t, s)
+
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT last_semester FROM teacher WHERE zpa_teacher_ref = $1`,
+		storetest.FixtureTeacherOrdinary).Scan(&code); err != nil {
+		t.Fatalf("cannot read the teacher: %v", err)
+	}
+	if code != nil {
+		t.Errorf("an unparseable semester became %q rather than nothing", *code)
 	}
 }

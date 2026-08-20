@@ -95,8 +95,12 @@ func TestChangedKeysNamesWhatMoved(t *testing.T) {
 func TestTheKindsAreFetchedSmallestFirst(t *testing.T) {
 	t.Parallel()
 
+	// By measured size: 29 sets of regulations, 54 catalogue slots, 257 teachers, 506 modules,
+	// 3272 associations. The two large fetches are the ones that can time out, and failing after
+	// the cheap ones have been written leaves a run that is partial in a useful way.
 	want := []domain.ZPAKind{
-		domain.ZPAKindSPO, domain.ZPAKindBasket, domain.ZPAKindModule, domain.ZPAKindMSBA,
+		domain.ZPAKindSPO, domain.ZPAKindBasket, domain.ZPAKindTeacher,
+		domain.ZPAKindModule, domain.ZPAKindMSBA,
 	}
 	if got := domain.AllZPAKinds(); !slices.Equal(got, want) {
 		t.Errorf("AllZPAKinds = %v, want %v", got, want)

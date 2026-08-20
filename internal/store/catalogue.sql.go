@@ -7,8 +7,10 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const catalogueProjectionNotes = `-- name: CatalogueProjectionNotes :many
@@ -163,6 +165,35 @@ func (q *Queries) CountMinSemesterConflicts(ctx context.Context) (CountMinSemest
 	return i, err
 }
 
+const countModulesWithUnknownResponsible = `-- name: CountModulesWithUnknownResponsible :one
+SELECT count(*)::integer AS count,
+       (array_agg(module_id::text ORDER BY module_id))[1:20]::text[] AS sample
+FROM zpa_module_v z
+WHERE z.present
+  AND z.responsible IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1 FROM teacher t WHERE t.mail = lower(btrim(z.responsible))::citext
+  )
+`
+
+type CountModulesWithUnknownResponsibleRow struct {
+	Count  int32
+	Sample []string
+}
+
+// The source names somebody the teacher list does not contain.
+//
+// Sixteen of 506 today: seven placeholders ("N.N", "ex_prof_003") and nine addresses. The
+// sample carries the module identifiers rather than the addresses — the whole reason these are
+// not stored is that a mail address belongs in the table about people, and a report is not an
+// exception to that.
+func (q *Queries) CountModulesWithUnknownResponsible(ctx context.Context) (CountModulesWithUnknownResponsibleRow, error) {
+	row := q.db.QueryRow(ctx, countModulesWithUnknownResponsible)
+	var i CountModulesWithUnknownResponsibleRow
+	err := row.Scan(&i.Count, &i.Sample)
+	return i, err
+}
+
 const countModulesWithoutHomeProgramme = `-- name: CountModulesWithoutHomeProgramme :one
 
 SELECT count(*)::integer AS count,
@@ -237,6 +268,27 @@ type CountProgrammesWithoutRegulationsRow struct {
 func (q *Queries) CountProgrammesWithoutRegulations(ctx context.Context) (CountProgrammesWithoutRegulationsRow, error) {
 	row := q.db.QueryRow(ctx, countProgrammesWithoutRegulations)
 	var i CountProgrammesWithoutRegulationsRow
+	err := row.Scan(&i.Count, &i.Sample)
+	return i, err
+}
+
+const countTeachersWithoutMail = `-- name: CountTeachersWithoutMail :one
+SELECT count(*)::integer AS count,
+       (array_agg(zpa_teacher_ref::text ORDER BY zpa_teacher_ref))[1:20]::text[] AS sample
+FROM teacher
+WHERE mail IS NULL AND retired_at IS NULL
+`
+
+type CountTeachersWithoutMailRow struct {
+	Count  int32
+	Sample []string
+}
+
+// A teacher the source gives no address for. Three of 257, and they can never be connected to a
+// person in this installation — worth seeing, not worth refusing.
+func (q *Queries) CountTeachersWithoutMail(ctx context.Context) (CountTeachersWithoutMailRow, error) {
+	row := q.db.QueryRow(ctx, countTeachersWithoutMail)
+	var i CountTeachersWithoutMailRow
 	err := row.Scan(&i.Count, &i.Sample)
 	return i, err
 }
@@ -317,18 +369,20 @@ UPDATE zpa_catalogue_projection
 SET status             = $1,
     finished_at        = now(),
     programmes_written = $2,
-    modules_written    = $3,
-    offerings_written  = $4,
-    offerings_removed  = $5,
-    error              = $6
-WHERE id = $7
-RETURNING id, run_id, started_at, finished_at, status,
-          programmes_written, modules_written, offerings_written, offerings_removed, error
+    teachers_written   = $3,
+    modules_written    = $4,
+    offerings_written  = $5,
+    offerings_removed  = $6,
+    error              = $7
+WHERE id = $8
+RETURNING id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
+          modules_written, offerings_written, offerings_removed, error
 `
 
 type FinishCatalogueProjectionParams struct {
 	Status            string
 	ProgrammesWritten int32
+	TeachersWritten   int32
 	ModulesWritten    int32
 	OfferingsWritten  int32
 	OfferingsRemoved  int32
@@ -336,17 +390,32 @@ type FinishCatalogueProjectionParams struct {
 	ID                uuid.UUID
 }
 
-func (q *Queries) FinishCatalogueProjection(ctx context.Context, arg FinishCatalogueProjectionParams) (ZpaCatalogueProjection, error) {
+type FinishCatalogueProjectionRow struct {
+	ID                uuid.UUID
+	RunID             uuid.NullUUID
+	StartedAt         time.Time
+	FinishedAt        pgtype.Timestamptz
+	Status            string
+	ProgrammesWritten int32
+	TeachersWritten   int32
+	ModulesWritten    int32
+	OfferingsWritten  int32
+	OfferingsRemoved  int32
+	Error             *string
+}
+
+func (q *Queries) FinishCatalogueProjection(ctx context.Context, arg FinishCatalogueProjectionParams) (FinishCatalogueProjectionRow, error) {
 	row := q.db.QueryRow(ctx, finishCatalogueProjection,
 		arg.Status,
 		arg.ProgrammesWritten,
+		arg.TeachersWritten,
 		arg.ModulesWritten,
 		arg.OfferingsWritten,
 		arg.OfferingsRemoved,
 		arg.Error,
 		arg.ID,
 	)
-	var i ZpaCatalogueProjection
+	var i FinishCatalogueProjectionRow
 	err := row.Scan(
 		&i.ID,
 		&i.RunID,
@@ -354,6 +423,7 @@ func (q *Queries) FinishCatalogueProjection(ctx context.Context, arg FinishCatal
 		&i.FinishedAt,
 		&i.Status,
 		&i.ProgrammesWritten,
+		&i.TeachersWritten,
 		&i.ModulesWritten,
 		&i.OfferingsWritten,
 		&i.OfferingsRemoved,
@@ -363,22 +433,36 @@ func (q *Queries) FinishCatalogueProjection(ctx context.Context, arg FinishCatal
 }
 
 const latestCatalogueProjections = `-- name: LatestCatalogueProjections :many
-SELECT id, run_id, started_at, finished_at, status,
-       programmes_written, modules_written, offerings_written, offerings_removed, error
+SELECT id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
+       modules_written, offerings_written, offerings_removed, error
 FROM zpa_catalogue_projection
 ORDER BY started_at DESC
 LIMIT $1
 `
 
-func (q *Queries) LatestCatalogueProjections(ctx context.Context, limit int32) ([]ZpaCatalogueProjection, error) {
+type LatestCatalogueProjectionsRow struct {
+	ID                uuid.UUID
+	RunID             uuid.NullUUID
+	StartedAt         time.Time
+	FinishedAt        pgtype.Timestamptz
+	Status            string
+	ProgrammesWritten int32
+	TeachersWritten   int32
+	ModulesWritten    int32
+	OfferingsWritten  int32
+	OfferingsRemoved  int32
+	Error             *string
+}
+
+func (q *Queries) LatestCatalogueProjections(ctx context.Context, limit int32) ([]LatestCatalogueProjectionsRow, error) {
 	rows, err := q.db.Query(ctx, latestCatalogueProjections, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []ZpaCatalogueProjection{}
+	items := []LatestCatalogueProjectionsRow{}
 	for rows.Next() {
-		var i ZpaCatalogueProjection
+		var i LatestCatalogueProjectionsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.RunID,
@@ -386,6 +470,7 @@ func (q *Queries) LatestCatalogueProjections(ctx context.Context, limit int32) (
 			&i.FinishedAt,
 			&i.Status,
 			&i.ProgrammesWritten,
+			&i.TeachersWritten,
 			&i.ModulesWritten,
 			&i.OfferingsWritten,
 			&i.OfferingsRemoved,
@@ -399,6 +484,33 @@ func (q *Queries) LatestCatalogueProjections(ctx context.Context, limit int32) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const linkModuleResponsibles = `-- name: LinkModuleResponsibles :execrows
+UPDATE module m
+SET responsible_teacher_id = t.id,
+    updated_at             = now()
+FROM zpa_module_v z
+LEFT JOIN teacher t ON t.mail = lower(btrim(z.responsible))::citext
+WHERE m.zpa_module_ref = z.module_id
+  AND m.responsible_teacher_id IS DISTINCT FROM t.id
+`
+
+// Connect each module to the person the source names as responsible for it.
+//
+// Runs after both, because it needs both. Matched on the address, lower-cased on the teacher
+// side by the view and here on the module side — the source writes it as somebody typed it.
+//
+// The 16 that do not resolve are set to NULL rather than left as they were: a module whose
+// responsible person the source has changed to somebody unknown must not keep pointing at the
+// previous one. What they were is reported, not stored — a mail address belongs in the table
+// about people.
+func (q *Queries) LinkModuleResponsibles(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, linkModuleResponsibles)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const malformedProgrammeCodes = `-- name: MalformedProgrammeCodes :many
@@ -661,6 +773,57 @@ func (q *Queries) ProjectSpos(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const projectTeachers = `-- name: ProjectTeachers :execrows
+INSERT INTO teacher (zpa_teacher_ref, mail, full_name, short_name,
+                     is_professor, is_lecturer_on_contract, is_honorary_professor, is_staff,
+                     active, faculty, last_semester, retired_at)
+SELECT t.teacher_id,
+       t.mail,
+       COALESCE(t.full_name, ''),
+       COALESCE(t.short_name, ''),
+       COALESCE(t.is_professor, false),
+       COALESCE(t.is_lecturer_on_contract, false),
+       COALESCE(t.is_honorary_professor, false),
+       COALESCE(t.is_staff, false),
+       COALESCE(t.active, true),
+       t.faculty,
+       t.last_semester,
+       CASE WHEN NOT t.present THEN now() END
+FROM zpa_teacher_v t
+ON CONFLICT (zpa_teacher_ref) DO UPDATE
+SET mail                    = EXCLUDED.mail,
+    full_name               = EXCLUDED.full_name,
+    short_name              = EXCLUDED.short_name,
+    is_professor            = EXCLUDED.is_professor,
+    is_lecturer_on_contract = EXCLUDED.is_lecturer_on_contract,
+    is_honorary_professor   = EXCLUDED.is_honorary_professor,
+    is_staff                = EXCLUDED.is_staff,
+    active                  = EXCLUDED.active,
+    faculty                 = EXCLUDED.faculty,
+    last_semester           = EXCLUDED.last_semester,
+    retired_at              = EXCLUDED.retired_at,
+    updated_at              = now()
+`
+
+// The people who teach, as the examination office publishes them.
+//
+// Before the modules, because a module names one. Everybody is taken, including the 49 the
+// source marks inactive: five of them are still named as responsible for a module, and a
+// filter here would leave those modules pointing at nobody for a reason nobody could see. The
+// flag is a column, and the filtering happens where somebody is looking at a list.
+//
+// Note what this does NOT do: it creates no person rows and grants nothing. A teacher is
+// imported master data; who may use this installation is a decision somebody makes in the
+// people administration. Six of the 257 carry addresses the identity provider will never
+// assert, so the two sets are not the same even in principle.
+func (q *Queries) ProjectTeachers(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, projectTeachers)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const recordCatalogueProjectionNote = `-- name: RecordCatalogueProjectionNote :exec
 INSERT INTO zpa_catalogue_projection_note (projection_id, code, count, sample)
 VALUES ($1, $2, $3, $4)
@@ -691,17 +854,31 @@ const startCatalogueProjection = `-- name: StartCatalogueProjection :one
 
 INSERT INTO zpa_catalogue_projection (run_id)
 VALUES ($1)
-RETURNING id, run_id, started_at, finished_at, status,
-          programmes_written, modules_written, offerings_written, offerings_removed, error
+RETURNING id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
+          modules_written, offerings_written, offerings_removed, error
 `
+
+type StartCatalogueProjectionRow struct {
+	ID                uuid.UUID
+	RunID             uuid.NullUUID
+	StartedAt         time.Time
+	FinishedAt        pgtype.Timestamptz
+	Status            string
+	ProgrammesWritten int32
+	TeachersWritten   int32
+	ModulesWritten    int32
+	OfferingsWritten  int32
+	OfferingsRemoved  int32
+	Error             *string
+}
 
 // The projection's own bookkeeping
 // --------------------------------
 // Written before the first statement, like the sync run it mirrors: a projection that crashed
 // leaves a row somebody can see rather than no row at all.
-func (q *Queries) StartCatalogueProjection(ctx context.Context, runID uuid.NullUUID) (ZpaCatalogueProjection, error) {
+func (q *Queries) StartCatalogueProjection(ctx context.Context, runID uuid.NullUUID) (StartCatalogueProjectionRow, error) {
 	row := q.db.QueryRow(ctx, startCatalogueProjection, runID)
-	var i ZpaCatalogueProjection
+	var i StartCatalogueProjectionRow
 	err := row.Scan(
 		&i.ID,
 		&i.RunID,
@@ -709,6 +886,7 @@ func (q *Queries) StartCatalogueProjection(ctx context.Context, runID uuid.NullU
 		&i.FinishedAt,
 		&i.Status,
 		&i.ProgrammesWritten,
+		&i.TeachersWritten,
 		&i.ModulesWritten,
 		&i.OfferingsWritten,
 		&i.OfferingsRemoved,

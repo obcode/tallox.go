@@ -114,6 +114,30 @@ func (r *queryResolver) Module(ctx context.Context, id string) (*model.Module, e
 	return moduleModel(*module), nil
 }
 
+// Teachers is the resolver for the teachers field.
+func (r *queryResolver) Teachers(ctx context.Context, search *string, includeInactive *bool) ([]*model.Teacher, error) {
+	actor := principal.From(ctx)
+
+	filter := domain.TeacherFilter{}
+	if search != nil {
+		filter.Search = *search
+	}
+	if includeInactive != nil {
+		filter.IncludeInactive = *includeInactive
+	}
+
+	teachers, err := r.Catalogue.Teachers(ctx, actor, filter)
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+
+	out := make([]*model.Teacher, 0, len(teachers))
+	for _, t := range teachers {
+		out = append(out, teacherModel(t))
+	}
+	return out, nil
+}
+
 // Module returns generated.ModuleResolver implementation.
 func (r *Resolver) Module() generated.ModuleResolver { return &moduleResolver{r} }
 

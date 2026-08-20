@@ -41,10 +41,12 @@ ORDER BY p.code, s.version DESC;
 -- The duty filter is applied through the same subquery rather than beside it, so that
 -- "compulsory in this programme" cannot accidentally mean "compulsory anywhere". MIXED is
 -- expressed as "has both", which is what makes it a filter rather than a label.
-SELECT m.id, m.name, m.home_programme_id, m.course_type, m.frequency,
+SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref
 FROM module m
-WHERE (sqlc.narg('programme')::text IS NULL
+WHERE (sqlc.narg('responsible')::uuid IS NULL
+       OR m.responsible_teacher_id = sqlc.narg('responsible')::uuid)
+  AND (sqlc.narg('programme')::text IS NULL
        OR EXISTS (SELECT 1 FROM programme hp
                    WHERE hp.id = m.home_programme_id AND hp.code = sqlc.narg('programme')::text)
        OR EXISTS (SELECT 1
@@ -87,7 +89,7 @@ WHERE (sqlc.narg('programme')::text IS NULL
 ORDER BY (m.name = ''), m.name, m.id;
 
 -- name: ModuleByID :one
-SELECT id, name, home_programme_id, course_type, frequency,
+SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
        contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref
 FROM module
 WHERE id = $1;
@@ -139,3 +141,44 @@ SELECT id, code, title, active
 FROM programme
 WHERE id = ANY (sqlc.arg(ids)::uuid[])
 ORDER BY code;
+
+-- name: ListTeachers :many
+-- The people who teach, with whether somebody of that address may sign in here.
+--
+-- The LEFT JOIN to person is the link between the two lists, and it is done here rather than
+-- stored as a column so that somebody admitted this morning is connected now rather than after
+-- the next import. `mail` is citext on both sides, so the casing the identity provider happens
+-- to use does not decide the answer.
+--
+-- Retired teachers — ones a successful import stopped mentioning — are left out entirely,
+-- unlike the source's own `active` flag which is a column and a filter. The two are different
+-- questions: "no longer teaching" is worth seeing, "no longer published" is not.
+-- COALESCE, and it is not cosmetic: three of the 257 carry no address, sqlc cannot know that a
+-- cast is nullable, and scanning NULL into a string fails at runtime rather than at build time.
+-- Empty means absent, which is what the domain type says too.
+SELECT t.id, COALESCE(t.mail::text, '')::text AS mail, t.full_name, t.short_name,
+       t.is_professor, t.is_lecturer_on_contract, t.is_honorary_professor, t.is_staff,
+       t.active, t.faculty, t.last_semester,
+       (p.id IS NOT NULL)::boolean AS is_user
+FROM teacher t
+LEFT JOIN person p ON p.mail = t.mail
+WHERE t.retired_at IS NULL
+  AND (sqlc.arg('include_inactive')::boolean OR t.active)
+  AND (sqlc.narg('search')::text IS NULL
+       OR t.full_name ILIKE '%' || sqlc.narg('search')::text || '%'
+       OR t.short_name ILIKE '%' || sqlc.narg('search')::text || '%'
+       OR t.mail::text ILIKE '%' || sqlc.narg('search')::text || '%')
+ORDER BY t.short_name, t.id;
+
+-- name: TeachersByID :many
+-- A handful of teachers by id, for attaching them to the modules they are responsible for.
+-- COALESCE, and it is not cosmetic: three of the 257 carry no address, sqlc cannot know that a
+-- cast is nullable, and scanning NULL into a string fails at runtime rather than at build time.
+-- Empty means absent, which is what the domain type says too.
+SELECT t.id, COALESCE(t.mail::text, '')::text AS mail, t.full_name, t.short_name,
+       t.is_professor, t.is_lecturer_on_contract, t.is_honorary_professor, t.is_staff,
+       t.active, t.faculty, t.last_semester,
+       (p.id IS NOT NULL)::boolean AS is_user
+FROM teacher t
+LEFT JOIN person p ON p.mail = t.mail
+WHERE t.id = ANY (sqlc.arg(ids)::uuid[]);

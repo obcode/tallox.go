@@ -67,6 +67,7 @@ type ComplexityRoot struct {
 		Name                func(childComplexity int) int
 		Offerings           func(childComplexity int) int
 		Official            func(childComplexity int) int
+		Responsible         func(childComplexity int) int
 		RetiredAt           func(childComplexity int) int
 		ZpaID               func(childComplexity int) int
 	}
@@ -147,6 +148,7 @@ type ComplexityRoot struct {
 		Semester                func(childComplexity int, code string) int
 		Semesters               func(childComplexity int) int
 		Session                 func(childComplexity int) int
+		Teachers                func(childComplexity int, search *string, includeInactive *bool) int
 		ZpaCatalogueProjections func(childComplexity int, limit *int) int
 		ZpaChanges              func(childComplexity int, runID string) int
 		ZpaSyncRun              func(childComplexity int, id string) int
@@ -184,6 +186,21 @@ type ComplexityRoot struct {
 		Version   func(childComplexity int) int
 	}
 
+	Teacher struct {
+		Active               func(childComplexity int) int
+		Faculty              func(childComplexity int) int
+		ID                   func(childComplexity int) int
+		IsHonoraryProfessor  func(childComplexity int) int
+		IsLecturerOnContract func(childComplexity int) int
+		IsProfessor          func(childComplexity int) int
+		IsStaff              func(childComplexity int) int
+		IsUser               func(childComplexity int) int
+		LastSemester         func(childComplexity int) int
+		Mail                 func(childComplexity int) int
+		Name                 func(childComplexity int) int
+		SortName             func(childComplexity int) int
+	}
+
 	ZpaCatalogueProjection struct {
 		Error             func(childComplexity int) int
 		FinishedAt        func(childComplexity int) int
@@ -196,6 +213,7 @@ type ComplexityRoot struct {
 		RunID             func(childComplexity int) int
 		StartedAt         func(childComplexity int) int
 		Status            func(childComplexity int) int
+		TeachersWritten   func(childComplexity int) int
 	}
 
 	ZpaChange struct {
@@ -402,6 +420,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.Official(childComplexity), true
+	case "Module.responsible":
+		if e.ComplexityRoot.Module.Responsible == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Responsible(childComplexity), true
 	case "Module.retiredAt":
 		if e.ComplexityRoot.Module.RetiredAt == nil {
 			break
@@ -837,6 +861,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Session(childComplexity), true
+	case "Query.teachers":
+		if e.ComplexityRoot.Query.Teachers == nil {
+			break
+		}
+
+		args, err := ec.field_Query_teachers_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Teachers(childComplexity, args["search"].(*string), args["includeInactive"].(*bool)), true
 	case "Query.zpaCatalogueProjections":
 		if e.ComplexityRoot.Query.ZpaCatalogueProjections == nil {
 			break
@@ -1000,6 +1035,79 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Spo.Version(childComplexity), true
 
+	case "Teacher.active":
+		if e.ComplexityRoot.Teacher.Active == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.Active(childComplexity), true
+	case "Teacher.faculty":
+		if e.ComplexityRoot.Teacher.Faculty == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.Faculty(childComplexity), true
+	case "Teacher.id":
+		if e.ComplexityRoot.Teacher.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.ID(childComplexity), true
+	case "Teacher.isHonoraryProfessor":
+		if e.ComplexityRoot.Teacher.IsHonoraryProfessor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.IsHonoraryProfessor(childComplexity), true
+	case "Teacher.isLecturerOnContract":
+		if e.ComplexityRoot.Teacher.IsLecturerOnContract == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.IsLecturerOnContract(childComplexity), true
+	case "Teacher.isProfessor":
+		if e.ComplexityRoot.Teacher.IsProfessor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.IsProfessor(childComplexity), true
+	case "Teacher.isStaff":
+		if e.ComplexityRoot.Teacher.IsStaff == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.IsStaff(childComplexity), true
+	case "Teacher.isUser":
+		if e.ComplexityRoot.Teacher.IsUser == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.IsUser(childComplexity), true
+	case "Teacher.lastSemester":
+		if e.ComplexityRoot.Teacher.LastSemester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.LastSemester(childComplexity), true
+	case "Teacher.mail":
+		if e.ComplexityRoot.Teacher.Mail == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.Mail(childComplexity), true
+	case "Teacher.name":
+		if e.ComplexityRoot.Teacher.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.Name(childComplexity), true
+	case "Teacher.sortName":
+		if e.ComplexityRoot.Teacher.SortName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.SortName(childComplexity), true
+
 	case "ZpaCatalogueProjection.error":
 		if e.ComplexityRoot.ZpaCatalogueProjection.Error == nil {
 			break
@@ -1066,6 +1174,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ZpaCatalogueProjection.Status(childComplexity), true
+	case "ZpaCatalogueProjection.teachersWritten":
+		if e.ComplexityRoot.ZpaCatalogueProjection.TeachersWritten == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.TeachersWritten(childComplexity), true
 
 	case "ZpaChange.change":
 		if e.ComplexityRoot.ZpaChange.Change == nil {
@@ -1599,6 +1713,66 @@ enum DutyStatus {
 }
 
 """
+Somebody who teaches, as the examination office publishes them.
+
+**Not a user of this installation.** Who may sign in is a separate, curated list — the people
+administration — and importing this one grants nothing. The two are connected by the mail
+address where both know it, which is also why a teacher the source gives no address for can
+never be connected to anybody.
+"""
+type Teacher {
+  id: ID!
+  """
+  The full name with its titles, as the examination office writes it.
+  """
+  name: String!
+  """
+  Surname first, for a list. Every one of them is in this form.
+  """
+  sortName: String!
+  """
+  The address, or ` + "`" + `null` + "`" + ` for the handful the source gives none for.
+
+  Also the link to a person in this installation: where somebody with this address may sign
+  in, that is the same human.
+  """
+  mail: String
+  "Holds a professorship."
+  isProfessor: Boolean!
+  "Teaches on a contract (Lehrbeauftragte:r)."
+  isLecturerOnContract: Boolean!
+  "Holds an honorary professorship."
+  isHonoraryProfessor: Boolean!
+  "Is staff. Not exclusive with the three above — somebody can be both."
+  isStaff: Boolean!
+  """
+  What the examination office says about the employment. Roughly four in five are true.
+
+  Kept and shown rather than filtered on import: five of the people still named as responsible
+  for a module are false here, and dropping them would leave those modules pointing at nobody
+  for a reason nobody could see.
+  """
+  active: Boolean!
+  """
+  The faculty, where the source says one. Absent for more than half of them, so it is a hint
+  and not a filter.
+  """
+  faculty: String
+  """
+  The last semester this person taught in, in this system's spelling — or ` + "`" + `null` + "`" + ` where the
+  source says something that is not a semester.
+  """
+  lastSemester: String
+  """
+  Whether somebody with this address may sign in to Tallox.
+
+  Derived from the address on every read rather than stored, so that somebody admitted this
+  morning is connected to their own modules now rather than after the next import.
+  """
+  isUser: Boolean!
+}
+
+"""
 A study programme of the faculty.
 
 Addressed by its short code — IF, IG, DA, DC — which is the name the faculty says out loud and
@@ -1673,6 +1847,16 @@ type Module {
   name: String!
   "The programme that plans this module. Every module has exactly one."
   homeProgramme: Programme!
+  """
+  Who the examination office names as responsible for this module, or ` + "`" + `null` + "`" + `.
+
+  Null for about one module in thirty, and for two different reasons that are not
+  distinguished here: the source names a placeholder rather than a person, or it names an
+  address that is not in the teacher list. Both appear on the import page, where the raw value
+  is; it is deliberately not carried here, because a mail address belongs in the type about
+  people rather than in the one about modules.
+  """
+  responsible: Teacher
   "How the teaching is broken up, as the catalogue describes it."
   courseType: CourseType!
   "How often it runs."
@@ -1848,6 +2032,10 @@ input ModuleFilter {
   "Include modules the examination office has retired. About a hundred of them."
   includeInactive: Boolean = false
   """
+  Only the modules this person is responsible for, by teacher id.
+  """
+  responsible: ID
+  """
   Keep only modules whose hours have not been split into teachable units yet.
 
   The work list. A programme lead getting ready for a semester needs to know which of their
@@ -1893,6 +2081,20 @@ extend type Query {
   One module by its id, or ` + "`" + `null` + "`" + `.
   """
   module(id: ID!): Module @scope(area: PLANNING, verb: READ)
+
+  """
+  The people who teach, as the examination office publishes them.
+
+  Not the users of this installation — see ` + "`" + `Teacher` + "`" + `. Readable by anybody with an account: it
+  is who teaches at the faculty, and a lecturer looking for the person responsible for a
+  module needs it.
+  """
+  teachers(
+    "Substring of the name or of the address. Case-insensitive."
+    search: String
+    "Include the ones the examination office marks as no longer teaching."
+    includeInactive: Boolean = false
+  ): [Teacher!]! @scope(area: PLANNING, verb: READ)
 }
 
 extend type Mutation {
@@ -2021,7 +2223,7 @@ enum ScopeArea {
   The first area worth narrowing a token to. ` + "`" + `PUBLIC` + "`" + ` and ` + "`" + `PROFILE` + "`" + ` are you describing
   yourself; ` + "`" + `TOKENS` + "`" + ` and ` + "`" + `ADMIN` + "`" + ` are unreachable through a token at all.
 
-  Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `, ` + "`" + `module` + "`" + `,
+  Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `, ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
   ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `publishWishes` + "`" + `, ` + "`" + `setModuleComponents` + "`" + `.
   """
   PLANNING
@@ -2569,6 +2771,14 @@ enum ZpaObjectKind {
   MSBA
   "One version of one programme's examination regulations."
   SPO
+  """
+  Somebody who teaches. The list a module's responsible person is named from — and, alone
+  among the five, an endpoint whose values are actually typed.
+
+  Importing these grants nobody access: who may use this installation is a separate, curated
+  list.
+  """
+  TEACHER
 }
 
 """
@@ -2802,6 +3012,21 @@ enum ZpaProjectionFinding {
   "Folded with the lower value: the catalogue slots of one set of regulations disagree about the earliest semester."
   MIN_SEMESTER_CONFLICT
   """
+  Not stored: the source names a responsible person the teacher list does not contain.
+
+  About one module in thirty. Either a placeholder rather than a person, or the address of
+  somebody who is not in the list. The value stays in the cached payload; carrying it into the
+  catalogue would put a mail address in the tables about modules.
+  """
+  MODULE_RESPONSIBLE_UNKNOWN
+  """
+  Kept: somebody who teaches and for whom the source gives no address.
+
+  The address is the link to somebody who signs in, so such a person can never be connected to
+  one — worth seeing, not worth refusing.
+  """
+  TEACHER_WITHOUT_MAIL
+  """
   The one that is an alarm rather than a note, and it should always be absent.
 
   A module's entry per set of regulations is folded from up to four catalogue slots, and that
@@ -2852,6 +3077,8 @@ type ZpaCatalogueProjection {
   status: ZpaProjectionStatus!
   "How many study programmes were written."
   programmesWritten: Int!
+  "How many teachers were written."
+  teachersWritten: Int!
   "How many modules were written."
   modulesWritten: Int!
   "How many entries of 'this module counts in these regulations' were written."
@@ -2946,6 +3173,8 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_name(ctx, field)
 	case "homeProgramme":
 		return ec.fieldContext_Module_homeProgramme(ctx, field)
+	case "responsible":
+		return ec.fieldContext_Module_responsible(ctx, field)
 	case "courseType":
 		return ec.fieldContext_Module_courseType(ctx, field)
 	case "frequency":
@@ -3130,6 +3359,36 @@ func (ec *executionContext) childFields_Spo(ctx context.Context, field graphql.C
 	return nil, fmt.Errorf("no field named %q was found under type Spo", field.Name)
 }
 
+func (ec *executionContext) childFields_Teacher(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Teacher_id(ctx, field)
+	case "name":
+		return ec.fieldContext_Teacher_name(ctx, field)
+	case "sortName":
+		return ec.fieldContext_Teacher_sortName(ctx, field)
+	case "mail":
+		return ec.fieldContext_Teacher_mail(ctx, field)
+	case "isProfessor":
+		return ec.fieldContext_Teacher_isProfessor(ctx, field)
+	case "isLecturerOnContract":
+		return ec.fieldContext_Teacher_isLecturerOnContract(ctx, field)
+	case "isHonoraryProfessor":
+		return ec.fieldContext_Teacher_isHonoraryProfessor(ctx, field)
+	case "isStaff":
+		return ec.fieldContext_Teacher_isStaff(ctx, field)
+	case "active":
+		return ec.fieldContext_Teacher_active(ctx, field)
+	case "faculty":
+		return ec.fieldContext_Teacher_faculty(ctx, field)
+	case "lastSemester":
+		return ec.fieldContext_Teacher_lastSemester(ctx, field)
+	case "isUser":
+		return ec.fieldContext_Teacher_isUser(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Teacher", field.Name)
+}
+
 func (ec *executionContext) childFields_ZpaCatalogueProjection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "id":
@@ -3144,6 +3403,8 @@ func (ec *executionContext) childFields_ZpaCatalogueProjection(ctx context.Conte
 		return ec.fieldContext_ZpaCatalogueProjection_status(ctx, field)
 	case "programmesWritten":
 		return ec.fieldContext_ZpaCatalogueProjection_programmesWritten(ctx, field)
+	case "teachersWritten":
+		return ec.fieldContext_ZpaCatalogueProjection_teachersWritten(ctx, field)
 	case "modulesWritten":
 		return ec.fieldContext_ZpaCatalogueProjection_modulesWritten(ctx, field)
 	case "offeringsWritten":

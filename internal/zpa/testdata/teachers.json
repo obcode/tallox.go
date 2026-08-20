@@ -1,0 +1,41 @@
+[
+ {
+  "email": "prof.eins@example.org",
+  "fk": "FK07",
+  "is_active": true,
+  "is_lba": false,
+  "is_prof": true,
+  "is_profhc": false,
+  "is_staff": false,
+  "last_semester": "2026 WS",
+  "person_fullname": "Prof. Dr. Eins",
+  "person_id": 901,
+  "person_shortname": "Eins, Prof."
+ },
+ {
+  "email": "prof.zwei@example.org",
+  "fk": "",
+  "is_active": true,
+  "is_lba": true,
+  "is_prof": false,
+  "is_profhc": false,
+  "is_staff": false,
+  "last_semester": "2026 SS",
+  "person_fullname": "Prof. Dr. Zwei",
+  "person_id": 902,
+  "person_shortname": "Zwei, Prof."
+ },
+ {
+  "email": "",
+  "fk": "FK10",
+  "is_active": false,
+  "is_lba": false,
+  "is_prof": false,
+  "is_profhc": false,
+  "is_staff": true,
+  "last_semester": "unknown",
+  "person_fullname": "Ohne Adresse",
+  "person_id": 903,
+  "person_shortname": "Adresse, Ohne"
+ }
+]

@@ -31,6 +31,13 @@ const (
 	ZPAKindMSBA ZPAKind = "MSBA"
 	// ZPAKindSPO is one version of one programme's examination regulations.
 	ZPAKindSPO ZPAKind = "SPO"
+	// ZPAKindTeacher is somebody who teaches: the examination office's list of the people a
+	// module can name as responsible, and the faculty's roster.
+	//
+	// Unlike the four above, this endpoint types its values — real booleans, a real integer id.
+	// The coercions in the view are still guarded, because the reason they exist is that the
+	// source has changed shape once already.
+	ZPAKindTeacher ZPAKind = "TEACHER"
 )
 
 // AllZPAKinds returns every kind, in the order a sync fetches them.
@@ -39,7 +46,7 @@ const (
 // are the ones that can time out, and failing after the cheap ones have already been written
 // leaves a run that is partial in a useful way rather than empty.
 func AllZPAKinds() []ZPAKind {
-	return []ZPAKind{ZPAKindSPO, ZPAKindBasket, ZPAKindModule, ZPAKindMSBA}
+	return []ZPAKind{ZPAKindSPO, ZPAKindBasket, ZPAKindTeacher, ZPAKindModule, ZPAKindMSBA}
 }
 
 // Valid reports whether k is a kind this program knows.

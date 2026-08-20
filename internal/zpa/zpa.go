@@ -73,6 +73,9 @@ var endpoints = map[domain.ZPAKind]string{
 	domain.ZPAKindBasket: "rest/basket_info",
 	domain.ZPAKindMSBA:   "rest/msba_info",
 	domain.ZPAKindSPO:    "rest/spo_info",
+	// The odd one out in naming, and it is the source's name rather than ours: no `_info`
+	// suffix, and a plural.
+	domain.ZPAKindTeacher: "rest/teachers",
 }
 
 // idFields are the candidate names of the id field, per kind, in the order they are tried.
@@ -85,6 +88,9 @@ var idFields = map[domain.ZPAKind][]string{
 	domain.ZPAKindBasket: {"basket_id", "id", "pk"},
 	domain.ZPAKindMSBA:   {"msba_id", "id", "pk"},
 	domain.ZPAKindSPO:    {"spo_id", "id", "pk"},
+	// Also the odd one out: `person_id` rather than `teacher_id`, and a JSON number rather than
+	// a string. The client parses both, so the difference costs nothing here.
+	domain.ZPAKindTeacher: {"person_id", "id", "pk"},
 }
 
 // labelFields are the candidates for a human-readable name, per kind.
@@ -98,6 +104,10 @@ var labelFields = map[domain.ZPAKind][]string{
 	domain.ZPAKindBasket: {"basket", "name"},
 	domain.ZPAKindMSBA:   {"module_code", "name"},
 	domain.ZPAKindSPO:    {"primuss_id", "version", "name"},
+	// A teacher is the one kind whose objects carry a name worth putting in a change report:
+	// "Abmayr, Thomas" reads better in a list than the identifier does. The short form first,
+	// because a report is a column and not a sentence.
+	domain.ZPAKindTeacher: {"person_shortname", "person_fullname", "email"},
 }
 
 const (

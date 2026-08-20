@@ -44,11 +44,31 @@ type Spo struct {
 	Programme *Programme `json:"programme"`
 }
 
+// Teacher is somebody who teaches, on the wire.
+//
+// `IsUser` is derived from the mail address when the row is read, not stored: somebody admitted
+// this morning is connected to their own modules now rather than after the next import.
+type Teacher struct {
+	ID                   string  `json:"id"`
+	Name                 string  `json:"name"`
+	SortName             string  `json:"sortName"`
+	Mail                 *string `json:"mail,omitempty"`
+	IsProfessor          bool    `json:"isProfessor"`
+	IsLecturerOnContract bool    `json:"isLecturerOnContract"`
+	IsHonoraryProfessor  bool    `json:"isHonoraryProfessor"`
+	IsStaff              bool    `json:"isStaff"`
+	Active               bool    `json:"active"`
+	Faculty              *string `json:"faculty,omitempty"`
+	LastSemester         *string `json:"lastSemester,omitempty"`
+	IsUser               bool    `json:"isUser"`
+}
+
 // Module is a catalogue entry, on the wire.
 type Module struct {
 	ID                  string             `json:"id"`
 	Name                string             `json:"name"`
 	HomeProgramme       *Programme         `json:"homeProgramme"`
+	Responsible         *Teacher           `json:"responsible,omitempty"`
 	CourseType          domain.CourseType  `json:"courseType"`
 	Frequency           domain.Frequency   `json:"frequency"`
 	ContactHoursPerWeek *int               `json:"contactHoursPerWeek,omitempty"`

@@ -79,6 +79,8 @@ type ModuleFilter struct {
 	Search *string `json:"search,omitempty"`
 	// Include modules the examination office has retired. About a hundred of them.
 	IncludeInactive *bool `json:"includeInactive,omitempty"`
+	// Only the modules this person is responsible for, by teacher id.
+	Responsible *string `json:"responsible,omitempty"`
 	// Keep only modules whose hours have not been split into teachable units yet.
 	//
 	// The work list. A programme lead getting ready for a semester needs to know which of their
@@ -283,6 +285,8 @@ type ZpaCatalogueProjection struct {
 	Status domain.ProjectionStatus `json:"status"`
 	// How many study programmes were written.
 	ProgrammesWritten int `json:"programmesWritten"`
+	// How many teachers were written.
+	TeachersWritten int `json:"teachersWritten"`
 	// How many modules were written.
 	ModulesWritten int `json:"modulesWritten"`
 	// How many entries of 'this module counts in these regulations' were written.

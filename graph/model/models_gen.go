@@ -194,6 +194,93 @@ type DeclareCourseInstanceInput struct {
 	ProgrammeSemester *int `json:"programmeSemester,omitempty"`
 }
 
+// One thing a plan did, or would do.
+type DemandChange struct {
+	// The module this cohort offers.
+	ModuleID string `json:"moduleId"`
+	// The module's name, so a summary can be read without a second query.
+	ModuleName string `json:"moduleName"`
+	// The cohort, after the change.
+	Track string `json:"track"`
+	// Where a cohort was renamed rather than created: the letter it had before.
+	//
+	// IF1 becoming IF1A when a second cohort appears beside it. The instance is the same one, which is
+	// why its parts — and later the wishes on them — survive.
+	TrackBefore *string `json:"trackBefore,omitempty"`
+	// Where the number of groups changed: what it was.
+	GroupsBefore *int `json:"groupsBefore,omitempty"`
+	// Where the number of groups changed: what it is now.
+	GroupsAfter *int `json:"groupsAfter,omitempty"`
+}
+
+// One row of a demand table: this module, in these cohorts.
+type DemandEntryInput struct {
+	// The module this row is about.
+	ModuleID string `json:"moduleId"`
+	// The cohorts to offer. **An empty list is the row whose tick was taken away** and means the
+	// module is not offered — its instances are withdrawn.
+	//
+	// That is the whole difference between "leave it alone" and "withdraw it": a module the call does
+	// not mention at all is untouched.
+	Tracks []*DemandTrackInput `json:"tracks"`
+	// The cohort year for every cohort of this module, or `null` to leave what is stored — and, for a
+	// new instance, to take what the regulations say.
+	ProgrammeSemester *int `json:"programmeSemester,omitempty"`
+}
+
+// What a save did, or — after a dry run — what it would do.
+type DemandPlanReport struct {
+	// True when nothing was written.
+	DryRun bool `json:"dryRun"`
+	// Cohorts that were declared.
+	Created []*DemandChange `json:"created"`
+	// Cohorts that were withdrawn — the rows whose tick was taken away.
+	Withdrawn []*DemandChange `json:"withdrawn"`
+	// Cohorts that were renamed, or whose number of groups changed.
+	Changed []*DemandChange `json:"changed"`
+	// What could not be done, one entry per cohort, with the rest of the plan applied.
+	Refused []*DemandRefusal `json:"refused"`
+	// The demand of that programme afterwards — the whole list, so that one answer redraws the
+	// screen. After a dry run it is what is there now, because that is what is there.
+	Instances []*CourseInstance `json:"instances"`
+	// The teaching those instances cost the faculty, summed. A shared lecture counts once.
+	TeachingHours float64 `json:"teachingHours"`
+}
+
+// One thing a plan could not do.
+type DemandRefusal struct {
+	// The module the refused cohort offers.
+	ModuleID string `json:"moduleId"`
+	// The module's name, so a summary can be read without a second query.
+	ModuleName string `json:"moduleName"`
+	// The cohort the refusal is about.
+	Track string `json:"track"`
+	// The machine-readable half: `INSTANCE_IN_USE`, `TRACK_TAKEN`, `MODULE_NOT_DECOMPOSED`.
+	//
+	// A refusal costs exactly the cohort it is about; the rest of the plan is applied. That is why
+	// they are reported rather than raised: one module that cannot be withdrawn must not undo fifteen
+	// that could be declared.
+	Code string `json:"code"`
+	// The sentence to show. `INSTANCE_IN_USE` deliberately says only that something hangs off the
+	// instance — never what, never how many.
+	Message string `json:"message"`
+}
+
+// One cohort of a module, on the way in: a letter and a number of parallel groups.
+type DemandTrackInput struct {
+	// The cohort letter — the A in IF3A — or empty for a module that runs once.
+	//
+	// Upper-cased and trimmed for you. One to three characters.
+	Track string `json:"track"`
+	// How many parallel groups of the practical unit this cohort runs — laboratories, exercises, or
+	// the seminar of a module that is nothing else.
+	//
+	// A module that is nothing but a lecture has no such unit, and there this figure has no effect
+	// rather than being an error: a screen that sends the same number for every row must not fail on
+	// the one it cannot apply to.
+	Groups int `json:"groups"`
+}
+
 // One assignable unit of an instance: a lecture, a laboratory group, a seminar.
 //
 // What a wish and an assignment will point at.

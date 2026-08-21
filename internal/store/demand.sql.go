@@ -180,7 +180,7 @@ func (q *Queries) CourseInstanceByPartID(ctx context.Context, id uuid.UUID) (Cou
 	return i, err
 }
 
-const courseInstancesToCopy = `-- name: CourseInstancesToCopy :many
+const courseInstancesOfProgramme = `-- name: CourseInstancesOfProgramme :many
 SELECT ci.id, ci.module_id, ci.track, ci.programme_semester
 FROM course_instance ci
 WHERE ci.semester_id = $1
@@ -188,32 +188,32 @@ WHERE ci.semester_id = $1
 ORDER BY ci.module_id, ci.track
 `
 
-type CourseInstancesToCopyParams struct {
+type CourseInstancesOfProgrammeParams struct {
 	SemesterID  uuid.UUID
 	ProgrammeID uuid.UUID
 }
 
-type CourseInstancesToCopyRow struct {
+type CourseInstancesOfProgrammeRow struct {
 	ID                uuid.UUID
 	ModuleID          uuid.UUID
 	Track             string
 	ProgrammeSemester *int32
 }
 
-// The source rows of a copy: what one programme declared in one semester, by id.
+// What one programme declared in one semester, by id — the input of a copy and of a plan.
 //
-// Addressed by semester id rather than code, unlike the list above, because the copy already
-// holds both semesters as rows — it had to, to write into the target — and looking them up again
-// by code inside the transaction would be a second chance to disagree about which they are.
-func (q *Queries) CourseInstancesToCopy(ctx context.Context, arg CourseInstancesToCopyParams) ([]CourseInstancesToCopyRow, error) {
-	rows, err := q.db.Query(ctx, courseInstancesToCopy, arg.SemesterID, arg.ProgrammeID)
+// Addressed by semester id rather than by code, unlike the list above, because both callers
+// already hold the semester as a row: looking it up again by code inside the transaction would be
+// a second chance to disagree about which semester is meant.
+func (q *Queries) CourseInstancesOfProgramme(ctx context.Context, arg CourseInstancesOfProgrammeParams) ([]CourseInstancesOfProgrammeRow, error) {
+	rows, err := q.db.Query(ctx, courseInstancesOfProgramme, arg.SemesterID, arg.ProgrammeID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []CourseInstancesToCopyRow{}
+	items := []CourseInstancesOfProgrammeRow{}
 	for rows.Next() {
-		var i CourseInstancesToCopyRow
+		var i CourseInstancesOfProgrammeRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ModuleID,

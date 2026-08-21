@@ -117,12 +117,12 @@ type Querier interface {
 	// whether this actor may write this programme's demand in this phase, and both halves of that
 	// come off the instance.
 	CourseInstanceByPartID(ctx context.Context, id uuid.UUID) (CourseInstanceByPartIDRow, error)
-	// The source rows of a copy: what one programme declared in one semester, by id.
+	// What one programme declared in one semester, by id — the input of a copy and of a plan.
 	//
-	// Addressed by semester id rather than code, unlike the list above, because the copy already
-	// holds both semesters as rows — it had to, to write into the target — and looking them up again
-	// by code inside the transaction would be a second chance to disagree about which they are.
-	CourseInstancesToCopy(ctx context.Context, arg CourseInstancesToCopyParams) ([]CourseInstancesToCopyRow, error)
+	// Addressed by semester id rather than by code, unlike the list above, because both callers
+	// already hold the semester as a row: looking it up again by code inside the transaction would be
+	// a second chance to disagree about which semester is meant.
+	CourseInstancesOfProgramme(ctx context.Context, arg CourseInstancesOfProgrammeParams) ([]CourseInstancesOfProgrammeRow, error)
 	// People and their role grants.
 	//
 	// Every read that resolves an identity returns the roles with it, in one round trip. Two

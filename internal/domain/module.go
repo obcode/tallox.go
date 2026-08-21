@@ -176,13 +176,21 @@ func (m Module) Plannable() bool {
 // nothing but a seminar. A module that is only a lecture has none, and reports false — parallel
 // lectures are not what "groups" means to anybody here.
 func (m Module) PracticalKind() (InstancePartKind, bool) {
-	components := m.EffectiveComponents()
+	kind, _, ok := PracticalKindOf(m.EffectiveComponents())
+	return kind, ok
+}
+
+// PracticalKindOf is the same question asked of a split already in hand, and it also answers with
+// the hours one such unit carries.
+//
+// The store needs both when it adds a group: which kind of part, and how long it is.
+func PracticalKindOf(components []ModuleComponent) (InstancePartKind, float64, bool) {
 	for _, c := range components {
 		if c.Kind != PartKindLecture {
-			return c.Kind, true
+			return c.Kind, c.TeachingHours, true
 		}
 	}
-	return "", false
+	return "", 0, false
 }
 
 // ProgrammeSemester folds "the earliest semester a student may take this in" over one programme.

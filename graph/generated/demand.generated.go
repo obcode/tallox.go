@@ -549,6 +549,465 @@ func (ec *executionContext) fieldContext_CourseInstance_updatedAt(_ context.Cont
 	return graphql.NewScalarFieldContext("CourseInstance", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _DemandChange_moduleId(ctx context.Context, field graphql.CollectedField, obj *model.DemandChange) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandChange_moduleId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ModuleID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandChange_moduleId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandChange", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _DemandChange_moduleName(ctx context.Context, field graphql.CollectedField, obj *model.DemandChange) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandChange_moduleName(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ModuleName, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandChange_moduleName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandChange", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DemandChange_track(ctx context.Context, field graphql.CollectedField, obj *model.DemandChange) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandChange_track(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Track, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandChange_track(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandChange", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DemandChange_trackBefore(ctx context.Context, field graphql.CollectedField, obj *model.DemandChange) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandChange_trackBefore(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TrackBefore, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DemandChange_trackBefore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandChange", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DemandChange_groupsBefore(ctx context.Context, field graphql.CollectedField, obj *model.DemandChange) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandChange_groupsBefore(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.GroupsBefore, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DemandChange_groupsBefore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandChange", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _DemandChange_groupsAfter(ctx context.Context, field graphql.CollectedField, obj *model.DemandChange) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandChange_groupsAfter(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.GroupsAfter, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DemandChange_groupsAfter(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandChange", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _DemandPlanReport_dryRun(ctx context.Context, field graphql.CollectedField, obj *model.DemandPlanReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandPlanReport_dryRun(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DryRun, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandPlanReport_dryRun(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandPlanReport", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _DemandPlanReport_created(ctx context.Context, field graphql.CollectedField, obj *model.DemandPlanReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandPlanReport_created(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Created, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.DemandChange) graphql.Marshaler {
+			return ec.marshalNDemandChange2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandChangeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandPlanReport_created(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DemandPlanReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DemandChange(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DemandPlanReport_withdrawn(ctx context.Context, field graphql.CollectedField, obj *model.DemandPlanReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandPlanReport_withdrawn(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Withdrawn, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.DemandChange) graphql.Marshaler {
+			return ec.marshalNDemandChange2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandChangeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandPlanReport_withdrawn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DemandPlanReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DemandChange(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DemandPlanReport_changed(ctx context.Context, field graphql.CollectedField, obj *model.DemandPlanReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandPlanReport_changed(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Changed, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.DemandChange) graphql.Marshaler {
+			return ec.marshalNDemandChange2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandChangeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandPlanReport_changed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DemandPlanReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DemandChange(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DemandPlanReport_refused(ctx context.Context, field graphql.CollectedField, obj *model.DemandPlanReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandPlanReport_refused(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Refused, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.DemandRefusal) graphql.Marshaler {
+			return ec.marshalNDemandRefusal2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandRefusalᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandPlanReport_refused(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DemandPlanReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DemandRefusal(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DemandPlanReport_instances(ctx context.Context, field graphql.CollectedField, obj *model.DemandPlanReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandPlanReport_instances(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Instances, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.CourseInstance) graphql.Marshaler {
+			return ec.marshalNCourseInstance2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCourseInstanceᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandPlanReport_instances(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DemandPlanReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CourseInstance(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DemandPlanReport_teachingHours(ctx context.Context, field graphql.CollectedField, obj *model.DemandPlanReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandPlanReport_teachingHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TeachingHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandPlanReport_teachingHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandPlanReport", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _DemandRefusal_moduleId(ctx context.Context, field graphql.CollectedField, obj *model.DemandRefusal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandRefusal_moduleId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ModuleID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandRefusal_moduleId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandRefusal", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _DemandRefusal_moduleName(ctx context.Context, field graphql.CollectedField, obj *model.DemandRefusal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandRefusal_moduleName(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ModuleName, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandRefusal_moduleName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandRefusal", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DemandRefusal_track(ctx context.Context, field graphql.CollectedField, obj *model.DemandRefusal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandRefusal_track(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Track, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandRefusal_track(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandRefusal", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DemandRefusal_code(ctx context.Context, field graphql.CollectedField, obj *model.DemandRefusal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandRefusal_code(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Code, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandRefusal_code(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandRefusal", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DemandRefusal_message(ctx context.Context, field graphql.CollectedField, obj *model.DemandRefusal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandRefusal_message(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandRefusal_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandRefusal", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _InstancePart_id(ctx context.Context, field graphql.CollectedField, obj *model.InstancePart) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -725,6 +1184,98 @@ func (ec *executionContext) unmarshalInputDeclareCourseInstanceInput(ctx context
 				return it, err
 			}
 			it.ProgrammeSemester = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputDemandEntryInput(ctx context.Context, obj any) (model.DemandEntryInput, error) {
+	var it model.DemandEntryInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["tracks"]; !present {
+		asMap["tracks"] = []any{}
+	}
+
+	fieldsInOrder := [...]string{"moduleId", "tracks", "programmeSemester"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "moduleId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("moduleId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ModuleID = data
+		case "tracks":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tracks"))
+			data, err := ec.unmarshalNDemandTrackInput2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandTrackInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tracks = data
+		case "programmeSemester":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("programmeSemester"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProgrammeSemester = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputDemandTrackInput(ctx context.Context, obj any) (model.DemandTrackInput, error) {
+	var it model.DemandTrackInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["track"]; !present {
+		asMap["track"] = ""
+	}
+	if _, present := asMap["groups"]; !present {
+		asMap["groups"] = 1
+	}
+
+	fieldsInOrder := [...]string{"track", "groups"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "track":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("track"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Track = data
+		case "groups":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("groups"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Groups = data
 		}
 	}
 	return it, nil
@@ -937,6 +1488,195 @@ func (ec *executionContext) _CourseInstance(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var demandChangeImplementors = []string{"DemandChange"}
+
+func (ec *executionContext) _DemandChange(ctx context.Context, sel ast.SelectionSet, obj *model.DemandChange) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, demandChangeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DemandChange")
+		case "moduleId":
+			out.Values[i] = ec._DemandChange_moduleId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "moduleName":
+			out.Values[i] = ec._DemandChange_moduleName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "track":
+			out.Values[i] = ec._DemandChange_track(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "trackBefore":
+			out.Values[i] = ec._DemandChange_trackBefore(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "groupsBefore":
+			out.Values[i] = ec._DemandChange_groupsBefore(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "groupsAfter":
+			out.Values[i] = ec._DemandChange_groupsAfter(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var demandPlanReportImplementors = []string{"DemandPlanReport"}
+
+func (ec *executionContext) _DemandPlanReport(ctx context.Context, sel ast.SelectionSet, obj *model.DemandPlanReport) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, demandPlanReportImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DemandPlanReport")
+		case "dryRun":
+			out.Values[i] = ec._DemandPlanReport_dryRun(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "created":
+			out.Values[i] = ec._DemandPlanReport_created(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "withdrawn":
+			out.Values[i] = ec._DemandPlanReport_withdrawn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "changed":
+			out.Values[i] = ec._DemandPlanReport_changed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "refused":
+			out.Values[i] = ec._DemandPlanReport_refused(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "instances":
+			out.Values[i] = ec._DemandPlanReport_instances(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "teachingHours":
+			out.Values[i] = ec._DemandPlanReport_teachingHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var demandRefusalImplementors = []string{"DemandRefusal"}
+
+func (ec *executionContext) _DemandRefusal(ctx context.Context, sel ast.SelectionSet, obj *model.DemandRefusal) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, demandRefusalImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DemandRefusal")
+		case "moduleId":
+			out.Values[i] = ec._DemandRefusal_moduleId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "moduleName":
+			out.Values[i] = ec._DemandRefusal_moduleName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "track":
+			out.Values[i] = ec._DemandRefusal_track(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "code":
+			out.Values[i] = ec._DemandRefusal_code(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._DemandRefusal_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var instancePartImplementors = []string{"InstancePart"}
 
 func (ec *executionContext) _InstancePart(ctx context.Context, sel ast.SelectionSet, obj *model.InstancePart) graphql.Marshaler {
@@ -1072,6 +1812,110 @@ func (ec *executionContext) marshalNCourseInstance2ᚖgithubᚗcomᚋobcodeᚋta
 func (ec *executionContext) unmarshalNDeclareCourseInstanceInput2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDeclareCourseInstanceInput(ctx context.Context, v any) (model.DeclareCourseInstanceInput, error) {
 	res, err := ec.unmarshalInputDeclareCourseInstanceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDemandChange2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandChangeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DemandChange) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDemandChange2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandChange(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDemandChange2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandChange(ctx context.Context, sel ast.SelectionSet, v *model.DemandChange) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DemandChange(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNDemandEntryInput2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandEntryInputᚄ(ctx context.Context, v any) ([]*model.DemandEntryInput, error) {
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]*model.DemandEntryInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNDemandEntryInput2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandEntryInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNDemandEntryInput2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandEntryInput(ctx context.Context, v any) (*model.DemandEntryInput, error) {
+	res, err := ec.unmarshalInputDemandEntryInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDemandPlanReport2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandPlanReport(ctx context.Context, sel ast.SelectionSet, v model.DemandPlanReport) graphql.Marshaler {
+	return ec._DemandPlanReport(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDemandPlanReport2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandPlanReport(ctx context.Context, sel ast.SelectionSet, v *model.DemandPlanReport) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DemandPlanReport(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDemandRefusal2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandRefusalᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DemandRefusal) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDemandRefusal2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandRefusal(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDemandRefusal2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandRefusal(ctx context.Context, sel ast.SelectionSet, v *model.DemandRefusal) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DemandRefusal(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNDemandTrackInput2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandTrackInputᚄ(ctx context.Context, v any) ([]*model.DemandTrackInput, error) {
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]*model.DemandTrackInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNDemandTrackInput2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandTrackInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) unmarshalNDemandTrackInput2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandTrackInput(ctx context.Context, v any) (*model.DemandTrackInput, error) {
+	res, err := ec.unmarshalInputDemandTrackInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNInstancePart2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstancePartᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.InstancePart) graphql.Marshaler {

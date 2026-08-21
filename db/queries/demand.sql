@@ -215,12 +215,12 @@ SELECT EXISTS (
     WHERE course_instance_id = $1 AND kind = $2
 )::boolean AS exists;
 
--- name: CourseInstancesToCopy :many
--- The source rows of a copy: what one programme declared in one semester, by id.
+-- name: CourseInstancesOfProgramme :many
+-- What one programme declared in one semester, by id — the input of a copy and of a plan.
 --
--- Addressed by semester id rather than code, unlike the list above, because the copy already
--- holds both semesters as rows — it had to, to write into the target — and looking them up again
--- by code inside the transaction would be a second chance to disagree about which they are.
+-- Addressed by semester id rather than by code, unlike the list above, because both callers
+-- already hold the semester as a row: looking it up again by code inside the transaction would be
+-- a second chance to disagree about which semester is meant.
 SELECT ci.id, ci.module_id, ci.track, ci.programme_semester
 FROM course_instance ci
 WHERE ci.semester_id = $1

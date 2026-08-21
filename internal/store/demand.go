@@ -1072,10 +1072,14 @@ func (d *Demand) planModule(ctx context.Context, tx pgx.Tx, plan *domain.DemandP
 
 	// Then create what is still missing.
 	shared := sharedKindsOf(held)
+	fresh := map[uuid.UUID]bool{}
 	for _, w := range open {
 		instance, err := d.createForPlan(ctx, tx, plan, pc, wanted[w], shared)
 		if err != nil {
 			return err
+		}
+		if instance != nil {
+			fresh[instance.id] = true
 		}
 		matched[w] = instance
 	}
@@ -1085,7 +1089,10 @@ func (d *Demand) planModule(ctx context.Context, tx pgx.Tx, plan *domain.DemandP
 		if instance == nil {
 			continue
 		}
-		if err := d.adjustGroups(ctx, tx, plan, instance, wanted[w].Groups); err != nil {
+		// A cohort that was just declared reports itself as created and nothing else. Its groups
+		// are part of declaring it, and "2 declared, 1 changed" for two acts is a summary that
+		// makes somebody count on their fingers.
+		if err := d.adjustGroups(ctx, tx, plan, instance, wanted[w].Groups, fresh[instance.id]); err != nil {
 			return err
 		}
 		if err := d.applyProgrammeSemester(ctx, q, instance, pc.entry.ProgrammeSemester); err != nil {
@@ -1300,7 +1307,7 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 // kind, and the figure is then without effect: parallel lectures are not what anybody means by
 // "groups" here.
 func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.DemandPlan,
-	instance *heldInstance, want int,
+	instance *heldInstance, want int, justCreated bool,
 ) error {
 	q := New(tx)
 
@@ -1386,7 +1393,7 @@ func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.Deman
 		groups = groups[:len(groups)-1]
 	}
 
-	if after := len(groups); after != before {
+	if after := len(groups); after != before && !justCreated {
 		from, to := before, after
 		plan.Changed = append(plan.Changed, domain.DemandChange{
 			ModuleID:     instance.moduleID,

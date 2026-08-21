@@ -1209,14 +1209,25 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 
 	components, err := effectiveComponents(ctx, q, pc.entry.ModuleID)
 	if err != nil {
-		if errors.Is(err, domain.ErrModuleNotDecomposed) {
-			plan.Refused = append(plan.Refused, domain.DemandRefusal{
-				ModuleID: pc.entry.ModuleID,
-				Track:    want.Track,
-				Code:     "MODULE_NOT_DECOMPOSED",
-				Reason:   domain.ErrModuleNotDecomposed.Error(),
-			})
-			return nil, nil
+		// Both of these cost the row and not the screen. A module that vanished between the load
+		// and the save is somebody else's deletion, not this caller's mistake — and it must not
+		// take the other fourteen rows down with it.
+		for _, known := range []struct {
+			sentinel error
+			code     string
+		}{
+			{domain.ErrModuleNotDecomposed, "MODULE_NOT_DECOMPOSED"},
+			{domain.ErrModuleNotFound, "MODULE_NOT_FOUND"},
+		} {
+			if errors.Is(err, known.sentinel) {
+				plan.Refused = append(plan.Refused, domain.DemandRefusal{
+					ModuleID: pc.entry.ModuleID,
+					Track:    want.Track,
+					Code:     known.code,
+					Reason:   known.sentinel.Error(),
+				})
+				return nil, nil
+			}
 		}
 		return nil, err
 	}

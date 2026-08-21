@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/google/uuid"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 
@@ -238,7 +240,14 @@ func catalogueUserFacing(actor principal.Actor, err error) error {
 		}
 	default:
 		// Anything else is ours, not the caller's. The sentence is generic on purpose: a
-		// database error in the clear says things about rows nobody asked about.
+		// database error in the clear says things about rows nobody asked about — and it is
+		// logged for the same reason the demand's is: a refusal that leaves no trace cannot be
+		// answered by the person who meets it or by the one they report it to.
+		log.Error().Err(err).
+			Str("area", "catalogue").
+			Str("actor", actor.ID.String()).
+			Str("kind", string(actor.Kind)).
+			Msg("refused with INTERNAL")
 		return &gqlerror.Error{
 			Message:    "Das hat nicht geklappt. Bitte später erneut versuchen.",
 			Extensions: map[string]any{"code": "INTERNAL"},

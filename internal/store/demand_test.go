@@ -938,3 +938,80 @@ func TestPlanningDoesNotGiveANewCohortAnAlreadySharedLecture(t *testing.T) {
 			len(back.BorrowedParts))
 	}
 }
+
+// A plan over rows that were not made by a plan.
+//
+// The demand of a real installation is not only what this table wrote: cohorts declared one by
+// one, a lecture shared across them, a part added by hand, a module whose split somebody cleared
+// afterwards. Reconciling *that* is the case a fixture built by the reconciliation itself never
+// reaches — and the one a person meets on the day they open the screen for a semester somebody
+// else started.
+//
+// What this asserts is not a particular outcome for each row. It is that no arrangement of them
+// costs more than its own row: the plan comes back, the other rows are applied, and whatever
+// could not be done is named.
+func TestPlanningReconcilesWhatOtherPathsLeftBehind(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	// One module, declared as two cohorts the old way — the second by duplication — with the
+	// lecture shared and an extra group added by hand.
+	first := f.declare(t, "")
+	second, err := f.demand.DuplicateCourseInstance(ctx, first.ID, "A", "", uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot duplicate: %v", err)
+	}
+	if _, err := f.demand.ShareInstancePartAcrossTracks(ctx,
+		partOfKind(t, first, domain.PartKindLecture).ID); err != nil {
+		t.Fatalf("cannot share the lecture: %v", err)
+	}
+	hours := 2.0
+	if _, err := f.demand.AddInstancePart(ctx, second.ID, domain.PartKindExercise, &hours); err != nil {
+		t.Fatalf("cannot add a part by hand: %v", err)
+	}
+
+	// A second module whose split somebody cleared after declaring it.
+	other := moduleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
+	if _, err := f.demand.CreateCourseInstance(ctx, domain.NewCourseInstance{
+		SemesterID: f.semester.ID, ModuleID: other, ProgrammeID: f.programme,
+	}); err != nil {
+		t.Fatalf("cannot declare the second module: %v", err)
+	}
+	if _, err := f.schema.Pool.Exec(ctx,
+		`DELETE FROM module_component WHERE module_id = $1`, other); err != nil {
+		t.Fatalf("cannot clear the split: %v", err)
+	}
+
+	// And now the screen saves: the first module in two cohorts with two groups each, the second
+	// as it is, and a module that does not exist at all — which is what a load from a moment ago
+	// and a deletion in between look like from here.
+	plan, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme, []domain.DemandEntry{
+		planEntry(f.module, track("", 2), track("A", 2)),
+		planEntry(other, track("", 1)),
+		planEntry(uuid.New(), track("", 1)),
+	}, uuid.Nil, false)
+	if err != nil {
+		t.Fatalf("planning over a demand somebody else built gave %v — one awkward row must "+
+			"cost its own row and not the screen", err)
+	}
+
+	if len(plan.Refused) != 1 || plan.Refused[0].Code != "MODULE_NOT_FOUND" {
+		t.Errorf("the plan refuses %+v, want the module that is not there", plan.Refused)
+	}
+
+	// The shared lecture is still shared, and still counted once.
+	instances := f.instances(t)
+	var shared int
+	for _, instance := range instances {
+		for _, p := range instance.Parts {
+			if p.SharedAcrossTracks {
+				shared++
+			}
+		}
+	}
+	if shared != 1 {
+		t.Errorf("%d shared parts after the plan, want the one that was there", shared)
+	}
+}

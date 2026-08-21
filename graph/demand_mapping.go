@@ -3,6 +3,8 @@ package graph
 import (
 	"errors"
 
+	"github.com/rs/zerolog/log"
+
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
@@ -185,6 +187,16 @@ func demandUserFacing(actor principal.Actor, err error) error {
 		// Anything else is ours, not the caller's. Generic on purpose: a database error in the
 		// clear says things about rows nobody asked about — and on this write path a unique
 		// violation in the clear is exactly the shape of leak the wish rule is about.
+		//
+		// Logged, though, because an INTERNAL that leaves no trace is unanswerable twice over:
+		// the person reading it cannot act on it, and neither can whoever they report it to. The
+		// log line is the other half of the refusal — it names what the sentence deliberately
+		// does not, on the one side of the wire where that is safe.
+		log.Error().Err(err).
+			Str("area", "demand").
+			Str("actor", actor.ID.String()).
+			Str("kind", string(actor.Kind)).
+			Msg("refused with INTERNAL")
 		return refusal("INTERNAL", "Das hat nicht geklappt. Bitte später erneut versuchen.")
 	}
 }

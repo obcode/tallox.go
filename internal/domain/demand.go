@@ -354,6 +354,11 @@ type DemandStore interface {
 	// Only the modules named in entries are touched. With dryRun the same reconciliation runs
 	// and is rolled back, so that what the interface shows and what the save does cannot be two
 	// different computations.
-	PlanDemand(ctx context.Context, semesterID, programmeID uuid.UUID, entries []DemandEntry,
-		by uuid.UUID, dryRun bool) (DemandPlan, error)
+	//
+	// Takes the semester by code rather than by id, and records it itself: the row for a
+	// semester nobody has touched has to come into being inside this transaction, or a dry run
+	// would either create it — recording a decision nobody took — or write instances pointing at
+	// a semester that does not exist.
+	PlanDemand(ctx context.Context, semesterCode string, programmeID uuid.UUID,
+		entries []DemandEntry, by uuid.UUID, dryRun bool) (DemandPlan, error)
 }

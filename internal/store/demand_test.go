@@ -715,7 +715,7 @@ func TestPlanningReconcilesAWholeScreen(t *testing.T) {
 	ctx := t.Context()
 
 	// One module, one cohort, two laboratory groups.
-	plan, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+	plan, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
 		[]domain.DemandEntry{planEntry(f.module, track("", 2))}, uuid.Nil, false)
 	if err != nil {
 		t.Fatalf("planning gave %v", err)
@@ -735,7 +735,7 @@ func TestPlanningReconcilesAWholeScreen(t *testing.T) {
 	// A second cohort, and the first one gets its letter in the same act — the instance that was
 	// there is renamed rather than withdrawn and rebuilt.
 	before := instances[0].ID
-	plan, err = f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+	plan, err = f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
 		[]domain.DemandEntry{planEntry(f.module, track("A", 3), track("B", 2))}, uuid.Nil, false)
 	if err != nil {
 		t.Fatalf("planning the second cohort gave %v", err)
@@ -766,7 +766,7 @@ func TestPlanningReconcilesAWholeScreen(t *testing.T) {
 	}
 
 	// Back to one cohort: B goes, A stays and keeps its letter.
-	plan, err = f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+	plan, err = f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
 		[]domain.DemandEntry{planEntry(f.module, track("A", 1))}, uuid.Nil, false)
 	if err != nil {
 		t.Fatalf("planning back to one cohort gave %v", err)
@@ -803,7 +803,7 @@ func TestPlanningLeavesUnnamedModulesAlone(t *testing.T) {
 
 	other := moduleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
 
-	if _, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme, []domain.DemandEntry{
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme, []domain.DemandEntry{
 		planEntry(f.module, track("", 1)),
 		planEntry(other, track("", 1)),
 	}, uuid.Nil, false); err != nil {
@@ -812,7 +812,7 @@ func TestPlanningLeavesUnnamedModulesAlone(t *testing.T) {
 
 	// A second save that mentions only one of them — the other must survive it untouched, the
 	// way a filtered screen leaves the rest of the catalogue alone.
-	if _, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
 		[]domain.DemandEntry{planEntry(f.module, track("", 2))}, uuid.Nil, false); err != nil {
 		t.Fatalf("the second plan gave %v", err)
 	}
@@ -831,13 +831,13 @@ func TestADryRunReportsEverythingAndWritesNothing(t *testing.T) {
 	f := newDemandFixture(t)
 	ctx := t.Context()
 
-	if _, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
 		[]domain.DemandEntry{planEntry(f.module, track("A", 2), track("B", 2))},
 		uuid.Nil, false); err != nil {
 		t.Fatalf("planning gave %v", err)
 	}
 
-	dry, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+	dry, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
 		[]domain.DemandEntry{planEntry(f.module)}, uuid.Nil, true)
 	if err != nil {
 		t.Fatalf("the dry run gave %v", err)
@@ -868,7 +868,7 @@ func TestGroupsMultiplyThePracticalUnitAndNothingElse(t *testing.T) {
 	seminar := moduleID(t, f.schema, storetest.FixtureModuleTwoSlots)
 	lectureOnly := moduleID(t, f.schema, storetest.FixtureModuleWithoutName)
 
-	if _, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme, []domain.DemandEntry{
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme, []domain.DemandEntry{
 		planEntry(seminar, track("", 3)),
 		planEntry(lectureOnly, track("", 3)),
 	}, uuid.Nil, false); err != nil {
@@ -916,7 +916,7 @@ func TestPlanningDoesNotGiveANewCohortAnAlreadySharedLecture(t *testing.T) {
 	}
 
 	// And now a plan brings the second cohort back.
-	if _, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
 		[]domain.DemandEntry{planEntry(f.module, track("A", 1), track("B", 1))},
 		uuid.Nil, false); err != nil {
 		t.Fatalf("planning gave %v", err)
@@ -987,7 +987,7 @@ func TestPlanningReconcilesWhatOtherPathsLeftBehind(t *testing.T) {
 	// And now the screen saves: the first module in two cohorts with two groups each, the second
 	// as it is, and a module that does not exist at all — which is what a load from a moment ago
 	// and a deletion in between look like from here.
-	plan, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme, []domain.DemandEntry{
+	plan, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme, []domain.DemandEntry{
 		planEntry(f.module, track("", 2), track("A", 2)),
 		planEntry(other, track("", 1)),
 		planEntry(uuid.New(), track("", 1)),
@@ -1014,4 +1014,70 @@ func TestPlanningReconcilesWhatOtherPathsLeftBehind(t *testing.T) {
 	if shared != 1 {
 		t.Errorf("%d shared parts after the plan, want the one that was there", shared)
 	}
+}
+
+// The first thing anybody plans in a semester nobody has touched.
+//
+// This is the case that failed in production, and it failed at the one place where a preview and
+// a write differ: the preview must not record the semester, so it used to be handed no semester
+// at all — and wrote instances pointing at nothing. A foreign key said so, and the person got
+// "Das hat nicht geklappt."
+//
+// Both halves are asserted here, because they are one property seen from two sides: the dry run
+// reports what would happen and leaves no row behind, and the save does the same thing and keeps
+// it.
+func TestPlanningTheFirstDemandOfAnUntouchedSemester(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	// A semester with no row at all: nobody has decided anything about it.
+	const untouched = "2033-WS"
+	if recorded(t, f.schema, untouched) {
+		t.Fatalf("%s is already recorded — this test is about a semester that is not", untouched)
+	}
+
+	entries := []domain.DemandEntry{planEntry(f.module, track("", 2))}
+
+	dry, err := f.demand.PlanDemand(ctx, untouched, f.programme, entries, uuid.Nil, true)
+	if err != nil {
+		t.Fatalf("the dry run gave %v", err)
+	}
+	if len(dry.Created) != 1 {
+		t.Errorf("the dry run reports %+v, want the one cohort it would declare", dry.Created)
+	}
+	if recorded(t, f.schema, untouched) {
+		t.Error("the dry run recorded the semester — the row is the record of a decision, and " +
+			"looking is not one")
+	}
+
+	if _, err := f.demand.PlanDemand(ctx, untouched, f.programme, entries, uuid.Nil, false); err != nil {
+		t.Fatalf("the save gave %v", err)
+	}
+	if !recorded(t, f.schema, untouched) {
+		t.Error("the save did not record the semester it planned in")
+	}
+
+	instances, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+		SemesterCode: untouched, Programme: storetest.FixtureProgrammeA,
+	})
+	if err != nil {
+		t.Fatalf("cannot read the demand: %v", err)
+	}
+	if len(instances) != 1 || len(instances[0].Parts) != 3 {
+		t.Fatalf("the semester holds %d instance(s), want one with a lecture and two groups",
+			len(instances))
+	}
+}
+
+func recorded(t *testing.T, s *storetest.Schema, code string) bool {
+	t.Helper()
+
+	var exists bool
+	if err := s.Pool.QueryRow(t.Context(),
+		`SELECT EXISTS (SELECT 1 FROM semester WHERE code = $1)`, code).Scan(&exists); err != nil {
+		t.Fatalf("cannot look for the semester: %v", err)
+	}
+	return exists
 }

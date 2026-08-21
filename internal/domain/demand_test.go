@@ -29,11 +29,12 @@ var (
 
 // fakeDemandStore records what it was asked to do and answers plausibly.
 type fakeDemandStore struct {
-	instances map[uuid.UUID]domain.CourseInstance
-	partOwner map[uuid.UUID]uuid.UUID
-	created   []domain.NewCourseInstance
-	planned   []domain.DemandEntry
-	writes    int
+	instances       map[uuid.UUID]domain.CourseInstance
+	partOwner       map[uuid.UUID]uuid.UUID
+	created         []domain.NewCourseInstance
+	planned         []domain.DemandEntry
+	plannedSemester string
+	writes          int
 }
 
 func newFakeDemandStore() *fakeDemandStore {
@@ -157,10 +158,11 @@ func (f *fakeDemandStore) CopyDemand(context.Context, domain.Semester, domain.Se
 	return domain.CopyCounts{Created: 2, PartsCreated: 5}, nil
 }
 
-func (f *fakeDemandStore) PlanDemand(_ context.Context, _, _ uuid.UUID,
+func (f *fakeDemandStore) PlanDemand(_ context.Context, semester string, _ uuid.UUID,
 	entries []domain.DemandEntry, _ uuid.UUID, dryRun bool,
 ) (domain.DemandPlan, error) {
 	f.planned = entries
+	f.plannedSemester = semester
 	if !dryRun {
 		f.writes++
 	}
@@ -574,9 +576,17 @@ func TestReadingTheDemandNeedsNoRole(t *testing.T) {
 func ptr(n int) *int          { return &n }
 func ptrf(f float64) *float64 { return &f }
 
-// A preview must leave nothing behind, and the trace it would leave is a semester row: that row
-// is the record of a decision about the semester, and looking is not one.
-func TestADryRunRecordsNothingAboutTheSemester(t *testing.T) {
+// Planning names the semester and does not record it.
+//
+// The row for a semester nobody has touched is written inside the store's transaction, because
+// that transaction is what a dry run rolls back — a preview that recorded the semester would
+// leave the one trace it must not leave, and one that passed no semester at all wrote instances
+// pointing at nothing. That is the bug this arrangement replaced; the property itself is asserted
+// where it lives, in internal/store.
+//
+// What belongs here is the layering: this service hands the store a code and records nothing
+// itself.
+func TestPlanningLeavesTheSemesterRowToTheStore(t *testing.T) {
 	t.Parallel()
 
 	f := newDemandService(t, policy.PhaseDemandPlanning)
@@ -587,21 +597,19 @@ func TestADryRunRecordsNothingAboutTheSemester(t *testing.T) {
 		Tracks:   []domain.DemandTrack{{Track: "A", Groups: 2}},
 	}}
 
-	if _, err := f.service.PlanDemand(t.Context(), actor, "2029-WS", "PA", entries, true); err != nil {
-		t.Fatalf("the dry run gave %v", err)
-	}
-	if len(f.semesters.ensured) != 0 {
-		t.Errorf("the dry run recorded the semester %v", f.semesters.ensured)
-	}
-	if f.store.writes != 0 {
-		t.Errorf("the dry run wrote %d time(s)", f.store.writes)
+	for _, dryRun := range []bool{true, false} {
+		if _, err := f.service.PlanDemand(t.Context(), actor, "2029-WS", "PA", entries, dryRun); err != nil {
+			t.Fatalf("planning (dryRun=%v) gave %v", dryRun, err)
+		}
+		if f.store.plannedSemester != "2029-WS" {
+			t.Errorf("the store was asked to plan %q, want the semester the caller named",
+				f.store.plannedSemester)
+		}
 	}
 
-	if _, err := f.service.PlanDemand(t.Context(), actor, "2029-WS", "PA", entries, false); err != nil {
-		t.Fatalf("the save gave %v", err)
-	}
-	if len(f.semesters.ensured) != 1 {
-		t.Errorf("the save recorded the semester %v times, want once", len(f.semesters.ensured))
+	if len(f.semesters.ensured) != 0 {
+		t.Errorf("the service recorded the semester %v itself — the store does it, in the "+
+			"transaction a dry run rolls back", f.semesters.ensured)
 	}
 }
 

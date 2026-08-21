@@ -400,18 +400,12 @@ func (s *DemandService) PlanDemand(ctx context.Context, actor principal.Actor,
 		return DemandPlan{}, err
 	}
 
-	// A dry run against a semester nobody has touched needs no row: there is nothing stored to
-	// reconcile against, so everything in it is new.
-	semesterID := semester.ID
-	if !semester.Recorded() && !dryRun {
-		recorded, err := s.semesters.ensure(ctx, semester.Code)
-		if err != nil {
-			return DemandPlan{}, err
-		}
-		semesterID = recorded.ID
-	}
-
-	plan, err := s.store.PlanDemand(ctx, semesterID, programme.ID, entries, actor.ID, dryRun)
+	// The semester row is the store's business, and deliberately so: it has to come into
+	// existence inside the same transaction the plan is written in, so that a dry run — which
+	// rolls that transaction back — leaves no trace of a semester nobody decided anything about.
+	// Doing it here instead meant a preview either created the row it must not create, or handed
+	// the store an id that referenced nothing.
+	plan, err := s.store.PlanDemand(ctx, semester.Code, programme.ID, entries, actor.ID, dryRun)
 	if err != nil {
 		return plan, err
 	}

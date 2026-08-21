@@ -898,7 +898,7 @@ func hasSQLState(err error, code string) bool {
 //
 // Runs everything and rolls back. The preview is therefore not a second computation that might
 // disagree with the write — it is the write, not kept.
-func (d *Demand) PlanDemand(ctx context.Context, semesterID, programmeID uuid.UUID,
+func (d *Demand) PlanDemand(ctx context.Context, semesterCode string, programmeID uuid.UUID,
 	entries []domain.DemandEntry, by uuid.UUID, dryRun bool,
 ) (domain.DemandPlan, error) {
 	plan := domain.DemandPlan{DryRun: dryRun}
@@ -910,6 +910,19 @@ func (d *Demand) PlanDemand(ctx context.Context, semesterID, programmeID uuid.UU
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	q := New(tx)
+
+	// The semester row, inside this transaction and therefore inside the rollback.
+	//
+	// Nobody creates a semester; the row is the record of the first decision taken about one, and
+	// declaring demand is such a decision. A dry run is not — and because the row is written here
+	// rather than beforehand, "a preview records nothing" is a property of the transaction rather
+	// than a case somebody has to remember. It was a case, it was forgotten, and planning the
+	// first thing in an untouched semester failed on a foreign key.
+	semester, err := q.EnsureSemester(ctx, semesterCode)
+	if err != nil {
+		return plan, fmt.Errorf("cannot record the semester: %w", err)
+	}
+	semesterID := semester.ID
 
 	held, err := heldInstances(ctx, q, semesterID, programmeID)
 	if err != nil {
@@ -963,15 +976,8 @@ type heldInstance struct {
 }
 
 // heldInstances reads the demand of one programme in one semester, with the parts.
-//
-// A nil semester is a semester nobody has recorded anything about, which holds nothing — the
-// state a dry run against an untouched semester runs in, and the reason it does not have to
-// create the row first.
 func heldInstances(ctx context.Context, q *Queries, semesterID, programmeID uuid.UUID) (map[uuid.UUID][]*heldInstance, error) {
 	byModule := map[uuid.UUID][]*heldInstance{}
-	if semesterID == uuid.Nil {
-		return byModule, nil
-	}
 
 	rows, err := q.CourseInstancesOfProgramme(ctx, CourseInstancesOfProgrammeParams{
 		SemesterID:  semesterID,

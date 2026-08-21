@@ -168,7 +168,8 @@ func TestTheProposalFollowsTheCourseType(t *testing.T) {
 	for courseType, want := range cases {
 		t.Run(string(courseType), func(t *testing.T) {
 			t.Parallel()
-			got := courseType.ProposedComponents(4)
+
+			got := kindsOf(courseType.ProposedComponents(4))
 			if len(got) != len(want) {
 				t.Fatalf("%s proposes %v, want %v", courseType, got, want)
 			}
@@ -180,6 +181,99 @@ func TestTheProposalFollowsTheCourseType(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The shapes the faculty's own planning sheet is made of, and the rule that produces them.
+//
+// The numbers in the comments are counts of compulsory modules offered in the winter of 2026/27,
+// read off that sheet. They are here because this function is a guess, and a guess is only worth
+// planning with if it reproduces what people actually do — an even split, which is what this used
+// to compute, gets the most common shape of all wrong: six hours are four and two, never three
+// and three.
+func TestTheProposalGivesTheLectureAnEvenNumberOfHours(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		hours int
+		want  []domain.ModuleComponent
+		note  string
+	}{
+		{hours: 4, note: "28 modules: four hours, one group", want: []domain.ModuleComponent{
+			{Kind: domain.PartKindLecture, TeachingHours: 2, Position: 0},
+			{Kind: domain.PartKindLab, TeachingHours: 2, Position: 1},
+		}},
+		{hours: 6, note: "44 modules: six hours, two groups", want: []domain.ModuleComponent{
+			{Kind: domain.PartKindLecture, TeachingHours: 4, Position: 0},
+			{Kind: domain.PartKindLab, TeachingHours: 2, Position: 1},
+		}},
+		{hours: 8, note: "11 modules: eight hours, three groups", want: []domain.ModuleComponent{
+			{Kind: domain.PartKindLecture, TeachingHours: 6, Position: 0},
+			{Kind: domain.PartKindLab, TeachingHours: 2, Position: 1},
+		}},
+		{hours: 3, note: "14 modules: three hours", want: []domain.ModuleComponent{
+			{Kind: domain.PartKindLecture, TeachingHours: 2, Position: 0},
+			{Kind: domain.PartKindLab, TeachingHours: 1, Position: 1},
+		}},
+		{hours: 5, note: "an odd total leaves the odd hour with the group", want: []domain.ModuleComponent{
+			{Kind: domain.PartKindLecture, TeachingHours: 4, Position: 0},
+			{Kind: domain.PartKindLab, TeachingHours: 1, Position: 1},
+		}},
+		{
+			hours: 2,
+			note:  "a lecture of no hours is not a lecture, so there is one part",
+			want: []domain.ModuleComponent{
+				{Kind: domain.PartKindLecture, TeachingHours: 2, Position: 0},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.note, func(t *testing.T) {
+			t.Parallel()
+
+			got := domain.CourseTypeSUWithLab.ProposedComponents(tc.hours)
+			if len(got) != len(tc.want) {
+				t.Fatalf("%d hours propose %v, want %v", tc.hours, got, tc.want)
+			}
+			for i := range tc.want {
+				if got[i] != tc.want[i] {
+					t.Errorf("%d hours propose %v, want %v", tc.hours, got, tc.want)
+					break
+				}
+			}
+		})
+	}
+}
+
+// The property that makes the proposal safe to plan with: it never invents teaching, and it never
+// loses any. Whatever the catalogue states is what the parts add up to.
+func TestTheProposalAlwaysSumsToWhatTheCatalogueStates(t *testing.T) {
+	t.Parallel()
+
+	for _, courseType := range domain.AllCourseTypes() {
+		for hours := 1; hours <= 13; hours++ {
+			var total float64
+			for _, c := range courseType.ProposedComponents(hours) {
+				if c.TeachingHours <= 0 {
+					t.Errorf("%s at %d hours proposes a part of %v hours — a part that credits "+
+						"nobody with anything is a statement nobody meant to make",
+						courseType, hours, c.TeachingHours)
+				}
+				total += c.TeachingHours
+			}
+			if total != float64(hours) {
+				t.Errorf("%s at %d hours proposes %v hours in total", courseType, hours, total)
+			}
+		}
+	}
+}
+
+func kindsOf(components []domain.ModuleComponent) []domain.InstancePartKind {
+	out := make([]domain.InstancePartKind, 0, len(components))
+	for _, c := range components {
+		out = append(out, c.Kind)
+	}
+	return out
 }
 
 // Every value has to survive the round trip through its string form, because that string is

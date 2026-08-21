@@ -32,6 +32,7 @@ type fakeDemandStore struct {
 	instances map[uuid.UUID]domain.CourseInstance
 	partOwner map[uuid.UUID]uuid.UUID
 	created   []domain.NewCourseInstance
+	planned   []domain.DemandEntry
 	writes    int
 }
 
@@ -154,6 +155,16 @@ func (f *fakeDemandStore) CopyDemand(context.Context, domain.Semester, domain.Se
 ) (domain.CopyCounts, error) {
 	f.writes++
 	return domain.CopyCounts{Created: 2, PartsCreated: 5}, nil
+}
+
+func (f *fakeDemandStore) PlanDemand(_ context.Context, _, _ uuid.UUID,
+	entries []domain.DemandEntry, _ uuid.UUID, dryRun bool,
+) (domain.DemandPlan, error) {
+	f.planned = entries
+	if !dryRun {
+		f.writes++
+	}
+	return domain.DemandPlan{DryRun: dryRun}, nil
 }
 
 // fakeSemesterStore is the semester half, and it records what was ensured.
@@ -562,3 +573,164 @@ func TestReadingTheDemandNeedsNoRole(t *testing.T) {
 
 func ptr(n int) *int          { return &n }
 func ptrf(f float64) *float64 { return &f }
+
+// A preview must leave nothing behind, and the trace it would leave is a semester row: that row
+// is the record of a decision about the semester, and looking is not one.
+func TestADryRunRecordsNothingAboutTheSemester(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandService(t, policy.PhaseDemandPlanning)
+	actor := lead(principal.KindInteractive, demandProgramme)
+
+	entries := []domain.DemandEntry{{
+		ModuleID: uuid.New(),
+		Tracks:   []domain.DemandTrack{{Track: "A", Groups: 2}},
+	}}
+
+	if _, err := f.service.PlanDemand(t.Context(), actor, "2029-WS", "PA", entries, true); err != nil {
+		t.Fatalf("the dry run gave %v", err)
+	}
+	if len(f.semesters.ensured) != 0 {
+		t.Errorf("the dry run recorded the semester %v", f.semesters.ensured)
+	}
+	if f.store.writes != 0 {
+		t.Errorf("the dry run wrote %d time(s)", f.store.writes)
+	}
+
+	if _, err := f.service.PlanDemand(t.Context(), actor, "2029-WS", "PA", entries, false); err != nil {
+		t.Fatalf("the save gave %v", err)
+	}
+	if len(f.semesters.ensured) != 1 {
+		t.Errorf("the save recorded the semester %v times, want once", len(f.semesters.ensured))
+	}
+}
+
+// The shape of a plan, as a person could get it wrong with a stepper and a script could get it
+// wrong in a loop.
+func TestWhatIsAcceptedAsAPlan(t *testing.T) {
+	t.Parallel()
+
+	moduleID := uuid.New()
+
+	cases := []struct {
+		name    string
+		entries []domain.DemandEntry
+		wantErr error
+		want    []domain.DemandTrack
+	}{
+		{
+			name:    "a lower-case letter is the same cohort to a person",
+			entries: []domain.DemandEntry{{ModuleID: moduleID, Tracks: []domain.DemandTrack{{Track: "b", Groups: 2}}}},
+			want:    []domain.DemandTrack{{Track: "B", Groups: 2}},
+		},
+		{
+			name:    "no cohorts at all is the row whose tick was taken away",
+			entries: []domain.DemandEntry{{ModuleID: moduleID}},
+			want:    nil,
+		},
+		{
+			name:    "no groups is a cohort that runs only its lecture",
+			entries: []domain.DemandEntry{{ModuleID: moduleID, Tracks: []domain.DemandTrack{{Track: "", Groups: 0}}}},
+			want:    []domain.DemandTrack{{Track: "", Groups: 0}},
+		},
+		{
+			name: "the same module twice",
+			entries: []domain.DemandEntry{
+				{ModuleID: moduleID, Tracks: []domain.DemandTrack{{Track: "A", Groups: 1}}},
+				{ModuleID: moduleID, Tracks: []domain.DemandTrack{{Track: "B", Groups: 1}}},
+			},
+			wantErr: domain.ErrDuplicateEntry,
+		},
+		{
+			name: "the same cohort twice, which would be two instances of one identity",
+			entries: []domain.DemandEntry{{ModuleID: moduleID, Tracks: []domain.DemandTrack{
+				{Track: "A", Groups: 1}, {Track: "a", Groups: 2},
+			}}},
+			wantErr: domain.ErrDuplicateEntry,
+		},
+		{
+			name: "more cohorts than the alphabet offers",
+			entries: []domain.DemandEntry{{
+				ModuleID: moduleID,
+				Tracks:   make([]domain.DemandTrack, domain.MaxTracksPerModule+1),
+			}},
+			wantErr: domain.ErrTooManyTracks,
+		},
+		{
+			name: "more groups than anybody runs",
+			entries: []domain.DemandEntry{{ModuleID: moduleID, Tracks: []domain.DemandTrack{
+				{Track: "", Groups: domain.MaxGroupsPerTrack + 1},
+			}}},
+			wantErr: domain.ErrTooManyGroups,
+		},
+		{
+			name: "a negative number of groups",
+			entries: []domain.DemandEntry{{ModuleID: moduleID, Tracks: []domain.DemandTrack{
+				{Track: "", Groups: -1},
+			}}},
+			wantErr: domain.ErrTooManyGroups,
+		},
+		{
+			name: "a thirteenth semester",
+			entries: []domain.DemandEntry{{
+				ModuleID:          moduleID,
+				Tracks:            []domain.DemandTrack{{Track: "", Groups: 1}},
+				ProgrammeSemester: ptr(13),
+			}},
+			wantErr: domain.ErrProgrammeSemesterInvalid,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newDemandService(t, policy.PhaseDemandPlanning)
+			_, err := f.service.PlanDemand(t.Context(),
+				lead(principal.KindInteractive, demandProgramme), "2027-SS", "PA", tc.entries, false)
+
+			if tc.wantErr != nil {
+				if !errors.Is(err, tc.wantErr) {
+					t.Fatalf("got %v, want %v", err, tc.wantErr)
+				}
+				if f.store.writes != 0 {
+					t.Error("a refused plan was written anyway")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected refusal: %v", err)
+			}
+			if len(f.store.planned) != 1 {
+				t.Fatalf("the store received %d entries, want 1", len(f.store.planned))
+			}
+			got := f.store.planned[0].Tracks
+			if len(got) != len(tc.want) {
+				t.Fatalf("the store received %+v, want %+v", got, tc.want)
+			}
+			for i := range tc.want {
+				if got[i] != tc.want[i] {
+					t.Errorf("the store received %+v, want %+v", got, tc.want)
+					break
+				}
+			}
+		})
+	}
+}
+
+// Planning is a write like any other, and it is refused for somebody else's programme before
+// anything is looked at.
+func TestPlanningIsScopedToTheProgramme(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandService(t, policy.PhaseDemandPlanning)
+
+	_, err := f.service.PlanDemand(t.Context(), lead(principal.KindInteractive, otherProgramme),
+		"2027-SS", "PA", []domain.DemandEntry{{ModuleID: uuid.New()}}, false)
+	if !errors.Is(err, domain.ErrNotYourProgramme) {
+		t.Fatalf("planning another programme gave %v, want ErrNotYourProgramme", err)
+	}
+	if f.store.writes != 0 || len(f.semesters.ensured) != 0 {
+		t.Error("the refusal wrote something anyway")
+	}
+}

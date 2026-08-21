@@ -27,8 +27,9 @@ type demandFixture struct {
 	programme uuid.UUID
 	// module is the ordinary module, split into a two-hour lecture and a two-hour laboratory.
 	module uuid.UUID
-	// undivided is a module nobody has stated a split for — the precondition's counter-example.
-	undivided uuid.UUID
+	// withoutHours is the module the examination office states no hours for. Nothing can be
+	// split and nothing can be proposed, so it is what is left of the precondition.
+	withoutHours uuid.UUID
 }
 
 func newDemandFixture(t *testing.T) demandFixture {
@@ -52,13 +53,13 @@ func newDemandFixture(t *testing.T) demandFixture {
 	}
 
 	fixture := demandFixture{
-		schema:    s,
-		demand:    store.NewDemand(s.Pool, modules),
-		semester:  current,
-		previous:  previous,
-		programme: programmeID(t, s, storetest.FixtureProgrammeA),
-		module:    moduleID(t, s, storetest.FixtureModuleOrdinary),
-		undivided: moduleID(t, s, storetest.FixtureModuleDutyDiffers),
+		schema:       s,
+		demand:       store.NewDemand(s.Pool, modules),
+		semester:     current,
+		previous:     previous,
+		programme:    programmeID(t, s, storetest.FixtureProgrammeA),
+		module:       moduleID(t, s, storetest.FixtureModuleOrdinary),
+		withoutHours: moduleID(t, s, storetest.FixtureModuleWithoutHours),
 	}
 
 	if _, err := modules.SetModuleComponents(ctx, fixture.module, []domain.ModuleComponent{
@@ -108,6 +109,37 @@ func (f demandFixture) declare(t *testing.T, track string) *domain.CourseInstanc
 	return instance
 }
 
+// partsOf is the parts of the one instance of a module in the fixture's semester.
+func (f demandFixture) partsOf(t *testing.T, moduleID uuid.UUID) []domain.InstancePart {
+	t.Helper()
+
+	instances, err := f.demand.CourseInstances(t.Context(), domain.DemandFilter{
+		SemesterCode: f.semester.Code, Module: moduleID,
+	})
+	if err != nil {
+		t.Fatalf("cannot read the demand of one module: %v", err)
+	}
+	if len(instances) != 1 {
+		t.Fatalf("the module runs in %d instances, want 1", len(instances))
+	}
+	return instances[0].Parts
+}
+
+// instances is the demand of the fixture's semester and programme, in the order the screen
+// shows it.
+func (f demandFixture) instances(t *testing.T) []domain.CourseInstance {
+	t.Helper()
+
+	instances, err := f.demand.CourseInstances(t.Context(), domain.DemandFilter{
+		SemesterCode: f.semester.Code,
+		Programme:    storetest.FixtureProgrammeA,
+	})
+	if err != nil {
+		t.Fatalf("cannot read the demand: %v", err)
+	}
+	return instances
+}
+
 func kinds(parts []domain.InstancePart) []domain.InstancePartKind {
 	out := make([]domain.InstancePartKind, 0, len(parts))
 	for _, p := range parts {
@@ -151,7 +183,10 @@ func TestDeclaringAnInstanceMakesItsPartsFromTheSplit(t *testing.T) {
 	}
 }
 
-func TestAModuleWithoutASplitCannotBeDeclared(t *testing.T) {
+// What is left of the precondition once a split can be estimated: a module the examination
+// office states no hours for. Twelve real modules are in that state, and for those the repair is
+// to enter the split by hand.
+func TestAModuleWithoutHoursCannotBeDeclared(t *testing.T) {
 	t.Parallel()
 
 	f := newDemandFixture(t)
@@ -159,18 +194,18 @@ func TestAModuleWithoutASplitCannotBeDeclared(t *testing.T) {
 
 	_, err := f.demand.CreateCourseInstance(ctx, domain.NewCourseInstance{
 		SemesterID:  f.semester.ID,
-		ModuleID:    f.undivided,
+		ModuleID:    f.withoutHours,
 		ProgrammeID: f.programme,
 	})
 	if !errors.Is(err, domain.ErrModuleNotDecomposed) {
-		t.Fatalf("declaring a module with no split gave %v, want ErrModuleNotDecomposed", err)
+		t.Fatalf("declaring a module with no hours gave %v, want ErrModuleNotDecomposed", err)
 	}
 
 	// And nothing was written. The check is inside the transaction, so a refused declaration
 	// leaves no instance with no parts behind.
 	var instances int
 	if err := f.schema.Pool.QueryRow(ctx,
-		`SELECT count(*) FROM course_instance WHERE module_id = $1`, f.undivided).Scan(&instances); err != nil {
+		`SELECT count(*) FROM course_instance WHERE module_id = $1`, f.withoutHours).Scan(&instances); err != nil {
 		t.Fatalf("cannot count the instances: %v", err)
 	}
 	if instances != 0 {
@@ -598,7 +633,7 @@ func TestTheDemandListIsNarrowedAndCarriesEverythingAScreenNeeds(t *testing.T) {
 	}
 
 	byModule, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
-		SemesterCode: f.semester.Code, Module: f.undivided,
+		SemesterCode: f.semester.Code, Module: f.withoutHours,
 	})
 	if err != nil {
 		t.Fatalf("cannot read the demand of one module: %v", err)
@@ -618,4 +653,288 @@ func partOfKind(t *testing.T, instance *domain.CourseInstance, kind domain.Insta
 	}
 	t.Fatalf("the instance holds no %s", kind)
 	return domain.InstancePart{}
+}
+
+// The change that makes a semester plannable in October: a module nobody has split yet is
+// declared from the proposal, and its parts are exactly the ones the interface showed.
+func TestAnInstanceCanBeDeclaredFromTheProposedSplit(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	// The second fixture module — four hours, lecture plus exercise — and nobody has stated how
+	// they divide.
+	unsplit := moduleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
+
+	instance, err := f.demand.CreateCourseInstance(ctx, domain.NewCourseInstance{
+		SemesterID:  f.semester.ID,
+		ModuleID:    unsplit,
+		ProgrammeID: f.programme,
+	})
+	if err != nil {
+		t.Fatalf("declaring from a proposal gave %v", err)
+	}
+
+	if got := kinds(instance.Parts); len(got) != 2 ||
+		got[0] != domain.PartKindLecture || got[1] != domain.PartKindExercise {
+		t.Fatalf("the instance holds %v, want the proposal's lecture and exercise", got)
+	}
+	if instance.TeachingHours() != 4 {
+		t.Errorf("the instance costs %v hours, want the 4 the catalogue states",
+			instance.TeachingHours())
+	}
+
+	// And the module still says nobody has stated its split — declaring from a guess must not
+	// quietly turn the guess into the faculty's own statement.
+	var stated int
+	if err := f.schema.Pool.QueryRow(ctx,
+		`SELECT count(*) FROM module_component WHERE module_id = $1`, unsplit).Scan(&stated); err != nil {
+		t.Fatalf("cannot count the split: %v", err)
+	}
+	if stated != 0 {
+		t.Errorf("declaring wrote %d component(s) — a proposal is not a statement", stated)
+	}
+}
+
+// planEntry is the shorthand the reconciliation tests read in.
+func planEntry(moduleID uuid.UUID, tracks ...domain.DemandTrack) domain.DemandEntry {
+	return domain.DemandEntry{ModuleID: moduleID, Tracks: tracks}
+}
+
+func track(letter string, groups int) domain.DemandTrack {
+	return domain.DemandTrack{Track: letter, Groups: groups}
+}
+
+// The four directions of the reconciliation, in the order somebody actually does them: declare a
+// module, give it a second cohort, give the cohorts different numbers of groups, take one away.
+func TestPlanningReconcilesAWholeScreen(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	// One module, one cohort, two laboratory groups.
+	plan, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("", 2))}, uuid.Nil, false)
+	if err != nil {
+		t.Fatalf("planning gave %v", err)
+	}
+	if len(plan.Created) != 1 || len(plan.Withdrawn) != 0 {
+		t.Fatalf("the first plan reports %+v, want one instance created", plan)
+	}
+
+	instances := f.instances(t)
+	if len(instances) != 1 {
+		t.Fatalf("the semester holds %d instances, want 1", len(instances))
+	}
+	if got := len(instances[0].Parts); got != 3 {
+		t.Errorf("the cohort holds %d parts, want a lecture and two laboratory groups", got)
+	}
+
+	// A second cohort, and the first one gets its letter in the same act — the instance that was
+	// there is renamed rather than withdrawn and rebuilt.
+	before := instances[0].ID
+	plan, err = f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("A", 3), track("B", 2))}, uuid.Nil, false)
+	if err != nil {
+		t.Fatalf("planning the second cohort gave %v", err)
+	}
+	if len(plan.Created) != 1 || len(plan.Withdrawn) != 0 {
+		t.Errorf("adding a cohort reports %+v, want one created and none withdrawn — the first "+
+			"cohort is renamed, not replaced", plan)
+	}
+
+	instances = f.instances(t)
+	if len(instances) != 2 {
+		t.Fatalf("the module runs in %d cohorts, want 2", len(instances))
+	}
+	if instances[0].ID != before {
+		t.Errorf("the original instance was replaced instead of renamed — its parts and, later, " +
+			"the wishes on them would have gone with it")
+	}
+	if instances[0].Track != "A" || instances[1].Track != "B" {
+		t.Fatalf("the cohorts are %q and %q, want A and B", instances[0].Track, instances[1].Track)
+	}
+	// Different numbers of groups per cohort, which is the case the table has to allow: one
+	// lecture and three laboratories against one lecture and two.
+	if got := len(instances[0].Parts); got != 4 {
+		t.Errorf("cohort A holds %d parts, want a lecture and three groups", got)
+	}
+	if got := len(instances[1].Parts); got != 3 {
+		t.Errorf("cohort B holds %d parts, want a lecture and two groups", got)
+	}
+
+	// Back to one cohort: B goes, A stays and keeps its letter.
+	plan, err = f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("A", 1))}, uuid.Nil, false)
+	if err != nil {
+		t.Fatalf("planning back to one cohort gave %v", err)
+	}
+	if len(plan.Withdrawn) != 1 || plan.Withdrawn[0].Track != "B" {
+		t.Errorf("reducing the cohorts reports %+v, want B withdrawn", plan.Withdrawn)
+	}
+	if len(plan.Changed) == 0 {
+		t.Error("the group count went from three to one and nothing was reported")
+	}
+
+	instances = f.instances(t)
+	if len(instances) != 1 || len(instances[0].Parts) != 2 {
+		t.Fatalf("what is left is %d instance(s) with %d parts, want one with a lecture and one "+
+			"group", len(instances), len(instances[0].Parts))
+	}
+
+	// And the module named nowhere in the plan is not touched by any of this.
+	if plan.Empty() {
+		t.Error("a plan that withdrew a cohort reports itself as empty")
+	}
+	if !plan.Destructive() {
+		t.Error("a plan that withdrew a cohort does not report itself as destructive")
+	}
+}
+
+// The property the interface's filters rest on: what is not on the screen is not in the plan, and
+// what is not in the plan is not touched.
+func TestPlanningLeavesUnnamedModulesAlone(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	other := moduleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
+
+	if _, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme, []domain.DemandEntry{
+		planEntry(f.module, track("", 1)),
+		planEntry(other, track("", 1)),
+	}, uuid.Nil, false); err != nil {
+		t.Fatalf("planning gave %v", err)
+	}
+
+	// A second save that mentions only one of them — the other must survive it untouched, the
+	// way a filtered screen leaves the rest of the catalogue alone.
+	if _, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("", 2))}, uuid.Nil, false); err != nil {
+		t.Fatalf("the second plan gave %v", err)
+	}
+
+	if got := len(f.instances(t)); got != 2 {
+		t.Errorf("%d instances survive, want 2 — a plan that does not name a module must not "+
+			"withdraw it", got)
+	}
+}
+
+// A tick taken away is shown before it is acted on, so the preview has to be exactly what the
+// save would do — and it has to leave nothing behind.
+func TestADryRunReportsEverythingAndWritesNothing(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	if _, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("A", 2), track("B", 2))},
+		uuid.Nil, false); err != nil {
+		t.Fatalf("planning gave %v", err)
+	}
+
+	dry, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+		[]domain.DemandEntry{planEntry(f.module)}, uuid.Nil, true)
+	if err != nil {
+		t.Fatalf("the dry run gave %v", err)
+	}
+	if !dry.DryRun || len(dry.Withdrawn) != 2 {
+		t.Fatalf("the dry run reports %+v, want both cohorts as withdrawn", dry)
+	}
+
+	if got := len(f.instances(t)); got != 2 {
+		t.Errorf("%d instances survive the dry run, want both — a preview that writes is not a "+
+			"preview", got)
+	}
+}
+
+// What a "group" multiplies, and where it multiplies nothing.
+//
+// The figure applies to the practical unit of the split — the laboratory, the exercise, and yes
+// the seminar of a module that is nothing else, because those do run in parallel groups. A module
+// that is nothing but a lecture has no such unit, and there the figure has to be without effect
+// rather than an error: a screen sending a uniform 2 for every row must not fail on it, and
+// parallel lectures are not what anybody means.
+func TestGroupsMultiplyThePracticalUnitAndNothingElse(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	seminar := moduleID(t, f.schema, storetest.FixtureModuleTwoSlots)
+	lectureOnly := moduleID(t, f.schema, storetest.FixtureModuleWithoutName)
+
+	if _, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme, []domain.DemandEntry{
+		planEntry(seminar, track("", 3)),
+		planEntry(lectureOnly, track("", 3)),
+	}, uuid.Nil, false); err != nil {
+		t.Fatalf("planning gave %v", err)
+	}
+
+	seminarParts := f.partsOf(t, seminar)
+	if len(seminarParts) != 3 {
+		t.Errorf("the seminar holds %d parts, want three parallel seminar groups",
+			len(seminarParts))
+	}
+	for _, p := range seminarParts {
+		if p.Kind != domain.PartKindSeminar {
+			t.Errorf("a seminar group came out as %s", p.Kind)
+		}
+	}
+
+	lectureParts := f.partsOf(t, lectureOnly)
+	if len(lectureParts) != 1 || lectureParts[0].Kind != domain.PartKindLecture {
+		t.Errorf("the lecture-only module holds %v, want one lecture — a number of groups has "+
+			"nothing to multiply there", kinds(lectureParts))
+	}
+}
+
+// A shared lecture serves the cohort that appears beside it, so the new one must not get a
+// lecture of its own — the same rule duplicating an instance follows, applied where a plan
+// creates one.
+func TestPlanningDoesNotGiveANewCohortAnAlreadySharedLecture(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	first := f.declare(t, "A")
+	second, err := f.demand.DuplicateCourseInstance(ctx, first.ID, "B", "", uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot declare the second cohort: %v", err)
+	}
+	if _, err := f.demand.ShareInstancePartAcrossTracks(ctx,
+		partOfKind(t, first, domain.PartKindLecture).ID); err != nil {
+		t.Fatalf("cannot share the lecture: %v", err)
+	}
+	if err := f.demand.DeleteCourseInstance(ctx, second.ID); err != nil {
+		t.Fatalf("cannot withdraw the second cohort: %v", err)
+	}
+
+	// And now a plan brings the second cohort back.
+	if _, err := f.demand.PlanDemand(ctx, f.semester.ID, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("A", 1), track("B", 1))},
+		uuid.Nil, false); err != nil {
+		t.Fatalf("planning gave %v", err)
+	}
+
+	instances := f.instances(t)
+	if len(instances) != 2 {
+		t.Fatalf("the module runs in %d cohorts, want 2", len(instances))
+	}
+	back := instances[1]
+	for _, p := range back.Parts {
+		if p.Kind == domain.PartKindLecture {
+			t.Errorf("the new cohort holds a lecture of its own while the sibling's is held for " +
+				"everybody — that is the same teaching counted twice")
+		}
+	}
+	if len(back.BorrowedParts) != 1 {
+		t.Errorf("the new cohort borrows %d part(s), want the shared lecture",
+			len(back.BorrowedParts))
+	}
 }

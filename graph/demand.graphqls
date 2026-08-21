@@ -200,8 +200,9 @@ input DeclareCourseInstanceInput {
   """
   The module, by id.
 
-  It must have a split — `Module.components` — because the instance's parts are made from it.
-  Without one the answer is `MODULE_NOT_DECOMPOSED`, and the repair is `setModuleComponents`.
+  The instance's parts are made from the module's split, or — while nobody has stated one — from
+  `Module.proposedComponents`. Only a module the catalogue states no hours for has neither, and
+  that answers `MODULE_NOT_DECOMPOSED`; the repair is `setModuleComponents`.
   """
   moduleId: ID!
   """
@@ -217,6 +218,119 @@ input DeclareCourseInstanceInput {
   the module may be taken in, across every version of them.
   """
   programmeSemester: Int
+}
+
+"""
+One cohort of a module, on the way in: a letter and a number of parallel groups.
+"""
+input DemandTrackInput {
+  """
+  The cohort letter — the A in IF3A — or empty for a module that runs once.
+
+  Upper-cased and trimmed for you. One to three characters.
+  """
+  track: String! = ""
+  """
+  How many parallel groups of the practical unit this cohort runs — laboratories, exercises, or
+  the seminar of a module that is nothing else.
+
+  A module that is nothing but a lecture has no such unit, and there this figure has no effect
+  rather than being an error: a screen that sends the same number for every row must not fail on
+  the one it cannot apply to.
+  """
+  groups: Int! = 1
+}
+
+"""
+One row of a demand table: this module, in these cohorts.
+"""
+input DemandEntryInput {
+  "The module this row is about."
+  moduleId: ID!
+  """
+  The cohorts to offer. **An empty list is the row whose tick was taken away** and means the
+  module is not offered — its instances are withdrawn.
+
+  That is the whole difference between "leave it alone" and "withdraw it": a module the call does
+  not mention at all is untouched.
+  """
+  tracks: [DemandTrackInput!]! = []
+  """
+  The cohort year for every cohort of this module, or `null` to leave what is stored — and, for a
+  new instance, to take what the regulations say.
+  """
+  programmeSemester: Int
+}
+
+"""
+One thing a plan did, or would do.
+"""
+type DemandChange {
+  "The module this cohort offers."
+  moduleId: ID!
+  "The module's name, so a summary can be read without a second query."
+  moduleName: String!
+  "The cohort, after the change."
+  track: String!
+  """
+  Where a cohort was renamed rather than created: the letter it had before.
+
+  IF1 becoming IF1A when a second cohort appears beside it. The instance is the same one, which is
+  why its parts — and later the wishes on them — survive.
+  """
+  trackBefore: String
+  "Where the number of groups changed: what it was."
+  groupsBefore: Int
+  "Where the number of groups changed: what it is now."
+  groupsAfter: Int
+}
+
+"""
+One thing a plan could not do.
+"""
+type DemandRefusal {
+  "The module the refused cohort offers."
+  moduleId: ID!
+  "The module's name, so a summary can be read without a second query."
+  moduleName: String!
+  "The cohort the refusal is about."
+  track: String!
+  """
+  The machine-readable half: `INSTANCE_IN_USE`, `TRACK_TAKEN`, `MODULE_NOT_DECOMPOSED`.
+
+  A refusal costs exactly the cohort it is about; the rest of the plan is applied. That is why
+  they are reported rather than raised: one module that cannot be withdrawn must not undo fifteen
+  that could be declared.
+  """
+  code: String!
+  """
+  The sentence to show. `INSTANCE_IN_USE` deliberately says only that something hangs off the
+  instance — never what, never how many.
+  """
+  message: String!
+}
+
+"""
+What a save did, or — after a dry run — what it would do.
+"""
+type DemandPlanReport {
+  "True when nothing was written."
+  dryRun: Boolean!
+  "Cohorts that were declared."
+  created: [DemandChange!]!
+  "Cohorts that were withdrawn — the rows whose tick was taken away."
+  withdrawn: [DemandChange!]!
+  "Cohorts that were renamed, or whose number of groups changed."
+  changed: [DemandChange!]!
+  "What could not be done, one entry per cohort, with the rest of the plan applied."
+  refused: [DemandRefusal!]!
+  """
+  The demand of that programme afterwards — the whole list, so that one answer redraws the
+  screen. After a dry run it is what is there now, because that is what is there.
+  """
+  instances: [CourseInstance!]!
+  "The teaching those instances cost the faculty, summed. A shared lecture counts once."
+  teachingHours: Float!
 }
 
 extend type Query {
@@ -243,6 +357,45 @@ extend type Query {
 }
 
 extend type Mutation {
+
+  """
+  Plan a whole screen of demand at once: which modules are offered, in how many cohorts, with how
+  many groups in each.
+
+  # What it may touch
+
+  **Only the modules named in `entries`.** A module the call does not mention is not planned, not
+  unplanned, not touched. That is what makes it safe to plan from a filtered list: a screen
+  showing the compulsory modules of the third semester must never withdraw the electives it is not
+  showing.
+
+  # What it does
+
+  Per module, per cohort: a cohort that is wanted and missing is declared, one that is wanted and
+  there has its number of groups adjusted, and one that is no longer wanted is withdrawn. Where a
+  cohort is added beside an unlettered one, the existing instance is *renamed* rather than
+  replaced — IF1 becomes IF1A — so that its parts survive.
+
+  All of it in one transaction. A single cohort that cannot be withdrawn because something already
+  hangs off it is reported in `refused` and costs exactly that cohort.
+
+  # dryRun
+
+  Runs the same reconciliation and rolls it back, so the report is what a save would do rather
+  than a second computation that might disagree. It also records nothing about the semester: the
+  row that says a decision was taken comes into being with the decision, not with the preview.
+  """
+  planDemand(
+    "Four digits, a hyphen and SS or WS, for example `2027-SS`."
+    semester: String!
+    "The study programme whose demand this is, by its short code."
+    programme: String!
+    "One entry per module the caller is planning. Modules not named here are untouched."
+    entries: [DemandEntryInput!]!
+    "Report what would happen and write nothing."
+    dryRun: Boolean! = false
+  ): DemandPlanReport! @scope(area: PLANNING, verb: WRITE)
+
   """
   Declare that a study programme needs this module in this semester, for this cohort.
 
@@ -251,7 +404,8 @@ extend type Mutation {
   happen; a tool that refuses one moves it into a spreadsheet passed around by mail.
 
   The parts are made from the module's split, one per unit, each credited with the hours the
-  split states. A module with no split is refused with `MODULE_NOT_DECOMPOSED`.
+  split states — or from the proposal, where nobody has stated a split. A module the catalogue
+  gives no hours for is refused with `MODULE_NOT_DECOMPOSED`.
 
   Declaring the same cohort twice is `TRACK_TAKEN`.
   """

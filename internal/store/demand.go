@@ -227,6 +227,54 @@ func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.Cour
 // looks like — one built by the writer, one by the reader — and the two would drift on the first
 // field somebody adds to a query without adding it to the other.
 
+// effectiveComponents is what an instance's parts are made from: the split somebody stated, or
+// the proposal derived from the catalogue where nobody has.
+//
+// Read inside the caller's transaction, because "this module has no split" and "this module had
+// no split a moment ago" are different statements and only the first one is true when it is read
+// in the transaction that writes the parts.
+//
+// The fall back to a proposal is what makes a semester plannable in October rather than after
+// somebody has typed 500 splits. It is the same proposal the API shows and marks as a guess, so
+// an instance declared from it holds exactly the parts the screen promised. Only a module the
+// examination office states no hours for is left with nothing — twelve in the real catalogue,
+// and for those ErrModuleNotDecomposed still says what to repair.
+func effectiveComponents(ctx context.Context, q *Queries, moduleID uuid.UUID) ([]domain.ModuleComponent, error) {
+	rows, err := q.ModuleComponentsFor(ctx, []uuid.UUID{moduleID})
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the module's split: %w", err)
+	}
+	if len(rows) > 0 {
+		out := make([]domain.ModuleComponent, 0, len(rows))
+		for _, c := range rows {
+			out = append(out, domain.ModuleComponent{
+				ID:            c.ID,
+				Kind:          domain.InstancePartKind(c.Kind),
+				TeachingHours: numericFloat(c.TeachingHours),
+				Position:      int(c.Position),
+			})
+		}
+		return out, nil
+	}
+
+	module, err := q.ModuleByID(ctx, moduleID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrModuleNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the module: %w", err)
+	}
+
+	proposed := domain.Module{
+		CourseType:          domain.CourseType(module.CourseType),
+		ContactHoursPerWeek: intOrNil(module.ContactHoursPerWeek),
+	}.ProposedComponents()
+	if len(proposed) == 0 {
+		return nil, domain.ErrModuleNotDecomposed
+	}
+	return proposed, nil
+}
+
 // CreateCourseInstance declares an instance and makes its parts from the module's split.
 //
 // The precondition is checked inside the transaction, not before it: "this module has no split"
@@ -246,12 +294,9 @@ func (d *Demand) CreateCourseInstance(ctx context.Context, spec domain.NewCourse
 
 	q := New(tx)
 
-	components, err := q.ModuleComponentsFor(ctx, []uuid.UUID{spec.ModuleID})
+	components, err := effectiveComponents(ctx, q, spec.ModuleID)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read the module's split: %w", err)
-	}
-	if len(components) == 0 {
-		return nil, domain.ErrModuleNotDecomposed
+		return nil, err
 	}
 
 	programmeSemester := int32OrNil(spec.ProgrammeSemester)
@@ -286,14 +331,17 @@ func (d *Demand) CreateCourseInstance(ctx context.Context, spec domain.NewCourse
 	}
 
 	for i, c := range components {
+		// What a lecturer is credited with starts as what the split says and is editable
+		// afterwards — the two are different quantities that merely begin equal.
+		hours, err := numericFrom(c.TeachingHours)
+		if err != nil {
+			return nil, err
+		}
 		if _, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
-			CourseInstanceID: id,
-			Kind:             c.Kind,
-			Position:         int32(i),
-			// The split's hours, carried across as the numeric they already are. What a lecturer
-			// is credited with starts as what the module's split says and is editable afterwards
-			// — the two are different quantities that merely begin equal.
-			TeachingHours:       c.TeachingHours,
+			CourseInstanceID:    id,
+			Kind:                string(c.Kind),
+			Position:            int32(i),
+			TeachingHours:       hours,
 			ServesSiblingTracks: false,
 		}); err != nil {
 			return nil, fmt.Errorf("cannot create a part of the instance: %w", err)
@@ -706,7 +754,7 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 
 	q := New(tx)
 
-	sources, err := q.CourseInstancesToCopy(ctx, CourseInstancesToCopyParams{
+	sources, err := q.CourseInstancesOfProgramme(ctx, CourseInstancesOfProgrammeParams{
 		SemesterID:  from.ID,
 		ProgrammeID: programmeID,
 	})
@@ -819,4 +867,616 @@ func isForeignKeyViolation(err error) bool { return hasSQLState(err, "23503") }
 func hasSQLState(err error, code string) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == code
+}
+
+// PlanDemand reconciles a whole screen of demand against what is stored.
+//
+// # Why one call and not forty
+//
+// The faculty plans a semester as a table — one row per module, a tick, the cohorts, the groups.
+// Written as one mutation per tick it would be forty round trips that can half-succeed, and the
+// person watching would have no way to tell a refusal from a lost connection. Written as this, it
+// is one transaction and one report.
+//
+// # What it may touch
+//
+// Only the modules named in entries. That is the property the interface's filters rest on: a
+// screen showing the compulsory modules of the third semester must not withdraw the electives it
+// is not showing, and the safest way to guarantee that is to make silence mean nothing at all.
+//
+// # The order, and why it is that order
+//
+// Withdraw, then rename, then create. Cohort letters are unique per module, so a rename into a
+// letter that is about to be freed only works if the freeing happens first — and turning two
+// cohorts back into one is exactly that case.
+//
+// Renaming rather than withdraw-and-create is what keeps IF1 from losing its parts when a second
+// cohort appears beside it: the existing instance becomes IF1A, which is the same act
+// duplicateCourseInstance performs with sourceTrack.
+//
+// # dryRun
+//
+// Runs everything and rolls back. The preview is therefore not a second computation that might
+// disagree with the write — it is the write, not kept.
+func (d *Demand) PlanDemand(ctx context.Context, semesterID, programmeID uuid.UUID,
+	entries []domain.DemandEntry, by uuid.UUID, dryRun bool,
+) (domain.DemandPlan, error) {
+	plan := domain.DemandPlan{DryRun: dryRun}
+
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return plan, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	held, err := heldInstances(ctx, q, semesterID, programmeID)
+	if err != nil {
+		return plan, err
+	}
+
+	for _, entry := range entries {
+		if err := d.planModule(ctx, tx, &plan, planContext{
+			semesterID:  semesterID,
+			programmeID: programmeID,
+			by:          by,
+			entry:       entry,
+			held:        held[entry.ModuleID],
+		}); err != nil {
+			return plan, err
+		}
+	}
+
+	if dryRun {
+		// Deliberately not committed. Everything above ran against the real rows, including the
+		// refusals a foreign key produced, and none of it is kept.
+		if err := tx.Rollback(ctx); err != nil && !errors.Is(err, pgx.ErrTxClosed) {
+			return plan, fmt.Errorf("cannot roll back the dry run: %w", err)
+		}
+	} else if err := tx.Commit(ctx); err != nil {
+		return plan, fmt.Errorf("cannot commit: %w", err)
+	}
+
+	if err := d.nameModules(ctx, &plan); err != nil {
+		return plan, err
+	}
+	return plan, nil
+}
+
+// planContext is what planning one row needs, gathered so the signature stays readable.
+type planContext struct {
+	semesterID  uuid.UUID
+	programmeID uuid.UUID
+	by          uuid.UUID
+	entry       domain.DemandEntry
+	held        []*heldInstance
+}
+
+// heldInstance is one cohort as it currently stands, with the parts it holds.
+type heldInstance struct {
+	id                uuid.UUID
+	moduleID          uuid.UUID
+	track             string
+	programmeSemester *int32
+	parts             []InstancePartsForRow
+}
+
+// heldInstances reads the demand of one programme in one semester, with the parts.
+//
+// A nil semester is a semester nobody has recorded anything about, which holds nothing — the
+// state a dry run against an untouched semester runs in, and the reason it does not have to
+// create the row first.
+func heldInstances(ctx context.Context, q *Queries, semesterID, programmeID uuid.UUID) (map[uuid.UUID][]*heldInstance, error) {
+	byModule := map[uuid.UUID][]*heldInstance{}
+	if semesterID == uuid.Nil {
+		return byModule, nil
+	}
+
+	rows, err := q.CourseInstancesOfProgramme(ctx, CourseInstancesOfProgrammeParams{
+		SemesterID:  semesterID,
+		ProgrammeID: programmeID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the demand: %w", err)
+	}
+	if len(rows) == 0 {
+		return byModule, nil
+	}
+
+	ids := make([]uuid.UUID, 0, len(rows))
+	byID := make(map[uuid.UUID]*heldInstance, len(rows))
+	for _, row := range rows {
+		instance := &heldInstance{
+			id:                row.ID,
+			moduleID:          row.ModuleID,
+			track:             row.Track,
+			programmeSemester: row.ProgrammeSemester,
+		}
+		ids = append(ids, row.ID)
+		byID[row.ID] = instance
+		byModule[row.ModuleID] = append(byModule[row.ModuleID], instance)
+	}
+
+	parts, err := q.InstancePartsFor(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the instance parts: %w", err)
+	}
+	for _, p := range parts {
+		if instance, ok := byID[p.CourseInstanceID]; ok {
+			instance.parts = append(instance.parts, p)
+		}
+	}
+	return byModule, nil
+}
+
+// planModule reconciles the cohorts of one module.
+func (d *Demand) planModule(ctx context.Context, tx pgx.Tx, plan *domain.DemandPlan, pc planContext) error {
+	q := New(tx)
+	wanted := pc.entry.Tracks
+	held := pc.held
+
+	// Nothing wanted and nothing held is the ordinary case for most rows of a screen: a module
+	// that is not offered and was not offered. It costs no query at all.
+	if len(wanted) == 0 && len(held) == 0 {
+		return nil
+	}
+
+	matched := make([]*heldInstance, len(wanted))
+	used := make([]bool, len(held))
+
+	// The letters that already agree keep their instance, whatever else moves.
+	for w := range wanted {
+		for h := range held {
+			if !used[h] && held[h].track == wanted[w].Track {
+				matched[w] = held[h]
+				used[h] = true
+				break
+			}
+		}
+	}
+
+	var spare []*heldInstance
+	for h := range held {
+		if !used[h] {
+			spare = append(spare, held[h])
+		}
+	}
+	var open []int
+	for w := range wanted {
+		if matched[w] == nil {
+			open = append(open, w)
+		}
+	}
+
+	// Withdraw first: a rename into a letter that is being freed needs the freeing to have
+	// happened. From the back, so that the cohort that goes is the last one.
+	for len(spare) > len(open) {
+		last := spare[len(spare)-1]
+		spare = spare[:len(spare)-1]
+
+		if err := d.withdraw(ctx, tx, plan, last); err != nil {
+			return err
+		}
+	}
+
+	// Then rename what is left over into the letters still open.
+	for i, instance := range spare {
+		w := open[i]
+		if err := d.rename(ctx, tx, plan, instance, wanted[w]); err != nil {
+			return err
+		}
+		matched[w] = instance
+	}
+	open = open[len(spare):]
+
+	// Then create what is still missing.
+	shared := sharedKindsOf(held)
+	fresh := map[uuid.UUID]bool{}
+	for _, w := range open {
+		instance, err := d.createForPlan(ctx, tx, plan, pc, wanted[w], shared)
+		if err != nil {
+			return err
+		}
+		if instance != nil {
+			fresh[instance.id] = true
+		}
+		matched[w] = instance
+	}
+
+	// And finally bring every cohort to the number of groups the row asks for.
+	for w, instance := range matched {
+		if instance == nil {
+			continue
+		}
+		// A cohort that was just declared reports itself as created and nothing else. Its groups
+		// are part of declaring it, and "2 declared, 1 changed" for two acts is a summary that
+		// makes somebody count on their fingers.
+		if err := d.adjustGroups(ctx, tx, plan, instance, wanted[w].Groups, fresh[instance.id]); err != nil {
+			return err
+		}
+		if err := d.applyProgrammeSemester(ctx, q, instance, pc.entry.ProgrammeSemester); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// sharedKindsOf collects the kinds a sibling cohort already holds for everybody.
+//
+// A new cohort of a module whose lecture is already shared must not get a lecture of its own: the
+// shared one serves it, and a second would be the same teaching counted twice. Same rule as
+// duplicateCourseInstance's, applied where a cohort is created rather than copied.
+func sharedKindsOf(held []*heldInstance) map[string]bool {
+	kinds := map[string]bool{}
+	for _, instance := range held {
+		for _, p := range instance.parts {
+			if p.ServesSiblingTracks {
+				kinds[p.Kind] = true
+			}
+		}
+	}
+	return kinds
+}
+
+func (d *Demand) withdraw(ctx context.Context, tx pgx.Tx, plan *domain.DemandPlan, instance *heldInstance) error {
+	// A savepoint — pgx opens one for a transaction begun inside a transaction — because a
+	// foreign key that refuses this one withdrawal would otherwise abort the whole transaction,
+	// and the rest of the screen with it. One cohort that is spoken for must cost exactly that
+	// cohort.
+	sub, err := tx.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("cannot open a savepoint: %w", err)
+	}
+
+	rows, err := New(sub).DeleteCourseInstance(ctx, instance.id)
+	switch {
+	case isForeignKeyViolation(err):
+		_ = sub.Rollback(ctx)
+		plan.Refused = append(plan.Refused, domain.DemandRefusal{
+			ModuleID: instance.moduleID,
+			Track:    instance.track,
+			Code:     "INSTANCE_IN_USE",
+			Reason:   domain.ErrInstanceInUse.Error(),
+		})
+		return nil
+	case err != nil:
+		_ = sub.Rollback(ctx)
+		return fmt.Errorf("cannot withdraw the instance: %w", err)
+	case rows == 0:
+		_ = sub.Rollback(ctx)
+		return nil
+	}
+
+	if err := sub.Commit(ctx); err != nil {
+		return fmt.Errorf("cannot release the savepoint: %w", err)
+	}
+	plan.Withdrawn = append(plan.Withdrawn, domain.DemandChange{
+		ModuleID: instance.moduleID,
+		Track:    instance.track,
+	})
+	return nil
+}
+
+func (d *Demand) rename(ctx context.Context, tx pgx.Tx, plan *domain.DemandPlan,
+	instance *heldInstance, want domain.DemandTrack,
+) error {
+	if instance.track == want.Track {
+		return nil
+	}
+
+	sub, err := tx.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("cannot open a savepoint: %w", err)
+	}
+
+	err = New(sub).UpdateCourseInstance(ctx, UpdateCourseInstanceParams{
+		ID:                instance.id,
+		Track:             want.Track,
+		ProgrammeSemester: instance.programmeSemester,
+	})
+	if err != nil {
+		_ = sub.Rollback(ctx)
+		if isUniqueViolation(err) {
+			plan.Refused = append(plan.Refused, domain.DemandRefusal{
+				ModuleID: instance.moduleID,
+				Track:    want.Track,
+				Code:     "TRACK_TAKEN",
+				Reason:   domain.ErrTrackTaken.Error(),
+			})
+			return nil
+		}
+		return fmt.Errorf("cannot rename the cohort: %w", err)
+	}
+	if err := sub.Commit(ctx); err != nil {
+		return fmt.Errorf("cannot release the savepoint: %w", err)
+	}
+
+	before := instance.track
+	plan.Changed = append(plan.Changed, domain.DemandChange{
+		ModuleID:    instance.moduleID,
+		Track:       want.Track,
+		TrackBefore: &before,
+	})
+	instance.track = want.Track
+	return nil
+}
+
+func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.DemandPlan,
+	pc planContext, want domain.DemandTrack, shared map[string]bool,
+) (*heldInstance, error) {
+	q := New(tx)
+
+	components, err := effectiveComponents(ctx, q, pc.entry.ModuleID)
+	if err != nil {
+		if errors.Is(err, domain.ErrModuleNotDecomposed) {
+			plan.Refused = append(plan.Refused, domain.DemandRefusal{
+				ModuleID: pc.entry.ModuleID,
+				Track:    want.Track,
+				Code:     "MODULE_NOT_DECOMPOSED",
+				Reason:   domain.ErrModuleNotDecomposed.Error(),
+			})
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	programmeSemester := int32OrNil(pc.entry.ProgrammeSemester)
+	if programmeSemester == nil {
+		seeded, err := q.SeedProgrammeSemester(ctx, SeedProgrammeSemesterParams{
+			ModuleID:    pc.entry.ModuleID,
+			ProgrammeID: pc.programmeID,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("cannot read the cohort year from the regulations: %w", err)
+		}
+		if seeded > 0 {
+			programmeSemester = &seeded
+		}
+	}
+
+	id, err := q.InsertCourseInstance(ctx, InsertCourseInstanceParams{
+		SemesterID:        pc.semesterID,
+		ModuleID:          pc.entry.ModuleID,
+		ProgrammeID:       pc.programmeID,
+		Track:             want.Track,
+		ProgrammeSemester: programmeSemester,
+		CreatedBy:         nullUUID(nonNilUUID(pc.by)),
+	})
+	if isUniqueViolation(err) {
+		plan.Refused = append(plan.Refused, domain.DemandRefusal{
+			ModuleID: pc.entry.ModuleID,
+			Track:    want.Track,
+			Code:     "TRACK_TAKEN",
+			Reason:   domain.ErrTrackTaken.Error(),
+		})
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot declare the instance: %w", err)
+	}
+
+	instance := &heldInstance{
+		id:                id,
+		moduleID:          pc.entry.ModuleID,
+		track:             want.Track,
+		programmeSemester: programmeSemester,
+	}
+
+	position := int32(0)
+	for _, c := range components {
+		if shared[string(c.Kind)] {
+			// A sibling already holds this one for everybody.
+			continue
+		}
+		hours, err := numericFrom(c.TeachingHours)
+		if err != nil {
+			return nil, err
+		}
+		partID, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
+			CourseInstanceID:    id,
+			Kind:                string(c.Kind),
+			Position:            position,
+			TeachingHours:       hours,
+			ServesSiblingTracks: false,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("cannot create a part of the instance: %w", err)
+		}
+		instance.parts = append(instance.parts, InstancePartsForRow{
+			ID:               partID,
+			CourseInstanceID: id,
+			Kind:             string(c.Kind),
+			Position:         position,
+			TeachingHours:    hours,
+		})
+		position++
+	}
+
+	plan.Created = append(plan.Created, domain.DemandChange{
+		ModuleID: pc.entry.ModuleID,
+		Track:    want.Track,
+	})
+	return instance, nil
+}
+
+// adjustGroups brings one cohort to the number of parallel groups the row asks for.
+//
+// Groups are parts of the practical kind — the laboratory of a lecture-plus-laboratory module,
+// the exercise of a lecture-plus-exercise one. A module that is nothing but a lecture has no such
+// kind, and the figure is then without effect: parallel lectures are not what anybody means by
+// "groups" here.
+func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.DemandPlan,
+	instance *heldInstance, want int, justCreated bool,
+) error {
+	q := New(tx)
+
+	components, err := effectiveComponents(ctx, q, instance.moduleID)
+	if err != nil {
+		// A module with nothing to make parts from was already reported where it was created;
+		// an existing cohort of one simply keeps what it has.
+		if errors.Is(err, domain.ErrModuleNotDecomposed) {
+			return nil
+		}
+		return err
+	}
+
+	kind, hours, ok := domain.PracticalKindOf(components)
+	if !ok {
+		return nil
+	}
+
+	var groups []InstancePartsForRow
+	for _, p := range instance.parts {
+		if p.Kind == string(kind) && !p.ServesSiblingTracks {
+			groups = append(groups, p)
+		}
+	}
+	before := len(groups)
+	if before == want {
+		return nil
+	}
+
+	for len(groups) < want {
+		numeric, err := numericFrom(hours)
+		if err != nil {
+			return err
+		}
+		position, err := q.NextInstancePartPosition(ctx, instance.id)
+		if err != nil {
+			return fmt.Errorf("cannot find the end of the list: %w", err)
+		}
+		partID, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
+			CourseInstanceID:    instance.id,
+			Kind:                string(kind),
+			Position:            position,
+			TeachingHours:       numeric,
+			ServesSiblingTracks: false,
+		})
+		if err != nil {
+			return fmt.Errorf("cannot add a group: %w", err)
+		}
+		added := InstancePartsForRow{
+			ID: partID, CourseInstanceID: instance.id, Kind: string(kind),
+			Position: position, TeachingHours: numeric,
+		}
+		groups = append(groups, added)
+		instance.parts = append(instance.parts, added)
+	}
+
+	for len(groups) > want {
+		last := groups[len(groups)-1]
+
+		// Savepoint again, and for the same reason: a group somebody has already registered
+		// interest in costs that group and not the screen.
+		sub, err := tx.Begin(ctx)
+		if err != nil {
+			return fmt.Errorf("cannot open a savepoint: %w", err)
+		}
+		_, err = New(sub).DeleteInstancePart(ctx, last.ID)
+		if err != nil {
+			_ = sub.Rollback(ctx)
+			if isForeignKeyViolation(err) {
+				plan.Refused = append(plan.Refused, domain.DemandRefusal{
+					ModuleID: instance.moduleID,
+					Track:    instance.track,
+					Code:     "INSTANCE_IN_USE",
+					Reason:   domain.ErrInstanceInUse.Error(),
+				})
+				break
+			}
+			return fmt.Errorf("cannot remove a group: %w", err)
+		}
+		if err := sub.Commit(ctx); err != nil {
+			return fmt.Errorf("cannot release the savepoint: %w", err)
+		}
+		groups = groups[:len(groups)-1]
+	}
+
+	if after := len(groups); after != before && !justCreated {
+		from, to := before, after
+		plan.Changed = append(plan.Changed, domain.DemandChange{
+			ModuleID:     instance.moduleID,
+			Track:        instance.track,
+			GroupsBefore: &from,
+			GroupsAfter:  &to,
+		})
+	}
+	return nil
+}
+
+// applyProgrammeSemester writes the cohort year where the row states one.
+//
+// Not reported as a change of its own: it is a property of the row the person is looking at
+// rather than something that happens to the plan, and a summary line about it would be noise in
+// front of the two that matter.
+func (d *Demand) applyProgrammeSemester(ctx context.Context, q *Queries, instance *heldInstance, year *int) error {
+	if year == nil {
+		return nil
+	}
+	wanted := int32OrNil(year)
+	if instance.programmeSemester != nil && *instance.programmeSemester == *wanted {
+		return nil
+	}
+
+	if err := q.UpdateCourseInstance(ctx, UpdateCourseInstanceParams{
+		ID:                instance.id,
+		Track:             instance.track,
+		ProgrammeSemester: wanted,
+	}); err != nil {
+		return fmt.Errorf("cannot set the cohort year: %w", err)
+	}
+	instance.programmeSemester = wanted
+	return nil
+}
+
+// nameModules fills in the module names the report shows.
+//
+// After the transaction and in one statement: the report is read by a person, and a list of uuids
+// is not something anybody can check against what they just did.
+func (d *Demand) nameModules(ctx context.Context, plan *domain.DemandPlan) error {
+	ids := make([]uuid.UUID, 0, len(plan.Created)+len(plan.Withdrawn)+len(plan.Changed)+len(plan.Refused))
+	collect := func(id uuid.UUID) {
+		if !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	for _, c := range plan.Created {
+		collect(c.ModuleID)
+	}
+	for _, c := range plan.Withdrawn {
+		collect(c.ModuleID)
+	}
+	for _, c := range plan.Changed {
+		collect(c.ModuleID)
+	}
+	for _, r := range plan.Refused {
+		collect(r.ModuleID)
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	modules, err := d.modules.ModulesByID(ctx, ids)
+	if err != nil {
+		return err
+	}
+	names := make(map[uuid.UUID]string, len(modules))
+	for _, m := range modules {
+		names[m.ID] = m.Name
+	}
+
+	for i := range plan.Created {
+		plan.Created[i].ModuleName = names[plan.Created[i].ModuleID]
+	}
+	for i := range plan.Withdrawn {
+		plan.Withdrawn[i].ModuleName = names[plan.Withdrawn[i].ModuleID]
+	}
+	for i := range plan.Changed {
+		plan.Changed[i].ModuleName = names[plan.Changed[i].ModuleID]
+	}
+	for i := range plan.Refused {
+		plan.Refused[i].ModuleName = names[plan.Refused[i].ModuleID]
+	}
+	return nil
 }

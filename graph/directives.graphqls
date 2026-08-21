@@ -107,7 +107,7 @@ enum ScopeArea {
   `setModuleComponents`, `declareCourseInstance`, `duplicateCourseInstance`,
   `changeCourseInstance`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
-  `copyDemandFromSemester`.
+  `copyDemandFromSemester`, `planDemand`.
   """
   PLANNING
 

@@ -29,8 +29,9 @@ type demandFixture struct {
 	handler http.Handler
 	// module is the ordinary module, split into a lecture and a laboratory.
 	module uuid.UUID
-	// undivided is a module nobody has stated a split for.
-	undivided uuid.UUID
+	// withoutHours is the module the examination office states no hours for — the one an
+	// instance still cannot be declared for.
+	withoutHours uuid.UUID
 }
 
 // demandHandler seeds people and their programme assignments, projects the catalogue, states a
@@ -82,8 +83,8 @@ func demandHandler(t *testing.T, scoped map[string][]string, people ...grants) d
 	fixture := demandFixture{
 		module: read(`SELECT id FROM module WHERE zpa_module_ref = $1`,
 			storetest.FixtureModuleOrdinary),
-		undivided: read(`SELECT id FROM module WHERE zpa_module_ref = $1`,
-			storetest.FixtureModuleDutyDiffers),
+		withoutHours: read(`SELECT id FROM module WHERE zpa_module_ref = $1`,
+			storetest.FixtureModuleWithoutHours),
 	}
 
 	if _, err := modules.SetModuleComponents(t.Context(), fixture.module, []domain.ModuleComponent{
@@ -275,9 +276,10 @@ func TestTheDeansOfficeDeclaresForEveryProgramme(t *testing.T) {
 		})
 }
 
-// The precondition, as the caller meets it: a module whose hours nobody has split cannot be
-// offered, and the code says which repair is needed.
-func TestAModuleWithoutASplitIsRefusedByName(t *testing.T) {
+// What is left of the precondition: a module the examination office states no hours for. A
+// module whose split nobody has stated is declared from the proposal — the estimate is good
+// enough to plan with — but zero hours cannot be divided into anything.
+func TestAModuleWithoutHoursIsRefusedByName(t *testing.T) {
 	t.Parallel()
 
 	f := demandHandler(t,
@@ -289,10 +291,10 @@ func TestAModuleWithoutASplitIsRefusedByName(t *testing.T) {
 			resp := c.Do(t, declareMutation, map[string]any{"in": map[string]any{
 				"semester":  "2027-SS",
 				"programme": storetest.FixtureProgrammeA,
-				"moduleId":  f.undivided.String(),
+				"moduleId":  f.withoutHours.String(),
 			}})
 			if code := errorCode(t, resp); code != "MODULE_NOT_DECOMPOSED" {
-				t.Errorf("a module with no split was refused with %s, want MODULE_NOT_DECOMPOSED",
+				t.Errorf("a module with no hours was refused with %s, want MODULE_NOT_DECOMPOSED",
 					code)
 			}
 		})
@@ -620,4 +622,201 @@ func TestTheDemandRefusesASemesterNobodyCanPlan(t *testing.T) {
 				}
 			}
 		})
+}
+
+const planMutation = `mutation($s: String!, $p: String!, $e: [DemandEntryInput!]!, $d: Boolean!) {
+	planDemand(semester: $s, programme: $p, entries: $e, dryRun: $d) {
+		dryRun teachingHours
+		created { moduleName track }
+		withdrawn { moduleName track }
+		changed { moduleName track trackBefore groupsBefore groupsAfter }
+		refused { moduleName track code message }
+		instances { track parts { kind } }
+	}
+}`
+
+// planReport is the half of the report the tests assert about.
+type planReport struct {
+	PlanDemand struct {
+		DryRun        bool
+		TeachingHours float64
+		Created       []struct{ ModuleName, Track string }
+		Withdrawn     []struct{ ModuleName, Track string }
+		Changed       []struct {
+			ModuleName   string
+			Track        string
+			TrackBefore  *string
+			GroupsBefore *int
+			GroupsAfter  *int
+		}
+		Refused []struct {
+			ModuleName, Track, Code, Message string
+		}
+		Instances []struct {
+			Track string
+			Parts []struct{ Kind string }
+		}
+	}
+}
+
+// The screen as one call, through both doors: tick a module, give it two cohorts with different
+// numbers of groups, then take the tick away again.
+func TestPlanningAWholeScreenThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			// A semester per door: the two runs share a database, and the identity of an
+			// instance is what stops the same cohort being declared twice.
+			semester := "2027-SS"
+			if c.Door() == graphqltest.Token {
+				semester = "2027-WS"
+			}
+			// The empty list is built explicitly: a nil slice travels as JSON null, and the
+			// schema refuses that on purpose. "No cohorts" is a statement somebody makes, and
+			// it has to look different from a field that was left out.
+			entry := func(tracks ...map[string]any) map[string]any {
+				list := make([]map[string]any, 0, len(tracks))
+				list = append(list, tracks...)
+				return map[string]any{"moduleId": f.module.String(), "tracks": list}
+			}
+			plan := func(dryRun bool, entries ...map[string]any) planReport {
+				t.Helper()
+				var out planReport
+				c.MustQuery(t, planMutation, map[string]any{
+					"s": semester, "p": storetest.FixtureProgrammeA, "e": entries, "d": dryRun,
+				}, &out)
+				return out
+			}
+
+			// One cohort, two laboratory groups: a lecture and two groups is six hours of
+			// teaching for a four-hour module.
+			out := plan(false, entry(map[string]any{"track": "", "groups": 2}))
+			if len(out.PlanDemand.Created) != 1 {
+				t.Fatalf("the first save reports %+v, want one cohort created", out.PlanDemand)
+			}
+			if out.PlanDemand.TeachingHours != 6 {
+				t.Errorf("the demand costs %v hours, want 6", out.PlanDemand.TeachingHours)
+			}
+
+			// A second cohort with a different number of groups — the case a single figure per
+			// module cannot express.
+			out = plan(false,
+				entry(map[string]any{"track": "A", "groups": 3},
+					map[string]any{"track": "B", "groups": 2}))
+			if len(out.PlanDemand.Created) != 1 {
+				t.Errorf("adding a cohort reports %+v created, want one", out.PlanDemand.Created)
+			}
+			var renamed bool
+			for _, ch := range out.PlanDemand.Changed {
+				if ch.TrackBefore != nil && *ch.TrackBefore == "" && ch.Track == "A" {
+					renamed = true
+				}
+			}
+			if !renamed {
+				t.Errorf("the first cohort was not reported as renamed: %+v", out.PlanDemand.Changed)
+			}
+			if len(out.PlanDemand.Instances) != 2 {
+				t.Fatalf("the module runs in %d cohorts, want 2", len(out.PlanDemand.Instances))
+			}
+			if len(out.PlanDemand.Instances[0].Parts) != 4 ||
+				len(out.PlanDemand.Instances[1].Parts) != 3 {
+				t.Errorf("the cohorts hold %d and %d parts, want four and three — three groups "+
+					"in one and two in the other", len(out.PlanDemand.Instances[0].Parts),
+					len(out.PlanDemand.Instances[1].Parts))
+			}
+
+			// The tick taken away, previewed first.
+			dry := plan(true, entry())
+			if !dry.PlanDemand.DryRun || len(dry.PlanDemand.Withdrawn) != 2 {
+				t.Fatalf("the dry run reports %+v, want both cohorts withdrawn", dry.PlanDemand)
+			}
+			if len(dry.PlanDemand.Instances) != 2 {
+				t.Errorf("the dry run changed the demand: %d instances left",
+					len(dry.PlanDemand.Instances))
+			}
+
+			out = plan(false, entry())
+			if len(out.PlanDemand.Withdrawn) != 2 || len(out.PlanDemand.Instances) != 0 {
+				t.Errorf("the save reports %+v, want both cohorts gone", out.PlanDemand)
+			}
+			if out.PlanDemand.TeachingHours != 0 {
+				t.Errorf("the emptied semester costs %v hours", out.PlanDemand.TeachingHours)
+			}
+		})
+}
+
+// Planning is a write, and it is scoped like every other one — through both doors, and without
+// saying anything about the database on the way out.
+func TestPlanningIsRefusedForAnotherProgramme(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			resp := c.Do(t, planMutation, map[string]any{
+				"s": "2027-SS",
+				"p": storetest.FixtureProgrammeB,
+				"e": []map[string]any{{
+					"moduleId": f.module.String(),
+					"tracks":   []map[string]any{{"track": "", "groups": 1}},
+				}},
+				"d": false,
+			})
+			if code := errorCode(t, resp); code != "NOT_YOUR_PROGRAMME" {
+				t.Errorf("planning another programme answered %s, want NOT_YOUR_PROGRAMME", code)
+			}
+			for _, message := range resp.Messages() {
+				graphqltest.AssertNoLeak(t, message,
+					append(graphqltest.DatabaseNoise(), "course_instance", "instance_part")...)
+			}
+		})
+}
+
+// A module the call does not mention is not planned, not unplanned, not touched. It is the
+// property every filter on the demand screen rests on.
+func TestPlanningLeavesTheModulesItDoesNotNameAlone(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
+
+	c := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+
+	var out planReport
+	c.MustQuery(t, planMutation, map[string]any{
+		"s": "2028-SS", "p": storetest.FixtureProgrammeA, "d": false,
+		"e": []map[string]any{
+			{"moduleId": f.module.String(), "tracks": []map[string]any{{"track": "", "groups": 1}}},
+			{"moduleId": f.withoutHours.String(), "tracks": []map[string]any{{"track": "", "groups": 1}}},
+		},
+	}, &out)
+
+	// The module the catalogue states no hours for is refused by name, and the other one is
+	// declared anyway — one refusal costs one row.
+	if len(out.PlanDemand.Created) != 1 {
+		t.Errorf("the save created %+v, want the one module that can be planned",
+			out.PlanDemand.Created)
+	}
+	if len(out.PlanDemand.Refused) != 1 || out.PlanDemand.Refused[0].Code != "MODULE_NOT_DECOMPOSED" {
+		t.Fatalf("the report refuses %+v, want the module with no hours", out.PlanDemand.Refused)
+	}
+
+	// A second save that names neither of them leaves both exactly as they are.
+	c.MustQuery(t, planMutation, map[string]any{
+		"s": "2028-SS", "p": storetest.FixtureProgrammeA, "d": false,
+		"e": []map[string]any{},
+	}, &out)
+	if len(out.PlanDemand.Instances) != 1 || len(out.PlanDemand.Withdrawn) != 0 {
+		t.Errorf("a plan naming no modules reports %+v — silence has to mean nothing at all",
+			out.PlanDemand)
+	}
 }

@@ -53,6 +53,11 @@ type ComplexityRoot struct {
 		Version func(childComplexity int) int
 	}
 
+	ComponentProposal struct {
+		Kind          func(childComplexity int) int
+		TeachingHours func(childComplexity int) int
+	}
+
 	CopyDemandReport struct {
 		Created      func(childComplexity int) int
 		From         func(childComplexity int) int
@@ -82,6 +87,33 @@ type ComplexityRoot struct {
 		Token  func(childComplexity int) int
 	}
 
+	DemandChange struct {
+		GroupsAfter  func(childComplexity int) int
+		GroupsBefore func(childComplexity int) int
+		ModuleID     func(childComplexity int) int
+		ModuleName   func(childComplexity int) int
+		Track        func(childComplexity int) int
+		TrackBefore  func(childComplexity int) int
+	}
+
+	DemandPlanReport struct {
+		Changed       func(childComplexity int) int
+		Created       func(childComplexity int) int
+		DryRun        func(childComplexity int) int
+		Instances     func(childComplexity int) int
+		Refused       func(childComplexity int) int
+		TeachingHours func(childComplexity int) int
+		Withdrawn     func(childComplexity int) int
+	}
+
+	DemandRefusal struct {
+		Code       func(childComplexity int) int
+		Message    func(childComplexity int) int
+		ModuleID   func(childComplexity int) int
+		ModuleName func(childComplexity int) int
+		Track      func(childComplexity int) int
+	}
+
 	InstancePart struct {
 		ID                 func(childComplexity int) int
 		Kind               func(childComplexity int) int
@@ -105,8 +137,13 @@ type ComplexityRoot struct {
 		Name                func(childComplexity int) int
 		Offerings           func(childComplexity int) int
 		Official            func(childComplexity int) int
+		Plannable           func(childComplexity int) int
+		PracticalKind       func(childComplexity int) int
+		ProgrammeSemester   func(childComplexity int, programme string) int
+		ProposedComponents  func(childComplexity int) int
 		Responsible         func(childComplexity int) int
 		RetiredAt           func(childComplexity int) int
+		SplitIsEstimated    func(childComplexity int) int
 		ZpaID               func(childComplexity int) int
 	}
 
@@ -135,6 +172,7 @@ type ComplexityRoot struct {
 		CreatePersonalAccessToken     func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput) int
 		DeclareCourseInstance         func(childComplexity int, input model.DeclareCourseInstanceInput) int
 		DuplicateCourseInstance       func(childComplexity int, id string, track string, sourceTrack *string) int
+		PlanDemand                    func(childComplexity int, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) int
 		ProjectZpaCatalogue           func(childComplexity int) int
 		PublishWishes                 func(childComplexity int, code string) int
 		RemoveInstancePart            func(childComplexity int, id string) int
@@ -376,6 +414,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.BuildInfo.Version(childComplexity), true
 
+	case "ComponentProposal.kind":
+		if e.ComplexityRoot.ComponentProposal.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ComponentProposal.Kind(childComplexity), true
+	case "ComponentProposal.teachingHours":
+		if e.ComplexityRoot.ComponentProposal.TeachingHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ComponentProposal.TeachingHours(childComplexity), true
+
 	case "CopyDemandReport.created":
 		if e.ComplexityRoot.CopyDemandReport.Created == nil {
 			break
@@ -498,6 +549,117 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CreatedPersonalAccessToken.Token(childComplexity), true
+
+	case "DemandChange.groupsAfter":
+		if e.ComplexityRoot.DemandChange.GroupsAfter == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandChange.GroupsAfter(childComplexity), true
+	case "DemandChange.groupsBefore":
+		if e.ComplexityRoot.DemandChange.GroupsBefore == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandChange.GroupsBefore(childComplexity), true
+	case "DemandChange.moduleId":
+		if e.ComplexityRoot.DemandChange.ModuleID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandChange.ModuleID(childComplexity), true
+	case "DemandChange.moduleName":
+		if e.ComplexityRoot.DemandChange.ModuleName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandChange.ModuleName(childComplexity), true
+	case "DemandChange.track":
+		if e.ComplexityRoot.DemandChange.Track == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandChange.Track(childComplexity), true
+	case "DemandChange.trackBefore":
+		if e.ComplexityRoot.DemandChange.TrackBefore == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandChange.TrackBefore(childComplexity), true
+
+	case "DemandPlanReport.changed":
+		if e.ComplexityRoot.DemandPlanReport.Changed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandPlanReport.Changed(childComplexity), true
+	case "DemandPlanReport.created":
+		if e.ComplexityRoot.DemandPlanReport.Created == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandPlanReport.Created(childComplexity), true
+	case "DemandPlanReport.dryRun":
+		if e.ComplexityRoot.DemandPlanReport.DryRun == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandPlanReport.DryRun(childComplexity), true
+	case "DemandPlanReport.instances":
+		if e.ComplexityRoot.DemandPlanReport.Instances == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandPlanReport.Instances(childComplexity), true
+	case "DemandPlanReport.refused":
+		if e.ComplexityRoot.DemandPlanReport.Refused == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandPlanReport.Refused(childComplexity), true
+	case "DemandPlanReport.teachingHours":
+		if e.ComplexityRoot.DemandPlanReport.TeachingHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandPlanReport.TeachingHours(childComplexity), true
+	case "DemandPlanReport.withdrawn":
+		if e.ComplexityRoot.DemandPlanReport.Withdrawn == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandPlanReport.Withdrawn(childComplexity), true
+
+	case "DemandRefusal.code":
+		if e.ComplexityRoot.DemandRefusal.Code == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandRefusal.Code(childComplexity), true
+	case "DemandRefusal.message":
+		if e.ComplexityRoot.DemandRefusal.Message == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandRefusal.Message(childComplexity), true
+	case "DemandRefusal.moduleId":
+		if e.ComplexityRoot.DemandRefusal.ModuleID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandRefusal.ModuleID(childComplexity), true
+	case "DemandRefusal.moduleName":
+		if e.ComplexityRoot.DemandRefusal.ModuleName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandRefusal.ModuleName(childComplexity), true
+	case "DemandRefusal.track":
+		if e.ComplexityRoot.DemandRefusal.Track == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandRefusal.Track(childComplexity), true
 
 	case "InstancePart.id":
 		if e.ComplexityRoot.InstancePart.ID == nil {
@@ -624,6 +786,35 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.Official(childComplexity), true
+	case "Module.plannable":
+		if e.ComplexityRoot.Module.Plannable == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Plannable(childComplexity), true
+	case "Module.practicalKind":
+		if e.ComplexityRoot.Module.PracticalKind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.PracticalKind(childComplexity), true
+	case "Module.programmeSemester":
+		if e.ComplexityRoot.Module.ProgrammeSemester == nil {
+			break
+		}
+
+		args, err := ec.field_Module_programmeSemester_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Module.ProgrammeSemester(childComplexity, args["programme"].(string)), true
+	case "Module.proposedComponents":
+		if e.ComplexityRoot.Module.ProposedComponents == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.ProposedComponents(childComplexity), true
 	case "Module.responsible":
 		if e.ComplexityRoot.Module.Responsible == nil {
 			break
@@ -636,6 +827,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.RetiredAt(childComplexity), true
+	case "Module.splitIsEstimated":
+		if e.ComplexityRoot.Module.SplitIsEstimated == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.SplitIsEstimated(childComplexity), true
 	case "Module.zpaId":
 		if e.ComplexityRoot.Module.ZpaID == nil {
 			break
@@ -798,6 +995,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DuplicateCourseInstance(childComplexity, args["id"].(string), args["track"].(string), args["sourceTrack"].(*string)), true
+	case "Mutation.planDemand":
+		if e.ComplexityRoot.Mutation.PlanDemand == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_planDemand_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.PlanDemand(childComplexity, args["semester"].(string), args["programme"].(string), args["entries"].([]*model.DemandEntryInput), args["dryRun"].(bool)), true
 	case "Mutation.projectZpaCatalogue":
 		if e.ComplexityRoot.Mutation.ProjectZpaCatalogue == nil {
 			break
@@ -1686,6 +1894,8 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputDeclareCourseInstanceInput,
+		ec.unmarshalInputDemandEntryInput,
+		ec.unmarshalInputDemandTrackInput,
 		ec.unmarshalInputModuleComponentInput,
 		ec.unmarshalInputModuleFilter,
 		ec.unmarshalInputScopeGrantInput,
@@ -2232,8 +2442,9 @@ type Module {
 
   **Empty means nobody has stated it yet**, and that is a normal state rather than an error: the
   examination office publishes one total and no split, so this is the faculty's own knowledge.
-  An instance cannot be declared for a module whose split is empty, because the parts of the
-  instance are made from these.
+  While it is empty, ` + "`" + `proposedComponents` + "`" + ` stands in — an instance declared for such a module is
+  made from the proposal and marked as resting on a guess. Only a module the catalogue states no
+  hours for has neither, and that one cannot be declared at all.
   """
   components: [ModuleComponent!]!
   "The sum of the components, or ` + "`" + `null` + "`" + ` while there are none. Compare with ` + "`" + `contactHoursPerWeek` + "`" + `."
@@ -2267,6 +2478,63 @@ type Module {
     "The programme's short code."
     programme: String!
   ): Boolean!
+  """
+  How this module's hours would divide if nobody stated it — the software's own guess.
+
+  Derived from the course type and the total on every read, and **never stored**: the laboratory
+  or exercise is two hours, the unit a group is actually taught in, and the lecture takes the
+  rest. That gives the lecture an even number of hours, which is what the faculty's own planning
+  is made of — a six-hour module is four plus two, never three plus three.
+
+  Empty for a module the catalogue gives no hours for. Confirming a proposal is
+  ` + "`" + `setModuleComponents` + "`" + ` with exactly these values.
+  """
+  proposedComponents: [ComponentProposal!]!
+  """
+  Whether what this module is currently planned with is a guess.
+
+  True while ` + "`" + `components` + "`" + ` is empty and a proposal exists. It is the mark an interface puts on the
+  row, and the reason it is not simply "components is empty": a module the catalogue states no
+  hours for has neither, and a warning on that row would point at nothing to confirm.
+  """
+  splitIsEstimated: Boolean!
+  """
+  Which kind of part a number of parallel groups multiplies.
+
+  The first unit of the split that is not the lecture: the laboratory of a lecture-plus-laboratory
+  module, the exercise of a lecture-plus-exercise one, and the seminar of a module that is nothing
+  else — those do run in parallel groups. ` + "`" + `null` + "`" + ` for a module that is only a lecture, where a
+  number of groups has nothing to multiply.
+
+  Here so that an interface offering a "how many groups" control asks the same question
+  ` + "`" + `planDemand` + "`" + ` answers with, rather than deriving it a second time from the split.
+  """
+  practicalKind: InstancePartKind
+  """
+  Whether an instance can be declared for this module.
+
+  True as soon as there is something to make parts from — a stated split **or** a proposal. Only
+  the modules with no hours at all are left out, twelve in the real catalogue, and for those the
+  repair is to state the split by hand.
+
+  Answered here rather than worked out by each caller, because the same question is asked by the
+  picker that offers a module, by the refusal that turns one away, and by the transaction that
+  writes the parts.
+  """
+  plannable: Boolean!
+  """
+  The earliest programme semester a student may take this module in, in one programme — or ` + "`" + `null` + "`" + `
+  where its regulations do not say, which is nearly half the elective catalogue.
+
+  Folded over every version of that programme's regulations, taking the earliest. 23 of 1076
+  module/programme pairs disagree across versions, and the earliest is the one that puts the
+  module where somebody looking for it expects it — the same choice a new instance's cohort year
+  is seeded with.
+  """
+  programmeSemester(
+    "The programme's short code."
+    programme: String!
+  ): Int
 }
 
 """
@@ -2326,6 +2594,19 @@ type ModuleOffering {
 }
 
 """
+One unit of a split nobody has stated yet.
+
+Separate from ` + "`" + `ModuleComponent` + "`" + ` because it has no id: there is no row to point at, and there is
+nothing to edit. It is what the software would enter if asked, and it is shown as such.
+"""
+type ComponentProposal {
+  "What kind of teaching this unit would be."
+  kind: InstancePartKind!
+  "Hours per week for one unit of this kind."
+  teachingHours: Float!
+}
+
+"""
 Which modules to list.
 
 An input type rather than separate arguments, unlike ` + "`" + `people(search:, includeInactive:)` + "`" + `
@@ -2373,11 +2654,11 @@ input ModuleFilter {
   """
   responsible: ID
   """
-  Keep only modules whose hours have not been split into teachable units yet.
+  Keep only modules whose split nobody has confirmed yet — where ` + "`" + `splitIsEstimated` + "`" + ` is true.
 
-  The work list. A programme lead getting ready for a semester needs to know which of their
-  modules cannot be declared yet, and that is a bounded, finishable task rather than an open
-  form.
+  The work list. Planning works without it, because the proposal stands in; what this filter
+  finds is where the software is guessing and a person has not yet agreed. A bounded, finishable
+  task rather than an open form.
   """
   withoutComponents: Boolean = false
 }
@@ -2446,8 +2727,9 @@ extend type Mutation {
   office. Not for a lead in whose catalogue the module merely counts — the module is planned
   where it is at home, and two programmes editing one split would disagree in the database.
 
-  Passing an empty list clears the split, which makes the module undeclarable again. That is
-  allowed on purpose: a split entered wrongly should be removable by the person who entered it.
+  Passing an empty list clears the split, and the module falls back to ` + "`" + `proposedComponents` + "`" + ` —
+  marked as a guess again. That is allowed on purpose: a split entered wrongly should be
+  removable by the person who entered it, and doing so must not make the module unplannable.
   """
   setModuleComponents(
     moduleId: ID!
@@ -2658,8 +2940,9 @@ input DeclareCourseInstanceInput {
   """
   The module, by id.
 
-  It must have a split — ` + "`" + `Module.components` + "`" + ` — because the instance's parts are made from it.
-  Without one the answer is ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `, and the repair is ` + "`" + `setModuleComponents` + "`" + `.
+  The instance's parts are made from the module's split, or — while nobody has stated one — from
+  ` + "`" + `Module.proposedComponents` + "`" + `. Only a module the catalogue states no hours for has neither, and
+  that answers ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `; the repair is ` + "`" + `setModuleComponents` + "`" + `.
   """
   moduleId: ID!
   """
@@ -2675,6 +2958,119 @@ input DeclareCourseInstanceInput {
   the module may be taken in, across every version of them.
   """
   programmeSemester: Int
+}
+
+"""
+One cohort of a module, on the way in: a letter and a number of parallel groups.
+"""
+input DemandTrackInput {
+  """
+  The cohort letter — the A in IF3A — or empty for a module that runs once.
+
+  Upper-cased and trimmed for you. One to three characters.
+  """
+  track: String! = ""
+  """
+  How many parallel groups of the practical unit this cohort runs — laboratories, exercises, or
+  the seminar of a module that is nothing else.
+
+  A module that is nothing but a lecture has no such unit, and there this figure has no effect
+  rather than being an error: a screen that sends the same number for every row must not fail on
+  the one it cannot apply to.
+  """
+  groups: Int! = 1
+}
+
+"""
+One row of a demand table: this module, in these cohorts.
+"""
+input DemandEntryInput {
+  "The module this row is about."
+  moduleId: ID!
+  """
+  The cohorts to offer. **An empty list is the row whose tick was taken away** and means the
+  module is not offered — its instances are withdrawn.
+
+  That is the whole difference between "leave it alone" and "withdraw it": a module the call does
+  not mention at all is untouched.
+  """
+  tracks: [DemandTrackInput!]! = []
+  """
+  The cohort year for every cohort of this module, or ` + "`" + `null` + "`" + ` to leave what is stored — and, for a
+  new instance, to take what the regulations say.
+  """
+  programmeSemester: Int
+}
+
+"""
+One thing a plan did, or would do.
+"""
+type DemandChange {
+  "The module this cohort offers."
+  moduleId: ID!
+  "The module's name, so a summary can be read without a second query."
+  moduleName: String!
+  "The cohort, after the change."
+  track: String!
+  """
+  Where a cohort was renamed rather than created: the letter it had before.
+
+  IF1 becoming IF1A when a second cohort appears beside it. The instance is the same one, which is
+  why its parts — and later the wishes on them — survive.
+  """
+  trackBefore: String
+  "Where the number of groups changed: what it was."
+  groupsBefore: Int
+  "Where the number of groups changed: what it is now."
+  groupsAfter: Int
+}
+
+"""
+One thing a plan could not do.
+"""
+type DemandRefusal {
+  "The module the refused cohort offers."
+  moduleId: ID!
+  "The module's name, so a summary can be read without a second query."
+  moduleName: String!
+  "The cohort the refusal is about."
+  track: String!
+  """
+  The machine-readable half: ` + "`" + `INSTANCE_IN_USE` + "`" + `, ` + "`" + `TRACK_TAKEN` + "`" + `, ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `.
+
+  A refusal costs exactly the cohort it is about; the rest of the plan is applied. That is why
+  they are reported rather than raised: one module that cannot be withdrawn must not undo fifteen
+  that could be declared.
+  """
+  code: String!
+  """
+  The sentence to show. ` + "`" + `INSTANCE_IN_USE` + "`" + ` deliberately says only that something hangs off the
+  instance — never what, never how many.
+  """
+  message: String!
+}
+
+"""
+What a save did, or — after a dry run — what it would do.
+"""
+type DemandPlanReport {
+  "True when nothing was written."
+  dryRun: Boolean!
+  "Cohorts that were declared."
+  created: [DemandChange!]!
+  "Cohorts that were withdrawn — the rows whose tick was taken away."
+  withdrawn: [DemandChange!]!
+  "Cohorts that were renamed, or whose number of groups changed."
+  changed: [DemandChange!]!
+  "What could not be done, one entry per cohort, with the rest of the plan applied."
+  refused: [DemandRefusal!]!
+  """
+  The demand of that programme afterwards — the whole list, so that one answer redraws the
+  screen. After a dry run it is what is there now, because that is what is there.
+  """
+  instances: [CourseInstance!]!
+  "The teaching those instances cost the faculty, summed. A shared lecture counts once."
+  teachingHours: Float!
 }
 
 extend type Query {
@@ -2701,6 +3097,45 @@ extend type Query {
 }
 
 extend type Mutation {
+
+  """
+  Plan a whole screen of demand at once: which modules are offered, in how many cohorts, with how
+  many groups in each.
+
+  # What it may touch
+
+  **Only the modules named in ` + "`" + `entries` + "`" + `.** A module the call does not mention is not planned, not
+  unplanned, not touched. That is what makes it safe to plan from a filtered list: a screen
+  showing the compulsory modules of the third semester must never withdraw the electives it is not
+  showing.
+
+  # What it does
+
+  Per module, per cohort: a cohort that is wanted and missing is declared, one that is wanted and
+  there has its number of groups adjusted, and one that is no longer wanted is withdrawn. Where a
+  cohort is added beside an unlettered one, the existing instance is *renamed* rather than
+  replaced — IF1 becomes IF1A — so that its parts survive.
+
+  All of it in one transaction. A single cohort that cannot be withdrawn because something already
+  hangs off it is reported in ` + "`" + `refused` + "`" + ` and costs exactly that cohort.
+
+  # dryRun
+
+  Runs the same reconciliation and rolls it back, so the report is what a save would do rather
+  than a second computation that might disagree. It also records nothing about the semester: the
+  row that says a decision was taken comes into being with the decision, not with the preview.
+  """
+  planDemand(
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
+    semester: String!
+    "The study programme whose demand this is, by its short code."
+    programme: String!
+    "One entry per module the caller is planning. Modules not named here are untouched."
+    entries: [DemandEntryInput!]!
+    "Report what would happen and write nothing."
+    dryRun: Boolean! = false
+  ): DemandPlanReport! @scope(area: PLANNING, verb: WRITE)
+
   """
   Declare that a study programme needs this module in this semester, for this cohort.
 
@@ -2709,7 +3144,8 @@ extend type Mutation {
   happen; a tool that refuses one moves it into a spreadsheet passed around by mail.
 
   The parts are made from the module's split, one per unit, each credited with the hours the
-  split states. A module with no split is refused with ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `.
+  split states — or from the proposal, where nobody has stated a split. A module the catalogue
+  gives no hours for is refused with ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `.
 
   Declaring the same cohort twice is ` + "`" + `TRACK_TAKEN` + "`" + `.
   """
@@ -2933,7 +3369,7 @@ enum ScopeArea {
   ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
-  ` + "`" + `copyDemandFromSemester` + "`" + `.
+  ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `.
   """
   PLANNING
 
@@ -3874,6 +4310,16 @@ func (ec *executionContext) childFields_BuildInfo(ctx context.Context, field gra
 	return nil, fmt.Errorf("no field named %q was found under type BuildInfo", field.Name)
 }
 
+func (ec *executionContext) childFields_ComponentProposal(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "kind":
+		return ec.fieldContext_ComponentProposal_kind(ctx, field)
+	case "teachingHours":
+		return ec.fieldContext_ComponentProposal_teachingHours(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ComponentProposal", field.Name)
+}
+
 func (ec *executionContext) childFields_CopyDemandReport(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "from":
@@ -3932,6 +4378,60 @@ func (ec *executionContext) childFields_CreatedPersonalAccessToken(ctx context.C
 	return nil, fmt.Errorf("no field named %q was found under type CreatedPersonalAccessToken", field.Name)
 }
 
+func (ec *executionContext) childFields_DemandChange(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "moduleId":
+		return ec.fieldContext_DemandChange_moduleId(ctx, field)
+	case "moduleName":
+		return ec.fieldContext_DemandChange_moduleName(ctx, field)
+	case "track":
+		return ec.fieldContext_DemandChange_track(ctx, field)
+	case "trackBefore":
+		return ec.fieldContext_DemandChange_trackBefore(ctx, field)
+	case "groupsBefore":
+		return ec.fieldContext_DemandChange_groupsBefore(ctx, field)
+	case "groupsAfter":
+		return ec.fieldContext_DemandChange_groupsAfter(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DemandChange", field.Name)
+}
+
+func (ec *executionContext) childFields_DemandPlanReport(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "dryRun":
+		return ec.fieldContext_DemandPlanReport_dryRun(ctx, field)
+	case "created":
+		return ec.fieldContext_DemandPlanReport_created(ctx, field)
+	case "withdrawn":
+		return ec.fieldContext_DemandPlanReport_withdrawn(ctx, field)
+	case "changed":
+		return ec.fieldContext_DemandPlanReport_changed(ctx, field)
+	case "refused":
+		return ec.fieldContext_DemandPlanReport_refused(ctx, field)
+	case "instances":
+		return ec.fieldContext_DemandPlanReport_instances(ctx, field)
+	case "teachingHours":
+		return ec.fieldContext_DemandPlanReport_teachingHours(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DemandPlanReport", field.Name)
+}
+
+func (ec *executionContext) childFields_DemandRefusal(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "moduleId":
+		return ec.fieldContext_DemandRefusal_moduleId(ctx, field)
+	case "moduleName":
+		return ec.fieldContext_DemandRefusal_moduleName(ctx, field)
+	case "track":
+		return ec.fieldContext_DemandRefusal_track(ctx, field)
+	case "code":
+		return ec.fieldContext_DemandRefusal_code(ctx, field)
+	case "message":
+		return ec.fieldContext_DemandRefusal_message(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DemandRefusal", field.Name)
+}
+
 func (ec *executionContext) childFields_InstancePart(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "id":
@@ -3984,6 +4484,16 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_dutyStatus(ctx, field)
 	case "inCatalogue":
 		return ec.fieldContext_Module_inCatalogue(ctx, field)
+	case "proposedComponents":
+		return ec.fieldContext_Module_proposedComponents(ctx, field)
+	case "splitIsEstimated":
+		return ec.fieldContext_Module_splitIsEstimated(ctx, field)
+	case "practicalKind":
+		return ec.fieldContext_Module_practicalKind(ctx, field)
+	case "plannable":
+		return ec.fieldContext_Module_plannable(ctx, field)
+	case "programmeSemester":
+		return ec.fieldContext_Module_programmeSemester(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Module", field.Name)
 }

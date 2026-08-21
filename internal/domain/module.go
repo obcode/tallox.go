@@ -99,7 +99,7 @@ type Module struct {
 	// ZpaID is the examination office's identifier, for cross-referencing only.
 	ZpaID *int64
 	// Components is how the module's hours divide between teachable units. Empty means nobody
-	// has stated it, which is what stops an instance being declared.
+	// has stated it — see EffectiveComponents, which falls back to the proposal.
 	Components []ModuleComponent
 	// Offerings is where the module counts, across every programme and version.
 	Offerings []ModuleOffering
@@ -119,6 +119,99 @@ func (m Module) ComponentHours() (float64, bool) {
 		total += c.TeachingHours
 	}
 	return total, true
+}
+
+// ProposedComponents is the split this module would get if nobody stated one.
+//
+// Derived from the course type and the catalogue's total, on every read, and never written. See
+// CourseType.ProposedComponents for the rule and for why the lecture always gets an even number
+// of hours.
+func (m Module) ProposedComponents() []ModuleComponent {
+	hours := 0
+	if m.ContactHoursPerWeek != nil {
+		hours = *m.ContactHoursPerWeek
+	}
+	return m.CourseType.ProposedComponents(hours)
+}
+
+// EffectiveComponents is what to plan with: the stated split, or the proposal where there is none.
+//
+// The one place that decides which of the two applies. Two callers need it — the interface, which
+// renders it, and the declaration of an instance, which makes the parts from it — and if they
+// answered that question separately they would eventually answer it differently, on a screen that
+// shows one thing and a database that holds another.
+func (m Module) EffectiveComponents() []ModuleComponent {
+	if len(m.Components) > 0 {
+		return m.Components
+	}
+	return m.ProposedComponents()
+}
+
+// SplitIsEstimated reports whether what EffectiveComponents returns is a guess.
+//
+// The flag the interface marks a row with. It is deliberately not "the module has no components":
+// a module the catalogue gives no hours for has neither a split nor a proposal, and calling that
+// an estimate would put a warning triangle on a row where there is nothing to confirm.
+func (m Module) SplitIsEstimated() bool {
+	return len(m.Components) == 0 && len(m.ProposedComponents()) > 0
+}
+
+// Plannable reports whether an instance can be declared for this module.
+//
+// True as soon as there is something to make parts from — a stated split or a proposal. Only the
+// modules the examination office gives no hours at all are left out, twelve of them in the real
+// catalogue, and for those the repair is to state the split by hand.
+//
+// Exposed rather than left to the caller to work out, because the same question is answered in
+// three places that must agree: the picker that offers a module, the refusal that turns one away,
+// and the transaction that writes the parts.
+func (m Module) Plannable() bool {
+	return len(m.EffectiveComponents()) > 0
+}
+
+// PracticalKind is the kind of part a "how many groups" figure multiplies.
+//
+// The first unit of the split that is not the lecture: the laboratory of a lecture-plus-laboratory
+// module, the exercise of a lecture-plus-exercise one, and the seminar itself where a module is
+// nothing but a seminar. A module that is only a lecture has none, and reports false — parallel
+// lectures are not what "groups" means to anybody here.
+func (m Module) PracticalKind() (InstancePartKind, bool) {
+	kind, _, ok := PracticalKindOf(m.EffectiveComponents())
+	return kind, ok
+}
+
+// PracticalKindOf is the same question asked of a split already in hand, and it also answers with
+// the hours one such unit carries.
+//
+// The store needs both when it adds a group: which kind of part, and how long it is.
+func PracticalKindOf(components []ModuleComponent) (InstancePartKind, float64, bool) {
+	for _, c := range components {
+		if c.Kind != PartKindLecture {
+			return c.Kind, c.TeachingHours, true
+		}
+	}
+	return "", 0, false
+}
+
+// ProgrammeSemester folds "the earliest semester a student may take this in" over one programme.
+//
+// The same fold the demand makes when it seeds a new instance, and the same choice of the
+// earliest: 23 of 1076 module/programme pairs disagree across versions of the regulations, and
+// the earliest is the one that puts the module where somebody looking for it expects it.
+//
+// Reports false where the regulations do not say, which is nearly half the elective catalogue —
+// there the answer is "no restriction" and not a number.
+func (m Module) ProgrammeSemester(programmeCode string) (int, bool) {
+	earliest := 0
+	for _, o := range m.Offerings {
+		if o.Spo.Programme.Code != programmeCode || o.MinProgrammeSemester == nil {
+			continue
+		}
+		if earliest == 0 || *o.MinProgrammeSemester < earliest {
+			earliest = *o.MinProgrammeSemester
+		}
+	}
+	return earliest, earliest > 0
 }
 
 // DutyStatus folds "compulsory or elective" over one programme's versions of its regulations.

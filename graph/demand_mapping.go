@@ -67,6 +67,47 @@ func copyReportModel(r domain.CopyReport) *model.CopyDemandReport {
 	return out
 }
 
+// demandPlanModel reshapes the report of a plan.
+func demandPlanModel(p domain.DemandPlan) *model.DemandPlanReport {
+	out := &model.DemandPlanReport{
+		DryRun:        p.DryRun,
+		Created:       demandChanges(p.Created),
+		Withdrawn:     demandChanges(p.Withdrawn),
+		Changed:       demandChanges(p.Changed),
+		Refused:       make([]*model.DemandRefusal, 0, len(p.Refused)),
+		Instances:     make([]*model.CourseInstance, 0, len(p.Instances)),
+		TeachingHours: p.TeachingHours,
+	}
+	for _, r := range p.Refused {
+		out.Refused = append(out.Refused, &model.DemandRefusal{
+			ModuleID:   r.ModuleID.String(),
+			ModuleName: r.ModuleName,
+			Track:      r.Track,
+			Code:       r.Code,
+			Message:    r.Reason,
+		})
+	}
+	for _, i := range p.Instances {
+		out.Instances = append(out.Instances, courseInstanceModel(i))
+	}
+	return out
+}
+
+func demandChanges(changes []domain.DemandChange) []*model.DemandChange {
+	out := make([]*model.DemandChange, 0, len(changes))
+	for _, c := range changes {
+		out = append(out, &model.DemandChange{
+			ModuleID:     c.ModuleID.String(),
+			ModuleName:   c.ModuleName,
+			Track:        c.Track,
+			TrackBefore:  c.TrackBefore,
+			GroupsBefore: c.GroupsBefore,
+			GroupsAfter:  c.GroupsAfter,
+		})
+	}
+	return out
+}
+
 // demandUserFacing turns a service refusal into an error the interface can branch on.
 //
 // The code is the contract; the German sentence is the part that gets reworded after a support
@@ -117,6 +158,12 @@ func demandUserFacing(actor principal.Actor, err error) error {
 		return refusal("PART_INVALID", err.Error())
 	case errors.Is(err, domain.ErrTooManyParts):
 		return refusal("TOO_MANY_PARTS", err.Error())
+	case errors.Is(err, domain.ErrTooManyTracks):
+		return refusal("TOO_MANY_TRACKS", err.Error())
+	case errors.Is(err, domain.ErrTooManyGroups):
+		return refusal("TOO_MANY_GROUPS", err.Error())
+	case errors.Is(err, domain.ErrDuplicateEntry):
+		return refusal("DUPLICATE_ENTRY", err.Error())
 	case errors.Is(err, domain.ErrNoSiblingTracks):
 		return refusal("NO_SIBLING_TRACKS", err.Error())
 	case errors.Is(err, domain.ErrNotSharedAcrossTracks):

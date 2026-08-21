@@ -26,15 +26,15 @@ var (
 	ErrInstanceNotFound = errors.New("diese Instanz gibt es nicht")
 	// ErrPartNotFound is an id that names no part of an instance.
 	ErrPartNotFound = errors.New("diesen Teil gibt es nicht")
-	// ErrModuleNotDecomposed is the precondition of the whole feature: a module whose hours
-	// nobody has split into teachable units cannot be offered, because the parts of the
-	// instance are made from that split.
+	// ErrModuleNotDecomposed is a module there is nothing to make parts from.
 	//
-	// Not a technical obstacle but the work list. "Your programme has fourteen modules without
-	// a split" is a bounded, finishable task, which is what the people declaring demand in
-	// October need instead of an open form.
+	// It used to mean "nobody has stated the split", which was most of the catalogue. Since the
+	// split can be proposed from the course type and the catalogue's total, it means the much
+	// smaller thing it says: the examination office states no hours at all, so there is no number
+	// to divide. Twelve real modules are in that state, and the repair is to enter the split by
+	// hand — which is why the sentence names it.
 	ErrModuleNotDecomposed = errors.New(
-		"für dieses Modul ist noch nicht eingetragen, wie sich die SWS aufteilen")
+		"für dieses Modul nennt der Modulkatalog keine SWS — bitte die Aufteilung von Hand eintragen")
 	// ErrTrackTaken is this exact instance already existing: same semester, module, programme
 	// and parallel cohort.
 	//
@@ -208,6 +208,105 @@ type CopyReport struct {
 	Instances []CourseInstance
 }
 
+// Planning a whole screen in one act.
+//
+// The demand of a study programme is read and written as a table — one row per module, a tick, a
+// number of cohorts, a number of groups in each — because that is how the faculty has always done
+// it. Everything below exists to make that one save a single, reconcilable statement rather than
+// forty small mutations that can half-succeed.
+
+// MaxTracksPerModule bounds the cohorts of one module in one semester.
+//
+// Eight, which is the alphabet the interface offers and four times the largest thing the faculty
+// runs. A guard against a number typed into a stepper by holding down a key, not a rule about
+// teaching.
+const MaxTracksPerModule = 8
+
+// MaxGroupsPerTrack bounds the parallel groups of one cohort.
+//
+// Twelve, against a real maximum of three. Same purpose as above, and the instance-wide limit
+// (MaxPartsPerInstance) still applies on top.
+const MaxGroupsPerTrack = 12
+
+// DemandTrack is one cohort of a module, as the table states it: a letter and a number of groups.
+type DemandTrack struct {
+	// Track is the cohort letter, empty for a module that runs once.
+	Track string
+	// Groups is how many parallel groups of the practical unit this cohort runs — the
+	// laboratory or the exercise. A module that is nothing but a lecture has none, and the
+	// figure is then without effect rather than an error.
+	Groups int
+}
+
+// DemandEntry is one row of the table: this module, in these cohorts.
+//
+// An entry with no tracks is the row whose tick was taken away, and it means "not offered". That
+// is the whole of the difference between "leave it alone" and "withdraw it": a module the caller
+// says nothing about at all is untouched.
+type DemandEntry struct {
+	ModuleID uuid.UUID
+	Tracks   []DemandTrack
+	// ProgrammeSemester is the cohort year for every cohort of this module, or nil to leave what
+	// is there — and, for a new instance, to take what the regulations say.
+	ProgrammeSemester *int
+}
+
+// DemandChange is one thing a plan did, or would do.
+type DemandChange struct {
+	ModuleID   uuid.UUID
+	ModuleName string
+	// Track after the change.
+	Track string
+	// TrackBefore is set where a cohort was renamed rather than created — IF1 becoming IF1A when
+	// a second cohort appears beside it.
+	TrackBefore *string
+	// GroupsBefore and GroupsAfter are set where the number of groups changed.
+	GroupsBefore *int
+	GroupsAfter  *int
+}
+
+// DemandRefusal is one thing a plan could not do, and it names no reason beyond its code.
+type DemandRefusal struct {
+	ModuleID   uuid.UUID
+	ModuleName string
+	Track      string
+	// Code is the machine-readable half, e.g. INSTANCE_IN_USE.
+	Code string
+	// Reason is the sentence to show. It says what happened, never what is in the way — the
+	// first thing that will hang off an instance is a confidential wish.
+	Reason string
+}
+
+// DemandPlan is what a save did, or — with DryRun — what it would do.
+type DemandPlan struct {
+	// DryRun is true when nothing was written.
+	DryRun    bool
+	Created   []DemandChange
+	Withdrawn []DemandChange
+	Changed   []DemandChange
+	Refused   []DemandRefusal
+	// Instances is the demand afterwards, so that one answer redraws the screen. After a dry run
+	// it is what is there now, because that is what is there.
+	Instances []CourseInstance
+	// TeachingHours is the sum over those instances.
+	TeachingHours float64
+}
+
+// Empty reports whether a plan would change nothing at all.
+//
+// What the interface needs in order to skip a confirmation nobody has anything to confirm.
+func (p DemandPlan) Empty() bool {
+	return len(p.Created) == 0 && len(p.Withdrawn) == 0 && len(p.Changed) == 0
+}
+
+// Destructive reports whether a plan would take something away.
+//
+// The distinction the save hangs on: adding and adjusting happen on one click, withdrawing is
+// shown first and confirmed. A tick that is taken away is a statement, and it deserves a sentence
+// before it is acted on — the more so from the wish phase onwards, when somebody's entry may be
+// behind it.
+func (p DemandPlan) Destructive() bool { return len(p.Withdrawn) > 0 }
+
 // DemandStore is the persistence the demand service needs, and nothing more.
 type DemandStore interface {
 	// CourseInstances lists the demand, with parts, borrowed parts and modules attached.
@@ -250,4 +349,11 @@ type DemandStore interface {
 	// CopyDemand declares in `to` what `from` holds for one programme, in one transaction.
 	// Instances already declared in the target are left untouched and counted as skipped.
 	CopyDemand(ctx context.Context, from, to Semester, programmeID, by uuid.UUID) (CopyCounts, error)
+	// PlanDemand reconciles a whole screen against what is stored, in one transaction.
+	//
+	// Only the modules named in entries are touched. With dryRun the same reconciliation runs
+	// and is rolled back, so that what the interface shows and what the save does cannot be two
+	// different computations.
+	PlanDemand(ctx context.Context, semesterID, programmeID uuid.UUID, entries []DemandEntry,
+		by uuid.UUID, dryRun bool) (DemandPlan, error)
 }

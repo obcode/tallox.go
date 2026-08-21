@@ -79,9 +79,9 @@ func TestProjectionIsIdempotent(t *testing.T) {
 	if programmes != 4 {
 		t.Errorf("%d programmes after two runs, want 4", programmes)
 	}
-	// Seven of the eight fixture modules. The eighth has no home programme.
-	if modules != 7 {
-		t.Errorf("%d modules after two runs, want 7", modules)
+	// Eight of the nine fixture modules. The ninth has no home programme.
+	if modules != 8 {
+		t.Errorf("%d modules after two runs, want 8", modules)
 	}
 	if offerings == 0 {
 		t.Fatal("no offerings at all")

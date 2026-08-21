@@ -297,8 +297,9 @@ type Module {
 
   **Empty means nobody has stated it yet**, and that is a normal state rather than an error: the
   examination office publishes one total and no split, so this is the faculty's own knowledge.
-  An instance cannot be declared for a module whose split is empty, because the parts of the
-  instance are made from these.
+  While it is empty, `proposedComponents` stands in — an instance declared for such a module is
+  made from the proposal and marked as resting on a guess. Only a module the catalogue states no
+  hours for has neither, and that one cannot be declared at all.
   """
   components: [ModuleComponent!]!
   "The sum of the components, or `null` while there are none. Compare with `contactHoursPerWeek`."
@@ -332,6 +333,63 @@ type Module {
     "The programme's short code."
     programme: String!
   ): Boolean!
+  """
+  How this module's hours would divide if nobody stated it — the software's own guess.
+
+  Derived from the course type and the total on every read, and **never stored**: the laboratory
+  or exercise is two hours, the unit a group is actually taught in, and the lecture takes the
+  rest. That gives the lecture an even number of hours, which is what the faculty's own planning
+  is made of — a six-hour module is four plus two, never three plus three.
+
+  Empty for a module the catalogue gives no hours for. Confirming a proposal is
+  `setModuleComponents` with exactly these values.
+  """
+  proposedComponents: [ComponentProposal!]!
+  """
+  Whether what this module is currently planned with is a guess.
+
+  True while `components` is empty and a proposal exists. It is the mark an interface puts on the
+  row, and the reason it is not simply "components is empty": a module the catalogue states no
+  hours for has neither, and a warning on that row would point at nothing to confirm.
+  """
+  splitIsEstimated: Boolean!
+  """
+  Which kind of part a number of parallel groups multiplies.
+
+  The first unit of the split that is not the lecture: the laboratory of a lecture-plus-laboratory
+  module, the exercise of a lecture-plus-exercise one, and the seminar of a module that is nothing
+  else — those do run in parallel groups. `null` for a module that is only a lecture, where a
+  number of groups has nothing to multiply.
+
+  Here so that an interface offering a "how many groups" control asks the same question
+  `planDemand` answers with, rather than deriving it a second time from the split.
+  """
+  practicalKind: InstancePartKind
+  """
+  Whether an instance can be declared for this module.
+
+  True as soon as there is something to make parts from — a stated split **or** a proposal. Only
+  the modules with no hours at all are left out, twelve in the real catalogue, and for those the
+  repair is to state the split by hand.
+
+  Answered here rather than worked out by each caller, because the same question is asked by the
+  picker that offers a module, by the refusal that turns one away, and by the transaction that
+  writes the parts.
+  """
+  plannable: Boolean!
+  """
+  The earliest programme semester a student may take this module in, in one programme — or `null`
+  where its regulations do not say, which is nearly half the elective catalogue.
+
+  Folded over every version of that programme's regulations, taking the earliest. 23 of 1076
+  module/programme pairs disagree across versions, and the earliest is the one that puts the
+  module where somebody looking for it expects it — the same choice a new instance's cohort year
+  is seeded with.
+  """
+  programmeSemester(
+    "The programme's short code."
+    programme: String!
+  ): Int
 }
 
 """
@@ -391,6 +449,19 @@ type ModuleOffering {
 }
 
 """
+One unit of a split nobody has stated yet.
+
+Separate from `ModuleComponent` because it has no id: there is no row to point at, and there is
+nothing to edit. It is what the software would enter if asked, and it is shown as such.
+"""
+type ComponentProposal {
+  "What kind of teaching this unit would be."
+  kind: InstancePartKind!
+  "Hours per week for one unit of this kind."
+  teachingHours: Float!
+}
+
+"""
 Which modules to list.
 
 An input type rather than separate arguments, unlike `people(search:, includeInactive:)`
@@ -438,11 +509,11 @@ input ModuleFilter {
   """
   responsible: ID
   """
-  Keep only modules whose hours have not been split into teachable units yet.
+  Keep only modules whose split nobody has confirmed yet — where `splitIsEstimated` is true.
 
-  The work list. A programme lead getting ready for a semester needs to know which of their
-  modules cannot be declared yet, and that is a bounded, finishable task rather than an open
-  form.
+  The work list. Planning works without it, because the proposal stands in; what this filter
+  finds is where the software is guessing and a person has not yet agreed. A bounded, finishable
+  task rather than an open form.
   """
   withoutComponents: Boolean = false
 }
@@ -511,8 +582,9 @@ extend type Mutation {
   office. Not for a lead in whose catalogue the module merely counts — the module is planned
   where it is at home, and two programmes editing one split would disagree in the database.
 
-  Passing an empty list clears the split, which makes the module undeclarable again. That is
-  allowed on purpose: a split entered wrongly should be removable by the person who entered it.
+  Passing an empty list clears the split, and the module falls back to `proposedComponents` —
+  marked as a guess again. That is allowed on purpose: a split entered wrongly should be
+  removable by the person who entered it, and doing so must not make the module unplannable.
   """
   setModuleComponents(
     moduleId: ID!

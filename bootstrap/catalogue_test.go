@@ -400,8 +400,9 @@ func TestARefusedSplitLeaksNothing(t *testing.T) {
 			testdata.Mails(testdata.Others(testdata.Eins))...)...)
 }
 
-// An empty split clears the module and makes it undeclarable again — allowed on purpose, so
-// that a split entered wrongly can be removed by the person who entered it.
+// An empty split clears the module and hands it back to the proposal — allowed on purpose, so
+// that a split entered wrongly can be removed by the person who entered it without making the
+// module unplannable.
 func TestAnEmptySplitClearsTheModule(t *testing.T) {
 	t.Parallel()
 
@@ -930,5 +931,151 @@ func TestTheTeacherListNeedsAnAccount(t *testing.T) {
 		Do(t, `{ teachers { name } }`, nil)
 	if len(resp.Errors) == 0 {
 		t.Fatal("an anonymous caller read the list of people who teach")
+	}
+}
+
+// The proposal, through both doors.
+//
+// It is not a convenience of the interface: an instance may be declared from it, so a script has
+// to be able to see the same guess the browser shows — and to see that it is one.
+func TestAModuleWithoutAStatedSplitCarriesAProposal(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil, grants{testdata.Eins, []string{"LECTURER"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct {
+				Modules []struct {
+					Name               string
+					SplitIsEstimated   bool
+					Plannable          bool
+					ProgrammeSemester  *int
+					Components         []struct{ Kind string }
+					ProposedComponents []struct {
+						Kind          string
+						TeachingHours float64
+					}
+				}
+			}
+			c.MustQuery(t, `query($p: String!) {
+				modules(filter: {programme: $p}) {
+					name splitIsEstimated plannable
+					programmeSemester(programme: $p)
+					components { kind }
+					proposedComponents { kind teachingHours }
+				}
+			}`, map[string]any{"p": storetest.FixtureProgrammeA}, &out)
+
+			byName := map[string]int{}
+			for i, m := range out.Modules {
+				byName[m.Name] = i
+			}
+
+			ordinary, ok := byName["Ordentliches Modul"]
+			if !ok {
+				t.Fatalf("the ordinary module is not in the list: %+v", out.Modules)
+			}
+			m := out.Modules[ordinary]
+
+			if len(m.Components) != 0 {
+				t.Fatalf("the fixture module has a stated split; this test is about the one that "+
+					"has none: %+v", m.Components)
+			}
+			if !m.SplitIsEstimated || !m.Plannable {
+				t.Errorf("estimated=%v plannable=%v, want both true — a four-hour module with a "+
+					"laboratory has a proposal, and an instance may be declared from it",
+					m.SplitIsEstimated, m.Plannable)
+			}
+			if len(m.ProposedComponents) != 2 ||
+				m.ProposedComponents[0].Kind != "LECTURE" || m.ProposedComponents[0].TeachingHours != 2 ||
+				m.ProposedComponents[1].Kind != "LAB" || m.ProposedComponents[1].TeachingHours != 2 {
+				t.Errorf("the proposal is %+v, want a two-hour lecture and a two-hour laboratory",
+					m.ProposedComponents)
+			}
+			if m.ProgrammeSemester == nil || *m.ProgrammeSemester != 1 {
+				t.Errorf("the earliest semester is %v, want 1", m.ProgrammeSemester)
+			}
+
+			// A module whose course type names one unit gets one part, not a lecture and a rest.
+			if seminar, ok := byName["Modul in zwei Körben"]; ok {
+				p := out.Modules[seminar].ProposedComponents
+				if len(p) != 1 || p[0].Kind != "SEMINAR" || p[0].TeachingHours != 2 {
+					t.Errorf("the seminar's proposal is %+v, want one two-hour seminar", p)
+				}
+			}
+
+			// The fold that matters: this module's two versions of the regulations disagree — the
+			// old one says the fourth semester, the new one the third — and the earliest wins.
+			if differs, ok := byName["Modul mit wechselnder Pflicht"]; ok {
+				got := out.Modules[differs].ProgrammeSemester
+				if got == nil || *got != 3 {
+					t.Errorf("the earliest semester of the module whose versions disagree is %v, "+
+						"want 3 — the earliest of the two", got)
+				}
+			}
+		})
+}
+
+// Confirming is one click, and it is what turns a guess into the faculty's own statement.
+func TestConfirmingAProposalMakesItAStatedSplit(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}})
+
+	c := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+
+	var before struct {
+		Module struct {
+			SplitIsEstimated   bool
+			ProposedComponents []struct {
+				Kind          string
+				TeachingHours float64
+			}
+		}
+	}
+	c.MustQuery(t, `query($m: ID!) {
+		module(id: $m) { splitIsEstimated proposedComponents { kind teachingHours } }
+	}`, map[string]any{"m": f.moduleOrdinary.String()}, &before)
+
+	if !before.Module.SplitIsEstimated {
+		t.Fatal("the module already carries a stated split")
+	}
+
+	components := make([]map[string]any, 0, len(before.Module.ProposedComponents))
+	for _, p := range before.Module.ProposedComponents {
+		components = append(components, map[string]any{
+			"kind": p.Kind, "teachingHours": p.TeachingHours,
+		})
+	}
+
+	var after struct {
+		SetModuleComponents struct {
+			SplitIsEstimated bool
+			ComponentHours   *float64
+			Components       []struct {
+				Kind          string
+				TeachingHours float64
+			}
+		}
+	}
+	c.MustQuery(t, `mutation($m: ID!, $c: [ModuleComponentInput!]!) {
+		setModuleComponents(moduleId: $m, components: $c) {
+			splitIsEstimated componentHours components { kind teachingHours }
+		}
+	}`, map[string]any{"m": f.moduleOrdinary.String(), "c": components}, &after)
+
+	got := after.SetModuleComponents
+	if got.SplitIsEstimated {
+		t.Error("the split is still reported as a guess after somebody confirmed it")
+	}
+	if len(got.Components) != 2 || got.Components[0].Kind != "LECTURE" {
+		t.Errorf("the stated split is %+v, want what the proposal said", got.Components)
+	}
+	if got.ComponentHours == nil || *got.ComponentHours != 4 {
+		t.Errorf("the confirmed split adds up to %v, want the 4 the catalogue states",
+			got.ComponentHours)
 	}
 }

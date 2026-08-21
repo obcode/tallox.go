@@ -18,6 +18,12 @@ var (
 	ErrProgrammeNotFound = errors.New("diesen Studiengang gibt es nicht")
 	// ErrProgrammeSemesterInvalid is a cohort year outside what a degree has.
 	ErrProgrammeSemesterInvalid = errors.New("das Fachsemester muss zwischen 1 und 12 liegen")
+	// ErrDuplicateEntry is the same module, or the same cohort of one, twice in one plan.
+	ErrDuplicateEntry = errors.New("jedes Modul und jeder Zug darf nur einmal vorkommen")
+	// ErrTooManyTracks is more parallel cohorts than the alphabet the interface offers.
+	ErrTooManyTracks = errors.New("so viele Züge kann ein Modul nicht haben")
+	// ErrTooManyGroups is more parallel groups than anybody runs.
+	ErrTooManyGroups = errors.New("so viele Gruppen kann ein Zug nicht haben")
 	// ErrPhaseClosed is the phase refusing a write.
 	//
 	// The sentence a person reads is policy.PhaseClosedReason — the refusal is produced by the
@@ -345,6 +351,130 @@ func (s *DemandService) CopyFrom(ctx context.Context, actor principal.Actor,
 	}
 	report.Instances = instances
 	return report, nil
+}
+
+// PlanDemand writes a whole screen of demand at once: which modules are offered, in how many
+// cohorts, with how many groups in each.
+//
+// # What it is for
+//
+// The faculty plans a semester as a table, and this is that table as one act. Everything the
+// interface can do row by row it can also do here, which is what makes "tick fifteen modules and
+// save" a single reconcilable statement instead of fifteen mutations that can half-succeed.
+//
+// # What it may touch
+//
+// Only the modules named in entries. A module the caller says nothing about is not planned, not
+// unplanned, not touched — because the screen this comes from has filters on it, and a save must
+// never withdraw what the person could not see.
+//
+// # dryRun
+//
+// Returns the same report without writing anything. The interface asks for one before a save
+// that would withdraw something, so that a tick taken away by accident is a sentence to read
+// rather than a row that is gone. A dry run also records nothing about the semester: the row that
+// says a decision was taken about it comes into being with the decision, not with the preview.
+func (s *DemandService) PlanDemand(ctx context.Context, actor principal.Actor,
+	semesterCode, programmeCode string, entries []DemandEntry, dryRun bool,
+) (DemandPlan, error) {
+	if err := mayRead(actor); err != nil {
+		return DemandPlan{}, err
+	}
+
+	programme, err := s.programme(ctx, programmeCode)
+	if err != nil {
+		return DemandPlan{}, err
+	}
+
+	semester, err := s.semesters.ByCode(ctx, actor, semesterCode)
+	if err != nil {
+		return DemandPlan{}, err
+	}
+
+	if err := s.mayWrite(actor, programme.ID, semester.Phase); err != nil {
+		return DemandPlan{}, err
+	}
+
+	entries, err = normaliseEntries(entries)
+	if err != nil {
+		return DemandPlan{}, err
+	}
+
+	// A dry run against a semester nobody has touched needs no row: there is nothing stored to
+	// reconcile against, so everything in it is new.
+	semesterID := semester.ID
+	if !semester.Recorded() && !dryRun {
+		recorded, err := s.semesters.ensure(ctx, semester.Code)
+		if err != nil {
+			return DemandPlan{}, err
+		}
+		semesterID = recorded.ID
+	}
+
+	plan, err := s.store.PlanDemand(ctx, semesterID, programme.ID, entries, actor.ID, dryRun)
+	if err != nil {
+		return plan, err
+	}
+
+	instances, err := s.store.CourseInstances(ctx, DemandFilter{
+		SemesterCode: semester.Code,
+		Programme:    programme.Code,
+	})
+	if err != nil {
+		return plan, err
+	}
+	plan.Instances = instances
+	for _, instance := range instances {
+		plan.TeachingHours += instance.TeachingHours()
+	}
+	return plan, nil
+}
+
+// normaliseEntries checks the shape of a plan and puts its cohort letters in the form the schema
+// holds.
+//
+// Everything here is about the request rather than about permission, and every refusal is one a
+// person could hit by holding a key down on a stepper. The rules that matter — who may write,
+// whether the module can be planned at all — are asked elsewhere and by the database.
+func normaliseEntries(entries []DemandEntry) ([]DemandEntry, error) {
+	out := make([]DemandEntry, 0, len(entries))
+	seenModule := make(map[uuid.UUID]bool, len(entries))
+
+	for _, entry := range entries {
+		if seenModule[entry.ModuleID] {
+			return nil, ErrDuplicateEntry
+		}
+		seenModule[entry.ModuleID] = true
+
+		if len(entry.Tracks) > MaxTracksPerModule {
+			return nil, ErrTooManyTracks
+		}
+		if err := validProgrammeSemester(entry.ProgrammeSemester); err != nil {
+			return nil, err
+		}
+
+		seenTrack := make(map[string]bool, len(entry.Tracks))
+		tracks := make([]DemandTrack, 0, len(entry.Tracks))
+		for _, t := range entry.Tracks {
+			track, err := normaliseTrack(t.Track)
+			if err != nil {
+				return nil, err
+			}
+			if seenTrack[track] {
+				return nil, ErrDuplicateEntry
+			}
+			seenTrack[track] = true
+
+			if t.Groups < 0 || t.Groups > MaxGroupsPerTrack {
+				return nil, ErrTooManyGroups
+			}
+			tracks = append(tracks, DemandTrack{Track: track, Groups: t.Groups})
+		}
+
+		entry.Tracks = tracks
+		out = append(out, entry)
+	}
+	return out, nil
 }
 
 // writable reads the instance a write is about and decides whether this actor may write it.

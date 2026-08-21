@@ -14,6 +14,42 @@ import (
 	"github.com/obcode/tallox.go/internal/principal"
 )
 
+// PlanDemand is the resolver for the planDemand field.
+func (r *mutationResolver) PlanDemand(ctx context.Context, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) (*model.DemandPlanReport, error) {
+	actor := principal.From(ctx)
+
+	plan := make([]domain.DemandEntry, 0, len(entries))
+	for _, entry := range entries {
+		if entry == nil {
+			continue
+		}
+		moduleID, err := uuid.Parse(entry.ModuleID)
+		if err != nil {
+			return nil, badRequest("MODULE_NOT_FOUND", domain.ErrModuleNotFound.Error())
+		}
+
+		tracks := make([]domain.DemandTrack, 0, len(entry.Tracks))
+		for _, t := range entry.Tracks {
+			if t == nil {
+				continue
+			}
+			tracks = append(tracks, domain.DemandTrack{Track: t.Track, Groups: t.Groups})
+		}
+
+		plan = append(plan, domain.DemandEntry{
+			ModuleID:          moduleID,
+			Tracks:            tracks,
+			ProgrammeSemester: entry.ProgrammeSemester,
+		})
+	}
+
+	report, err := r.Demand.PlanDemand(ctx, actor, semester, programme, plan, dryRun)
+	if err != nil {
+		return nil, demandUserFacing(actor, err)
+	}
+	return demandPlanModel(report), nil
+}
+
 // DeclareCourseInstance is the resolver for the declareCourseInstance field.
 func (r *mutationResolver) DeclareCourseInstance(ctx context.Context, input model.DeclareCourseInstanceInput) (*model.CourseInstance, error) {
 	actor := principal.From(ctx)

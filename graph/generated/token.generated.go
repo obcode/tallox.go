@@ -28,6 +28,7 @@ type MutationResolver interface {
 	SetPersonActive(ctx context.Context, id string, active bool) (*model.Person, error)
 	SetPersonProgrammes(ctx context.Context, id string, programmes []string) (*model.Person, error)
 	SetModuleComponents(ctx context.Context, moduleID string, components []*model.ModuleComponentInput) (*model.Module, error)
+	PlanDemand(ctx context.Context, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) (*model.DemandPlanReport, error)
 	DeclareCourseInstance(ctx context.Context, input model.DeclareCourseInstanceInput) (*model.CourseInstance, error)
 	DuplicateCourseInstance(ctx context.Context, id string, track string, sourceTrack *string) (*model.CourseInstance, error)
 	ChangeCourseInstance(ctx context.Context, id string, track string, programmeSemester *int) (*model.CourseInstance, error)
@@ -283,6 +284,44 @@ func (ec *executionContext) field_Mutation_duplicateCourseInstance_args(ctx cont
 		return nil, err
 	}
 	args["sourceTrack"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_planDemand_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "semester",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["semester"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "programme",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["programme"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "entries",
+		func(ctx context.Context, v any) ([]*model.DemandEntryInput, error) {
+			return ec.unmarshalNDemandEntryInput2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandEntryInputᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["entries"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "dryRun",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["dryRun"] = arg3
 	return args, nil
 }
 
@@ -984,6 +1023,50 @@ func (ec *executionContext) fieldContext_Mutation_setModuleComponents(ctx contex
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setModuleComponents_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_planDemand(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_planDemand(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().PlanDemand(ctx, fc.Args["semester"].(string), fc.Args["programme"].(string), fc.Args["entries"].([]*model.DemandEntryInput), fc.Args["dryRun"].(bool))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DemandPlanReport) graphql.Marshaler {
+			return ec.marshalNDemandPlanReport2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandPlanReport(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_planDemand(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DemandPlanReport(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_planDemand_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1909,6 +1992,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setModuleComponents":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setModuleComponents(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "planDemand":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_planDemand(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

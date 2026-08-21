@@ -31,6 +31,47 @@ func (r *moduleResolver) InCatalogue(ctx context.Context, obj *model.Module, pro
 	return obj.Source.InCatalogue(normaliseCode(programme)), nil
 }
 
+// ProposedComponents is the resolver for the proposedComponents field.
+func (r *moduleResolver) ProposedComponents(ctx context.Context, obj *model.Module) ([]*model.ComponentProposal, error) {
+	proposals := obj.Source.ProposedComponents()
+
+	out := make([]*model.ComponentProposal, 0, len(proposals))
+	for _, c := range proposals {
+		out = append(out, &model.ComponentProposal{Kind: c.Kind, TeachingHours: c.TeachingHours})
+	}
+	return out, nil
+}
+
+// SplitIsEstimated is the resolver for the splitIsEstimated field.
+func (r *moduleResolver) SplitIsEstimated(ctx context.Context, obj *model.Module) (bool, error) {
+	return obj.Source.SplitIsEstimated(), nil
+}
+
+// PracticalKind is the resolver for the practicalKind field.
+func (r *moduleResolver) PracticalKind(ctx context.Context, obj *model.Module) (*domain.InstancePartKind, error) {
+	kind, ok := obj.Source.PracticalKind()
+	if !ok {
+		return nil, nil
+	}
+	return &kind, nil
+}
+
+// Plannable is the resolver for the plannable field.
+func (r *moduleResolver) Plannable(ctx context.Context, obj *model.Module) (bool, error) {
+	return obj.Source.Plannable(), nil
+}
+
+// ProgrammeSemester is the resolver for the programmeSemester field.
+func (r *moduleResolver) ProgrammeSemester(ctx context.Context, obj *model.Module, programme string) (*int, error) {
+	semester, ok := obj.Source.ProgrammeSemester(normaliseCode(programme))
+	if !ok {
+		// The regulations do not say, which for an elective means "no restriction" rather than
+		// a number — and is the state nearly half of them are in.
+		return nil, nil
+	}
+	return &semester, nil
+}
+
 // SetModuleComponents is the resolver for the setModuleComponents field.
 func (r *mutationResolver) SetModuleComponents(ctx context.Context, moduleID string, components []*model.ModuleComponentInput) (*model.Module, error) {
 	actor := principal.From(ctx)

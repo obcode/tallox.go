@@ -242,19 +242,63 @@ func ParseInstancePartKind(s string) (InstancePartKind, bool) {
 // ProposedComponents is the split this course type suggests, before anybody has stated the real
 // one.
 //
-// A proposal for a form, never a stored value: nothing writes these to module_component without
-// a person confirming them. The examination office publishes one total and no split, so any
-// division of it is a guess — an even one between the two named halves, which is what the
-// effort descriptions say wherever they say anything ("30 Präsenzstunden Vorlesung, 30
-// Präsenzstunden Praktikum").
+// # What it is for
+//
+// The examination office publishes one total and no split, so every division of it is a guess.
+// The guess is good enough to plan with — an instance declared from it holds the right number of
+// parts and very nearly the right hours — and it is marked as a guess everywhere it is shown, so
+// that confirming it stays a deliberate act. What it is never is a stored value: nothing writes
+// these to module_component without a person saying so, which is the property that makes that
+// table trustworthy.
+//
+// # The rule, and why the lecture is always even
+//
+// The laboratory or exercise is the small, fixed quantity — two hours, because that is the unit
+// a group is actually taught in — and the lecture takes the rest. Measured against the faculty's
+// own planning sheet for the winter of 2026/27, that is what the recurring shapes are: 44
+// compulsory modules with six hours and two groups (4+2), 28 with four and one group (2+2), 11
+// with eight and three groups (6+2), 14 with three hours (2+1).
+//
+// Expressed as "the largest even number at most hours-1", which produces exactly those and never
+// hands the lecture an odd figure — there is no such thing as a three-hour lecture here, and the
+// even split this function used to make produced one for every module with six.
+//
+// Where that would leave the lecture at zero — a two-hour module whose course type names two
+// halves — the proposal is a single part instead, because a part with no hours is not a part.
 //
 // hours is the module's total contact hours; zero or absent yields no proposal at all rather
-// than a row of zeroes, because twelve modules carry no hours and an empty form is a more
-// honest starting point than a wrong one.
-func (c CourseType) ProposedComponents(hours int) []InstancePartKind {
+// than a row of zeroes, because twelve modules carry no hours and an empty form is a more honest
+// starting point than a wrong one.
+//
+// The returned components carry no id: nobody has stated them, so there is no row to point at.
+func (c CourseType) ProposedComponents(hours int) []ModuleComponent {
 	if hours <= 0 {
 		return nil
 	}
+
+	kinds := c.proposedKinds()
+	if len(kinds) == 1 {
+		return []ModuleComponent{{Kind: kinds[0], TeachingHours: float64(hours), Position: 0}}
+	}
+
+	// The largest even number at most hours-1: 4 -> 2, 6 -> 4, 8 -> 6, 3 -> 2, 5 -> 4, 2 -> 0.
+	lecture := (hours - 1) / 2 * 2
+	if lecture <= 0 {
+		return []ModuleComponent{{Kind: kinds[0], TeachingHours: float64(hours), Position: 0}}
+	}
+
+	return []ModuleComponent{
+		{Kind: kinds[0], TeachingHours: float64(lecture), Position: 0},
+		{Kind: kinds[1], TeachingHours: float64(hours - lecture), Position: 1},
+	}
+}
+
+// proposedKinds is which teachable units this course type names, in the order a split is written.
+//
+// Separate from the arithmetic above so that "what does SU mit Praktikum consist of" and "how do
+// the hours divide" stay two questions. The first is a translation of the source's vocabulary;
+// the second is a judgement about teaching.
+func (c CourseType) proposedKinds() []InstancePartKind {
 	switch c {
 	case CourseTypeSUWithLab:
 		return []InstancePartKind{PartKindLecture, PartKindLab}

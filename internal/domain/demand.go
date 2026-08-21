@@ -26,15 +26,15 @@ var (
 	ErrInstanceNotFound = errors.New("diese Instanz gibt es nicht")
 	// ErrPartNotFound is an id that names no part of an instance.
 	ErrPartNotFound = errors.New("diesen Teil gibt es nicht")
-	// ErrModuleNotDecomposed is the precondition of the whole feature: a module whose hours
-	// nobody has split into teachable units cannot be offered, because the parts of the
-	// instance are made from that split.
+	// ErrModuleNotDecomposed is a module there is nothing to make parts from.
 	//
-	// Not a technical obstacle but the work list. "Your programme has fourteen modules without
-	// a split" is a bounded, finishable task, which is what the people declaring demand in
-	// October need instead of an open form.
+	// It used to mean "nobody has stated the split", which was most of the catalogue. Since the
+	// split can be proposed from the course type and the catalogue's total, it means the much
+	// smaller thing it says: the examination office states no hours at all, so there is no number
+	// to divide. Twelve real modules are in that state, and the repair is to enter the split by
+	// hand — which is why the sentence names it.
 	ErrModuleNotDecomposed = errors.New(
-		"für dieses Modul ist noch nicht eingetragen, wie sich die SWS aufteilen")
+		"für dieses Modul nennt der Modulkatalog keine SWS — bitte die Aufteilung von Hand eintragen")
 	// ErrTrackTaken is this exact instance already existing: same semester, module, programme
 	// and parallel cohort.
 	//

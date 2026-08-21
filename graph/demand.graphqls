@@ -200,8 +200,9 @@ input DeclareCourseInstanceInput {
   """
   The module, by id.
 
-  It must have a split — `Module.components` — because the instance's parts are made from it.
-  Without one the answer is `MODULE_NOT_DECOMPOSED`, and the repair is `setModuleComponents`.
+  The instance's parts are made from the module's split, or — while nobody has stated one — from
+  `Module.proposedComponents`. Only a module the catalogue states no hours for has neither, and
+  that answers `MODULE_NOT_DECOMPOSED`; the repair is `setModuleComponents`.
   """
   moduleId: ID!
   """
@@ -251,7 +252,8 @@ extend type Mutation {
   happen; a tool that refuses one moves it into a spreadsheet passed around by mail.
 
   The parts are made from the module's split, one per unit, each credited with the hours the
-  split states. A module with no split is refused with `MODULE_NOT_DECOMPOSED`.
+  split states — or from the proposal, where nobody has stated a split. A module the catalogue
+  gives no hours for is refused with `MODULE_NOT_DECOMPOSED`.
 
   Declaring the same cohort twice is `TRACK_TAKEN`.
   """

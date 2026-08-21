@@ -227,6 +227,54 @@ func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.Cour
 // looks like — one built by the writer, one by the reader — and the two would drift on the first
 // field somebody adds to a query without adding it to the other.
 
+// effectiveComponents is what an instance's parts are made from: the split somebody stated, or
+// the proposal derived from the catalogue where nobody has.
+//
+// Read inside the caller's transaction, because "this module has no split" and "this module had
+// no split a moment ago" are different statements and only the first one is true when it is read
+// in the transaction that writes the parts.
+//
+// The fall back to a proposal is what makes a semester plannable in October rather than after
+// somebody has typed 500 splits. It is the same proposal the API shows and marks as a guess, so
+// an instance declared from it holds exactly the parts the screen promised. Only a module the
+// examination office states no hours for is left with nothing — twelve in the real catalogue,
+// and for those ErrModuleNotDecomposed still says what to repair.
+func effectiveComponents(ctx context.Context, q *Queries, moduleID uuid.UUID) ([]domain.ModuleComponent, error) {
+	rows, err := q.ModuleComponentsFor(ctx, []uuid.UUID{moduleID})
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the module's split: %w", err)
+	}
+	if len(rows) > 0 {
+		out := make([]domain.ModuleComponent, 0, len(rows))
+		for _, c := range rows {
+			out = append(out, domain.ModuleComponent{
+				ID:            c.ID,
+				Kind:          domain.InstancePartKind(c.Kind),
+				TeachingHours: numericFloat(c.TeachingHours),
+				Position:      int(c.Position),
+			})
+		}
+		return out, nil
+	}
+
+	module, err := q.ModuleByID(ctx, moduleID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrModuleNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the module: %w", err)
+	}
+
+	proposed := domain.Module{
+		CourseType:          domain.CourseType(module.CourseType),
+		ContactHoursPerWeek: intOrNil(module.ContactHoursPerWeek),
+	}.ProposedComponents()
+	if len(proposed) == 0 {
+		return nil, domain.ErrModuleNotDecomposed
+	}
+	return proposed, nil
+}
+
 // CreateCourseInstance declares an instance and makes its parts from the module's split.
 //
 // The precondition is checked inside the transaction, not before it: "this module has no split"
@@ -246,12 +294,9 @@ func (d *Demand) CreateCourseInstance(ctx context.Context, spec domain.NewCourse
 
 	q := New(tx)
 
-	components, err := q.ModuleComponentsFor(ctx, []uuid.UUID{spec.ModuleID})
+	components, err := effectiveComponents(ctx, q, spec.ModuleID)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read the module's split: %w", err)
-	}
-	if len(components) == 0 {
-		return nil, domain.ErrModuleNotDecomposed
+		return nil, err
 	}
 
 	programmeSemester := int32OrNil(spec.ProgrammeSemester)
@@ -286,14 +331,17 @@ func (d *Demand) CreateCourseInstance(ctx context.Context, spec domain.NewCourse
 	}
 
 	for i, c := range components {
+		// What a lecturer is credited with starts as what the split says and is editable
+		// afterwards — the two are different quantities that merely begin equal.
+		hours, err := numericFrom(c.TeachingHours)
+		if err != nil {
+			return nil, err
+		}
 		if _, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
-			CourseInstanceID: id,
-			Kind:             c.Kind,
-			Position:         int32(i),
-			// The split's hours, carried across as the numeric they already are. What a lecturer
-			// is credited with starts as what the module's split says and is editable afterwards
-			// — the two are different quantities that merely begin equal.
-			TeachingHours:       c.TeachingHours,
+			CourseInstanceID:    id,
+			Kind:                string(c.Kind),
+			Position:            int32(i),
+			TeachingHours:       hours,
 			ServesSiblingTracks: false,
 		}); err != nil {
 			return nil, fmt.Errorf("cannot create a part of the instance: %w", err)

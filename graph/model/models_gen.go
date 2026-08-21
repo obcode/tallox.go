@@ -37,6 +37,17 @@ type BorrowedPart struct {
 	FromTrack string `json:"fromTrack"`
 }
 
+// One unit of a split nobody has stated yet.
+//
+// Separate from `ModuleComponent` because it has no id: there is no row to point at, and there is
+// nothing to edit. It is what the software would enter if asked, and it is shown as such.
+type ComponentProposal struct {
+	// What kind of teaching this unit would be.
+	Kind domain.InstancePartKind `json:"kind"`
+	// Hours per week for one unit of this kind.
+	TeachingHours float64 `json:"teachingHours"`
+}
+
 // What copying a semester's demand did.
 //
 // Reported even when nothing happened. A copy into a semester that already holds the same instances
@@ -168,8 +179,9 @@ type DeclareCourseInstanceInput struct {
 	Programme string `json:"programme"`
 	// The module, by id.
 	//
-	// It must have a split — `Module.components` — because the instance's parts are made from it.
-	// Without one the answer is `MODULE_NOT_DECOMPOSED`, and the repair is `setModuleComponents`.
+	// The instance's parts are made from the module's split, or — while nobody has stated one — from
+	// `Module.proposedComponents`. Only a module the catalogue states no hours for has neither, and
+	// that answers `MODULE_NOT_DECOMPOSED`; the repair is `setModuleComponents`.
 	ModuleID string `json:"moduleId"`
 	// The parallel cohort, or empty for a module that runs once. One to three characters, upper-cased
 	// and trimmed for you.
@@ -249,11 +261,11 @@ type ModuleFilter struct {
 	IncludeInactive *bool `json:"includeInactive,omitempty"`
 	// Only the modules this person is responsible for, by teacher id.
 	Responsible *string `json:"responsible,omitempty"`
-	// Keep only modules whose hours have not been split into teachable units yet.
+	// Keep only modules whose split nobody has confirmed yet — where `splitIsEstimated` is true.
 	//
-	// The work list. A programme lead getting ready for a semester needs to know which of their
-	// modules cannot be declared yet, and that is a bounded, finishable task rather than an open
-	// form.
+	// The work list. Planning works without it, because the proposal stands in; what this filter
+	// finds is where the software is guessing and a person has not yet agreed. A bounded, finishable
+	// task rather than an open form.
 	WithoutComponents *bool `json:"withoutComponents,omitempty"`
 }
 

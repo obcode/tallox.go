@@ -53,6 +53,11 @@ type ComplexityRoot struct {
 		Version func(childComplexity int) int
 	}
 
+	ComponentProposal struct {
+		Kind          func(childComplexity int) int
+		TeachingHours func(childComplexity int) int
+	}
+
 	CopyDemandReport struct {
 		Created      func(childComplexity int) int
 		From         func(childComplexity int) int
@@ -105,8 +110,12 @@ type ComplexityRoot struct {
 		Name                func(childComplexity int) int
 		Offerings           func(childComplexity int) int
 		Official            func(childComplexity int) int
+		Plannable           func(childComplexity int) int
+		ProgrammeSemester   func(childComplexity int, programme string) int
+		ProposedComponents  func(childComplexity int) int
 		Responsible         func(childComplexity int) int
 		RetiredAt           func(childComplexity int) int
+		SplitIsEstimated    func(childComplexity int) int
 		ZpaID               func(childComplexity int) int
 	}
 
@@ -376,6 +385,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.BuildInfo.Version(childComplexity), true
 
+	case "ComponentProposal.kind":
+		if e.ComplexityRoot.ComponentProposal.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ComponentProposal.Kind(childComplexity), true
+	case "ComponentProposal.teachingHours":
+		if e.ComplexityRoot.ComponentProposal.TeachingHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ComponentProposal.TeachingHours(childComplexity), true
+
 	case "CopyDemandReport.created":
 		if e.ComplexityRoot.CopyDemandReport.Created == nil {
 			break
@@ -624,6 +646,29 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.Official(childComplexity), true
+	case "Module.plannable":
+		if e.ComplexityRoot.Module.Plannable == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Plannable(childComplexity), true
+	case "Module.programmeSemester":
+		if e.ComplexityRoot.Module.ProgrammeSemester == nil {
+			break
+		}
+
+		args, err := ec.field_Module_programmeSemester_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Module.ProgrammeSemester(childComplexity, args["programme"].(string)), true
+	case "Module.proposedComponents":
+		if e.ComplexityRoot.Module.ProposedComponents == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.ProposedComponents(childComplexity), true
 	case "Module.responsible":
 		if e.ComplexityRoot.Module.Responsible == nil {
 			break
@@ -636,6 +681,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.RetiredAt(childComplexity), true
+	case "Module.splitIsEstimated":
+		if e.ComplexityRoot.Module.SplitIsEstimated == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.SplitIsEstimated(childComplexity), true
 	case "Module.zpaId":
 		if e.ComplexityRoot.Module.ZpaID == nil {
 			break
@@ -2232,8 +2283,9 @@ type Module {
 
   **Empty means nobody has stated it yet**, and that is a normal state rather than an error: the
   examination office publishes one total and no split, so this is the faculty's own knowledge.
-  An instance cannot be declared for a module whose split is empty, because the parts of the
-  instance are made from these.
+  While it is empty, ` + "`" + `proposedComponents` + "`" + ` stands in — an instance declared for such a module is
+  made from the proposal and marked as resting on a guess. Only a module the catalogue states no
+  hours for has neither, and that one cannot be declared at all.
   """
   components: [ModuleComponent!]!
   "The sum of the components, or ` + "`" + `null` + "`" + ` while there are none. Compare with ` + "`" + `contactHoursPerWeek` + "`" + `."
@@ -2267,6 +2319,51 @@ type Module {
     "The programme's short code."
     programme: String!
   ): Boolean!
+  """
+  How this module's hours would divide if nobody stated it — the software's own guess.
+
+  Derived from the course type and the total on every read, and **never stored**: the laboratory
+  or exercise is two hours, the unit a group is actually taught in, and the lecture takes the
+  rest. That gives the lecture an even number of hours, which is what the faculty's own planning
+  is made of — a six-hour module is four plus two, never three plus three.
+
+  Empty for a module the catalogue gives no hours for. Confirming a proposal is
+  ` + "`" + `setModuleComponents` + "`" + ` with exactly these values.
+  """
+  proposedComponents: [ComponentProposal!]!
+  """
+  Whether what this module is currently planned with is a guess.
+
+  True while ` + "`" + `components` + "`" + ` is empty and a proposal exists. It is the mark an interface puts on the
+  row, and the reason it is not simply "components is empty": a module the catalogue states no
+  hours for has neither, and a warning on that row would point at nothing to confirm.
+  """
+  splitIsEstimated: Boolean!
+  """
+  Whether an instance can be declared for this module.
+
+  True as soon as there is something to make parts from — a stated split **or** a proposal. Only
+  the modules with no hours at all are left out, twelve in the real catalogue, and for those the
+  repair is to state the split by hand.
+
+  Answered here rather than worked out by each caller, because the same question is asked by the
+  picker that offers a module, by the refusal that turns one away, and by the transaction that
+  writes the parts.
+  """
+  plannable: Boolean!
+  """
+  The earliest programme semester a student may take this module in, in one programme — or ` + "`" + `null` + "`" + `
+  where its regulations do not say, which is nearly half the elective catalogue.
+
+  Folded over every version of that programme's regulations, taking the earliest. 23 of 1076
+  module/programme pairs disagree across versions, and the earliest is the one that puts the
+  module where somebody looking for it expects it — the same choice a new instance's cohort year
+  is seeded with.
+  """
+  programmeSemester(
+    "The programme's short code."
+    programme: String!
+  ): Int
 }
 
 """
@@ -2326,6 +2423,19 @@ type ModuleOffering {
 }
 
 """
+One unit of a split nobody has stated yet.
+
+Separate from ` + "`" + `ModuleComponent` + "`" + ` because it has no id: there is no row to point at, and there is
+nothing to edit. It is what the software would enter if asked, and it is shown as such.
+"""
+type ComponentProposal {
+  "What kind of teaching this unit would be."
+  kind: InstancePartKind!
+  "Hours per week for one unit of this kind."
+  teachingHours: Float!
+}
+
+"""
 Which modules to list.
 
 An input type rather than separate arguments, unlike ` + "`" + `people(search:, includeInactive:)` + "`" + `
@@ -2373,11 +2483,11 @@ input ModuleFilter {
   """
   responsible: ID
   """
-  Keep only modules whose hours have not been split into teachable units yet.
+  Keep only modules whose split nobody has confirmed yet — where ` + "`" + `splitIsEstimated` + "`" + ` is true.
 
-  The work list. A programme lead getting ready for a semester needs to know which of their
-  modules cannot be declared yet, and that is a bounded, finishable task rather than an open
-  form.
+  The work list. Planning works without it, because the proposal stands in; what this filter
+  finds is where the software is guessing and a person has not yet agreed. A bounded, finishable
+  task rather than an open form.
   """
   withoutComponents: Boolean = false
 }
@@ -2446,8 +2556,9 @@ extend type Mutation {
   office. Not for a lead in whose catalogue the module merely counts — the module is planned
   where it is at home, and two programmes editing one split would disagree in the database.
 
-  Passing an empty list clears the split, which makes the module undeclarable again. That is
-  allowed on purpose: a split entered wrongly should be removable by the person who entered it.
+  Passing an empty list clears the split, and the module falls back to ` + "`" + `proposedComponents` + "`" + ` —
+  marked as a guess again. That is allowed on purpose: a split entered wrongly should be
+  removable by the person who entered it, and doing so must not make the module unplannable.
   """
   setModuleComponents(
     moduleId: ID!
@@ -2658,8 +2769,9 @@ input DeclareCourseInstanceInput {
   """
   The module, by id.
 
-  It must have a split — ` + "`" + `Module.components` + "`" + ` — because the instance's parts are made from it.
-  Without one the answer is ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `, and the repair is ` + "`" + `setModuleComponents` + "`" + `.
+  The instance's parts are made from the module's split, or — while nobody has stated one — from
+  ` + "`" + `Module.proposedComponents` + "`" + `. Only a module the catalogue states no hours for has neither, and
+  that answers ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `; the repair is ` + "`" + `setModuleComponents` + "`" + `.
   """
   moduleId: ID!
   """
@@ -2709,7 +2821,8 @@ extend type Mutation {
   happen; a tool that refuses one moves it into a spreadsheet passed around by mail.
 
   The parts are made from the module's split, one per unit, each credited with the hours the
-  split states. A module with no split is refused with ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `.
+  split states — or from the proposal, where nobody has stated a split. A module the catalogue
+  gives no hours for is refused with ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `.
 
   Declaring the same cohort twice is ` + "`" + `TRACK_TAKEN` + "`" + `.
   """
@@ -3874,6 +3987,16 @@ func (ec *executionContext) childFields_BuildInfo(ctx context.Context, field gra
 	return nil, fmt.Errorf("no field named %q was found under type BuildInfo", field.Name)
 }
 
+func (ec *executionContext) childFields_ComponentProposal(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "kind":
+		return ec.fieldContext_ComponentProposal_kind(ctx, field)
+	case "teachingHours":
+		return ec.fieldContext_ComponentProposal_teachingHours(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ComponentProposal", field.Name)
+}
+
 func (ec *executionContext) childFields_CopyDemandReport(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "from":
@@ -3984,6 +4107,14 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_dutyStatus(ctx, field)
 	case "inCatalogue":
 		return ec.fieldContext_Module_inCatalogue(ctx, field)
+	case "proposedComponents":
+		return ec.fieldContext_Module_proposedComponents(ctx, field)
+	case "splitIsEstimated":
+		return ec.fieldContext_Module_splitIsEstimated(ctx, field)
+	case "plannable":
+		return ec.fieldContext_Module_plannable(ctx, field)
+	case "programmeSemester":
+		return ec.fieldContext_Module_programmeSemester(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Module", field.Name)
 }

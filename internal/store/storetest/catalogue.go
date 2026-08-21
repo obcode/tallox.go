@@ -44,6 +44,7 @@ import (
 //	             106 its home programme is the string "None"
 //	             107 belongs to PZ, and its only association points at vanished regulations
 //	             108 a frequency and a course type this version has never seen
+//	             109 the examination office states no hours for it, so nothing can be proposed
 //	Teachers     201 the person every module names as responsible
 //	             202 no address at all — can never be connected to somebody who signs in
 //	Module 108 names a responsible person the teacher list does not contain.
@@ -81,6 +82,11 @@ const (
 	FixtureModuleWithoutHome       = 106
 	FixtureModuleOfProgrammeZ      = 107
 	FixtureModuleUnknownVocabulary = 108
+	// FixtureModuleWithoutHours is the one module nothing can be proposed for. The examination
+	// office states zero hours — twelve real modules do — and a proposal derived from zero would
+	// be a row of zeroes rather than a guess. It is what is left of MODULE_NOT_DECOMPOSED once a
+	// split can be estimated.
+	FixtureModuleWithoutHours = 109
 
 	// FixtureTeacherOrdinary is named as responsible by every module but one.
 	FixtureTeacherOrdinary = 201
@@ -328,6 +334,10 @@ func catalogueObjects() []zpaObject {
 		// address the teacher list does not contain.
 		moduleResponsibleTo(FixtureModuleUnknownVocabulary, FixtureProgrammeA,
 			"Blockveranstaltung", "alle drei Jahre", 4, 5, true, "N.N"),
+		// Zero hours: the source publishes them for twelve real modules. Nothing can be split and
+		// nothing can be proposed, so this is the module an instance still cannot be declared for.
+		module(FixtureModuleWithoutHours, FixtureProgrammeA, "SU mit Praktikum",
+			"in jedem Semester", 0, 5, true),
 
 		// --- Teachers -----------------------------------------------------------------------
 		teacher(FixtureTeacherOrdinary, "prof.eins@example.org", "Prof. Dr. Eins",
@@ -386,5 +396,10 @@ func catalogueObjects() []zpaObject {
 		// 108 carries the unmapped vocabulary, and is otherwise an ordinary elective.
 		msba(1011, FixtureModuleUnknownVocabulary, "Modul mit unbekanntem Vokabular",
 			FixtureSpoANew, 2025, "2025-10-01", basketElectiveA, "PA: Wahlpflicht", "PA-M-108", 6),
+
+		// 109 is compulsory and carries no hours, which is a combination the real catalogue has:
+		// the module is in the programme's plan and the source says nothing about its size.
+		msba(1012, FixtureModuleWithoutHours, "Modul ohne SWS",
+			FixtureSpoANew, 2025, "2025-10-01", basketDutyA, "PA: Pflicht", "PA-M-109", 2),
 	}
 }

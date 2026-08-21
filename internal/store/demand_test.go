@@ -27,8 +27,9 @@ type demandFixture struct {
 	programme uuid.UUID
 	// module is the ordinary module, split into a two-hour lecture and a two-hour laboratory.
 	module uuid.UUID
-	// undivided is a module nobody has stated a split for — the precondition's counter-example.
-	undivided uuid.UUID
+	// withoutHours is the module the examination office states no hours for. Nothing can be
+	// split and nothing can be proposed, so it is what is left of the precondition.
+	withoutHours uuid.UUID
 }
 
 func newDemandFixture(t *testing.T) demandFixture {
@@ -52,13 +53,13 @@ func newDemandFixture(t *testing.T) demandFixture {
 	}
 
 	fixture := demandFixture{
-		schema:    s,
-		demand:    store.NewDemand(s.Pool, modules),
-		semester:  current,
-		previous:  previous,
-		programme: programmeID(t, s, storetest.FixtureProgrammeA),
-		module:    moduleID(t, s, storetest.FixtureModuleOrdinary),
-		undivided: moduleID(t, s, storetest.FixtureModuleDutyDiffers),
+		schema:       s,
+		demand:       store.NewDemand(s.Pool, modules),
+		semester:     current,
+		previous:     previous,
+		programme:    programmeID(t, s, storetest.FixtureProgrammeA),
+		module:       moduleID(t, s, storetest.FixtureModuleOrdinary),
+		withoutHours: moduleID(t, s, storetest.FixtureModuleWithoutHours),
 	}
 
 	if _, err := modules.SetModuleComponents(ctx, fixture.module, []domain.ModuleComponent{
@@ -151,7 +152,10 @@ func TestDeclaringAnInstanceMakesItsPartsFromTheSplit(t *testing.T) {
 	}
 }
 
-func TestAModuleWithoutASplitCannotBeDeclared(t *testing.T) {
+// What is left of the precondition once a split can be estimated: a module the examination
+// office states no hours for. Twelve real modules are in that state, and for those the repair is
+// to enter the split by hand.
+func TestAModuleWithoutHoursCannotBeDeclared(t *testing.T) {
 	t.Parallel()
 
 	f := newDemandFixture(t)
@@ -159,18 +163,18 @@ func TestAModuleWithoutASplitCannotBeDeclared(t *testing.T) {
 
 	_, err := f.demand.CreateCourseInstance(ctx, domain.NewCourseInstance{
 		SemesterID:  f.semester.ID,
-		ModuleID:    f.undivided,
+		ModuleID:    f.withoutHours,
 		ProgrammeID: f.programme,
 	})
 	if !errors.Is(err, domain.ErrModuleNotDecomposed) {
-		t.Fatalf("declaring a module with no split gave %v, want ErrModuleNotDecomposed", err)
+		t.Fatalf("declaring a module with no hours gave %v, want ErrModuleNotDecomposed", err)
 	}
 
 	// And nothing was written. The check is inside the transaction, so a refused declaration
 	// leaves no instance with no parts behind.
 	var instances int
 	if err := f.schema.Pool.QueryRow(ctx,
-		`SELECT count(*) FROM course_instance WHERE module_id = $1`, f.undivided).Scan(&instances); err != nil {
+		`SELECT count(*) FROM course_instance WHERE module_id = $1`, f.withoutHours).Scan(&instances); err != nil {
 		t.Fatalf("cannot count the instances: %v", err)
 	}
 	if instances != 0 {
@@ -598,7 +602,7 @@ func TestTheDemandListIsNarrowedAndCarriesEverythingAScreenNeeds(t *testing.T) {
 	}
 
 	byModule, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
-		SemesterCode: f.semester.Code, Module: f.undivided,
+		SemesterCode: f.semester.Code, Module: f.withoutHours,
 	})
 	if err != nil {
 		t.Fatalf("cannot read the demand of one module: %v", err)
@@ -618,4 +622,46 @@ func partOfKind(t *testing.T, instance *domain.CourseInstance, kind domain.Insta
 	}
 	t.Fatalf("the instance holds no %s", kind)
 	return domain.InstancePart{}
+}
+
+// The change that makes a semester plannable in October: a module nobody has split yet is
+// declared from the proposal, and its parts are exactly the ones the interface showed.
+func TestAnInstanceCanBeDeclaredFromTheProposedSplit(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	// The second fixture module — four hours, lecture plus exercise — and nobody has stated how
+	// they divide.
+	unsplit := moduleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
+
+	instance, err := f.demand.CreateCourseInstance(ctx, domain.NewCourseInstance{
+		SemesterID:  f.semester.ID,
+		ModuleID:    unsplit,
+		ProgrammeID: f.programme,
+	})
+	if err != nil {
+		t.Fatalf("declaring from a proposal gave %v", err)
+	}
+
+	if got := kinds(instance.Parts); len(got) != 2 ||
+		got[0] != domain.PartKindLecture || got[1] != domain.PartKindExercise {
+		t.Fatalf("the instance holds %v, want the proposal's lecture and exercise", got)
+	}
+	if instance.TeachingHours() != 4 {
+		t.Errorf("the instance costs %v hours, want the 4 the catalogue states",
+			instance.TeachingHours())
+	}
+
+	// And the module still says nobody has stated its split — declaring from a guess must not
+	// quietly turn the guess into the faculty's own statement.
+	var stated int
+	if err := f.schema.Pool.QueryRow(ctx,
+		`SELECT count(*) FROM module_component WHERE module_id = $1`, unsplit).Scan(&stated); err != nil {
+		t.Fatalf("cannot count the split: %v", err)
+	}
+	if stated != 0 {
+		t.Errorf("declaring wrote %d component(s) — a proposal is not a statement", stated)
+	}
 }

@@ -29,8 +29,9 @@ type demandFixture struct {
 	handler http.Handler
 	// module is the ordinary module, split into a lecture and a laboratory.
 	module uuid.UUID
-	// undivided is a module nobody has stated a split for.
-	undivided uuid.UUID
+	// withoutHours is the module the examination office states no hours for — the one an
+	// instance still cannot be declared for.
+	withoutHours uuid.UUID
 }
 
 // demandHandler seeds people and their programme assignments, projects the catalogue, states a
@@ -82,8 +83,8 @@ func demandHandler(t *testing.T, scoped map[string][]string, people ...grants) d
 	fixture := demandFixture{
 		module: read(`SELECT id FROM module WHERE zpa_module_ref = $1`,
 			storetest.FixtureModuleOrdinary),
-		undivided: read(`SELECT id FROM module WHERE zpa_module_ref = $1`,
-			storetest.FixtureModuleDutyDiffers),
+		withoutHours: read(`SELECT id FROM module WHERE zpa_module_ref = $1`,
+			storetest.FixtureModuleWithoutHours),
 	}
 
 	if _, err := modules.SetModuleComponents(t.Context(), fixture.module, []domain.ModuleComponent{
@@ -275,9 +276,10 @@ func TestTheDeansOfficeDeclaresForEveryProgramme(t *testing.T) {
 		})
 }
 
-// The precondition, as the caller meets it: a module whose hours nobody has split cannot be
-// offered, and the code says which repair is needed.
-func TestAModuleWithoutASplitIsRefusedByName(t *testing.T) {
+// What is left of the precondition: a module the examination office states no hours for. A
+// module whose split nobody has stated is declared from the proposal — the estimate is good
+// enough to plan with — but zero hours cannot be divided into anything.
+func TestAModuleWithoutHoursIsRefusedByName(t *testing.T) {
 	t.Parallel()
 
 	f := demandHandler(t,
@@ -289,10 +291,10 @@ func TestAModuleWithoutASplitIsRefusedByName(t *testing.T) {
 			resp := c.Do(t, declareMutation, map[string]any{"in": map[string]any{
 				"semester":  "2027-SS",
 				"programme": storetest.FixtureProgrammeA,
-				"moduleId":  f.undivided.String(),
+				"moduleId":  f.withoutHours.String(),
 			}})
 			if code := errorCode(t, resp); code != "MODULE_NOT_DECOMPOSED" {
-				t.Errorf("a module with no split was refused with %s, want MODULE_NOT_DECOMPOSED",
+				t.Errorf("a module with no hours was refused with %s, want MODULE_NOT_DECOMPOSED",
 					code)
 			}
 		})

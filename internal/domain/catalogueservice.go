@@ -133,9 +133,9 @@ const MaxComponentsPerModule = 12
 //
 // # Why an empty list is allowed
 //
-// It clears the split and makes the module undeclarable again. A split entered wrongly has to be
-// removable by the person who entered it, and refusing that would leave the only repair to
-// somebody with database access.
+// It clears the split, and the module falls back to the proposal — marked as a guess again. A
+// split entered wrongly has to be removable by the person who entered it, and refusing that would
+// leave the only repair to somebody with database access.
 func (s *CatalogueService) SetModuleComponents(
 	ctx context.Context, actor principal.Actor, moduleID uuid.UUID, components []ModuleComponent,
 ) (*Module, error) {

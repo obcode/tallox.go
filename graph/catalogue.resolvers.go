@@ -47,6 +47,15 @@ func (r *moduleResolver) SplitIsEstimated(ctx context.Context, obj *model.Module
 	return obj.Source.SplitIsEstimated(), nil
 }
 
+// PracticalKind is the resolver for the practicalKind field.
+func (r *moduleResolver) PracticalKind(ctx context.Context, obj *model.Module) (*domain.InstancePartKind, error) {
+	kind, ok := obj.Source.PracticalKind()
+	if !ok {
+		return nil, nil
+	}
+	return &kind, nil
+}
+
 // Plannable is the resolver for the plannable field.
 func (r *moduleResolver) Plannable(ctx context.Context, obj *model.Module) (bool, error) {
 	return obj.Source.Plannable(), nil

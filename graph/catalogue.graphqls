@@ -354,6 +354,18 @@ type Module {
   """
   splitIsEstimated: Boolean!
   """
+  Which kind of part a number of parallel groups multiplies.
+
+  The first unit of the split that is not the lecture: the laboratory of a lecture-plus-laboratory
+  module, the exercise of a lecture-plus-exercise one, and the seminar of a module that is nothing
+  else — those do run in parallel groups. `null` for a module that is only a lecture, where a
+  number of groups has nothing to multiply.
+
+  Here so that an interface offering a "how many groups" control asks the same question
+  `planDemand` answers with, rather than deriving it a second time from the split.
+  """
+  practicalKind: InstancePartKind
+  """
   Whether an instance can be declared for this module.
 
   True as soon as there is something to make parts from — a stated split **or** a proposal. Only

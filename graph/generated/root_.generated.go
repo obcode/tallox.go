@@ -138,6 +138,7 @@ type ComplexityRoot struct {
 		Offerings           func(childComplexity int) int
 		Official            func(childComplexity int) int
 		Plannable           func(childComplexity int) int
+		PracticalKind       func(childComplexity int) int
 		ProgrammeSemester   func(childComplexity int, programme string) int
 		ProposedComponents  func(childComplexity int) int
 		Responsible         func(childComplexity int) int
@@ -791,6 +792,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.Plannable(childComplexity), true
+	case "Module.practicalKind":
+		if e.ComplexityRoot.Module.PracticalKind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.PracticalKind(childComplexity), true
 	case "Module.programmeSemester":
 		if e.ComplexityRoot.Module.ProgrammeSemester == nil {
 			break
@@ -2491,6 +2498,18 @@ type Module {
   hours for has neither, and a warning on that row would point at nothing to confirm.
   """
   splitIsEstimated: Boolean!
+  """
+  Which kind of part a number of parallel groups multiplies.
+
+  The first unit of the split that is not the lecture: the laboratory of a lecture-plus-laboratory
+  module, the exercise of a lecture-plus-exercise one, and the seminar of a module that is nothing
+  else — those do run in parallel groups. ` + "`" + `null` + "`" + ` for a module that is only a lecture, where a
+  number of groups has nothing to multiply.
+
+  Here so that an interface offering a "how many groups" control asks the same question
+  ` + "`" + `planDemand` + "`" + ` answers with, rather than deriving it a second time from the split.
+  """
+  practicalKind: InstancePartKind
   """
   Whether an instance can be declared for this module.
 
@@ -4469,6 +4488,8 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_proposedComponents(ctx, field)
 	case "splitIsEstimated":
 		return ec.fieldContext_Module_splitIsEstimated(ctx, field)
+	case "practicalKind":
+		return ec.fieldContext_Module_practicalKind(ctx, field)
 	case "plannable":
 		return ec.fieldContext_Module_plannable(ctx, field)
 	case "programmeSemester":

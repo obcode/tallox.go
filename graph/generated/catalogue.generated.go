@@ -23,6 +23,7 @@ type ModuleResolver interface {
 	InCatalogue(ctx context.Context, obj *model.Module, programme string) (bool, error)
 	ProposedComponents(ctx context.Context, obj *model.Module) ([]*model.ComponentProposal, error)
 	SplitIsEstimated(ctx context.Context, obj *model.Module) (bool, error)
+	PracticalKind(ctx context.Context, obj *model.Module) (*domain.InstancePartKind, error)
 	Plannable(ctx context.Context, obj *model.Module) (bool, error)
 	ProgrammeSemester(ctx context.Context, obj *model.Module, programme string) (*int, error)
 }
@@ -645,6 +646,29 @@ func (ec *executionContext) _Module_splitIsEstimated(ctx context.Context, field 
 }
 func (ec *executionContext) fieldContext_Module_splitIsEstimated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Module", field, true, true, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Module_practicalKind(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Module_practicalKind(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Module().PracticalKind(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *domain.InstancePartKind) graphql.Marshaler {
+			return ec.marshalOInstancePartKind2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐInstancePartKind(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Module_practicalKind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Module", field, true, true, errors.New("field of type InstancePartKind does not have child fields"))
 }
 
 func (ec *executionContext) _Module_plannable(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
@@ -1848,6 +1872,44 @@ func (ec *executionContext) _Module(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "practicalKind":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Module_practicalKind(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "plannable":
 			field := field
 
@@ -2589,6 +2651,25 @@ func (ec *executionContext) marshalOFrequency2ᚕgithubᚗcomᚋobcodeᚋtallox�
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOInstancePartKind2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐInstancePartKind(ctx context.Context, v any) (*domain.InstancePartKind, error) {
+	if v == nil {
+		return nil, nil
+	}
+	tmp, err := graphql.UnmarshalString(v)
+	res := domain.InstancePartKind(tmp)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInstancePartKind2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐInstancePartKind(ctx context.Context, sel ast.SelectionSet, v *domain.InstancePartKind) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(string(*v))
+	return res
 }
 
 func (ec *executionContext) marshalOModule2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModule(ctx context.Context, sel ast.SelectionSet, v *model.Module) graphql.Marshaler {

@@ -45,6 +45,14 @@ var (
 	ErrPersonExists = errors.New("a person with that mail address already exists")
 	// ErrNoSuchPerson is what a wrong id gets.
 	ErrNoSuchPerson = errors.New("no such person")
+	// ErrNoSuchTeacher: an id no teacher has.
+	ErrNoSuchTeacher = errors.New("no such teacher")
+	// ErrTeacherHasNoMail: somebody the examination office gives no address for.
+	//
+	// The address is the whole link between the two lists, so this is not a gap to be filled
+	// in here — it is the reason this person can never sign in, and the fix is in the source.
+	// Three of 257 are like this.
+	ErrTeacherHasNoMail = errors.New("the examination office gives no address for this person")
 	// ErrUnknownRole: a role string internal/policy does not recognise.
 	ErrUnknownRole = errors.New("no such role")
 	// ErrUnknownProgramme: a study programme code no programme has.

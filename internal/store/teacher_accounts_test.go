@@ -1,7 +1,9 @@
 package store_test
 
 import (
+	"errors"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -254,5 +256,175 @@ func TestATeacherAccountLeavesOutAGrantThatExpired(t *testing.T) {
 	}
 	if len(account.Person.Roles) != 0 {
 		t.Errorf("roles are %v, want none in force", account.Person.Roles)
+	}
+}
+
+// Admitting is a statement — "this person may sign in" — and a statement made twice is the same
+// statement. A screen that saves on every click gets double-clicked, and two administrators
+// working through the same list arrive at the same row.
+func TestAdmittingATeacherIsIdempotent(t *testing.T) {
+	t.Parallel()
+
+	s := admissionSchema(t)
+	people := store.NewPeople(s.Pool)
+	id := teacherID(t, s, storetest.FixtureTeacherNotAdmitted)
+
+	first, err := people.AdmitTeacher(t.Context(), id, policy.RoleLecturer, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot admit: %v", err)
+	}
+	second, err := people.AdmitTeacher(t.Context(), id, policy.RoleLecturer, uuid.Nil)
+	if err != nil {
+		t.Fatalf("admitting twice failed the second time: %v", err)
+	}
+
+	if first.Person == nil || second.Person == nil {
+		t.Fatal("admitting produced no account")
+	}
+	if first.Person.ID != second.Person.ID {
+		t.Errorf("the second admission created a second account: %s then %s",
+			first.Person.ID, second.Person.ID)
+	}
+	if len(second.Person.Roles) != 1 || second.Person.Roles[0] != policy.RoleLecturer {
+		t.Errorf("roles after admitting twice are %v, want exactly the one role admission grants",
+			second.Person.Roles)
+	}
+
+	var accounts int
+	if err := s.Pool.QueryRow(t.Context(),
+		`SELECT count(*) FROM person WHERE mail = 'prof.sieben@example.org'`).Scan(&accounts); err != nil {
+		t.Fatalf("cannot count: %v", err)
+	}
+	if accounts != 1 {
+		t.Errorf("%d account rows for one address, want 1", accounts)
+	}
+}
+
+// The same click from two administrators at the same moment. Both have to succeed, because both
+// are asking for the state that results — and exactly one account may exist afterwards.
+//
+// Without the upsert this is a unique violation on person.mail, which reaches the caller as an
+// internal error on an action that plainly worked for somebody.
+func TestTwoAdministratorsAdmittingTheSameTeacherAtOnce(t *testing.T) {
+	t.Parallel()
+
+	s := admissionSchema(t)
+	people := store.NewPeople(s.Pool)
+	id := teacherID(t, s, storetest.FixtureTeacherNotAdmitted)
+
+	var wg sync.WaitGroup
+	errs := make([]error, 2)
+	wg.Add(2)
+	for i := range errs {
+		go func() {
+			defer wg.Done()
+			_, errs[i] = people.AdmitTeacher(t.Context(), id, policy.RoleLecturer, uuid.Nil)
+		}()
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Errorf("administrator %d could not admit: %v", i+1, err)
+		}
+	}
+
+	var accounts int
+	if err := s.Pool.QueryRow(t.Context(),
+		`SELECT count(*) FROM person WHERE mail = 'prof.sieben@example.org'`).Scan(&accounts); err != nil {
+		t.Fatalf("cannot count: %v", err)
+	}
+	if accounts != 1 {
+		t.Errorf("%d account rows for one address, want 1", accounts)
+	}
+}
+
+// Re-admitting somebody who was deactivated is the other half of the switch. Their grants are
+// still there — deactivating takes everything away by refusing authentication, and never by
+// deleting a row — so the account comes back as it was.
+func TestReadmittingRestoresTheAccountAndItsRoles(t *testing.T) {
+	t.Parallel()
+
+	s := admissionSchema(t, testdata.Eins)
+	people := store.NewPeople(s.Pool)
+	personID := mustPersonID(t, s, testdata.Eins.Mail)
+
+	if err := people.GrantRole(t.Context(), personID, policy.RoleDeansOffice,
+		uuid.Nil, time.Time{}); err != nil {
+		t.Fatalf("cannot grant: %v", err)
+	}
+	if err := people.SetPersonActive(t.Context(), personID, false); err != nil {
+		t.Fatalf("cannot deactivate: %v", err)
+	}
+
+	account, err := people.AdmitTeacher(t.Context(),
+		teacherID(t, s, storetest.FixtureTeacherOrdinary), policy.RoleLecturer, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot re-admit: %v", err)
+	}
+	if account.Person == nil || account.Person.ID != personID {
+		t.Fatal("re-admitting created a second account instead of reactivating the one there")
+	}
+	if !account.Admitted() {
+		t.Error("the account is still not admitted")
+	}
+	if !slices.Contains(account.Person.Roles, policy.RoleDeansOffice) {
+		t.Errorf("roles after re-admitting are %v, want the grant that survived deactivation "+
+			"among them", account.Person.Roles)
+	}
+}
+
+// Somebody the source gives no address for cannot be admitted, and the refusal has to arrive
+// before anything is written: the address is what an account is, and there is nothing to invent.
+func TestATeacherWithoutAnAddressCannotBeAdmitted(t *testing.T) {
+	t.Parallel()
+
+	s := admissionSchema(t)
+	people := store.NewPeople(s.Pool)
+
+	_, err := people.AdmitTeacher(t.Context(),
+		teacherID(t, s, storetest.FixtureTeacherWithoutMail), policy.RoleLecturer, uuid.Nil)
+	if !errors.Is(err, domain.ErrTeacherHasNoMail) {
+		t.Fatalf("admitting somebody with no address returned %v, want ErrTeacherHasNoMail", err)
+	}
+
+	var accounts int
+	if err := s.Pool.QueryRow(t.Context(), `SELECT count(*) FROM person`).Scan(&accounts); err != nil {
+		t.Fatalf("cannot count: %v", err)
+	}
+	if accounts != 0 {
+		t.Errorf("%d accounts exist after a refused admission, want none", accounts)
+	}
+}
+
+// Withdrawing an admission is the existing deactivation, so it is the existing guard: the last
+// administrator cannot be removed, and it makes no difference which screen asks.
+func TestWithdrawingAdmissionCannotRemoveTheLastAdministrator(t *testing.T) {
+	t.Parallel()
+
+	s := admissionSchema(t)
+	people := store.NewPeople(s.Pool)
+
+	account, err := people.AdmitTeacher(t.Context(),
+		teacherID(t, s, storetest.FixtureTeacherNotAdmitted), policy.RoleLecturer, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot admit: %v", err)
+	}
+	if err := people.GrantRole(t.Context(), account.Person.ID, policy.RoleAdmin,
+		uuid.Nil, time.Time{}); err != nil {
+		t.Fatalf("cannot grant ADMIN: %v", err)
+	}
+
+	err = people.SetPersonActive(t.Context(), account.Person.ID, false)
+	if !errors.Is(err, domain.ErrLastAdmin) {
+		t.Fatalf("withdrawing the last administrator returned %v, want ErrLastAdmin", err)
+	}
+
+	after, err := people.TeacherAccountByID(t.Context(), account.Teacher.ID)
+	if err != nil {
+		t.Fatalf("cannot read back: %v", err)
+	}
+	if !after.Admitted() {
+		t.Error("the refusal still left the last administrator locked out")
 	}
 }

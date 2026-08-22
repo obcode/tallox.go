@@ -286,6 +286,78 @@ func (p *People) CreatePerson(ctx context.Context, mail, name string) (*domain.P
 	}, nil
 }
 
+// AdmitTeacher gives one of the people the examination office publishes an account here, and
+// the role that says what the act means.
+//
+// One transaction, for three reasons of decreasing size. The first settles it: EnsurePerson is
+// an upsert, so a second click — or a second administrator on the same screen — is a no-op
+// rather than a unique violation the caller would meet as an unexplainable internal error. The
+// second is that a created account with no grant can sign in and see nothing, which reads as a
+// permissions bug and is not one. The third is that the three statements are one decision.
+//
+// The role is a parameter and not a constant here: which role admission carries is a decision,
+// and it belongs where it can be read next to its reason, in internal/domain.
+//
+// No administrator lock, unlike SetPersonActive. This only ever adds an active person and a
+// grant, and both directions of that guard are about removal.
+func (p *People) AdmitTeacher(ctx context.Context, teacherID uuid.UUID, role policy.Role,
+	grantedBy uuid.UUID) (*domain.TeacherAccount, error) {
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	// Rollback after a successful commit is a no-op, so this needs no branching.
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	row, err := q.TeacherAccountByID(ctx, teacherID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrNoSuchTeacher
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the teacher: %w", err)
+	}
+	if row.Mail == "" {
+		return nil, domain.ErrTeacherHasNoMail
+	}
+
+	person, err := q.EnsurePerson(ctx, EnsurePersonParams{
+		ID: uuid.New(),
+		// The address as the examination office publishes it, lower-cased by the cache. mail is
+		// citext on both sides, so an account created from either list is the same row.
+		Mail: row.Mail,
+		// Only written when the row is created — EnsurePerson says so. Somebody renamed here, or
+		// by a later import, is not renamed back by re-admitting them.
+		Name: row.FullName,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot create the account: %w", err)
+	}
+
+	// Re-admitting somebody who was deactivated is the other half of the switch, and it is the
+	// same statement: this person may sign in.
+	if err := q.SetPersonActive(ctx, SetPersonActiveParams{ID: person.ID, Active: true}); err != nil {
+		return nil, fmt.Errorf("cannot activate the account: %w", err)
+	}
+
+	if err := q.GrantRole(ctx, GrantRoleParams{
+		PersonID:  person.ID,
+		Role:      string(role),
+		GrantedBy: uuid.NullUUID{UUID: grantedBy, Valid: grantedBy != uuid.Nil},
+		// No expiry. A grant with a date on it is for stepping over a threshold and having the
+		// database step back; this one says somebody teaches here.
+	}); err != nil {
+		return nil, fmt.Errorf("cannot grant %s: %w", role, err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+
+	return p.TeacherAccountByID(ctx, teacherID)
+}
+
 // SetPersonName renames somebody.
 func (p *People) SetPersonName(ctx context.Context, id uuid.UUID, name string) error {
 	if err := New(p.pool).SetPersonName(ctx, SetPersonNameParams{ID: id, Name: name}); err != nil {

@@ -29,7 +29,7 @@ import (
 	"github.com/obcode/tallox.go/internal/auth"
 	"github.com/obcode/tallox.go/internal/buildinfo"
 	"github.com/obcode/tallox.go/internal/domain"
-	"github.com/obcode/tallox.go/internal/glitchtip"
+	"github.com/obcode/tallox.go/internal/obs"
 	"github.com/obcode/tallox.go/internal/store"
 	"github.com/obcode/tallox.go/internal/zpa"
 )
@@ -140,9 +140,8 @@ func Serve(build buildinfo.Info) {
 	)
 	flag.Parse()
 
-	// Short call sites: readable in the console, and stable as a grouping key no matter where
-	// the binary was built — see glitchtip.ShortCallerMarshalFunc.
-	zerolog.CallerMarshalFunc = glitchtip.ShortCallerMarshalFunc
+	// Call sites as repository-relative paths — see repoRelativeCaller.
+	zerolog.CallerMarshalFunc = obs.RepoRelativeCaller
 
 	reporter, flushReports := setupReporting(build)
 	defer flushReports()
@@ -627,7 +626,10 @@ func setupLogging(level string, reporter zerolog.LevelWriter) {
 }
 
 // setupReporting starts error reporting from the environment and returns the writer for
-// setupLogging to keep, plus a flush to defer. Both are safe when reporting is off: the
+// setupLogging to keep, plus a flush to defer.
+//
+// Everything that decides what may leave this host lives in internal/obs — read
+// internal/obs/scrub.go before adding anything that reports. Both are safe when reporting is off: the
 // writer is nil and the flush does nothing.
 //
 // It runs before the configuration is read, and therefore attaches the reporter to zerolog's
@@ -648,19 +650,26 @@ func setupReporting(build buildinfo.Info) (zerolog.LevelWriter, func()) {
 		environment = "production"
 	}
 
-	flush, err := glitchtip.Init(glitchtip.Config{
+	reporter, err := obs.Init(obs.Config{
 		DSN:         dsn,
 		Environment: environment,
 		Release:     build.Version,
+		// Deliberately not wired to the configuration file: this runs before
+		// LoadConfig, which is the whole point of it. Filling the ignore list needs
+		// a deploy here, and it needs a week of real traffic before it means
+		// anything anyway.
+		IgnoreErrors: nil,
 	})
 	if err != nil {
 		log.Warn().Err(err).Msg("error reporting is off")
 		return nil, func() {}
 	}
+	if reporter == nil {
+		return nil, func() {}
+	}
 
-	reporter := glitchtip.Writer(zerolog.ErrorLevel)
 	log.Logger = log.Output(zerolog.MultiLevelWriter(os.Stderr, reporter)).
 		With().Caller().Logger()
 
-	return reporter, flush
+	return reporter, obs.Flush
 }

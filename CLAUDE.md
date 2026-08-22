@@ -310,15 +310,19 @@ disabled in production.
 - **Logging:** `zerolog` — `log.Error().Err(err).Str("field", v).Msg("cannot do x")`.
   `log.Fatal()` only in `bootstrap/`.
 - **Error reporting:** with `GLITCHTIP_DSN` set, every `log.Error()` goes to a GlitchTip
-  instance via [internal/glitchtip](internal/glitchtip/) — a `zerolog.LevelWriter` attached
-  beside the console writer, so no call site changes. Issues are grouped by the **`caller`
-  field**, not by stack trace: every error runs through one writer and would otherwise fold
-  into a single issue. `zerolog.CallerMarshalFunc` is set to
-  `glitchtip.ShortCallerMarshalFunc` so the grouping key does not depend on where the binary
-  was built. Started in `setupReporting` *before* `LoadConfig`, so a configuration file that
-  will not load is reported too. Empty DSN = no reporting, which is the local default;
-  `-check-config` says which it is. Live check:
-  `GLITCHTIP_SMOKE_DSN=... go test ./internal/glitchtip/ -run TestLiveIngest -v`.
+  instance via [internal/obs](internal/obs/) — a `sentryzerolog` writer hung beside the
+  console writer, so no call site changes. **Read [internal/obs/scrub.go](internal/obs/scrub.go)
+  before adding anything that reports:** the writer turns *every* zerolog field into a Sentry
+  tag, so tags, headers and contexts are **allow-lists** — a field nobody anticipated is
+  dropped, not sent, and mail addresses in free text are redacted. `obs.SkipField` on a log
+  line keeps it out of the report. Issues are grouped by the **`caller` field**, not by stack
+  trace (every error runs through one writer and would otherwise fold into a single issue);
+  `zerolog.CallerMarshalFunc` is `obs.RepoRelativeCaller` so the grouping key does not depend
+  on where the binary was built. Started in `setupReporting` *before* `LoadConfig`, so a
+  configuration file that will not load is reported too. Empty DSN = no reporting, which is
+  the local default; `-check-config` says which it is. Live check:
+  `GLITCHTIP_SMOKE_DSN=... go test ./internal/obs/ -run TestLiveIngest -v`.
+  The package is the counterpart of `plexams.go/obs`; keep the two in step.
 - **Timezone:** `main.go` forces `time.Local = Europe/Berlin`. Milestone and phase
   calculations depend on it.
 - **Errors:** plain `error` wrapped with `fmt.Errorf("...: %w", err)`. No custom hierarchy.

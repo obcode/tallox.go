@@ -48,7 +48,6 @@ func (p *People) ListPeople(ctx context.Context, search string,
 	}
 
 	people := make([]domain.Person, 0, len(rows))
-	ids := make([]uuid.UUID, 0, len(rows))
 	for _, row := range rows {
 		people = append(people, domain.Person{
 			ID:     row.ID,
@@ -57,20 +56,39 @@ func (p *People) ListPeople(ctx context.Context, search string,
 			Active: row.Active,
 			Roles:  knownRoles(row.Roles),
 		})
-		ids = append(ids, row.ID)
 	}
 
 	// One statement for the whole list rather than one per row: the administration screen shows
 	// which programmes each lead is assigned to, and a query per person would make that screen
 	// cost a round trip per colleague.
-	if err := p.attachProgrammes(ctx, people, ids); err != nil {
+	if err := p.attachProgrammes(ctx, pointersTo(people)); err != nil {
 		return nil, err
 	}
 	return people, nil
 }
 
+// pointersTo addresses the elements of a slice, so that a value slice can be filled in by
+// something that writes through pointers.
+func pointersTo(people []domain.Person) []*domain.Person {
+	out := make([]*domain.Person, len(people))
+	for i := range people {
+		out[i] = &people[i]
+	}
+	return out
+}
+
 // attachProgrammes fills in the study programmes each person's leadership applies to.
-func (p *People) attachProgrammes(ctx context.Context, people []domain.Person, ids []uuid.UUID) error {
+//
+// Pointers rather than a value slice, because two of the four callers hold one person and a
+// third holds people reached through a teacher — writing back by index would mean a different
+// copy-out dance at each of them, and one of those dances would eventually be wrong.
+func (p *People) attachProgrammes(ctx context.Context, people []*domain.Person) error {
+	ids := make([]uuid.UUID, 0, len(people))
+	for _, person := range people {
+		if person != nil {
+			ids = append(ids, person.ID)
+		}
+	}
 	if len(ids) == 0 {
 		return nil
 	}
@@ -90,8 +108,10 @@ func (p *People) attachProgrammes(ctx context.Context, people []domain.Person, i
 		})
 	}
 
-	for i := range people {
-		people[i].Programmes = byPerson[people[i].ID]
+	for _, person := range people {
+		if person != nil {
+			person.Programmes = byPerson[person.ID]
+		}
 	}
 	return nil
 }
@@ -106,18 +126,17 @@ func (p *People) PersonByID(ctx context.Context, id uuid.UUID) (*domain.Person, 
 	if err != nil {
 		return nil, fmt.Errorf("cannot read person: %w", err)
 	}
-	person := domain.Person{
+	person := &domain.Person{
 		ID:     row.ID,
 		Mail:   row.Mail,
 		Name:   row.Name,
 		Active: row.Active,
 		Roles:  knownRoles(row.Roles),
 	}
-	people := []domain.Person{person}
-	if err := p.attachProgrammes(ctx, people, []uuid.UUID{row.ID}); err != nil {
+	if err := p.attachProgrammes(ctx, []*domain.Person{person}); err != nil {
 		return nil, err
 	}
-	return &people[0], nil
+	return person, nil
 }
 
 // PersonByMail resolves one person by the address the proxy asserts.
@@ -129,17 +148,17 @@ func (p *People) PersonByMail(ctx context.Context, mail string) (*domain.Person,
 	if err != nil {
 		return nil, fmt.Errorf("cannot read person by mail: %w", err)
 	}
-	people := []domain.Person{{
+	person := &domain.Person{
 		ID:     row.ID,
 		Mail:   row.Mail,
 		Name:   row.Name,
 		Active: row.Active,
 		Roles:  knownRoles(row.Roles),
-	}}
-	if err := p.attachProgrammes(ctx, people, []uuid.UUID{row.ID}); err != nil {
+	}
+	if err := p.attachProgrammes(ctx, []*domain.Person{person}); err != nil {
 		return nil, err
 	}
-	return &people[0], nil
+	return person, nil
 }
 
 // CreatePerson adds somebody, with no roles.

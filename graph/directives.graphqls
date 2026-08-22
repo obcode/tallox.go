@@ -130,9 +130,10 @@ enum ScopeArea {
   hold is unreachable through a token anyway, so it would be a promise in an enum that
   colleagues can read via introspection and never use.
 
-  Fields: `people`, `person`, `roleGrants`, `diagnoseAccess`, `createPerson`, `renamePerson`,
-  `setPersonRoles`, `setPersonActive`, `setPersonProgrammes`, `zpaSyncRuns`, `zpaSyncRun`,
-  `zpaChanges`, `zpaCatalogueProjections`, `syncZpaNow`, `projectZpaCatalogue`.
+  Fields: `people`, `person`, `roleGrants`, `diagnoseAccess`, `teacherAccounts`,
+  `createPerson`, `renamePerson`, `setPersonRoles`, `setPersonActive`, `setPersonProgrammes`,
+  `setTeacherAdmitted`, `zpaSyncRuns`, `zpaSyncRun`, `zpaChanges`, `zpaCatalogueProjections`,
+  `syncZpaNow`, `projectZpaCatalogue`.
   """
   ADMIN
 }

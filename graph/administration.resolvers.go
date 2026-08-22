@@ -81,6 +81,19 @@ func (r *mutationResolver) SetPersonProgrammes(ctx context.Context, id string, p
 	return personModel(*person), nil
 }
 
+// SetTeacherAdmitted is the resolver for the setTeacherAdmitted field.
+func (r *mutationResolver) SetTeacherAdmitted(ctx context.Context, teacherID string, admitted bool) (*model.TeacherAccount, error) {
+	id, err := parseID(teacherID)
+	if err != nil {
+		return nil, err
+	}
+	account, err := r.People.SetTeacherAdmitted(ctx, principal.From(ctx), id, admitted)
+	if err != nil {
+		return nil, peopleFacing(err)
+	}
+	return teacherAccountModel(*account), nil
+}
+
 // People is the resolver for the people field.
 func (r *queryResolver) People(ctx context.Context, search *string, includeInactive *bool) ([]*model.Person, error) {
 	people, err := r.Resolver.People.List(ctx, principal.From(ctx), deref(search), deref(includeInactive))
@@ -152,4 +165,17 @@ func (r *queryResolver) DiagnoseAccess(ctx context.Context, mail string) (*model
 		Grants:    r.Resolver.grantModels(ctx, actor, grants),
 		Decisions: diagnose(*person),
 	}, nil
+}
+
+// TeacherAccounts is the resolver for the teacherAccounts field.
+func (r *queryResolver) TeacherAccounts(ctx context.Context) ([]*model.TeacherAccount, error) {
+	accounts, err := r.Resolver.People.TeacherAccounts(ctx, principal.From(ctx))
+	if err != nil {
+		return nil, peopleFacing(err)
+	}
+	out := make([]*model.TeacherAccount, 0, len(accounts))
+	for _, account := range accounts {
+		out = append(out, teacherAccountModel(account))
+	}
+	return out, nil
 }

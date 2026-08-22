@@ -542,6 +542,18 @@ type Session struct {
 	Interactive bool `json:"interactive"`
 }
 
+// Somebody the examination office publishes, together with the account they have here.
+type TeacherAccount struct {
+	// The person as the examination office publishes them. Importing them granted nothing.
+	Teacher *Teacher `json:"teacher"`
+	// Their account here, or `null` if nobody of this address may sign in.
+	//
+	// An account somebody deactivated is **not** `null`: it is an account with `active: false`.
+	// The two look alike from outside and are not — one has never been admitted, the other has been
+	// admitted and had it taken away — and the next step differs accordingly.
+	Account *Person `json:"account,omitempty"`
+}
+
 // One rebuild of the module catalogue out of the cached payloads.
 type ZpaCatalogueProjection struct {
 	ID string `json:"id"`

@@ -35,6 +35,18 @@ func personModel(p domain.Person) *model.Person {
 	return out
 }
 
+// teacherAccountModel reshapes one row of the admission screen.
+//
+// The teacher half goes through teacherModel, the same one the catalogue uses, so that a
+// teacher reads the same wherever it is asked for.
+func teacherAccountModel(a domain.TeacherAccount) *model.TeacherAccount {
+	out := &model.TeacherAccount{Teacher: teacherModel(a.Teacher)}
+	if a.Person != nil {
+		out.Account = personModel(*a.Person)
+	}
+	return out
+}
+
 // personModels reshapes a list, preserving order.
 func personModels(people []domain.Person) []*model.Person {
 	out := make([]*model.Person, 0, len(people))
@@ -150,6 +162,14 @@ func peopleFacing(err error) error {
 			"Unter dieser Adresse ist bereits jemand eingetragen.")
 	case errors.Is(err, domain.ErrNoSuchPerson):
 		return refusal("PERSON_NOT_FOUND", "Diese Person gibt es nicht.")
+	case errors.Is(err, domain.ErrNoSuchTeacher):
+		return refusal("TEACHER_NOT_FOUND", "Diese Lehrperson gibt es nicht.")
+	case errors.Is(err, domain.ErrTeacherHasNoMail):
+		// Its own code, because there is nothing the caller can do here and the reason is worth
+		// naming: the address is the whole link between the two lists, and this one has none.
+		return refusal("TEACHER_HAS_NO_MAIL",
+			"Für diese Person liefert das ZPA keine Mailadresse. Ohne Adresse kann sie sich "+
+				"nicht anmelden — ein Konto lässt sich erst anlegen, wenn das ZPA eine hat.")
 	case errors.Is(err, domain.ErrNameTooLong):
 		return refusal("NAME_TOO_LONG",
 			fmt.Sprintf("Der Name darf höchstens %d Zeichen lang sein.", domain.MaxNameLength))

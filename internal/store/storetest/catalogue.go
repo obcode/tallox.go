@@ -45,8 +45,10 @@ import (
 //	             107 belongs to PZ, and its only association points at vanished regulations
 //	             108 a frequency and a course type this version has never seen
 //	             109 the examination office states no hours for it, so nothing can be proposed
-//	Teachers     201 the person every module names as responsible
+//	Teachers     201 the person every module names as responsible, and the only one admitted
 //	             202 no address at all — can never be connected to somebody who signs in
+//	             203 an address, and nobody has admitted them: 254 of 257 look like this
+//	             204 the source says they no longer teach, and they are in the list anyway
 //	Module 108 names a responsible person the teacher list does not contain.
 const (
 	// FixtureProgrammeA is the ordinary programme: two sets of regulations, both real.
@@ -93,6 +95,15 @@ const (
 	// FixtureTeacherWithoutMail is the case that can never be linked to a person in this
 	// installation, because the address is the link. Three of 257 real ones are like this.
 	FixtureTeacherWithoutMail = 202
+	// FixtureTeacherNotAdmitted teaches and cannot sign in, which is what 254 of 257 look
+	// like. The address is deliberately none of the personas': a fixture that happened to
+	// carry one would be admitted by whichever test seeded that persona, and the ordinary
+	// case would quietly stop being covered.
+	FixtureTeacherNotAdmitted = 203
+	// FixtureTeacherInactiveSource is marked by the examination office as no longer teaching.
+	// Kept and shown rather than filtered on import — five such people are still named as
+	// responsible for a module — so a list that leaves them out has to say that it does.
+	FixtureTeacherInactiveSource = 204
 )
 
 // zpaObject is one row of the landing table, in the shape the importer writes.
@@ -345,6 +356,14 @@ func catalogueObjects() []zpaObject {
 		// No address. The link to a person in this installation is the address, so this one
 		// cannot have one — and that is worth reporting rather than refusing.
 		teacher(FixtureTeacherWithoutMail, "", "Ohne Adresse", "Adresse, Ohne", false, false, ""),
+		// Teaches, has an address, and nobody has admitted them. The ordinary row of the
+		// admission screen, and the ordinary row of the real list.
+		teacher(FixtureTeacherNotAdmitted, "prof.sieben@example.org", "Prof. Dr. Sieben",
+			"Sieben, Prof.", true, true, "FK07"),
+		// Same in every respect except the source's own flag, so a test about that flag has
+		// only the flag to be about.
+		teacher(FixtureTeacherInactiveSource, "prof.acht@example.org", "Prof. Dr. Acht",
+			"Acht, Prof.", true, false, "FK07"),
 
 		// --- Associations ------------------------------------------------------------------
 		//

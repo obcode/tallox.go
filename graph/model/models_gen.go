@@ -372,6 +372,12 @@ type Person struct {
 	// The address the university's login asserts. Case-insensitive, and the key we match on.
 	Mail string `json:"mail"`
 	Name string `json:"name"`
+	// Whether this account can be used at all.
+	//
+	// An inactive person is refused at both doors, whatever roles they hold — deactivating is the
+	// removal this system has, and it takes away every token in the same moment. Nobody is ever
+	// deleted: the assignments they held stay in the history.
+	Active bool `json:"active"`
 	// The roles this person holds, in a stable order.
 	Roles []policy.Role `json:"roles"`
 	// The study programmes this person's study-programme leadership applies to.

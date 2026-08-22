@@ -189,6 +189,7 @@ type ComplexityRoot struct {
 	}
 
 	Person struct {
+		Active     func(childComplexity int) int
 		ID         func(childComplexity int) int
 		Mail       func(childComplexity int) int
 		Name       func(childComplexity int) int
@@ -1140,6 +1141,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Mutation.WithdrawCourseInstance(childComplexity, args["id"].(string)), true
 
+	case "Person.active":
+		if e.ComplexityRoot.Person.Active == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Person.Active(childComplexity), true
 	case "Person.id":
 		if e.ComplexityRoot.Person.ID == nil {
 			break
@@ -3471,6 +3478,14 @@ type Person {
   "The address the university's login asserts. Case-insensitive, and the key we match on."
   mail: String!
   name: String!
+  """
+  Whether this account can be used at all.
+
+  An inactive person is refused at both doors, whatever roles they hold — deactivating is the
+  removal this system has, and it takes away every token in the same moment. Nobody is ever
+  deleted: the assignments they held stay in the history.
+  """
+  active: Boolean!
   "The roles this person holds, in a stable order."
   roles: [Role!]!
   """
@@ -4536,6 +4551,8 @@ func (ec *executionContext) childFields_Person(ctx context.Context, field graphq
 		return ec.fieldContext_Person_mail(ctx, field)
 	case "name":
 		return ec.fieldContext_Person_name(ctx, field)
+	case "active":
+		return ec.fieldContext_Person_active(ctx, field)
 	case "roles":
 		return ec.fieldContext_Person_roles(ctx, field)
 	case "programmes":

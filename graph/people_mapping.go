@@ -25,6 +25,7 @@ func personModel(p domain.Person) *model.Person {
 		ID:         p.ID.String(),
 		Mail:       p.Mail,
 		Name:       p.Name,
+		Active:     p.Active,
 		Roles:      p.Roles,
 		Programmes: make([]*model.Programme, 0, len(p.Programmes)),
 	}

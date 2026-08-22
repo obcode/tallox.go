@@ -312,6 +312,10 @@ type Querier interface {
 	// the next import. `mail` is citext on both sides, so the casing the identity provider happens
 	// to use does not decide the answer.
 	//
+	// `p.active` belongs in the join condition and not beside it: is_user says whether somebody of
+	// this address may sign in, and a deactivated person may not — deactivating is how this system
+	// takes everything away at once. In a WHERE it would instead drop the teacher from the list.
+	//
 	// Retired teachers — ones a successful import stopped mentioning — are left out entirely,
 	// unlike the source's own `active` flag which is a column and a filter. The two are different
 	// questions: "no longer teaching" is worth seeing, "no longer published" is not.

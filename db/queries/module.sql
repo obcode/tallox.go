@@ -150,6 +150,10 @@ ORDER BY code;
 -- the next import. `mail` is citext on both sides, so the casing the identity provider happens
 -- to use does not decide the answer.
 --
+-- `p.active` belongs in the join condition and not beside it: is_user says whether somebody of
+-- this address may sign in, and a deactivated person may not — deactivating is how this system
+-- takes everything away at once. In a WHERE it would instead drop the teacher from the list.
+--
 -- Retired teachers — ones a successful import stopped mentioning — are left out entirely,
 -- unlike the source's own `active` flag which is a column and a filter. The two are different
 -- questions: "no longer teaching" is worth seeing, "no longer published" is not.
@@ -161,7 +165,7 @@ SELECT t.id, COALESCE(t.mail::text, '')::text AS mail, t.full_name, t.short_name
        t.active, t.faculty, t.last_semester,
        (p.id IS NOT NULL)::boolean AS is_user
 FROM teacher t
-LEFT JOIN person p ON p.mail = t.mail
+LEFT JOIN person p ON p.mail = t.mail AND p.active
 WHERE t.retired_at IS NULL
   AND (sqlc.arg('include_inactive')::boolean OR t.active)
   AND (sqlc.narg('search')::text IS NULL
@@ -180,7 +184,7 @@ SELECT t.id, COALESCE(t.mail::text, '')::text AS mail, t.full_name, t.short_name
        t.active, t.faculty, t.last_semester,
        (p.id IS NOT NULL)::boolean AS is_user
 FROM teacher t
-LEFT JOIN person p ON p.mail = t.mail
+LEFT JOIN person p ON p.mail = t.mail AND p.active
 WHERE t.id = ANY (sqlc.arg(ids)::uuid[]);
 
 -- name: ModulesByIDs :many

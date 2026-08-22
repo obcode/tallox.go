@@ -23,6 +23,20 @@ import (
 // looks at.
 const MaxTemporaryGrantDays = 30
 
+// AdmissionRole is the role somebody gets when they are admitted from the examination office's
+// list of the people who teach.
+//
+// Everywhere else in this package a new account holds no roles at all, deliberately: who may do
+// what should be a list somebody wrote rather than a default nobody chose. Admitting from that
+// list is the exception, and it is not really one — standing in it is the statement that this
+// person teaches at the faculty, which is exactly what the role says. It is also the smallest
+// role there is: it opens the module catalogue, which the examination office publishes anyway,
+// and the holder's own profile and entries. Nothing about anybody else.
+//
+// An account with no role at all is worse than a decision nobody made: it can sign in and see
+// nothing, which reads as a defect and arrives as a support question.
+const AdmissionRole = policy.RoleLecturer
+
 // MaxNameLength bounds what the administration can type into a name.
 const MaxNameLength = 200
 
@@ -159,6 +173,13 @@ type PeopleStore interface {
 	// applies to. Refuses with ErrUnknownProgramme for a code no programme has.
 	SetPersonProgrammes(ctx context.Context, personID uuid.UUID, codes []string,
 		grantedBy uuid.UUID) error
+	TeacherAccounts(ctx context.Context) ([]TeacherAccount, error)
+	// TeacherAccountByID returns (nil, nil) for an id no teacher has.
+	TeacherAccountByID(ctx context.Context, teacherID uuid.UUID) (*TeacherAccount, error)
+	// AdmitTeacher gets one teacher an active account and grants it this role, in one
+	// transaction. Idempotent: admitting somebody already admitted changes nothing.
+	AdmitTeacher(ctx context.Context, teacherID uuid.UUID, role policy.Role,
+		grantedBy uuid.UUID) (*TeacherAccount, error)
 }
 
 // PeopleService is user administration: who may use this installation, and as what.
@@ -420,6 +441,75 @@ func (s *PeopleService) SetProgrammes(ctx context.Context, actor principal.Actor
 		return nil, err
 	}
 	return s.Get(ctx, actor, id)
+}
+
+// TeacherAccounts lists everybody the examination office publishes, with the account they have
+// here — the screen an administrator admits people from.
+//
+// Everybody, unfiltered: it is 257 rows behind an administrator's login, and filtering is what
+// the screen does with them. The one thing left out is the people a successful import stopped
+// mentioning.
+//
+// Note what it is not: the list of accounts. Somebody with an account and no teacher row — the
+// dean's office, a protected administrator from the configuration file — is not here, and List
+// is where they are.
+func (s *PeopleService) TeacherAccounts(ctx context.Context,
+	actor principal.Actor) ([]TeacherAccount, error) {
+	if !policy.MayAdministerPeople(actor) {
+		return nil, ErrNotAdministrator
+	}
+	return s.store.TeacherAccounts(ctx)
+}
+
+// SetTeacherAdmitted lets somebody from the examination office's list into this installation, or
+// withdraws that.
+//
+// One operation for both directions, because it is one switch on one screen and its two
+// positions are the same statement with opposite signs. Both are idempotent: sending the state
+// something is already in changes nothing, which is what a switch means and what a
+// double-click deserves.
+//
+// Admitting grants AdmissionRole — see there for why this is the one place a new account is not
+// roleless. Withdrawing deactivates, which is the only removal this system has: it refuses
+// authentication on both doors and withdraws every token in the same moment, and it keeps the
+// role grants, so re-admitting somebody restores what they had rather than starting them over.
+// It meets the last-administrator guard like every other deactivation.
+func (s *PeopleService) SetTeacherAdmitted(ctx context.Context, actor principal.Actor,
+	teacherID uuid.UUID, admitted bool) (*TeacherAccount, error) {
+	if !policy.MayAdministerPeople(actor) {
+		return nil, ErrNotAdministrator
+	}
+
+	current, err := s.store.TeacherAccountByID(ctx, teacherID)
+	if err != nil {
+		return nil, err
+	}
+	if current == nil {
+		return nil, ErrNoSuchTeacher
+	}
+
+	if !admitted {
+		if current.Person == nil || !current.Person.Active {
+			return current, nil
+		}
+		if err := s.store.SetPersonActive(ctx, current.Person.ID, false); err != nil {
+			return nil, err
+		}
+		return s.store.TeacherAccountByID(ctx, teacherID)
+	}
+
+	if current.Teacher.Mail == "" {
+		return nil, ErrTeacherHasNoMail
+	}
+	// The address comes from another institution's database, and this is the moment it becomes
+	// an identity here. Six of the 257 real ones are addresses the identity provider will never
+	// assert; those are still admitted, because "will this person ever sign in" is not ours to
+	// answer. What is refused is a string that cannot be an address at all.
+	if err := ValidateMail(current.Teacher.Mail); err != nil {
+		return nil, err
+	}
+
+	return s.store.AdmitTeacher(ctx, teacherID, AdmissionRole, actor.ID)
 }
 
 // ValidateMail rejects what cannot be an identity the auth proxy asserts.

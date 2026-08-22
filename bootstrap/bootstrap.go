@@ -29,6 +29,7 @@ import (
 	"github.com/obcode/tallox.go/internal/auth"
 	"github.com/obcode/tallox.go/internal/buildinfo"
 	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/glitchtip"
 	"github.com/obcode/tallox.go/internal/store"
 	"github.com/obcode/tallox.go/internal/zpa"
 )
@@ -39,6 +40,19 @@ import (
 // differs between the DevContainer, CI and the host, and because it is the value a deploy
 // script sets. Secrets that are not per-environment belong in tallox.yaml.
 const EnvDatabaseURL = "TALLOX_DB_URL"
+
+// EnvGlitchTipDSN turns error reporting on; empty or unset means none at all, which is what
+// the DevContainer and CI want.
+//
+// The environment rather than tallox.yaml, like EnvDatabaseURL and for the same reason — it
+// differs per installation — and additionally because reporting starts BEFORE the
+// configuration file is read. A file that will not load is the most interesting startup
+// failure there is, and it cannot report itself if the reporter is configured inside it.
+const EnvGlitchTipDSN = "GLITCHTIP_DSN"
+
+// EnvGlitchTipEnvironment separates production from a test installation in the collector's
+// UI. Defaults to production: an installation nobody labelled is the one that matters.
+const EnvGlitchTipEnvironment = "GLITCHTIP_ENVIRONMENT"
 
 // Options is everything Handler needs. A struct rather than a parameter list: this grows with
 // every subsystem, and a positional bool that means "playground" in one call site and
@@ -126,11 +140,24 @@ func Serve(build buildinfo.Info) {
 	)
 	flag.Parse()
 
+	// Short call sites: readable in the console, and stable as a grouping key no matter where
+	// the binary was built — see glitchtip.ShortCallerMarshalFunc.
+	zerolog.CallerMarshalFunc = glitchtip.ShortCallerMarshalFunc
+
+	reporter, flushReports := setupReporting(build)
+	defer flushReports()
+
 	cfg, configFile, err := LoadConfig(*configPath)
 	if err != nil {
 		// Before setupLogging, so this uses the zerolog default writer rather than the
 		// configured one. That is the right way round: the thing that failed is the source of
-		// the logging configuration.
+		// the logging configuration. setupReporting has already attached the reporter to that
+		// default writer, so this line is reported as well as printed.
+		//
+		// gocritic is right that the deferred flush above will not run — log.Fatal exits.
+		// It does not have to: the reporter flushes synchronously at Fatal level, precisely
+		// because os.Exit would otherwise drop the one event that mattered most.
+		//nolint:gocritic // exitAfterDefer: the reporter flushes itself on Fatal
 		log.Fatal().Err(err).Msg("cannot start")
 	}
 	cfg, err = ApplyFlagOverrides(cfg, FlagsSet(), FlagOverrides{
@@ -144,7 +171,7 @@ func Serve(build buildinfo.Info) {
 		log.Fatal().Err(err).Msg("cannot start")
 	}
 
-	setupLogging(cfg.Log.Level)
+	setupLogging(cfg.Log.Level, reporter)
 	if configFile != "" {
 		log.Info().Str("file", configFile).Msg("configuration loaded")
 	} else {
@@ -161,7 +188,7 @@ func Serve(build buildinfo.Info) {
 	// validated, which is the whole of what this flag asserts — and it has to be assertable on
 	// an installation whose database is exactly what is broken.
 	if *checkConfig {
-		reportConfiguration(cfg, configFile)
+		reportConfiguration(cfg, configFile, reporter != nil)
 		return
 	}
 
@@ -415,7 +442,7 @@ func logZPAConfiguration(cfg ZPAConfig) {
 // It reports what is configured, never the values that are secret. The point is to answer
 // "will the new image start with this file, and did it see the block I added" — both of which
 // are answered by getting here at all plus these three lines.
-func reportConfiguration(cfg Config, configFile string) {
+func reportConfiguration(cfg Config, configFile string, reporting bool) {
 	if configFile == "" {
 		fmt.Println("configuration file: none found (flags and defaults only)")
 	} else {
@@ -428,6 +455,26 @@ func reportConfiguration(cfg Config, configFile string) {
 	} else {
 		fmt.Println("zpa module import:  not configured")
 	}
+	// From the environment, not from the file this command is about — but somebody checking
+	// what this image will do wants to know whether its errors will be seen by anyone. The
+	// state comes from setupReporting rather than from the variable, because a DSN that is
+	// set but unusable means reporting is off, and reporting "on" there would be a lie told
+	// by the one command whose job is to answer this question.
+	switch {
+	case reporting:
+		fmt.Printf("error reporting:    on (%s)\n", environmentOrDefault())
+	case os.Getenv(EnvGlitchTipDSN) != "":
+		fmt.Printf("error reporting:    off (%s is set but was rejected)\n", EnvGlitchTipDSN)
+	default:
+		fmt.Printf("error reporting:    off (%s is unset)\n", EnvGlitchTipDSN)
+	}
+}
+
+func environmentOrDefault() string {
+	if e := os.Getenv(EnvGlitchTipEnvironment); e != "" {
+		return e
+	}
+	return "production"
 }
 
 // reportMigrationStatus prints what the database has and what this binary is carrying, then
@@ -555,7 +602,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // verbosity, and refusing to serve the faculty's planning tool over that is a worse outcome
 // than the problem. The warning is what makes it noticed, and it is legible precisely because
 // the fallback keeps the log running.
-func setupLogging(level string) {
+func setupLogging(level string, reporter zerolog.LevelWriter) {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
 	parsed, err := zerolog.ParseLevel(level)
@@ -567,6 +614,53 @@ func setupLogging(level string) {
 		}()
 	}
 	zerolog.SetGlobalLevel(parsed)
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout}).
-		With().Caller().Timestamp().Logger()
+
+	// The reporter has to be carried over from setupReporting: this replaces the writer, and
+	// without it every error from here on would only be printed.
+	console := zerolog.ConsoleWriter{Out: os.Stdout}
+	out := zerolog.MultiLevelWriter(console)
+	if reporter != nil {
+		out = zerolog.MultiLevelWriter(console, reporter)
+	}
+	// .Caller() is not cosmetic: the reporter groups issues by that field.
+	log.Logger = zerolog.New(out).With().Caller().Timestamp().Logger()
+}
+
+// setupReporting starts error reporting from the environment and returns the writer for
+// setupLogging to keep, plus a flush to defer. Both are safe when reporting is off: the
+// writer is nil and the flush does nothing.
+//
+// It runs before the configuration is read, and therefore attaches the reporter to zerolog's
+// default logger straight away — otherwise the one log.Fatal() that can happen before
+// setupLogging, a configuration file that will not load, would be the single startup failure
+// that never reaches the collector.
+//
+// A collector that will not start is a reason to run unmonitored, not a reason to refuse to
+// serve the faculty's planning tool — the same trade the log level makes above.
+func setupReporting(build buildinfo.Info) (zerolog.LevelWriter, func()) {
+	dsn := os.Getenv(EnvGlitchTipDSN)
+	if dsn == "" {
+		return nil, func() {}
+	}
+
+	environment := os.Getenv(EnvGlitchTipEnvironment)
+	if environment == "" {
+		environment = "production"
+	}
+
+	flush, err := glitchtip.Init(glitchtip.Config{
+		DSN:         dsn,
+		Environment: environment,
+		Release:     build.Version,
+	})
+	if err != nil {
+		log.Warn().Err(err).Msg("error reporting is off")
+		return nil, func() {}
+	}
+
+	reporter := glitchtip.Writer(zerolog.ErrorLevel)
+	log.Logger = log.Output(zerolog.MultiLevelWriter(os.Stderr, reporter)).
+		With().Caller().Logger()
+
+	return reporter, flush
 }

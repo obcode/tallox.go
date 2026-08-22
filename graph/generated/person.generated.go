@@ -94,6 +94,29 @@ func (ec *executionContext) fieldContext_Person_name(_ context.Context, field gr
 	return graphql.NewScalarFieldContext("Person", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _Person_active(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Person_active(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Active, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Person_active(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Person", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _Person_roles(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -185,6 +208,11 @@ func (ec *executionContext) _Person(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "name":
 			out.Values[i] = ec._Person_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "active":
+			out.Values[i] = ec._Person_active(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

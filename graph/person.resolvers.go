@@ -34,9 +34,13 @@ func (r *queryResolver) Me(ctx context.Context) (*model.Person, error) {
 	}
 
 	me := &model.Person{
-		ID:         actor.ID.String(),
-		Mail:       actor.Mail,
-		Name:       actor.Name,
+		ID:   actor.ID.String(),
+		Mail: actor.Mail,
+		Name: actor.Name,
+		// True by construction rather than by lookup: internal/auth refuses an inactive person
+		// at both doors, so an actor that got this far is active. Reading it again would be a
+		// second opinion about something authentication has already decided.
+		Active:     true,
 		Roles:      policy.RolesOf(actor).Sorted(),
 		Programmes: []*model.Programme{},
 	}

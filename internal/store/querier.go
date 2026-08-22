@@ -305,6 +305,18 @@ type Querier interface {
 	// Loaded whole rather than per programme: 29 rows, and every screen that shows one programme's
 	// versions also has the others in a picker beside it.
 	ListSpos(ctx context.Context) ([]ListSposRow, error)
+	// The people the examination office publishes, each with the account they have here.
+	//
+	// The same LEFT JOIN on the address that Teacher.is_user is derived from, and deliberately
+	// without `AND p.active`: this list is the one screen that has to tell "nobody of this address
+	// may sign in" apart from "somebody deactivated them", and those are two different next steps.
+	// person_id is what distinguishes them; the other person columns are COALESCEd because a
+	// LEFT JOIN makes NOT NULL columns nullable and scanning NULL into a string fails at runtime.
+	//
+	// Retired teachers — ones a successful import stopped mentioning — are left out. People the
+	// source marks as no longer teaching are not: five such people are still named as responsible
+	// for a module, and somebody who left has an account that still has to be closable.
+	ListTeacherAccounts(ctx context.Context) ([]ListTeacherAccountsRow, error)
 	// The people who teach, with whether somebody of that address may sign in here.
 	//
 	// The LEFT JOIN to person is the link between the two lists, and it is done here rather than
@@ -569,6 +581,13 @@ type Querier interface {
 	// RUNNING row somebody can see, rather than no row at all — which is indistinguishable from a
 	// job that was never scheduled, and is how "the import stopped three weeks ago" happens.
 	StartZPASyncRun(ctx context.Context, arg StartZPASyncRunParams) (ZpaSyncRun, error)
+	// One teacher and their account, by teacher id.
+	//
+	// No retired filter, unlike the list above. The id always comes from that list, so the only way
+	// to be here with a retired teacher is that the import withdrew them between the screen loading
+	// and somebody clicking — and answering "no such teacher" to a change that has already been
+	// written would be a worse answer than the truth.
+	TeacherAccountByID(ctx context.Context, teacherID uuid.UUID) (TeacherAccountByIDRow, error)
 	// A handful of teachers by id, for attaching them to the modules they are responsible for.
 	// COALESCE, and it is not cosmetic: three of the 257 carry no address, sqlc cannot know that a
 	// cast is nullable, and scanning NULL into a string fails at runtime rather than at build time.

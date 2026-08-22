@@ -255,6 +255,104 @@ func (q *Queries) ListPeople(ctx context.Context, arg ListPeopleParams) ([]ListP
 	return items, nil
 }
 
+const listTeacherAccounts = `-- name: ListTeacherAccounts :many
+SELECT
+    t.id AS teacher_id,
+    COALESCE(t.mail::text, '')::text AS mail,
+    t.full_name,
+    t.short_name,
+    t.is_professor,
+    t.is_lecturer_on_contract,
+    t.is_honorary_professor,
+    t.is_staff,
+    t.active,
+    t.faculty,
+    t.last_semester,
+    p.id AS person_id,
+    COALESCE(p.mail::text, '')::text AS person_mail,
+    COALESCE(p.name, '')::text AS person_name,
+    COALESCE(p.active, false)::boolean AS person_active,
+    COALESCE(
+        array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
+        ARRAY[]::text[]
+    )::text[] AS roles
+FROM teacher t
+LEFT JOIN person p ON p.mail = t.mail
+LEFT JOIN person_role pr
+    ON pr.person_id = p.id
+   AND (pr.expires_at IS NULL OR pr.expires_at > now())
+WHERE t.retired_at IS NULL
+GROUP BY t.id, p.id
+ORDER BY t.short_name, t.id
+`
+
+type ListTeacherAccountsRow struct {
+	TeacherID            uuid.UUID
+	Mail                 string
+	FullName             string
+	ShortName            string
+	IsProfessor          bool
+	IsLecturerOnContract bool
+	IsHonoraryProfessor  bool
+	IsStaff              bool
+	Active               bool
+	Faculty              *string
+	LastSemester         *string
+	PersonID             uuid.NullUUID
+	PersonMail           string
+	PersonName           string
+	PersonActive         bool
+	Roles                []string
+}
+
+// The people the examination office publishes, each with the account they have here.
+//
+// The same LEFT JOIN on the address that Teacher.is_user is derived from, and deliberately
+// without `AND p.active`: this list is the one screen that has to tell "nobody of this address
+// may sign in" apart from "somebody deactivated them", and those are two different next steps.
+// person_id is what distinguishes them; the other person columns are COALESCEd because a
+// LEFT JOIN makes NOT NULL columns nullable and scanning NULL into a string fails at runtime.
+//
+// Retired teachers — ones a successful import stopped mentioning — are left out. People the
+// source marks as no longer teaching are not: five such people are still named as responsible
+// for a module, and somebody who left has an account that still has to be closable.
+func (q *Queries) ListTeacherAccounts(ctx context.Context) ([]ListTeacherAccountsRow, error) {
+	rows, err := q.db.Query(ctx, listTeacherAccounts)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTeacherAccountsRow{}
+	for rows.Next() {
+		var i ListTeacherAccountsRow
+		if err := rows.Scan(
+			&i.TeacherID,
+			&i.Mail,
+			&i.FullName,
+			&i.ShortName,
+			&i.IsProfessor,
+			&i.IsLecturerOnContract,
+			&i.IsHonoraryProfessor,
+			&i.IsStaff,
+			&i.Active,
+			&i.Faculty,
+			&i.LastSemester,
+			&i.PersonID,
+			&i.PersonMail,
+			&i.PersonName,
+			&i.PersonActive,
+			&i.Roles,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockAdminGrants = `-- name: LockAdminGrants :exec
 SELECT 1 FROM person_role WHERE role = 'ADMIN' FOR UPDATE
 `
@@ -545,6 +643,85 @@ type SetPersonNameParams struct {
 func (q *Queries) SetPersonName(ctx context.Context, arg SetPersonNameParams) error {
 	_, err := q.db.Exec(ctx, setPersonName, arg.ID, arg.Name)
 	return err
+}
+
+const teacherAccountByID = `-- name: TeacherAccountByID :one
+SELECT
+    t.id AS teacher_id,
+    COALESCE(t.mail::text, '')::text AS mail,
+    t.full_name,
+    t.short_name,
+    t.is_professor,
+    t.is_lecturer_on_contract,
+    t.is_honorary_professor,
+    t.is_staff,
+    t.active,
+    t.faculty,
+    t.last_semester,
+    p.id AS person_id,
+    COALESCE(p.mail::text, '')::text AS person_mail,
+    COALESCE(p.name, '')::text AS person_name,
+    COALESCE(p.active, false)::boolean AS person_active,
+    COALESCE(
+        array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
+        ARRAY[]::text[]
+    )::text[] AS roles
+FROM teacher t
+LEFT JOIN person p ON p.mail = t.mail
+LEFT JOIN person_role pr
+    ON pr.person_id = p.id
+   AND (pr.expires_at IS NULL OR pr.expires_at > now())
+WHERE t.id = $1::uuid
+GROUP BY t.id, p.id
+`
+
+type TeacherAccountByIDRow struct {
+	TeacherID            uuid.UUID
+	Mail                 string
+	FullName             string
+	ShortName            string
+	IsProfessor          bool
+	IsLecturerOnContract bool
+	IsHonoraryProfessor  bool
+	IsStaff              bool
+	Active               bool
+	Faculty              *string
+	LastSemester         *string
+	PersonID             uuid.NullUUID
+	PersonMail           string
+	PersonName           string
+	PersonActive         bool
+	Roles                []string
+}
+
+// One teacher and their account, by teacher id.
+//
+// No retired filter, unlike the list above. The id always comes from that list, so the only way
+// to be here with a retired teacher is that the import withdrew them between the screen loading
+// and somebody clicking — and answering "no such teacher" to a change that has already been
+// written would be a worse answer than the truth.
+func (q *Queries) TeacherAccountByID(ctx context.Context, teacherID uuid.UUID) (TeacherAccountByIDRow, error) {
+	row := q.db.QueryRow(ctx, teacherAccountByID, teacherID)
+	var i TeacherAccountByIDRow
+	err := row.Scan(
+		&i.TeacherID,
+		&i.Mail,
+		&i.FullName,
+		&i.ShortName,
+		&i.IsProfessor,
+		&i.IsLecturerOnContract,
+		&i.IsHonoraryProfessor,
+		&i.IsStaff,
+		&i.Active,
+		&i.Faculty,
+		&i.LastSemester,
+		&i.PersonID,
+		&i.PersonMail,
+		&i.PersonName,
+		&i.PersonActive,
+		&i.Roles,
+	)
+	return i, err
 }
 
 const unassignProgrammes = `-- name: UnassignProgrammes :exec

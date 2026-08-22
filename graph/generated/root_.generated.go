@@ -182,6 +182,7 @@ type ComplexityRoot struct {
 		SetPersonActive               func(childComplexity int, id string, active bool) int
 		SetPersonProgrammes           func(childComplexity int, id string, programmes []string) int
 		SetPersonRoles                func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
+		SetTeacherAdmitted            func(childComplexity int, teacherID string, admitted bool) int
 		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
 		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
 		SyncZpaNow                    func(childComplexity int) int
@@ -189,6 +190,7 @@ type ComplexityRoot struct {
 	}
 
 	Person struct {
+		Active     func(childComplexity int) int
 		ID         func(childComplexity int) int
 		Mail       func(childComplexity int) int
 		Name       func(childComplexity int) int
@@ -236,6 +238,7 @@ type ComplexityRoot struct {
 		Semester                func(childComplexity int, code string) int
 		Semesters               func(childComplexity int) int
 		Session                 func(childComplexity int) int
+		TeacherAccounts         func(childComplexity int) int
 		Teachers                func(childComplexity int, search *string, includeInactive *bool) int
 		ZpaCatalogueProjections func(childComplexity int, limit *int) int
 		ZpaChanges              func(childComplexity int, runID string) int
@@ -287,6 +290,11 @@ type ComplexityRoot struct {
 		Mail                 func(childComplexity int) int
 		Name                 func(childComplexity int) int
 		SortName             func(childComplexity int) int
+	}
+
+	TeacherAccount struct {
+		Account func(childComplexity int) int
+		Teacher func(childComplexity int) int
 	}
 
 	ZpaCatalogueProjection struct {
@@ -1100,6 +1108,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetPersonRoles(childComplexity, args["id"].(string), args["roles"].([]policy.Role), args["expiresAt"].(*time.Time)), true
+	case "Mutation.setTeacherAdmitted":
+		if e.ComplexityRoot.Mutation.SetTeacherAdmitted == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setTeacherAdmitted_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetTeacherAdmitted(childComplexity, args["teacherId"].(string), args["admitted"].(bool)), true
 	case "Mutation.shareInstancePartAcrossTracks":
 		if e.ComplexityRoot.Mutation.ShareInstancePartAcrossTracks == nil {
 			break
@@ -1140,6 +1159,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Mutation.WithdrawCourseInstance(childComplexity, args["id"].(string)), true
 
+	case "Person.active":
+		if e.ComplexityRoot.Person.Active == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Person.Active(childComplexity), true
 	case "Person.id":
 		if e.ComplexityRoot.Person.ID == nil {
 			break
@@ -1405,6 +1430,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Session(childComplexity), true
+	case "Query.teacherAccounts":
+		if e.ComplexityRoot.Query.TeacherAccounts == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.TeacherAccounts(childComplexity), true
 	case "Query.teachers":
 		if e.ComplexityRoot.Query.Teachers == nil {
 			break
@@ -1651,6 +1682,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Teacher.SortName(childComplexity), true
+
+	case "TeacherAccount.account":
+		if e.ComplexityRoot.TeacherAccount.Account == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeacherAccount.Account(childComplexity), true
+	case "TeacherAccount.teacher":
+		if e.ComplexityRoot.TeacherAccount.Teacher == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeacherAccount.Teacher(childComplexity), true
 
 	case "ZpaCatalogueProjection.error":
 		if e.ComplexityRoot.ZpaCatalogueProjection.Error == nil {
@@ -2046,6 +2090,30 @@ type PolicyDecision {
   reason: String!
 }
 
+# Who may sign in and who teaches are two lists, and they are joined by the mail address alone.
+# There is no column to keep in step, which is what makes an account created this morning
+# connected to its own modules now rather than after tonight's import.
+#
+# It is a root field rather than a field on Teacher on purpose. Teacher is readable by everybody
+# with an account — a lecturer looking for who is responsible for a module needs it — and hanging
+# the account off it would put everybody's roles behind that same reading.
+
+"""
+Somebody the examination office publishes, together with the account they have here.
+"""
+type TeacherAccount {
+  "The person as the examination office publishes them. Importing them granted nothing."
+  teacher: Teacher!
+  """
+  Their account here, or ` + "`" + `null` + "`" + ` if nobody of this address may sign in.
+
+  An account somebody deactivated is **not** ` + "`" + `null` + "`" + `: it is an account with ` + "`" + `active: false` + "`" + `.
+  The two look alike from outside and are not — one has never been admitted, the other has been
+  admitted and had it taken away — and the next step differs accordingly.
+  """
+  account: Person
+}
+
 extend type Query {
   """
   Everybody this installation knows.
@@ -2074,6 +2142,22 @@ extend type Query {
   she cannot see the demand planning" and the address is what the asker has.
   """
   diagnoseAccess(mail: String!): AccessDiagnosis @interactiveOnly @scope(area: ADMIN, verb: READ)
+
+  """
+  Everybody who teaches, with the account each of them has here.
+
+  The list to admit people from: it is who the examination office says teaches at this faculty,
+  and next to each of them whether they can sign in. Unfiltered on purpose — a few hundred rows,
+  and which of them anybody wants to see is a question the screen answers, not this field.
+
+  Two things it does differently from ` + "`" + `teachers` + "`" + `. It keeps the people the examination office
+  marks as no longer teaching, because somebody who has left is exactly who an account has to be
+  closable for. And it leaves out the ones a successful import stopped mentioning altogether.
+
+  It is not the list of accounts. Somebody who may sign in without teaching — the dean's office,
+  a secretariat — has no entry here at all, and ` + "`" + `people` + "`" + ` is where they are.
+  """
+  teacherAccounts: [TeacherAccount!] @interactiveOnly @scope(area: ADMIN, verb: READ)
 }
 
 extend type Mutation {
@@ -2141,6 +2225,32 @@ extend type Mutation {
     "Short codes, for example ` + "`" + `[\"IF\", \"IG\"]` + "`" + `. Upper-cased and de-duplicated for you."
     programmes: [String!]!
   ): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+
+  """
+  Let somebody from the examination office's list into this installation, or withdraw them.
+
+  Admitting creates the account if there is none and reactivates it if there is one, and grants
+  ` + "`" + `LECTURER` + "`" + `. That is the one place here where a new account is not roleless, and it is what the
+  act says: standing in the list of the people who teach is what that role means. It is also the
+  smallest role there is — the module catalogue, and one's own profile and entries.
+
+  Withdrawing deactivates. Nobody is ever deleted: the grants stay, so admitting somebody again
+  restores what they had rather than starting them over, and their assignments stay in the
+  history. It is refused with ` + "`" + `LAST_ADMIN` + "`" + ` when it would leave the installation with nobody who
+  can administer it.
+
+  Both directions can be repeated. Sending the state somebody is already in changes nothing,
+  which is what a switch on a screen means and what a second click deserves.
+
+  Refused with ` + "`" + `TEACHER_HAS_NO_MAIL` + "`" + ` for the handful the examination office gives no address
+  for. The address is the whole link between the two lists, so there is nothing to admit them
+  by — and nothing to invent here either.
+  """
+  setTeacherAdmitted(
+    teacherId: ID!
+    "True admits, false withdraws."
+    admitted: Boolean!
+  ): TeacherAccount! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../catalogue.graphqls", Input: `# The module catalogue: study programmes, their examination regulations, and the modules that
@@ -3392,9 +3502,10 @@ enum ScopeArea {
   hold is unreachable through a token anyway, so it would be a promise in an enum that
   colleagues can read via introspection and never use.
 
-  Fields: ` + "`" + `people` + "`" + `, ` + "`" + `person` + "`" + `, ` + "`" + `roleGrants` + "`" + `, ` + "`" + `diagnoseAccess` + "`" + `, ` + "`" + `createPerson` + "`" + `, ` + "`" + `renamePerson` + "`" + `,
-  ` + "`" + `setPersonRoles` + "`" + `, ` + "`" + `setPersonActive` + "`" + `, ` + "`" + `setPersonProgrammes` + "`" + `, ` + "`" + `zpaSyncRuns` + "`" + `, ` + "`" + `zpaSyncRun` + "`" + `,
-  ` + "`" + `zpaChanges` + "`" + `, ` + "`" + `zpaCatalogueProjections` + "`" + `, ` + "`" + `syncZpaNow` + "`" + `, ` + "`" + `projectZpaCatalogue` + "`" + `.
+  Fields: ` + "`" + `people` + "`" + `, ` + "`" + `person` + "`" + `, ` + "`" + `roleGrants` + "`" + `, ` + "`" + `diagnoseAccess` + "`" + `, ` + "`" + `teacherAccounts` + "`" + `,
+  ` + "`" + `createPerson` + "`" + `, ` + "`" + `renamePerson` + "`" + `, ` + "`" + `setPersonRoles` + "`" + `, ` + "`" + `setPersonActive` + "`" + `, ` + "`" + `setPersonProgrammes` + "`" + `,
+  ` + "`" + `setTeacherAdmitted` + "`" + `, ` + "`" + `zpaSyncRuns` + "`" + `, ` + "`" + `zpaSyncRun` + "`" + `, ` + "`" + `zpaChanges` + "`" + `, ` + "`" + `zpaCatalogueProjections` + "`" + `,
+  ` + "`" + `syncZpaNow` + "`" + `, ` + "`" + `projectZpaCatalogue` + "`" + `.
   """
   ADMIN
 }
@@ -3471,6 +3582,14 @@ type Person {
   "The address the university's login asserts. Case-insensitive, and the key we match on."
   mail: String!
   name: String!
+  """
+  Whether this account can be used at all.
+
+  An inactive person is refused at both doors, whatever roles they hold — deactivating is the
+  removal this system has, and it takes away every token in the same moment. Nobody is ever
+  deleted: the assignments they held stay in the history.
+  """
+  active: Boolean!
   "The roles this person holds, in a stable order."
   roles: [Role!]!
   """
@@ -4536,6 +4655,8 @@ func (ec *executionContext) childFields_Person(ctx context.Context, field graphq
 		return ec.fieldContext_Person_mail(ctx, field)
 	case "name":
 		return ec.fieldContext_Person_name(ctx, field)
+	case "active":
+		return ec.fieldContext_Person_active(ctx, field)
 	case "roles":
 		return ec.fieldContext_Person_roles(ctx, field)
 	case "programmes":
@@ -4680,6 +4801,16 @@ func (ec *executionContext) childFields_Teacher(ctx context.Context, field graph
 		return ec.fieldContext_Teacher_isUser(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Teacher", field.Name)
+}
+
+func (ec *executionContext) childFields_TeacherAccount(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "teacher":
+		return ec.fieldContext_TeacherAccount_teacher(ctx, field)
+	case "account":
+		return ec.fieldContext_TeacherAccount_account(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type TeacherAccount", field.Name)
 }
 
 func (ec *executionContext) childFields_ZpaCatalogueProjection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

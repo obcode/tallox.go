@@ -11,6 +11,7 @@ Kolleg:innen — das gehört nach `tallox.dev`.
 - [Scope-Durchsetzung](scope-enforcement.md) — `@scope` per Operation, warum leer „unbeschränkt" heißt, und warum PUBLIC nicht wegnehmbar ist
 - [ZPA-Import](zpa-import.md) — Cache, Sync, Cron und der Fehler, den erst der echte Lauf zeigte
 - [Integrationstests in der CI](integration-tests-in-ci.md) — zwei Test-Binaries, zwei Container, ein Ryuk: woran man den Ärger erkennt
+- [Zulassung von Lehrenden](admitting-a-teacher.md) — wie aus einer ZPA-Lehrperson ein Konto wird, und die drei Entscheidungen darin
 - [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:

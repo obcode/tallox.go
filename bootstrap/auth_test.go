@@ -313,6 +313,37 @@ func TestADeactivatedPersonLosesBothDoors(t *testing.T) {
 		})
 }
 
+// TestMeSaysWhetherTheAccountIsActive pins down the one answer Person.active can have here.
+//
+// The field is filled in from the actor rather than read back, because authentication has
+// already decided it: TestADeactivatedPersonLosesBothDoors above is the other half, where the
+// same request gets a 401 instead. Without this assertion the field would answer false for
+// everybody — the actor carries no such flag, and a struct literal that forgets it compiles.
+func TestMeSaysWhetherTheAccountIsActive(t *testing.T) {
+	t.Parallel()
+
+	h := seeded(t, auth.ModeProxy, map[testdata.Persona][]policy.Role{
+		testdata.Eins: {policy.RoleLecturer},
+	})
+
+	graphqltest.EachDoor(t, h, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var got struct {
+				Me *struct {
+					Active bool `json:"active"`
+				} `json:"me"`
+			}
+			c.MustQuery(t, `{ me { active } }`, nil, &got)
+			if got.Me == nil {
+				t.Fatal("an active person could not authenticate")
+			}
+			if !got.Me.Active {
+				t.Errorf("somebody who just authenticated on the %s door reads as inactive",
+					c.Door().Name)
+			}
+		})
+}
+
 // TestDevModeLeavesTheTokenDoorReal is the asymmetry that makes auth.mode=dev safe to use
 // every day.
 //

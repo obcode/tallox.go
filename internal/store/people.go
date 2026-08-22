@@ -48,7 +48,6 @@ func (p *People) ListPeople(ctx context.Context, search string,
 	}
 
 	people := make([]domain.Person, 0, len(rows))
-	ids := make([]uuid.UUID, 0, len(rows))
 	for _, row := range rows {
 		people = append(people, domain.Person{
 			ID:     row.ID,
@@ -57,20 +56,39 @@ func (p *People) ListPeople(ctx context.Context, search string,
 			Active: row.Active,
 			Roles:  knownRoles(row.Roles),
 		})
-		ids = append(ids, row.ID)
 	}
 
 	// One statement for the whole list rather than one per row: the administration screen shows
 	// which programmes each lead is assigned to, and a query per person would make that screen
 	// cost a round trip per colleague.
-	if err := p.attachProgrammes(ctx, people, ids); err != nil {
+	if err := p.attachProgrammes(ctx, pointersTo(people)); err != nil {
 		return nil, err
 	}
 	return people, nil
 }
 
+// pointersTo addresses the elements of a slice, so that a value slice can be filled in by
+// something that writes through pointers.
+func pointersTo(people []domain.Person) []*domain.Person {
+	out := make([]*domain.Person, len(people))
+	for i := range people {
+		out[i] = &people[i]
+	}
+	return out
+}
+
 // attachProgrammes fills in the study programmes each person's leadership applies to.
-func (p *People) attachProgrammes(ctx context.Context, people []domain.Person, ids []uuid.UUID) error {
+//
+// Pointers rather than a value slice, because two of the four callers hold one person and a
+// third holds people reached through a teacher — writing back by index would mean a different
+// copy-out dance at each of them, and one of those dances would eventually be wrong.
+func (p *People) attachProgrammes(ctx context.Context, people []*domain.Person) error {
+	ids := make([]uuid.UUID, 0, len(people))
+	for _, person := range people {
+		if person != nil {
+			ids = append(ids, person.ID)
+		}
+	}
 	if len(ids) == 0 {
 		return nil
 	}
@@ -90,10 +108,118 @@ func (p *People) attachProgrammes(ctx context.Context, people []domain.Person, i
 		})
 	}
 
-	for i := range people {
-		people[i].Programmes = byPerson[people[i].ID]
+	for _, person := range people {
+		if person != nil {
+			person.Programmes = byPerson[person.ID]
+		}
 	}
 	return nil
+}
+
+// TeacherAccounts lists everybody the examination office publishes, with the account they have
+// here.
+//
+// The join is on the mail address, done on every read rather than stored, so that somebody
+// admitted this morning is connected now rather than after the next import — the reason there is
+// no teacher.person_id column at all.
+func (p *People) TeacherAccounts(ctx context.Context) ([]domain.TeacherAccount, error) {
+	rows, err := New(p.pool).ListTeacherAccounts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot list the teacher accounts: %w", err)
+	}
+
+	accounts := make([]domain.TeacherAccount, 0, len(rows))
+	for _, row := range rows {
+		accounts = append(accounts, teacherAccountFrom(teacherAccountRow(row)))
+	}
+
+	// One statement for the whole list, like ListPeople: the screen shows which programmes each
+	// lead is assigned to, and a query per row would cost a round trip per colleague.
+	people := make([]*domain.Person, 0, len(accounts))
+	for i := range accounts {
+		if accounts[i].Person != nil {
+			people = append(people, accounts[i].Person)
+		}
+	}
+	if err := p.attachProgrammes(ctx, people); err != nil {
+		return nil, err
+	}
+	return accounts, nil
+}
+
+// TeacherAccountByID resolves one teacher and their account. "Not found" is (nil, nil).
+func (p *People) TeacherAccountByID(ctx context.Context,
+	teacherID uuid.UUID) (*domain.TeacherAccount, error) {
+	row, err := New(p.pool).TeacherAccountByID(ctx, teacherID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the teacher account: %w", err)
+	}
+
+	account := teacherAccountFrom(teacherAccountRow(row))
+	if account.Person != nil {
+		if err := p.attachProgrammes(ctx, []*domain.Person{account.Person}); err != nil {
+			return nil, err
+		}
+	}
+	return &account, nil
+}
+
+// teacherAccountRow is the shape both teacher-account queries produce.
+//
+// sqlc emits one type per query and they are structurally identical because the SELECT lists
+// are, the same trick teacherRow plays in module.go. The teacher half is then handed to
+// teacherFrom rather than copied again — one description of a teacher row, in one place.
+type teacherAccountRow struct {
+	TeacherID            uuid.UUID
+	Mail                 string
+	FullName             string
+	ShortName            string
+	IsProfessor          bool
+	IsLecturerOnContract bool
+	IsHonoraryProfessor  bool
+	IsStaff              bool
+	Active               bool
+	Faculty              *string
+	LastSemester         *string
+	PersonID             uuid.NullUUID
+	PersonMail           string
+	PersonName           string
+	PersonActive         bool
+	Roles                []string
+}
+
+func teacherAccountFrom(row teacherAccountRow) domain.TeacherAccount {
+	account := domain.TeacherAccount{
+		Teacher: teacherFrom(teacherRow{
+			ID:                   row.TeacherID,
+			Mail:                 row.Mail,
+			FullName:             row.FullName,
+			ShortName:            row.ShortName,
+			IsProfessor:          row.IsProfessor,
+			IsLecturerOnContract: row.IsLecturerOnContract,
+			IsHonoraryProfessor:  row.IsHonoraryProfessor,
+			IsStaff:              row.IsStaff,
+			Active:               row.Active,
+			Faculty:              row.Faculty,
+			LastSemester:         row.LastSemester,
+			// Whether they may sign in, which is what the field means everywhere else. The
+			// account below says more, and says it to the one screen that needs more.
+			IsUser: row.PersonID.Valid && row.PersonActive,
+		}),
+	}
+	if row.PersonID.Valid {
+		account.Person = &domain.Person{
+			ID:     row.PersonID.UUID,
+			Mail:   row.PersonMail,
+			Name:   row.PersonName,
+			Active: row.PersonActive,
+			Roles:  knownRoles(row.Roles),
+		}
+	}
+	return account
 }
 
 // PersonByID resolves one person. "Not found" is (nil, nil), the convention throughout this
@@ -106,18 +232,17 @@ func (p *People) PersonByID(ctx context.Context, id uuid.UUID) (*domain.Person, 
 	if err != nil {
 		return nil, fmt.Errorf("cannot read person: %w", err)
 	}
-	person := domain.Person{
+	person := &domain.Person{
 		ID:     row.ID,
 		Mail:   row.Mail,
 		Name:   row.Name,
 		Active: row.Active,
 		Roles:  knownRoles(row.Roles),
 	}
-	people := []domain.Person{person}
-	if err := p.attachProgrammes(ctx, people, []uuid.UUID{row.ID}); err != nil {
+	if err := p.attachProgrammes(ctx, []*domain.Person{person}); err != nil {
 		return nil, err
 	}
-	return &people[0], nil
+	return person, nil
 }
 
 // PersonByMail resolves one person by the address the proxy asserts.
@@ -129,17 +254,17 @@ func (p *People) PersonByMail(ctx context.Context, mail string) (*domain.Person,
 	if err != nil {
 		return nil, fmt.Errorf("cannot read person by mail: %w", err)
 	}
-	people := []domain.Person{{
+	person := &domain.Person{
 		ID:     row.ID,
 		Mail:   row.Mail,
 		Name:   row.Name,
 		Active: row.Active,
 		Roles:  knownRoles(row.Roles),
-	}}
-	if err := p.attachProgrammes(ctx, people, []uuid.UUID{row.ID}); err != nil {
+	}
+	if err := p.attachProgrammes(ctx, []*domain.Person{person}); err != nil {
 		return nil, err
 	}
-	return &people[0], nil
+	return person, nil
 }
 
 // CreatePerson adds somebody, with no roles.
@@ -159,6 +284,78 @@ func (p *People) CreatePerson(ctx context.Context, mail, name string) (*domain.P
 		Active: row.Active,
 		Roles:  []policy.Role{},
 	}, nil
+}
+
+// AdmitTeacher gives one of the people the examination office publishes an account here, and
+// the role that says what the act means.
+//
+// One transaction, for three reasons of decreasing size. The first settles it: EnsurePerson is
+// an upsert, so a second click — or a second administrator on the same screen — is a no-op
+// rather than a unique violation the caller would meet as an unexplainable internal error. The
+// second is that a created account with no grant can sign in and see nothing, which reads as a
+// permissions bug and is not one. The third is that the three statements are one decision.
+//
+// The role is a parameter and not a constant here: which role admission carries is a decision,
+// and it belongs where it can be read next to its reason, in internal/domain.
+//
+// No administrator lock, unlike SetPersonActive. This only ever adds an active person and a
+// grant, and both directions of that guard are about removal.
+func (p *People) AdmitTeacher(ctx context.Context, teacherID uuid.UUID, role policy.Role,
+	grantedBy uuid.UUID) (*domain.TeacherAccount, error) {
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	// Rollback after a successful commit is a no-op, so this needs no branching.
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	row, err := q.TeacherAccountByID(ctx, teacherID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrNoSuchTeacher
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the teacher: %w", err)
+	}
+	if row.Mail == "" {
+		return nil, domain.ErrTeacherHasNoMail
+	}
+
+	person, err := q.EnsurePerson(ctx, EnsurePersonParams{
+		ID: uuid.New(),
+		// The address as the examination office publishes it, lower-cased by the cache. mail is
+		// citext on both sides, so an account created from either list is the same row.
+		Mail: row.Mail,
+		// Only written when the row is created — EnsurePerson says so. Somebody renamed here, or
+		// by a later import, is not renamed back by re-admitting them.
+		Name: row.FullName,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot create the account: %w", err)
+	}
+
+	// Re-admitting somebody who was deactivated is the other half of the switch, and it is the
+	// same statement: this person may sign in.
+	if err := q.SetPersonActive(ctx, SetPersonActiveParams{ID: person.ID, Active: true}); err != nil {
+		return nil, fmt.Errorf("cannot activate the account: %w", err)
+	}
+
+	if err := q.GrantRole(ctx, GrantRoleParams{
+		PersonID:  person.ID,
+		Role:      string(role),
+		GrantedBy: uuid.NullUUID{UUID: grantedBy, Valid: grantedBy != uuid.Nil},
+		// No expiry. A grant with a date on it is for stepping over a threshold and having the
+		// database step back; this one says somebody teaches here.
+	}); err != nil {
+		return nil, fmt.Errorf("cannot grant %s: %w", role, err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+
+	return p.TeacherAccountByID(ctx, teacherID)
 }
 
 // SetPersonName renames somebody.

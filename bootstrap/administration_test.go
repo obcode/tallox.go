@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/google/uuid"
+
 	"github.com/obcode/tallox.go/bootstrap"
 	"github.com/obcode/tallox.go/internal/auth"
 	"github.com/obcode/tallox.go/internal/buildinfo"
@@ -124,6 +126,12 @@ func TestUserAdministrationIsNeverReachableThroughAToken(t *testing.T) {
 				map[string]any{"id": testdata.Zwei.ID().String(), "roles": []string{"LECTURER"}}},
 			"setPersonActive": {setActiveMutation,
 				map[string]any{"id": testdata.Zwei.ID().String(), "active": false}},
+			// The id names nobody here — this handler has no catalogue behind it. The directive
+			// refuses before anything looks it up, which is the point: the checklist is every
+			// administration mutation, and admission is one. What it does when it is *allowed*
+			// to run is in admission_test.go.
+			"setTeacherAdmitted": {admitMutation,
+				map[string]any{"id": uuid.Nil.String(), "admitted": true}},
 		} {
 			t.Run(name, func(t *testing.T) {
 				token.MustFail(t, call.query, call.vars)

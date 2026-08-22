@@ -1,9 +1,11 @@
 package store_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/obcode/tallox.go/internal/store/storetest"
+	"github.com/obcode/tallox.go/internal/testdata"
 )
 
 // The fixture is only worth anything if it reproduces the source faithfully, including the
@@ -201,4 +203,34 @@ func TestTheSyntheticCatalogueReproducesTheAwkwardCases(t *testing.T) {
 					"with none would pass while proving nothing.")
 			}
 		})
+
+	t.Run("a teacher with an address that belongs to none of the personas", func(t *testing.T) {
+		var mail string
+		if err := s.Pool.QueryRow(ctx,
+			`SELECT payload ->> 'email' FROM zpa_object WHERE kind = 'TEACHER' AND zpa_id = $1`,
+			storetest.FixtureTeacherNotAdmitted).Scan(&mail); err != nil {
+			t.Fatalf("cannot read the payload: %v", err)
+		}
+		for _, persona := range testdata.All() {
+			if persona.Mail != "" && strings.EqualFold(persona.Mail, mail) {
+				t.Fatalf("the not-admitted teacher carries %s, which is %s. A test that seeds "+
+					"that persona would admit this teacher, and the case 254 of 257 real ones "+
+					"are in would stop being covered.", mail, persona.Name)
+			}
+		}
+	})
+
+	t.Run("a teacher the source marks as no longer teaching", func(t *testing.T) {
+		var active bool
+		if err := s.Pool.QueryRow(ctx,
+			`SELECT (payload ->> 'is_active')::boolean FROM zpa_object
+			  WHERE kind = 'TEACHER' AND zpa_id = $1`,
+			storetest.FixtureTeacherInactiveSource).Scan(&active); err != nil {
+			t.Fatalf("cannot read the payload: %v", err)
+		}
+		if active {
+			t.Error("the fixture's inactive teacher is active, so every list that has to say " +
+				"whether it hides them has nobody to hide")
+		}
+	})
 }

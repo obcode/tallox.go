@@ -372,6 +372,12 @@ type Person struct {
 	// The address the university's login asserts. Case-insensitive, and the key we match on.
 	Mail string `json:"mail"`
 	Name string `json:"name"`
+	// Whether this account can be used at all.
+	//
+	// An inactive person is refused at both doors, whatever roles they hold — deactivating is the
+	// removal this system has, and it takes away every token in the same moment. Nobody is ever
+	// deleted: the assignments they held stay in the history.
+	Active bool `json:"active"`
 	// The roles this person holds, in a stable order.
 	Roles []policy.Role `json:"roles"`
 	// The study programmes this person's study-programme leadership applies to.
@@ -534,6 +540,18 @@ type Session struct {
 	// `false` means the `@interactiveOnly` fields will answer `null` — worth checking before
 	// concluding that something is empty.
 	Interactive bool `json:"interactive"`
+}
+
+// Somebody the examination office publishes, together with the account they have here.
+type TeacherAccount struct {
+	// The person as the examination office publishes them. Importing them granted nothing.
+	Teacher *Teacher `json:"teacher"`
+	// Their account here, or `null` if nobody of this address may sign in.
+	//
+	// An account somebody deactivated is **not** `null`: it is an account with `active: false`.
+	// The two look alike from outside and are not — one has never been admitted, the other has been
+	// admitted and had it taken away — and the next step differs accordingly.
+	Account *Person `json:"account,omitempty"`
 }
 
 // One rebuild of the module catalogue out of the cached payloads.

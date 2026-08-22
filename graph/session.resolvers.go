@@ -48,6 +48,8 @@ func (r *queryResolver) Session(ctx context.Context) (*model.Session, error) {
 			ID:   actor.ID.String(),
 			Mail: actor.Mail,
 			Name: actor.Name,
+			// True by construction: an inactive person does not authenticate, on either door.
+			Active: true,
 			// The person's own grants, which is what Person.roles means everywhere else too.
 			// The narrowing lives in effectiveRoles, one level up; keeping it out of here is
 			// what stops Person.roles meaning two different things depending on which person

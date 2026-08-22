@@ -315,6 +315,70 @@ func (ec *executionContext) fieldContext_RoleGrant_expiresAt(_ context.Context, 
 	return graphql.NewScalarFieldContext("RoleGrant", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _TeacherAccount_teacher(ctx context.Context, field graphql.CollectedField, obj *model.TeacherAccount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeacherAccount_teacher(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Teacher, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Teacher) graphql.Marshaler {
+			return ec.marshalNTeacher2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐTeacher(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeacherAccount_teacher(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TeacherAccount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Teacher(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TeacherAccount_account(ctx context.Context, field graphql.CollectedField, obj *model.TeacherAccount) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeacherAccount_account(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Account, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Person) graphql.Marshaler {
+			return ec.marshalOPerson2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPerson(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TeacherAccount_account(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TeacherAccount",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Person(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
@@ -481,6 +545,49 @@ func (ec *executionContext) _RoleGrant(ctx context.Context, sel ast.SelectionSet
 	return out
 }
 
+var teacherAccountImplementors = []string{"TeacherAccount"}
+
+func (ec *executionContext) _TeacherAccount(ctx context.Context, sel ast.SelectionSet, obj *model.TeacherAccount) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, teacherAccountImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TeacherAccount")
+		case "teacher":
+			out.Values[i] = ec._TeacherAccount_teacher(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "account":
+			out.Values[i] = ec._TeacherAccount_account(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
@@ -537,6 +644,20 @@ func (ec *executionContext) marshalNRoleGrant2ᚖgithubᚗcomᚋobcodeᚋtallox�
 	return ec._RoleGrant(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNTeacherAccount2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐTeacherAccount(ctx context.Context, sel ast.SelectionSet, v model.TeacherAccount) graphql.Marshaler {
+	return ec._TeacherAccount(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNTeacherAccount2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐTeacherAccount(ctx context.Context, sel ast.SelectionSet, v *model.TeacherAccount) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._TeacherAccount(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOAccessDiagnosis2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAccessDiagnosis(ctx context.Context, sel ast.SelectionSet, v *model.AccessDiagnosis) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
@@ -552,6 +673,25 @@ func (ec *executionContext) marshalORoleGrant2ᚕᚖgithubᚗcomᚋobcodeᚋtall
 		fc := graphql.GetFieldContext(ctx)
 		fc.Result = &v[i]
 		return ec.marshalNRoleGrant2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐRoleGrant(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalOTeacherAccount2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐTeacherAccountᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.TeacherAccount) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNTeacherAccount2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐTeacherAccount(ctx, sel, v[i])
 	})
 
 	for _, e := range ret {

@@ -96,10 +96,17 @@ const LastAdminReason = "Das würde Tallox ohne Administration zurücklassen. " 
 
 // Person is a person as the administration sees them.
 type Person struct {
-	ID     uuid.UUID
-	Mail   string
-	Name   string
-	Active bool
+	ID   uuid.UUID
+	Mail string
+	Name string
+	// SortName is the surname-first spelling, for a list that has to be in an order somebody can
+	// follow. Empty for everybody the examination office does not publish — there is no way to
+	// tell which word of a written-out name is the surname, and guessing would put a colleague
+	// under the wrong letter with nothing to show for it.
+	//
+	// Filled in by the administration reads. The authentication path does not ask for it.
+	SortName string
+	Active   bool
 	// Roles are the grants in force right now — expired ones are not here. RoleGrants is
 	// where the full history of a person's grants lives.
 	Roles []policy.Role

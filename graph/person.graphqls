@@ -38,6 +38,17 @@ type Person {
   mail: String!
   name: String!
   """
+  Surname first, for a list — `Braun, Oliver` where `name` is `Prof. Dr. Oliver Braun`.
+
+  Taken from the list the examination office publishes, matched on the address, and `null` for
+  everybody it does not know: which word of a written-out name is the surname is not something to
+  guess at. A list falls back to `name` for those, which is why they are still in it.
+
+  Only the administration reads fill this in. It is a name for a list, and nothing else needs
+  one — `me` answers `null` here whoever asks.
+  """
+  sortName: String
+  """
   Whether this account can be used at all.
 
   An inactive person is refused at both doors, whatever roles they hold — deactivating is the

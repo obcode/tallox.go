@@ -196,6 +196,7 @@ type ComplexityRoot struct {
 		Name       func(childComplexity int) int
 		Programmes func(childComplexity int) int
 		Roles      func(childComplexity int) int
+		SortName   func(childComplexity int) int
 	}
 
 	PersonalAccessToken struct {
@@ -1195,6 +1196,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Person.Roles(childComplexity), true
+	case "Person.sortName":
+		if e.ComplexityRoot.Person.SortName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Person.SortName(childComplexity), true
 
 	case "PersonalAccessToken.createdAt":
 		if e.ComplexityRoot.PersonalAccessToken.CreatedAt == nil {
@@ -3583,6 +3590,17 @@ type Person {
   mail: String!
   name: String!
   """
+  Surname first, for a list — ` + "`" + `Braun, Oliver` + "`" + ` where ` + "`" + `name` + "`" + ` is ` + "`" + `Prof. Dr. Oliver Braun` + "`" + `.
+
+  Taken from the list the examination office publishes, matched on the address, and ` + "`" + `null` + "`" + ` for
+  everybody it does not know: which word of a written-out name is the surname is not something to
+  guess at. A list falls back to ` + "`" + `name` + "`" + ` for those, which is why they are still in it.
+
+  Only the administration reads fill this in. It is a name for a list, and nothing else needs
+  one — ` + "`" + `me` + "`" + ` answers ` + "`" + `null` + "`" + ` here whoever asks.
+  """
+  sortName: String
+  """
   Whether this account can be used at all.
 
   An inactive person is refused at both doors, whatever roles they hold — deactivating is the
@@ -4655,6 +4673,8 @@ func (ec *executionContext) childFields_Person(ctx context.Context, field graphq
 		return ec.fieldContext_Person_mail(ctx, field)
 	case "name":
 		return ec.fieldContext_Person_name(ctx, field)
+	case "sortName":
+		return ec.fieldContext_Person_sortName(ctx, field)
 	case "active":
 		return ec.fieldContext_Person_active(ctx, field)
 	case "roles":

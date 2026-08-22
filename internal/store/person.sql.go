@@ -183,6 +183,9 @@ SELECT
     p.id,
     p.mail,
     p.name,
+    -- Empty for everybody the examination office does not publish. The screen shows this where
+    -- it has it, so that the order it sorts by is the order somebody can read.
+    COALESCE(t.short_name, '')::text AS sort_name,
     p.active,
     COALESCE(
         array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
@@ -200,12 +203,14 @@ FROM person p
 LEFT JOIN person_role pr
     ON pr.person_id = p.id
    AND (pr.expires_at IS NULL OR pr.expires_at > now())
+LEFT JOIN teacher t ON t.mail = p.mail
 WHERE ($1::text IS NULL
        OR p.mail ILIKE '%' || $1::text || '%'
-       OR p.name ILIKE '%' || $1::text || '%')
+       OR p.name ILIKE '%' || $1::text || '%'
+       OR t.short_name ILIKE '%' || $1::text || '%')
   AND ($2::boolean OR p.active)
-GROUP BY p.id
-ORDER BY p.name, p.mail
+GROUP BY p.id, t.short_name
+ORDER BY COALESCE(NULLIF(t.short_name, ''), p.name), p.mail
 `
 
 type ListPeopleParams struct {
@@ -217,6 +222,7 @@ type ListPeopleRow struct {
 	ID         uuid.UUID
 	Mail       string
 	Name       string
+	SortName   string
 	Active     bool
 	Roles      []string
 	RoleScopes []byte
@@ -225,9 +231,17 @@ type ListPeopleRow struct {
 // The administration screen: everybody, or everybody active, optionally narrowed by a
 // substring of the mail address or the name.
 //
-// Ordered by name and then mail so that the list is stable between calls — an administration
-// table whose rows move between reloads is one where somebody eventually clicks the wrong
-// row. People with no name yet sort first, which is also where the work is.
+// Ordered by the surname, which is why the teacher list is joined in. `person.name` is the name
+// as somebody wrote it — "Prof. Dr. Vorname Nachname" — and a list sorted by that is a list
+// sorted by academic title. The examination office publishes the surname-first spelling for
+// everybody it knows, and joining it on the address costs nothing to keep in step: somebody
+// admitted this morning sorts correctly now rather than after the next import. Whoever it does
+// not know keeps their own name as the key, because the alternative is guessing which word of it
+// is the surname.
+//
+// Then by mail, so that the order is stable between calls — an administration table whose rows
+// move between reloads is one where somebody eventually clicks the wrong row. People with no
+// name yet sort first, which is also where the work is.
 func (q *Queries) ListPeople(ctx context.Context, arg ListPeopleParams) ([]ListPeopleRow, error) {
 	rows, err := q.db.Query(ctx, listPeople, arg.Search, arg.IncludeInactive)
 	if err != nil {
@@ -241,6 +255,7 @@ func (q *Queries) ListPeople(ctx context.Context, arg ListPeopleParams) ([]ListP
 			&i.ID,
 			&i.Mail,
 			&i.Name,
+			&i.SortName,
 			&i.Active,
 			&i.Roles,
 			&i.RoleScopes,
@@ -382,6 +397,7 @@ SELECT
     p.id,
     p.mail,
     p.name,
+    COALESCE(t.short_name, '')::text AS sort_name,
     p.active,
     COALESCE(
         array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
@@ -399,19 +415,24 @@ FROM person p
 LEFT JOIN person_role pr
     ON pr.person_id = p.id
    AND (pr.expires_at IS NULL OR pr.expires_at > now())
+LEFT JOIN teacher t ON t.mail = p.mail
 WHERE p.id = $1
-GROUP BY p.id
+GROUP BY p.id, t.short_name
 `
 
 type PersonByIDRow struct {
 	ID         uuid.UUID
 	Mail       string
 	Name       string
+	SortName   string
 	Active     bool
 	Roles      []string
 	RoleScopes []byte
 }
 
+// Joined to the teacher list like ListPeople, so that one person and the list agree about the
+// name a list is sorted by. Not so for PersonByMail above: that one authenticates every request
+// on the browser door, and a join it has no use for does not belong on that path.
 func (q *Queries) PersonByID(ctx context.Context, id uuid.UUID) (PersonByIDRow, error) {
 	row := q.db.QueryRow(ctx, personByID, id)
 	var i PersonByIDRow
@@ -419,6 +440,7 @@ func (q *Queries) PersonByID(ctx context.Context, id uuid.UUID) (PersonByIDRow, 
 		&i.ID,
 		&i.Mail,
 		&i.Name,
+		&i.SortName,
 		&i.Active,
 		&i.Roles,
 		&i.RoleScopes,

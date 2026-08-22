@@ -50,11 +50,12 @@ func (p *People) ListPeople(ctx context.Context, search string,
 	people := make([]domain.Person, 0, len(rows))
 	for _, row := range rows {
 		people = append(people, domain.Person{
-			ID:     row.ID,
-			Mail:   row.Mail,
-			Name:   row.Name,
-			Active: row.Active,
-			Roles:  knownRoles(row.Roles),
+			ID:       row.ID,
+			Mail:     row.Mail,
+			Name:     row.Name,
+			SortName: row.SortName,
+			Active:   row.Active,
+			Roles:    knownRoles(row.Roles),
 		})
 	}
 
@@ -233,11 +234,12 @@ func (p *People) PersonByID(ctx context.Context, id uuid.UUID) (*domain.Person, 
 		return nil, fmt.Errorf("cannot read person: %w", err)
 	}
 	person := &domain.Person{
-		ID:     row.ID,
-		Mail:   row.Mail,
-		Name:   row.Name,
-		Active: row.Active,
-		Roles:  knownRoles(row.Roles),
+		ID:       row.ID,
+		Mail:     row.Mail,
+		Name:     row.Name,
+		SortName: row.SortName,
+		Active:   row.Active,
+		Roles:    knownRoles(row.Roles),
 	}
 	if err := p.attachProgrammes(ctx, []*domain.Person{person}); err != nil {
 		return nil, err

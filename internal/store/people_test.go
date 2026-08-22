@@ -2,10 +2,13 @@ package store_test
 
 import (
 	"errors"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
@@ -270,6 +273,84 @@ func TestListPeopleKeepsSomebodyWhoseOnlyGrantExpired(t *testing.T) {
 	}
 	if !found {
 		t.Fatal("somebody whose only grant expired vanished from the list")
+	}
+}
+
+// The administration list is sorted by the surname, and the surname comes from the examination
+// office rather than from a guess about which word of a written-out name it is.
+//
+// The two orders really differ here, which is the point: by `person.name` the admitted teacher
+// comes first ("Prof. Dr. Sieben" before "Prof. Zwei"), by the surname she comes second
+// ("Prof. Zwei" before "Sieben, Prof."). A list sorted by the written-out name is a list sorted
+// by academic title, and every professor lands under P.
+func TestListPeopleSortsBySurnameWhereTheSourceKnowsOne(t *testing.T) {
+	t.Parallel()
+
+	s := admissionSchema(t)
+	people := store.NewPeople(s.Pool)
+
+	// Somebody the examination office does not publish: their own name stays the key.
+	storetest.SeedPerson(t, s, testdata.Zwei, string(policy.RoleLecturer))
+	// And somebody it does, admitted the way the screen admits people.
+	if _, err := people.AdmitTeacher(t.Context(),
+		teacherID(t, s, storetest.FixtureTeacherNotAdmitted),
+		policy.RoleLecturer, uuid.Nil); err != nil {
+		t.Fatalf("cannot admit: %v", err)
+	}
+
+	list, err := people.ListPeople(t.Context(), "", false)
+	if err != nil {
+		t.Fatalf("cannot list: %v", err)
+	}
+
+	order := make([]string, 0, len(list))
+	byMail := make(map[string]domain.Person, len(list))
+	for _, person := range list {
+		order = append(order, person.Mail)
+		byMail[person.Mail] = person
+	}
+
+	if got := byMail["prof.sieben@example.org"].SortName; got != "Sieben, Prof." {
+		t.Errorf("the admitted teacher's sort name is %q, want the spelling the examination "+
+			"office publishes", got)
+	}
+	if got := byMail[testdata.Zwei.Mail].SortName; got != "" {
+		t.Errorf("somebody the examination office does not publish has the sort name %q, want "+
+			"none — the fallback is their own name, not a guess at it", got)
+	}
+
+	zwei := slices.Index(order, testdata.Zwei.Mail)
+	sieben := slices.Index(order, "prof.sieben@example.org")
+	if zwei < 0 || sieben < 0 {
+		t.Fatalf("the list is %v, want both of them in it", order)
+	}
+	if zwei > sieben {
+		t.Errorf("the list is %v, want %s before prof.sieben@example.org: sorted by the surname "+
+			"they swap places, and sorted by the written-out name they do not",
+			order, testdata.Zwei.Mail)
+	}
+}
+
+// Searching finds somebody by the name the screen shows them under.
+func TestListPeopleSearchesTheSurnameItSortsBy(t *testing.T) {
+	t.Parallel()
+
+	s := admissionSchema(t)
+	people := store.NewPeople(s.Pool)
+
+	if _, err := people.AdmitTeacher(t.Context(),
+		teacherID(t, s, storetest.FixtureTeacherNotAdmitted),
+		policy.RoleLecturer, uuid.Nil); err != nil {
+		t.Fatalf("cannot admit: %v", err)
+	}
+
+	found, err := people.ListPeople(t.Context(), "Sieben, Prof", false)
+	if err != nil {
+		t.Fatalf("cannot list: %v", err)
+	}
+	if len(found) != 1 || found[0].Mail != "prof.sieben@example.org" {
+		t.Errorf("searching the spelling the list is sorted by found %v, want the one person",
+			found)
 	}
 }
 

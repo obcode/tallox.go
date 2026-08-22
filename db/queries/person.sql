@@ -56,10 +56,14 @@ WHERE p.mail = $1
 GROUP BY p.id;
 
 -- name: PersonByID :one
+-- Joined to the teacher list like ListPeople, so that one person and the list agree about the
+-- name a list is sorted by. Not so for PersonByMail above: that one authenticates every request
+-- on the browser door, and a join it has no use for does not belong on that path.
 SELECT
     p.id,
     p.mail,
     p.name,
+    COALESCE(t.short_name, '')::text AS sort_name,
     p.active,
     COALESCE(
         array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
@@ -77,20 +81,32 @@ FROM person p
 LEFT JOIN person_role pr
     ON pr.person_id = p.id
    AND (pr.expires_at IS NULL OR pr.expires_at > now())
+LEFT JOIN teacher t ON t.mail = p.mail
 WHERE p.id = $1
-GROUP BY p.id;
+GROUP BY p.id, t.short_name;
 
 -- name: ListPeople :many
 -- The administration screen: everybody, or everybody active, optionally narrowed by a
 -- substring of the mail address or the name.
 --
--- Ordered by name and then mail so that the list is stable between calls — an administration
--- table whose rows move between reloads is one where somebody eventually clicks the wrong
--- row. People with no name yet sort first, which is also where the work is.
+-- Ordered by the surname, which is why the teacher list is joined in. `person.name` is the name
+-- as somebody wrote it — "Prof. Dr. Vorname Nachname" — and a list sorted by that is a list
+-- sorted by academic title. The examination office publishes the surname-first spelling for
+-- everybody it knows, and joining it on the address costs nothing to keep in step: somebody
+-- admitted this morning sorts correctly now rather than after the next import. Whoever it does
+-- not know keeps their own name as the key, because the alternative is guessing which word of it
+-- is the surname.
+--
+-- Then by mail, so that the order is stable between calls — an administration table whose rows
+-- move between reloads is one where somebody eventually clicks the wrong row. People with no
+-- name yet sort first, which is also where the work is.
 SELECT
     p.id,
     p.mail,
     p.name,
+    -- Empty for everybody the examination office does not publish. The screen shows this where
+    -- it has it, so that the order it sorts by is the order somebody can read.
+    COALESCE(t.short_name, '')::text AS sort_name,
     p.active,
     COALESCE(
         array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
@@ -108,12 +124,14 @@ FROM person p
 LEFT JOIN person_role pr
     ON pr.person_id = p.id
    AND (pr.expires_at IS NULL OR pr.expires_at > now())
+LEFT JOIN teacher t ON t.mail = p.mail
 WHERE (sqlc.narg('search')::text IS NULL
        OR p.mail ILIKE '%' || sqlc.narg('search')::text || '%'
-       OR p.name ILIKE '%' || sqlc.narg('search')::text || '%')
+       OR p.name ILIKE '%' || sqlc.narg('search')::text || '%'
+       OR t.short_name ILIKE '%' || sqlc.narg('search')::text || '%')
   AND (sqlc.arg('include_inactive')::boolean OR p.active)
-GROUP BY p.id
-ORDER BY p.name, p.mail;
+GROUP BY p.id, t.short_name
+ORDER BY COALESCE(NULLIF(t.short_name, ''), p.name), p.mail;
 
 -- name: RoleGrantsByPerson :many
 -- One person's grants as they actually are, expired ones included.

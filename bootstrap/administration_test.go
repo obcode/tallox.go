@@ -19,6 +19,7 @@ import (
 
 const (
 	peopleQuery       = `{ people { id mail name roles } }`
+	peopleSortedQuery = `{ people { mail name sortName } }`
 	sessionQuery      = `{ session { effectiveRoles grantedRoles narrowed interactive person { mail } } }`
 	createPersonMutat = `mutation ($mail: String!, $name: String) {
 		createPerson(mail: $mail, name: $name) { id mail name roles }

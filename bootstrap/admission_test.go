@@ -2,6 +2,7 @@ package bootstrap_test
 
 import (
 	"net/http"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -244,6 +245,82 @@ func TestAdmittingATeacherGrantsExactlyLecturer(t *testing.T) {
 	}
 	if !found {
 		t.Error("the admitted teacher is not in the list any more")
+	}
+}
+
+// The administration list is in an order somebody can read: by the surname, and showing the
+// spelling it sorts by.
+//
+// A list sorted by `name` is sorted by academic title — every professor under P — and one sorted
+// by a key it does not show reads as unsorted. Both halves are asserted here, because either one
+// alone is the half that looks fine and is not.
+func TestTheAdministrationListIsSortedByTheSurname(t *testing.T) {
+	t.Parallel()
+
+	f := admissionHandler(t)
+	c := graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).On(graphqltest.Browser)
+
+	var admitted admitResponse
+	c.MustQuery(t, admitMutation, map[string]any{
+		"id": f.notAdmitted.String(), "admitted": true,
+	}, &admitted)
+
+	var list struct {
+		People []struct {
+			Mail     string  `json:"mail"`
+			Name     string  `json:"name"`
+			SortName *string `json:"sortName"`
+		} `json:"people"`
+	}
+	c.MustQuery(t, peopleSortedQuery, nil, &list)
+
+	var keys []string
+	for _, person := range list.People {
+		switch person.Mail {
+		case "prof.sieben@example.org":
+			if person.SortName == nil || *person.SortName != "Sieben, Prof." {
+				t.Errorf("the admitted teacher's sortName is %v, want the examination office's "+
+					"spelling", person.SortName)
+			}
+		case testdata.Sechs.Mail, testdata.Zwei.Mail:
+			// Neither is in the examination office's list, so there is no spelling to give.
+			if person.SortName != nil {
+				t.Errorf("%s has the sortName %q, want none rather than a guess",
+					person.Mail, *person.SortName)
+			}
+		}
+		key := person.Name
+		if person.SortName != nil {
+			key = *person.SortName
+		}
+		keys = append(keys, key)
+	}
+
+	if !slices.IsSorted(keys) {
+		t.Errorf("the list arrives as %v, which is not in order", keys)
+	}
+}
+
+// A name for a list is filled in by the lists. `me` is not one, and answers null whoever asks.
+func TestMeCarriesNoNameForAList(t *testing.T) {
+	t.Parallel()
+
+	f := admissionHandler(t)
+
+	var got struct {
+		Me *struct {
+			SortName *string `json:"sortName"`
+		} `json:"me"`
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).On(graphqltest.Browser).
+		MustQuery(t, `{ me { sortName } }`, nil, &got)
+
+	if got.Me == nil {
+		t.Fatal("no me")
+	}
+	if got.Me.SortName != nil {
+		t.Errorf("me.sortName is %q — the field says only the administration reads fill it in",
+			*got.Me.SortName)
 	}
 }
 

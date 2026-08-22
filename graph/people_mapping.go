@@ -29,6 +29,11 @@ func personModel(p domain.Person) *model.Person {
 		Roles:      p.Roles,
 		Programmes: make([]*model.Programme, 0, len(p.Programmes)),
 	}
+	// Absent rather than empty, the same rule the catalogue follows: "the examination office
+	// publishes no such spelling for this person" is a fact, and an empty string is a value.
+	if p.SortName != "" {
+		out.SortName = &p.SortName
+	}
 	for _, programme := range p.Programmes {
 		out.Programmes = append(out.Programmes, programmeModel(programme))
 	}

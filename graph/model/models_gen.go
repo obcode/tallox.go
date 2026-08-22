@@ -372,6 +372,15 @@ type Person struct {
 	// The address the university's login asserts. Case-insensitive, and the key we match on.
 	Mail string `json:"mail"`
 	Name string `json:"name"`
+	// Surname first, for a list — `Braun, Oliver` where `name` is `Prof. Dr. Oliver Braun`.
+	//
+	// Taken from the list the examination office publishes, matched on the address, and `null` for
+	// everybody it does not know: which word of a written-out name is the surname is not something to
+	// guess at. A list falls back to `name` for those, which is why they are still in it.
+	//
+	// Only the administration reads fill this in. It is a name for a list, and nothing else needs
+	// one — `me` answers `null` here whoever asks.
+	SortName *string `json:"sortName,omitempty"`
 	// Whether this account can be used at all.
 	//
 	// An inactive person is refused at both doors, whatever roles they hold — deactivating is the

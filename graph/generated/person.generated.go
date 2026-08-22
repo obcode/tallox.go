@@ -94,6 +94,29 @@ func (ec *executionContext) fieldContext_Person_name(_ context.Context, field gr
 	return graphql.NewScalarFieldContext("Person", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _Person_sortName(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Person_sortName(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SortName, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Person_sortName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Person", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _Person_active(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -209,6 +232,11 @@ func (ec *executionContext) _Person(ctx context.Context, sel ast.SelectionSet, o
 		case "name":
 			out.Values[i] = ec._Person_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "sortName":
+			out.Values[i] = ec._Person_sortName(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		case "active":

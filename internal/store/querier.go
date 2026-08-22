@@ -285,9 +285,17 @@ type Querier interface {
 	// The administration screen: everybody, or everybody active, optionally narrowed by a
 	// substring of the mail address or the name.
 	//
-	// Ordered by name and then mail so that the list is stable between calls — an administration
-	// table whose rows move between reloads is one where somebody eventually clicks the wrong
-	// row. People with no name yet sort first, which is also where the work is.
+	// Ordered by the surname, which is why the teacher list is joined in. `person.name` is the name
+	// as somebody wrote it — "Prof. Dr. Vorname Nachname" — and a list sorted by that is a list
+	// sorted by academic title. The examination office publishes the surname-first spelling for
+	// everybody it knows, and joining it on the address costs nothing to keep in step: somebody
+	// admitted this morning sorts correctly now rather than after the next import. Whoever it does
+	// not know keeps their own name as the key, because the alternative is guessing which word of it
+	// is the surname.
+	//
+	// Then by mail, so that the order is stable between calls — an administration table whose rows
+	// move between reloads is one where somebody eventually clicks the wrong row. People with no
+	// name yet sort first, which is also where the work is.
 	ListPeople(ctx context.Context, arg ListPeopleParams) ([]ListPeopleRow, error)
 	// Reading the module catalogue.
 	//
@@ -384,6 +392,9 @@ type Querier interface {
 	// COALESCE with the cast outside, for the same reason as above — MAX over no rows is NULL, and
 	// an instance with no parts yet is the ordinary state of one whose module has an empty split.
 	NextInstancePartPosition(ctx context.Context, courseInstanceID uuid.UUID) (int32, error)
+	// Joined to the teacher list like ListPeople, so that one person and the list agree about the
+	// name a list is sorted by. Not so for PersonByMail above: that one authenticates every request
+	// on the browser door, and a join it has no use for does not belong on that path.
 	PersonByID(ctx context.Context, id uuid.UUID) (PersonByIDRow, error)
 	// The authentication query of the browser door. mail is citext, so the comparison is
 	// case-insensitive without a lower() that would defeat the unique index.

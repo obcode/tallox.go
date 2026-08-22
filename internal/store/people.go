@@ -116,6 +116,112 @@ func (p *People) attachProgrammes(ctx context.Context, people []*domain.Person) 
 	return nil
 }
 
+// TeacherAccounts lists everybody the examination office publishes, with the account they have
+// here.
+//
+// The join is on the mail address, done on every read rather than stored, so that somebody
+// admitted this morning is connected now rather than after the next import — the reason there is
+// no teacher.person_id column at all.
+func (p *People) TeacherAccounts(ctx context.Context) ([]domain.TeacherAccount, error) {
+	rows, err := New(p.pool).ListTeacherAccounts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot list the teacher accounts: %w", err)
+	}
+
+	accounts := make([]domain.TeacherAccount, 0, len(rows))
+	for _, row := range rows {
+		accounts = append(accounts, teacherAccountFrom(teacherAccountRow(row)))
+	}
+
+	// One statement for the whole list, like ListPeople: the screen shows which programmes each
+	// lead is assigned to, and a query per row would cost a round trip per colleague.
+	people := make([]*domain.Person, 0, len(accounts))
+	for i := range accounts {
+		if accounts[i].Person != nil {
+			people = append(people, accounts[i].Person)
+		}
+	}
+	if err := p.attachProgrammes(ctx, people); err != nil {
+		return nil, err
+	}
+	return accounts, nil
+}
+
+// TeacherAccountByID resolves one teacher and their account. "Not found" is (nil, nil).
+func (p *People) TeacherAccountByID(ctx context.Context,
+	teacherID uuid.UUID) (*domain.TeacherAccount, error) {
+	row, err := New(p.pool).TeacherAccountByID(ctx, teacherID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the teacher account: %w", err)
+	}
+
+	account := teacherAccountFrom(teacherAccountRow(row))
+	if account.Person != nil {
+		if err := p.attachProgrammes(ctx, []*domain.Person{account.Person}); err != nil {
+			return nil, err
+		}
+	}
+	return &account, nil
+}
+
+// teacherAccountRow is the shape both teacher-account queries produce.
+//
+// sqlc emits one type per query and they are structurally identical because the SELECT lists
+// are, the same trick teacherRow plays in module.go. The teacher half is then handed to
+// teacherFrom rather than copied again — one description of a teacher row, in one place.
+type teacherAccountRow struct {
+	TeacherID            uuid.UUID
+	Mail                 string
+	FullName             string
+	ShortName            string
+	IsProfessor          bool
+	IsLecturerOnContract bool
+	IsHonoraryProfessor  bool
+	IsStaff              bool
+	Active               bool
+	Faculty              *string
+	LastSemester         *string
+	PersonID             uuid.NullUUID
+	PersonMail           string
+	PersonName           string
+	PersonActive         bool
+	Roles                []string
+}
+
+func teacherAccountFrom(row teacherAccountRow) domain.TeacherAccount {
+	account := domain.TeacherAccount{
+		Teacher: teacherFrom(teacherRow{
+			ID:                   row.TeacherID,
+			Mail:                 row.Mail,
+			FullName:             row.FullName,
+			ShortName:            row.ShortName,
+			IsProfessor:          row.IsProfessor,
+			IsLecturerOnContract: row.IsLecturerOnContract,
+			IsHonoraryProfessor:  row.IsHonoraryProfessor,
+			IsStaff:              row.IsStaff,
+			Active:               row.Active,
+			Faculty:              row.Faculty,
+			LastSemester:         row.LastSemester,
+			// Whether they may sign in, which is what the field means everywhere else. The
+			// account below says more, and says it to the one screen that needs more.
+			IsUser: row.PersonID.Valid && row.PersonActive,
+		}),
+	}
+	if row.PersonID.Valid {
+		account.Person = &domain.Person{
+			ID:     row.PersonID.UUID,
+			Mail:   row.PersonMail,
+			Name:   row.PersonName,
+			Active: row.PersonActive,
+			Roles:  knownRoles(row.Roles),
+		}
+	}
+	return account
+}
+
 // PersonByID resolves one person. "Not found" is (nil, nil), the convention throughout this
 // repository.
 func (p *People) PersonByID(ctx context.Context, id uuid.UUID) (*domain.Person, error) {

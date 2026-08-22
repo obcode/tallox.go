@@ -89,6 +89,25 @@ type Person struct {
 	Programmes []Programme
 }
 
+// TeacherAccount is somebody the examination office publishes, together with the account they
+// have in this installation — or the absence of one.
+//
+// The two lists are joined by the mail address and nothing else, which is the whole point: a
+// teacher is imported master data and grants nothing, and who may sign in is a decision
+// somebody made. Person is nil for the great majority, who teach here and cannot sign in, and
+// for everybody the source gives no address for, who never can.
+//
+// A deactivated account is a Person with Active false, not a nil one. "Nobody has admitted
+// them" and "somebody took it away" are different states with different next steps, and this
+// is the one place that has to keep them apart.
+type TeacherAccount struct {
+	Teacher Teacher
+	Person  *Person
+}
+
+// Admitted reports whether somebody of this address may sign in.
+func (a TeacherAccount) Admitted() bool { return a.Person != nil && a.Person.Active }
+
 // RoleGrant is one grant, as stored, expired ones included.
 type RoleGrant struct {
 	Role      policy.Role

@@ -254,3 +254,79 @@ ON CONFLICT (person_id, role, programme_id) DO NOTHING;
 -- Delete-then-insert rather than a diff: what is being replaced is one statement about who leads
 -- what, and inside a transaction nobody reads the empty moment in between.
 DELETE FROM person_programme_scope WHERE person_id = $1 AND role = $2;
+
+-- name: ListTeacherAccounts :many
+-- The people the examination office publishes, each with the account they have here.
+--
+-- The same LEFT JOIN on the address that Teacher.is_user is derived from, and deliberately
+-- without `AND p.active`: this list is the one screen that has to tell "nobody of this address
+-- may sign in" apart from "somebody deactivated them", and those are two different next steps.
+-- person_id is what distinguishes them; the other person columns are COALESCEd because a
+-- LEFT JOIN makes NOT NULL columns nullable and scanning NULL into a string fails at runtime.
+--
+-- Retired teachers — ones a successful import stopped mentioning — are left out. People the
+-- source marks as no longer teaching are not: five such people are still named as responsible
+-- for a module, and somebody who left has an account that still has to be closable.
+SELECT
+    t.id AS teacher_id,
+    COALESCE(t.mail::text, '')::text AS mail,
+    t.full_name,
+    t.short_name,
+    t.is_professor,
+    t.is_lecturer_on_contract,
+    t.is_honorary_professor,
+    t.is_staff,
+    t.active,
+    t.faculty,
+    t.last_semester,
+    p.id AS person_id,
+    COALESCE(p.mail::text, '')::text AS person_mail,
+    COALESCE(p.name, '')::text AS person_name,
+    COALESCE(p.active, false)::boolean AS person_active,
+    COALESCE(
+        array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
+        ARRAY[]::text[]
+    )::text[] AS roles
+FROM teacher t
+LEFT JOIN person p ON p.mail = t.mail
+LEFT JOIN person_role pr
+    ON pr.person_id = p.id
+   AND (pr.expires_at IS NULL OR pr.expires_at > now())
+WHERE t.retired_at IS NULL
+GROUP BY t.id, p.id
+ORDER BY t.short_name, t.id;
+
+-- name: TeacherAccountByID :one
+-- One teacher and their account, by teacher id.
+--
+-- No retired filter, unlike the list above. The id always comes from that list, so the only way
+-- to be here with a retired teacher is that the import withdrew them between the screen loading
+-- and somebody clicking — and answering "no such teacher" to a change that has already been
+-- written would be a worse answer than the truth.
+SELECT
+    t.id AS teacher_id,
+    COALESCE(t.mail::text, '')::text AS mail,
+    t.full_name,
+    t.short_name,
+    t.is_professor,
+    t.is_lecturer_on_contract,
+    t.is_honorary_professor,
+    t.is_staff,
+    t.active,
+    t.faculty,
+    t.last_semester,
+    p.id AS person_id,
+    COALESCE(p.mail::text, '')::text AS person_mail,
+    COALESCE(p.name, '')::text AS person_name,
+    COALESCE(p.active, false)::boolean AS person_active,
+    COALESCE(
+        array_agg(pr.role ORDER BY pr.role) FILTER (WHERE pr.role IS NOT NULL),
+        ARRAY[]::text[]
+    )::text[] AS roles
+FROM teacher t
+LEFT JOIN person p ON p.mail = t.mail
+LEFT JOIN person_role pr
+    ON pr.person_id = p.id
+   AND (pr.expires_at IS NULL OR pr.expires_at > now())
+WHERE t.id = sqlc.arg(teacher_id)::uuid
+GROUP BY t.id, p.id;

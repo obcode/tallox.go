@@ -309,6 +309,16 @@ disabled in production.
 
 - **Logging:** `zerolog` — `log.Error().Err(err).Str("field", v).Msg("cannot do x")`.
   `log.Fatal()` only in `bootstrap/`.
+- **Error reporting:** with `GLITCHTIP_DSN` set, every `log.Error()` goes to a GlitchTip
+  instance via [internal/glitchtip](internal/glitchtip/) — a `zerolog.LevelWriter` attached
+  beside the console writer, so no call site changes. Issues are grouped by the **`caller`
+  field**, not by stack trace: every error runs through one writer and would otherwise fold
+  into a single issue. `zerolog.CallerMarshalFunc` is set to
+  `glitchtip.ShortCallerMarshalFunc` so the grouping key does not depend on where the binary
+  was built. Started in `setupReporting` *before* `LoadConfig`, so a configuration file that
+  will not load is reported too. Empty DSN = no reporting, which is the local default;
+  `-check-config` says which it is. Live check:
+  `GLITCHTIP_SMOKE_DSN=... go test ./internal/glitchtip/ -run TestLiveIngest -v`.
 - **Timezone:** `main.go` forces `time.Local = Europe/Berlin`. Milestone and phase
   calculations depend on it.
 - **Errors:** plain `error` wrapped with `fmt.Errorf("...: %w", err)`. No custom hierarchy.

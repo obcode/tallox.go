@@ -9,9 +9,9 @@ import (
 )
 
 // TestLiveIngest sends real events to a real collector. Skipped unless
-// GLITCHTIP_SMOKE_DSN is set, so it never runs in CI or on a laptop by accident:
+// SENTRY_SMOKE_DSN is set, so it never runs in CI or on a laptop by accident:
 //
-//	GLITCHTIP_SMOKE_DSN='https://<key>@glitchtip.example.edu/1' \
+//	SENTRY_SMOKE_DSN='https://<key>@glitchtip.example.edu/1' \
 //	    go test ./internal/obs/ -run TestLiveIngest -v
 //
 // Expected in the UI afterwards: THREE events in TWO issues — the two lines that
@@ -20,9 +20,9 @@ import (
 // is the scrubber checked against the deployment rather than against a unit
 // test's idea of it.
 func TestLiveIngest(t *testing.T) {
-	dsn := os.Getenv("GLITCHTIP_SMOKE_DSN")
+	dsn := os.Getenv("SENTRY_SMOKE_DSN")
 	if dsn == "" {
-		t.Skip("GLITCHTIP_SMOKE_DSN not set")
+		t.Skip("SENTRY_SMOKE_DSN not set")
 	}
 
 	writer, err := Init(Config{DSN: dsn, Environment: "smoketest", Release: "smoketest"})

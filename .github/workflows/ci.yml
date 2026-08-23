@@ -18,7 +18,16 @@ jobs:
           go-version-file: go.mod
       - uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          # Gepinnt, nicht `latest`. Am 2026-08-23 ist diese Pipeline ohne eine einzige
+          # Codeänderung rot geworden: golangci-lint war auf v2.13.1 weitergezogen und meldete
+          # SA1019 auf einer Zeile, die seit Wochen unverändert dort stand. Ein Linter, der
+          # sich selbst aktualisiert, ist eine Verhaltensänderung ohne Commit — und die trifft
+          # immer den, der gerade etwas anderes vorhatte.
+          #
+          # Das Hochziehen ist damit eine bewusste Handlung. Dependabot kann diese Zeile nicht
+          # bumpen (es kennt Actions und Images, keine Versionsstrings in Eingaben), also
+          # gehört sie zu dem, was man beim Aufräumen ansieht.
+          version: v2.13.1
           args: --timeout=10m
 
   # Everything a generator owns has to be reproducible from the sources in the commit.

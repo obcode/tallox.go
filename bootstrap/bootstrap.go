@@ -41,18 +41,23 @@ import (
 // script sets. Secrets that are not per-environment belong in tallox.yaml.
 const EnvDatabaseURL = "TALLOX_DB_URL"
 
-// EnvGlitchTipDSN turns error reporting on; empty or unset means none at all, which is what
+// EnvSentryDSN turns error reporting on; empty or unset means none at all, which is what
 // the DevContainer and CI want.
 //
 // The environment rather than tallox.yaml, like EnvDatabaseURL and for the same reason — it
 // differs per installation — and additionally because reporting starts BEFORE the
 // configuration file is read. A file that will not load is the most interesting startup
 // failure there is, and it cannot report itself if the reporter is configured inside it.
-const EnvGlitchTipDSN = "GLITCHTIP_DSN"
+//
+// SENTRY_*, not GLITCHTIP_*: it is the name the SDK itself uses, and the name plexams.go
+// already carries. The collector happens to be GlitchTip; the protocol and the variable
+// are Sentry's, and one name across both installations is worth more than naming the
+// product we currently point at.
+const EnvSentryDSN = "SENTRY_DSN"
 
-// EnvGlitchTipEnvironment separates production from a test installation in the collector's
+// EnvSentryEnvironment separates production from a test installation in the collector's
 // UI. Defaults to production: an installation nobody labelled is the one that matters.
-const EnvGlitchTipEnvironment = "GLITCHTIP_ENVIRONMENT"
+const EnvSentryEnvironment = "SENTRY_ENVIRONMENT"
 
 // Options is everything Handler needs. A struct rather than a parameter list: this grows with
 // every subsystem, and a positional bool that means "playground" in one call site and
@@ -462,15 +467,15 @@ func reportConfiguration(cfg Config, configFile string, reporting bool) {
 	switch {
 	case reporting:
 		fmt.Printf("error reporting:    on (%s)\n", environmentOrDefault())
-	case os.Getenv(EnvGlitchTipDSN) != "":
-		fmt.Printf("error reporting:    off (%s is set but was rejected)\n", EnvGlitchTipDSN)
+	case os.Getenv(EnvSentryDSN) != "":
+		fmt.Printf("error reporting:    off (%s is set but was rejected)\n", EnvSentryDSN)
 	default:
-		fmt.Printf("error reporting:    off (%s is unset)\n", EnvGlitchTipDSN)
+		fmt.Printf("error reporting:    off (%s is unset)\n", EnvSentryDSN)
 	}
 }
 
 func environmentOrDefault() string {
-	if e := os.Getenv(EnvGlitchTipEnvironment); e != "" {
+	if e := os.Getenv(EnvSentryEnvironment); e != "" {
 		return e
 	}
 	return "production"
@@ -640,12 +645,12 @@ func setupLogging(level string, reporter zerolog.LevelWriter) {
 // A collector that will not start is a reason to run unmonitored, not a reason to refuse to
 // serve the faculty's planning tool — the same trade the log level makes above.
 func setupReporting(build buildinfo.Info) (zerolog.LevelWriter, func()) {
-	dsn := os.Getenv(EnvGlitchTipDSN)
+	dsn := os.Getenv(EnvSentryDSN)
 	if dsn == "" {
 		return nil, func() {}
 	}
 
-	environment := os.Getenv(EnvGlitchTipEnvironment)
+	environment := os.Getenv(EnvSentryEnvironment)
 	if environment == "" {
 		environment = "production"
 	}

@@ -309,7 +309,7 @@ disabled in production.
 
 - **Logging:** `zerolog` — `log.Error().Err(err).Str("field", v).Msg("cannot do x")`.
   `log.Fatal()` only in `bootstrap/`.
-- **Error reporting:** with `GLITCHTIP_DSN` set, every `log.Error()` goes to a GlitchTip
+- **Error reporting:** with `SENTRY_DSN` set, every `log.Error()` goes to a GlitchTip
   instance via [internal/obs](internal/obs/) — a `sentryzerolog` writer hung beside the
   console writer, so no call site changes. **Read [internal/obs/scrub.go](internal/obs/scrub.go)
   before adding anything that reports:** the writer turns *every* zerolog field into a Sentry
@@ -321,7 +321,7 @@ disabled in production.
   on where the binary was built. Started in `setupReporting` *before* `LoadConfig`, so a
   configuration file that will not load is reported too. Empty DSN = no reporting, which is
   the local default; `-check-config` says which it is. Live check:
-  `GLITCHTIP_SMOKE_DSN=... go test ./internal/obs/ -run TestLiveIngest -v`.
+  `SENTRY_SMOKE_DSN=... go test ./internal/obs/ -run TestLiveIngest -v`.
   The package is the counterpart of `plexams.go/obs`; keep the two in step.
 - **Timezone:** `main.go` forces `time.Local = Europe/Berlin`. Milestone and phase
   calculations depend on it.

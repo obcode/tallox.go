@@ -14,6 +14,7 @@ Kolleg:innen — das gehört nach `tallox.dev`.
 - [Welche Studiengänge geplant werden](programme-planning-status.md) — warum das ZPA es nicht sagt (gemessen), und was aus der Spalte folgt
 - [Lokale Module und FWP-Platzhalter](local-modules.md) — warum eine `module`-Zeile statt einer eigenen Tabelle, und warum drei FWPs drei Züge sind
 - [Zulassung von Lehrenden](admitting-a-teacher.md) — wie aus einer ZPA-Lehrperson ein Konto wird, und die drei Entscheidungen darin
+- [Zugriffslog](access-log.md) — was es festhält, was es bewusst nicht kann, und warum die Reihenfolge der Middlewares tragend ist
 - [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf, und das Planungssemester
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:

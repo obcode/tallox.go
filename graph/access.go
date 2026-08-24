@@ -64,11 +64,10 @@ func RecordAccess(recorder AccessRecorder) graphql.OperationMiddleware {
 			return next(ctx)
 		}
 
-		fields, introspectionOnly := rootFieldNames(oc.Operation)
-		if introspectionOnly {
-			// An editor polls introspection in a loop, and it is deliberately public. Recording
-			// it would bury the entries somebody actually wants to read under thousands that
-			// say nothing about anybody.
+		fields, quiet := rootFieldNames(oc.Operation)
+		if quiet {
+			// Nothing here says anything about anybody, and something asks it in a loop. See
+			// isQuietField.
 			return next(ctx)
 		}
 
@@ -172,21 +171,50 @@ func outcomeOf(resp *graphql.Response) (domain.AccessOutcome, string) {
 	}
 }
 
-// rootFieldNames is what the operation asked for, and whether that was introspection alone.
+// isQuietField reports whether a root field is one this log does not exist for.
+//
+// Two of them, and they share the property that makes the exemption safe rather than
+// convenient: neither says anything about any person, and both are asked in a loop by something
+// that is not a person.
+//
+//   - Introspection (__schema, __type, __typename). Deliberately on in production, because the
+//     API is a product; an editor polls it while somebody types.
+//   - buildInfo. The liveness field of the monitoring, and the GUI footer renders it on every
+//     page. It answers "which version is this" and nothing else — PUBLIC:READ, no argument, no
+//     row behind it.
+//
+// The cost of logging them is not disk, it is attention: thousands of rows that say nothing
+// bury the handful that say something, and a log nobody can scan is a log nobody reads. That
+// is the same argument the nightly report makes for carrying figures instead of entries.
+//
+// Note what this does NOT exempt. A refused sign-in is recorded whatever it was asking for —
+// that entry is written by the authentication middleware before there is an operation at all,
+// and somebody unknown knocking is worth a row even when they only wanted the version number.
+func isQuietField(name string) bool {
+	return IsIntrospectionField(name) || name == "buildInfo"
+}
+
+// rootFieldNames is what the operation asked for, and whether the whole of it was quiet.
 //
 // Sorted-by-appearance and deduplicated: the same field twice in one document is one thing
-// asked for, and an alias does not change which field it is. Introspection fields are left out
-// of the list entirely — they are public, so naming them tells a reader nothing.
-func rootFieldNames(op *ast.OperationDefinition) (names []string, introspectionOnly bool) {
+// asked for, and an alias does not change which field it is.
+//
+// The two halves are deliberately independent. Introspection fields are left out of the list —
+// they are meta, and naming them tells a reader nothing — while buildInfo stays in it when it
+// appears beside something else. An operation worth a row gets a row that describes the whole
+// operation; the exemption decides whether to write one, never what it says.
+func rootFieldNames(op *ast.OperationDefinition) (names []string, quiet bool) {
 	seen := map[string]bool{}
-	introspection := 0
+	loud := 0
+	quietFields := 0
 
 	forEachRootField(op, func(field *ast.Field) {
-		if IsIntrospectionField(field.Name) {
-			introspection++
-			return
+		if isQuietField(field.Name) {
+			quietFields++
+		} else {
+			loud++
 		}
-		if seen[field.Name] {
+		if IsIntrospectionField(field.Name) || seen[field.Name] {
 			return
 		}
 		seen[field.Name] = true
@@ -196,7 +224,7 @@ func rootFieldNames(op *ast.OperationDefinition) (names []string, introspectionO
 	if names == nil {
 		names = []string{}
 	}
-	return names, len(names) == 0 && introspection > 0
+	return names, loud == 0 && quietFields > 0
 }
 
 // truncate caps a client-supplied string at n bytes, on a rune boundary.

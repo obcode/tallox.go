@@ -43,9 +43,15 @@ würde rot**. Deshalb `TestARefusedOperationIsLoggedNotSwallowed`.
 
 ## Zwei Schreibpfade, ein Log
 
-1. **Operationen** — `graph.RecordAccess`, ein `AroundOperations`. Reine
-   Introspection-Operationen werden übersprungen: ein Editor pollt sie im Sekundentakt, und sie
-   ist absichtlich öffentlich.
+1. **Operationen** — `graph.RecordAccess`, ein `AroundOperations`. Übersprungen wird eine
+   Operation, deren Wurzelfelder **alle** „still" sind (`isQuietField`): Introspection und
+   `buildInfo`. Beide werden von etwas gepollt, das kein Mensch ist — ein Editor beim Tippen,
+   die Überwachung im Sekundentakt —, und beide sagen über niemanden etwas. Der Preis wäre
+   nicht Plattenplatz, sondern Aufmerksamkeit: tausende nichtssagende Zeilen begraben die
+   Handvoll, die etwas sagt. **Die Ausnahme entscheidet nur, OB eine Zeile geschrieben wird,
+   nie was darin steht** — `{ buildInfo, me }` ist eine Zeile, und sie nennt beide Felder. Und
+   sie greift nur auf dem Operationspfad: eine abgewiesene Anmeldung wird protokolliert, egal
+   wonach sie gefragt hat.
 2. **Abgewiesene Anmeldungen** — im `err != nil`-Zweig von `auth.Middleware`. `internal/auth`
    darf nicht wissen, was ein Log-Eintrag ist, bekommt also eine Ein-Methoden-Naht
    (`auth.AccessRecorder`) wie `UserLookup` und `TokenLookup`; `bootstrap` adaptiert sie.

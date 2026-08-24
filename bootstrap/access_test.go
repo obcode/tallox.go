@@ -257,9 +257,51 @@ func TestARefusedOperationIsLoggedNotSwallowed(t *testing.T) {
 	}
 }
 
-// TestIntrospectionIsNotLogged. An editor polls it in a loop and it is deliberately public;
-// recording it would bury the entries somebody actually wants to read.
-func TestIntrospectionIsNotLogged(t *testing.T) {
+// TestWhatIsNotWorthARow.
+//
+// Introspection and buildInfo. Both are polled in a loop by something that is not a person —
+// an editor while somebody types, the monitoring every few seconds — and neither says anything
+// about anybody. The cost of logging them is not disk but attention: thousands of rows that
+// say nothing bury the handful that say something.
+func TestWhatIsNotWorthARow(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		query string
+	}{
+		{"introspection", `{ __schema { queryType { name } } }`},
+		{"the monitoring asking for the version", buildInfoQuery},
+		{"the version with a name on it, as the GUI sends it", `query Version { buildInfo { version } }`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			handler, access := accessHandler(t, map[testdata.Persona][]string{
+				testdata.Eins: {string(policy.RoleLecturer)},
+			})
+
+			graphqltest.New(handler).AsUser(testdata.Eins.Mail).On(graphqltest.Browser).
+				Do(t, tc.query, nil)
+
+			entries, err := access.Entries(t.Context(), domain.AccessFilter{})
+			if err != nil {
+				t.Fatalf("cannot read the log: %v", err)
+			}
+			if len(entries) != 0 {
+				t.Errorf("this was logged: %+v", entries)
+			}
+		})
+	}
+}
+
+// TestAQuietFieldBesideALoudOneIsStillARow.
+//
+// The exemption decides WHETHER to write an entry, never what it says. An operation that asks
+// for the version and for something real is a real access, and its entry describes the whole
+// operation — an entry that quietly dropped half of what was asked would be worse than no
+// exemption at all.
+func TestAQuietFieldBesideALoudOneIsStillARow(t *testing.T) {
 	t.Parallel()
 
 	handler, access := accessHandler(t, map[testdata.Persona][]string{
@@ -267,13 +309,47 @@ func TestIntrospectionIsNotLogged(t *testing.T) {
 	})
 
 	graphqltest.New(handler).AsUser(testdata.Eins.Mail).On(graphqltest.Browser).
-		Do(t, `{ __schema { queryType { name } } }`, nil)
+		Do(t, `query Kopfzeile { buildInfo { version } me { mail } }`, nil)
 
 	entries, err := access.Entries(t.Context(), domain.AccessFilter{})
 	if err != nil {
 		t.Fatalf("cannot read the log: %v", err)
 	}
-	if len(entries) != 0 {
-		t.Errorf("introspection was logged: %+v", entries)
+	if len(entries) != 1 {
+		t.Fatalf("recorded %d entries, want 1: %+v", len(entries), entries)
+	}
+
+	fields := entries[0].Fields
+	if len(fields) != 2 || fields[0] != "buildInfo" || fields[1] != "me" {
+		t.Errorf("fields = %v, want [buildInfo me] — the entry describes the whole operation",
+			fields)
+	}
+}
+
+// TestARefusedSignInIsRecordedWhateverItAskedFor.
+//
+// The buildInfo exemption is on the operation path. A sign-in refused at the door never gets
+// that far — and somebody unknown knocking is worth a row even when all they wanted was the
+// version number. Written as its own test because the two paths look alike from the outside
+// and an exemption added to the wrong one would silence exactly the entries this log is for.
+func TestARefusedSignInIsRecordedWhateverItAskedFor(t *testing.T) {
+	t.Parallel()
+
+	handler, access := accessHandler(t, map[testdata.Persona][]string{
+		testdata.Eins: {string(policy.RoleLecturer)},
+	})
+
+	graphqltest.New(handler).AsUser("niemand@example.org").On(graphqltest.Browser).
+		Do(t, buildInfoQuery, nil)
+
+	entries, err := access.Entries(t.Context(), domain.AccessFilter{})
+	if err != nil {
+		t.Fatalf("cannot read the log: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("recorded %d entries, want 1: %+v", len(entries), entries)
+	}
+	if entries[0].Outcome != domain.AccessRefusedAuth {
+		t.Errorf("outcome = %q, want REFUSED_AUTH", entries[0].Outcome)
 	}
 }

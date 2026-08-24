@@ -245,3 +245,74 @@ func TestUpdateLocalModuleNeverTouchesAnImportedOne(t *testing.T) {
 			"ErrModuleNotFound", err)
 	}
 }
+
+// The picker's list leaves out what the faculty does not plan; the catalogue still holds it.
+func TestProgrammesLeaveOutWhatTheFacultyDoesNotPlan(t *testing.T) {
+	t.Parallel()
+
+	f := newModuleFixture(t)
+	ctx := t.Context()
+
+	// A new programme is planned — appearing in a picker grants nothing, and one that is
+	// silently missing is a support question whose answer is invisible from the screen.
+	planned, err := f.modules.Programmes(ctx, false)
+	if err != nil {
+		t.Fatalf("cannot list the programmes: %v", err)
+	}
+	for _, p := range planned {
+		if p.PlanningStatus != domain.ProgrammePlanned {
+			t.Errorf("%s comes out of a fresh projection as %q, want PLANNED",
+				p.Code, p.PlanningStatus)
+		}
+	}
+
+	changed, err := f.modules.SetProgrammePlanningStatus(ctx, storetest.FixtureProgrammeZ,
+		domain.ProgrammeNotOurs, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot record the planning status: %v", err)
+	}
+	if changed.PlanningStatus != domain.ProgrammeNotOurs {
+		t.Errorf("the status reads %q, want NOT_OURS", changed.PlanningStatus)
+	}
+
+	planned, err = f.modules.Programmes(ctx, false)
+	if err != nil {
+		t.Fatalf("cannot list the programmes: %v", err)
+	}
+	for _, p := range planned {
+		if p.Code == storetest.FixtureProgrammeZ {
+			t.Error("a programme the faculty does not plan is still in the picker's list")
+		}
+	}
+
+	all, err := f.modules.Programmes(ctx, true)
+	if err != nil {
+		t.Fatalf("cannot list every programme: %v", err)
+	}
+	found := false
+	for _, p := range all {
+		if p.Code == storetest.FixtureProgrammeZ {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("includeUnplanned left it out anyway — the catalogue still holds it")
+	}
+
+	// And by code it answers whatever its status: reading the demand of a programme that has run
+	// out is the record of what the faculty did.
+	one, err := f.modules.ProgrammeByCode(ctx, storetest.FixtureProgrammeZ)
+	if err != nil {
+		t.Fatalf("cannot read the programme: %v", err)
+	}
+	if one == nil {
+		t.Fatal("a programme the faculty does not plan cannot be read by code at all")
+	}
+
+	// A code that names nothing is (nil, nil), not an error.
+	missing, err := f.modules.SetProgrammePlanningStatus(ctx, "GIBTESNICHT",
+		domain.ProgrammePlanned, uuid.Nil)
+	if err != nil || missing != nil {
+		t.Errorf("an unknown code gave (%v, %v), want (nil, nil)", missing, err)
+	}
+}

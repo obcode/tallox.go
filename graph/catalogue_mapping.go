@@ -22,10 +22,11 @@ import (
 // programmeModel reshapes a programme for the wire, with its regulations if it carries any.
 func programmeModel(p domain.Programme) *model.Programme {
 	out := &model.Programme{
-		Code:   p.Code,
-		Title:  p.Title,
-		Active: p.Active,
-		Spos:   make([]*model.Spo, 0, len(p.Spos)),
+		Code:           p.Code,
+		Title:          p.Title,
+		Active:         p.Active,
+		PlanningStatus: p.PlanningStatus,
+		Spos:           make([]*model.Spo, 0, len(p.Spos)),
 	}
 	for _, s := range p.Spos {
 		out.Spos = append(out.Spos, spoModel(s, out))
@@ -244,6 +245,23 @@ func catalogueUserFacing(actor principal.Actor, err error) error {
 		return &gqlerror.Error{
 			Message:    err.Error(),
 			Extensions: map[string]any{"code": "LOCAL_MODULE_INVALID"},
+		}
+	case errors.Is(err, domain.ErrProgrammeNotFound):
+		return &gqlerror.Error{
+			Message:    domain.ErrProgrammeNotFound.Error(),
+			Extensions: map[string]any{"code": "PROGRAMME_NOT_FOUND"},
+		}
+	case errors.Is(err, domain.ErrProgrammeNotPlanned):
+		// Its own code, because the repair is neither a role nor another programme: somebody has
+		// to decide that the faculty plans this one, or it is not this faculty's at all.
+		return &gqlerror.Error{
+			Message:    domain.ErrProgrammeNotPlanned.Error(),
+			Extensions: map[string]any{"code": "PROGRAMME_NOT_PLANNED"},
+		}
+	case errors.Is(err, domain.ErrProgrammeStatusUnknown):
+		return &gqlerror.Error{
+			Message:    domain.ErrProgrammeStatusUnknown.Error(),
+			Extensions: map[string]any{"code": "PROGRAMME_STATUS_UNKNOWN"},
 		}
 	case errors.Is(err, domain.ErrLocalModuleNameTaken):
 		// Its own code rather than a generic write refusal: the repair is to pick another name,

@@ -570,6 +570,13 @@ func (p *People) SetPersonProgrammes(ctx context.Context, personID uuid.UUID, co
 		if err != nil {
 			return fmt.Errorf("cannot read the programme %q: %w", code, err)
 		}
+		// Leading a programme this faculty does not plan is not a grant that could ever be used:
+		// every write against such a programme is refused for the programme's sake, whoever
+		// holds what. Refused here rather than in the service because this is the one place the
+		// row is read, and a second lookup would be a second answer to the same question.
+		if !domain.ProgrammeStatus(row.PlanningStatus).Planned() {
+			return fmt.Errorf("%w: %q", domain.ErrProgrammeNotPlanned, code)
+		}
 		programmes = append(programmes, row.ID)
 	}
 

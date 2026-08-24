@@ -172,6 +172,11 @@ func demandUserFacing(actor principal.Actor, err error) error {
 		return refusal("NOT_SHARED_ACROSS_TRACKS", err.Error())
 	case errors.Is(err, domain.ErrProgrammeNotFound):
 		return refusal("PROGRAMME_NOT_FOUND", err.Error())
+	case errors.Is(err, domain.ErrProgrammeNotPlanned):
+		// Its own code rather than NOT_YOUR_PROGRAMME: the caller may well lead a programme, and
+		// the repair is not a grant. Either this faculty does not run this programme, or it has
+		// run out — and both need somebody to decide, not somebody to be granted something.
+		return refusal("PROGRAMME_NOT_PLANNED", err.Error())
 	case errors.Is(err, domain.ErrSameSemester):
 		return refusal("SAME_SEMESTER", err.Error())
 

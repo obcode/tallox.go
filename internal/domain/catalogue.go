@@ -63,6 +63,46 @@ func ParseFrequency(s string) (Frequency, bool) {
 	return "", false
 }
 
+// ProgrammeStatus is whether this faculty plans a study programme.
+//
+// The faculty's own decision and not the examination office's, because the source cannot express
+// it: the newest regulations of two planned programmes are from 2010, older than every programme
+// that has run out, and the one that has run out with the most active modules has more of them
+// than three that are planned. Measured, not assumed — see migration 12.
+type ProgrammeStatus string
+
+const (
+	// ProgrammePlanned is a programme this faculty plans. The default for a new one: appearing
+	// in a picker grants nothing, and a programme that is silently missing is a support question
+	// whose answer is invisible from the screen it is asked on.
+	ProgrammePlanned ProgrammeStatus = "PLANNED"
+	// ProgrammeNotOurs is a programme somebody else runs. It appears in the catalogue because
+	// its regulations mention modules, and it is not this faculty's business.
+	ProgrammeNotOurs ProgrammeStatus = "NOT_OURS"
+	// ProgrammeDiscontinued was this faculty's and has run out. Kept apart from NotOurs even
+	// though the two do the same thing today: this one has demand on record and students still
+	// finishing, and "what did we offer in IC" is a question it has to be able to answer.
+	ProgrammeDiscontinued ProgrammeStatus = "DISCONTINUED"
+)
+
+// AllProgrammeStatuses returns every status, the planned one first.
+func AllProgrammeStatuses() []ProgrammeStatus {
+	return []ProgrammeStatus{ProgrammePlanned, ProgrammeNotOurs, ProgrammeDiscontinued}
+}
+
+// ParseProgrammeStatus reports whether s is a status this package knows.
+func ParseProgrammeStatus(s string) (ProgrammeStatus, bool) {
+	for _, v := range AllProgrammeStatuses() {
+		if string(v) == s {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+// Planned reports whether this faculty plans the programme.
+func (s ProgrammeStatus) Planned() bool { return s == ProgrammePlanned }
+
 // ModuleSource is where a catalogue row came from.
 //
 // Two values, and the distinction is load-bearing rather than informational: the projection

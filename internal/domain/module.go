@@ -23,6 +23,9 @@ type Programme struct {
 	// Active is false for a programme the examination office publishes no current regulations
 	// for. Its modules are still planable.
 	Active bool
+	// PlanningStatus is whether this faculty plans this programme — its own decision, not the
+	// examination office's. See migration 12 for why it cannot be derived.
+	PlanningStatus ProgrammeStatus
 	// Spos are its versions of the regulations, newest first. Empty unless asked for.
 	Spos []Spo
 }
@@ -342,7 +345,9 @@ type ModuleFilter struct {
 
 // CatalogueReader is what reading the catalogue needs.
 type CatalogueReader interface {
-	Programmes(ctx context.Context) ([]Programme, error)
+	// Programmes lists the study programmes. includeUnplanned adds the ones this faculty does
+	// not plan — for the screen that decides which those are, and for nothing else.
+	Programmes(ctx context.Context, includeUnplanned bool) ([]Programme, error)
 	// ProgrammesByID resolves a handful of ids, without their regulations.
 	ProgrammesByID(ctx context.Context, ids []uuid.UUID) ([]Programme, error)
 	ProgrammeByCode(ctx context.Context, code string) (*Programme, error)
@@ -351,6 +356,9 @@ type CatalogueReader interface {
 	ModuleByID(ctx context.Context, id uuid.UUID) (*Module, error)
 	// SetModuleComponents replaces a module's split, as one statement about a set of rows.
 	SetModuleComponents(ctx context.Context, moduleID uuid.UUID, components []ModuleComponent, by uuid.UUID) (*Module, error)
+	// SetProgrammePlanningStatus records that this faculty plans a programme, or no longer
+	// does. Returns nil for a code that names no programme.
+	SetProgrammePlanningStatus(ctx context.Context, code string, status ProgrammeStatus, by uuid.UUID) (*Programme, error)
 	// CreateLocalModule adds a catalogue row the faculty enters itself, with its split.
 	CreateLocalModule(ctx context.Context, spec NewLocalModule, by uuid.UUID) (*Module, error)
 	// UpdateLocalModule corrects one, or takes it out of the lists. Never touches an imported

@@ -182,6 +182,13 @@ func peopleFacing(err error) error {
 		return refusal("UNKNOWN_ROLE", "Diese Rolle gibt es nicht.")
 	case errors.Is(err, domain.ErrUnknownProgramme):
 		return refusal("UNKNOWN_PROGRAMME", "Diesen Studiengang gibt es nicht.")
+	case errors.Is(err, domain.ErrProgrammeNotPlanned):
+		// Leading a programme the faculty does not plan is a grant that could never be used:
+		// every write against such a programme is refused for the programme's sake, whoever
+		// holds what. Its own code, because the repair is a decision about the programme.
+		return refusal("PROGRAMME_NOT_PLANNED",
+			"Dieser Studiengang wird von der Fakultät nicht geplant und kann deshalb keiner "+
+				"Studiengangsleitung zugeordnet werden.")
 	case errors.Is(err, domain.ErrNotAProgrammeLead):
 		// Its own code because the repair is specific: grant the role first. Folded into the
 		// generic refusal, an administrator would see "that did not work" for a mistake with an

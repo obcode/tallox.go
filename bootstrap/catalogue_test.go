@@ -2,6 +2,7 @@ package bootstrap_test
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -21,6 +22,9 @@ import (
 // to talk about it.
 type catalogueFixture struct {
 	handler http.Handler
+	// schema is the private schema behind it, for the two or three tests that have to state a
+	// fact the API has no mutation for.
+	schema *storetest.Schema
 	// programmeA is the ordinary programme, the one the leads below are scoped to.
 	programmeA uuid.UUID
 	// moduleOrdinary is compulsory in programme A and also counts in programme B.
@@ -72,6 +76,7 @@ func catalogueHandler(t *testing.T, scoped map[string][]string, people ...grants
 	}
 
 	fixture := catalogueFixture{
+		schema: s,
 		handler: bootstrap.Handler(bootstrap.Options{
 			Build: buildinfo.Info{Version: "test"},
 			Auth: auth.Config{
@@ -1201,5 +1206,187 @@ func TestASecondLocalModuleOfTheSameNameSaysWhy(t *testing.T) {
 	c.MustQuery(t, createLocalMutation, input, nil)
 	if code := errorCode(t, c.Do(t, createLocalMutation, input)); code != "MODULE_NAME_TAKEN" {
 		t.Errorf("the second course of the same name gave %s, want MODULE_NAME_TAKEN", code)
+	}
+}
+
+const programmesQuery = `query($all: Boolean!) {
+	programmes(includeUnplanned: $all) { code planningStatus }
+}`
+
+const setStatusMutation = `mutation($code: String!, $status: ProgrammeStatus!) {
+	setProgrammePlanningStatus(code: $code, status: $status) { code planningStatus }
+}`
+
+type programmeList struct {
+	Programmes []struct {
+		Code           string
+		PlanningStatus string
+	}
+}
+
+func codesOf(list programmeList) []string {
+	out := make([]string, 0, len(list.Programmes))
+	for _, p := range list.Programmes {
+		out = append(out, p.Code)
+	}
+	return out
+}
+
+// markUnplanned states what the API has no mutation for at this point in a test: that this
+// faculty does not plan a programme.
+func markUnplanned(t *testing.T, f catalogueFixture, code string, status string) {
+	t.Helper()
+
+	if _, err := f.schema.Pool.Exec(t.Context(),
+		`UPDATE programme SET planning_status = $2 WHERE code = $1`, code, status); err != nil {
+		t.Fatalf("cannot mark %s as %s: %v", code, status, err)
+	}
+}
+
+// The catalogue holds every programme the examination office's regulations mention. A picker
+// built from that list would ask somebody to plan a programme nobody here runs, so the list
+// leaves them out — and says so when asked for all of them.
+func TestProgrammesLeaveOutTheOnesTheFacultyDoesNotPlan(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil, grants{testdata.Eins, []string{"LECTURER"}})
+	markUnplanned(t, f, storetest.FixtureProgrammeZ, "NOT_OURS")
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var planned programmeList
+			c.MustQuery(t, programmesQuery, map[string]any{"all": false}, &planned)
+			if slices.Contains(codesOf(planned), storetest.FixtureProgrammeZ) {
+				t.Errorf("a programme the faculty does not plan is offered: %v", codesOf(planned))
+			}
+			if !slices.Contains(codesOf(planned), storetest.FixtureProgrammeA) {
+				t.Errorf("the planned programmes are missing from %v", codesOf(planned))
+			}
+
+			var all programmeList
+			c.MustQuery(t, programmesQuery, map[string]any{"all": true}, &all)
+			if !slices.Contains(codesOf(all), storetest.FixtureProgrammeZ) {
+				t.Errorf("includeUnplanned left it out anyway: %v", codesOf(all))
+			}
+			for _, p := range all.Programmes {
+				if p.Code == storetest.FixtureProgrammeZ && p.PlanningStatus != "NOT_OURS" {
+					t.Errorf("its status reads %q, want NOT_OURS", p.PlanningStatus)
+				}
+			}
+		})
+}
+
+// Saying which programmes the faculty plans is the dean's office's, and it reaches through both
+// doors: a programme running out is reversible, ordinary process work.
+func TestSettingThePlanningStatusIsTheDeansOfficeThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil, grants{testdata.Fuenf, []string{"DEANS_OFFICE"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Fuenf.Mail, testdata.Fuenf.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			// A programme per door: the two runs share a database, and the second would otherwise
+			// assert about what the first one left behind.
+			code := storetest.FixtureProgrammeB
+			if c.Door() == graphqltest.Token {
+				code = storetest.FixtureProgrammeR
+			}
+
+			var out struct {
+				SetProgrammePlanningStatus struct {
+					Code           string
+					PlanningStatus string
+				}
+			}
+			c.MustQuery(t, setStatusMutation,
+				map[string]any{"code": code, "status": "DISCONTINUED"}, &out)
+
+			if out.SetProgrammePlanningStatus.PlanningStatus != "DISCONTINUED" {
+				t.Errorf("the status reads %q, want DISCONTINUED",
+					out.SetProgrammePlanningStatus.PlanningStatus)
+			}
+
+			// And it is gone from the list every picker asks for.
+			var planned programmeList
+			c.MustQuery(t, programmesQuery, map[string]any{"all": false}, &planned)
+			if slices.Contains(codesOf(planned), code) {
+				t.Errorf("%s still stands in the picker's list: %v", code, codesOf(planned))
+			}
+
+			// Both directions: a programme that starts is marked planned again.
+			c.MustQuery(t, setStatusMutation,
+				map[string]any{"code": code, "status": "PLANNED"}, &out)
+			if out.SetProgrammePlanningStatus.PlanningStatus != "PLANNED" {
+				t.Errorf("it did not come back: %q", out.SetProgrammePlanningStatus.PlanningStatus)
+			}
+		})
+}
+
+// A programme lead runs one programme; deciding which ones the faculty plans is not theirs, and
+// neither is it an administrator's — running the installation is a different job from planning.
+func TestWhoMayNotSetThePlanningStatus(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil,
+		grants{testdata.Eins, []string{"LECTURER"}},
+		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}},
+		grants{testdata.Sechs, []string{"ADMIN"}})
+
+	for _, who := range []testdata.Persona{testdata.Eins, testdata.Vier, testdata.Sechs} {
+		refusal := graphqltest.New(f.handler).AsUser(who.Mail).
+			Do(t, setStatusMutation,
+				map[string]any{"code": storetest.FixtureProgrammeB, "status": "NOT_OURS"})
+		if code := errorCode(t, refusal); code != "FORBIDDEN" {
+			t.Errorf("%s setting the planning status gave %s, want FORBIDDEN", who.Name, code)
+		}
+	}
+}
+
+// A code that names no programme, and a status this build does not know.
+func TestThePlanningStatusRefusesWhatItCannotRecord(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil, grants{testdata.Fuenf, []string{"DEANS_OFFICE"}})
+	c := graphqltest.New(f.handler).AsUser(testdata.Fuenf.Mail)
+
+	refusal := c.Do(t, setStatusMutation, map[string]any{"code": "GIBTESNICHT", "status": "PLANNED"})
+	if code := errorCode(t, refusal); code != "PROGRAMME_NOT_FOUND" {
+		t.Errorf("an unknown programme gave %s, want PROGRAMME_NOT_FOUND", code)
+	}
+}
+
+// Leading a programme this faculty does not plan is a grant that could never be used, so it is
+// refused where it would be given rather than where it would be exercised.
+func TestAProgrammeTheFacultyDoesNotPlanCannotBeAssigned(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
+	markUnplanned(t, f, storetest.FixtureProgrammeB, "DISCONTINUED")
+
+	admin := graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail)
+
+	var people struct {
+		People []struct {
+			ID   string
+			Mail string
+		}
+	}
+	admin.MustQuery(t, `{ people { id mail } }`, nil, &people)
+	var vier string
+	for _, p := range people.People {
+		if p.Mail == testdata.Vier.Mail {
+			vier = p.ID
+		}
+	}
+
+	refusal := admin.Do(t, `mutation($id: ID!, $p: [String!]!) {
+		setPersonProgrammes(id: $id, programmes: $p) { id }
+	}`, map[string]any{"id": vier, "p": []string{storetest.FixtureProgrammeB}})
+
+	if code := errorCode(t, refusal); code != "PROGRAMME_NOT_PLANNED" {
+		t.Errorf("assigning a programme that has run out gave %s, want PROGRAMME_NOT_PLANNED",
+			code)
 	}
 }

@@ -331,10 +331,15 @@ type Querier interface {
 	// components, their offerings, and the programmes — stitched together in Go. The catalogue is
 	// 506 modules and 1784 offerings, so loading what a screen needs and joining it in memory is
 	// both simpler than a loader framework and faster than the query-per-field it replaces.
-	// Every study programme, including the one with no current regulations.
+	// The study programmes, including the one with no current regulations.
+	//
+	// Only the ones this faculty plans, unless the caller asks for the others too. The catalogue
+	// holds every programme the examination office's regulations mention, and some of them are not
+	// this faculty's business — a picker that offered them would be asking somebody to plan a
+	// programme nobody here runs. See migration 12 for why this is a column and not a rule.
 	//
 	// Ordered by code, which is how the faculty says them and how a picker should show them.
-	ListProgrammes(ctx context.Context) ([]ListProgrammesRow, error)
+	ListProgrammes(ctx context.Context, includeUnplanned bool) ([]ListProgrammesRow, error)
 	// Every version of every programme's regulations, newest first within a programme.
 	//
 	// Loaded whole rather than per programme: 29 rows, and every screen that shows one programme's
@@ -448,6 +453,11 @@ type Querier interface {
 	// of this statement, and a LIMIT here would quietly return one of several if that ever stopped
 	// being true.
 	PlanningSemester(ctx context.Context) (Semester, error)
+	// One programme, whatever its planning status.
+	//
+	// Deliberately unfiltered: reading the demand of a programme that has run out is a legitimate
+	// question — that is the record of what the faculty did — and the refusal to *write* one belongs
+	// where the write is, with a sentence that says which of the two reasons applies.
 	ProgrammeByCode(ctx context.Context, code string) (ProgrammeByCodeRow, error)
 	// Which study programmes a set of people lead.
 	//
@@ -620,6 +630,12 @@ type Querier interface {
 	// here that is not a permission change, and mixing it in would make every rename look like
 	// one in the audit log.
 	SetPersonName(ctx context.Context, arg SetPersonNameParams) error
+	// Record that this faculty plans a programme, or no longer does.
+	//
+	// By code rather than by id: this is the one screen where somebody types what they mean, and the
+	// code is what they mean. Returns no row for a code that names no programme, which the service
+	// turns into the ordinary "no such programme".
+	SetProgrammePlanningStatus(ctx context.Context, arg SetProgrammePlanningStatusParams) (SetProgrammePlanningStatusRow, error)
 	// The other parallel cohorts of one instance's module, in the same semester and programme.
 	SiblingInstanceIDs(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error)
 	// The projection's own bookkeeping

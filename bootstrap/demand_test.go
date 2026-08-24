@@ -27,6 +27,8 @@ import (
 // demandFixture is a handler with a projected catalogue and a split module behind it.
 type demandFixture struct {
 	handler http.Handler
+	// schema is the private schema behind it, for the facts the API has no mutation for.
+	schema *storetest.Schema
 	// module is the ordinary module, split into a lecture and a laboratory.
 	module uuid.UUID
 	// withoutHours is the module the examination office states no hours for — the one an
@@ -99,6 +101,7 @@ func demandHandler(t *testing.T, scoped map[string][]string, people ...grants) d
 		t.Fatalf("cannot state the module's split: %v", err)
 	}
 
+	fixture.schema = s
 	fixture.handler = bootstrap.Handler(bootstrap.Options{
 		Build: buildinfo.Info{Version: "test"},
 		Auth: auth.Config{
@@ -939,4 +942,52 @@ func TestAPlaceholderIsPlannedLikeAnyOtherModule(t *testing.T) {
 				len(out.DeclareCourseInstance.Parts))
 		}
 	}
+}
+
+// A programme this faculty does not plan takes no demand, whoever holds what.
+//
+// Not a permission and deliberately not ErrNotYourProgramme: the person may well be a programme
+// lead, and the repair is not a grant. It is a statement about the programme — somebody else's,
+// or one of ours that has run out — so it gets a code of its own, and the sentence says which.
+//
+// Reading its demand stays possible, and that is the other half: what was planned in a programme
+// that has run out is the record of what the faculty did.
+func TestAProgrammeTheFacultyDoesNotPlanTakesNoDemandThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}})
+
+	// Declared while it is still planned, so that there is something to read afterwards.
+	graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).MustQuery(t, declareMutation,
+		declareInput(f, storetest.FixtureProgrammeA, "2027-SS", ""), nil)
+
+	if _, err := f.schema.Pool.Exec(t.Context(),
+		`UPDATE programme SET planning_status = 'DISCONTINUED' WHERE code = $1`,
+		storetest.FixtureProgrammeA); err != nil {
+		t.Fatalf("cannot retire the programme: %v", err)
+	}
+
+	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			refusal := c.Do(t, declareMutation,
+				declareInput(f, storetest.FixtureProgrammeA, "2027-WS", "A"))
+			if code := errorCode(t, refusal); code != "PROGRAMME_NOT_PLANNED" {
+				t.Errorf("declaring for a programme that has run out gave %s, want "+
+					"PROGRAMME_NOT_PLANNED", code)
+			}
+
+			// And its demand is still readable, which is the point of keeping the row at all.
+			var out struct {
+				CourseInstances []struct{ Semester string }
+			}
+			c.MustQuery(t, `query($s: String!, $p: String!) {
+				courseInstances(semester: $s, programme: $p) { semester }
+			}`, map[string]any{"s": "2027-SS", "p": storetest.FixtureProgrammeA}, &out)
+			if len(out.CourseInstances) != 1 {
+				t.Errorf("the demand of a programme that has run out reads %d instances, want the "+
+					"one declared before it did", len(out.CourseInstances))
+			}
+		})
 }

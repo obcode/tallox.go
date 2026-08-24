@@ -526,6 +526,15 @@ func (s *DemandService) mayWrite(actor principal.Actor, programmeID uuid.UUID, p
 	return ErrPhaseClosed
 }
 
+// programme resolves the study programme a write names.
+//
+// Only the writes go through here — reading the demand of any programme is an ordinary question,
+// including one that has run out, because that is the record of what the faculty did.
+//
+// A programme this faculty does not plan is refused, and that is a statement about the thing
+// rather than about the person: `NOT_OURS` is somebody else's programme, `DISCONTINUED` is one
+// of ours that has run out, and in neither case is the repair a role. Which is why it is not
+// ErrNotYourProgramme — that sentence would send somebody asking for a grant that would not help.
 func (s *DemandService) programme(ctx context.Context, code string) (*Programme, error) {
 	programme, err := s.catalogue.ProgrammeByCode(ctx, normaliseProgrammeCode(code))
 	if err != nil {
@@ -533,6 +542,9 @@ func (s *DemandService) programme(ctx context.Context, code string) (*Programme,
 	}
 	if programme == nil {
 		return nil, ErrProgrammeNotFound
+	}
+	if !programme.PlanningStatus.Planned() {
+		return nil, ErrProgrammeNotPlanned
 	}
 	return programme, nil
 }

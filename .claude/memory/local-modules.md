@@ -83,4 +83,4 @@ stillschweigend zwei Resolver-Methoden daraus. Jetzt heißt das interne Feld `Do
 `ModuleSource`/`ModuleKind` sind in `gqlgen.yml` an die Domänentypen gebunden — wie `Frequency`
 und `CourseType`, aus demselben Grund.
 
-Siehe [[instance-identity]], [[catalogue-projection]].
+Siehe [[instance-identity]], [[catalogue-projection]], [[programme-planning-status]].

@@ -199,8 +199,40 @@ type Programme {
   rather than treated as a data error; it simply does not belong in a picker.
   """
   active: Boolean!
+  """
+  Whether this faculty plans this programme — its own decision, not the examination office's.
+
+  The catalogue holds every programme the regulations mention, and some of them this faculty
+  does not plan: `NOT_OURS` is somebody else's, `DISCONTINUED` is one of ours that has run out.
+  Both stay in the catalogue — their modules are still taught, and what was planned in them
+  stays on record — and neither is offered in a picker or may be granted to a programme lead.
+
+  **It cannot be derived, and that was measured.** The newest regulations of two planned
+  programmes are from 2010, older than every programme on the other list; the discontinued one
+  with the most active modules has more of them than three that are planned; and the programme
+  object the source carries holds a code and nothing else.
+  """
+  planningStatus: ProgrammeStatus!
   "Its versions of the examination regulations, newest first."
   spos: [Spo!]!
+}
+
+"""
+Whether this faculty plans a study programme.
+"""
+enum ProgrammeStatus {
+  "This faculty plans it. The default for a programme the import has just brought in."
+  PLANNED
+  "Somebody else's programme. It is in the catalogue because its regulations mention modules."
+  NOT_OURS
+  """
+  This faculty's, and it has run out.
+
+  Kept apart from `NOT_OURS` although the two do the same thing today: this one has demand on
+  record and students still finishing, and "what did we offer in it" is a question it has to be
+  able to answer.
+  """
+  DISCONTINUED
 }
 
 """
@@ -552,12 +584,20 @@ input ModuleComponentInput {
 
 extend type Query {
   """
-  Every study programme, by code.
+  The study programmes this faculty plans, by code.
 
   Includes the one with no current regulations, marked `active: false`, because its modules are
-  still planable.
+  still planable. Excludes the ones the faculty does not plan — see `Programme.planningStatus`
+  — because a picker built from this list would otherwise ask somebody to plan a programme
+  nobody here runs.
+
+  Pass `includeUnplanned: true` for all of them. That is what the screen deciding the statuses
+  asks for, and what a script asking "what does the catalogue hold" wants.
   """
-  programmes: [Programme!]! @scope(area: PLANNING, verb: READ)
+  programmes(
+    "Add the programmes this faculty does not plan."
+    includeUnplanned: Boolean! = false
+  ): [Programme!]! @scope(area: PLANNING, verb: READ)
 
   """
   One study programme by its short code, or `null` if there is no such programme.
@@ -669,6 +709,28 @@ input LocalModuleInput {
 }
 
 extend type Mutation {
+  """
+  Record that this faculty plans a study programme, or no longer does.
+
+  The catalogue is the examination office's and cannot say this — the measurement is on
+  `Programme.planningStatus` — so it is a decision, and this is where it is taken. Both
+  directions: a programme that has run out is marked `DISCONTINUED`, and one that starts is
+  marked `PLANNED`.
+
+  The dean's office, like the phases and the planning semester, and through both doors for the
+  same reason: it is reversible and it is ordinary process work. `ADMIN` is deliberately not on
+  the list — running the installation is a different job from planning with it.
+
+  A programme this faculty does not plan is offered in no picker and may be granted to no
+  programme lead; the demand of one that has run out stays readable, because that is the record
+  of what the faculty did.
+  """
+  setProgrammePlanningStatus(
+    "The programme's short code. Upper-cased and trimmed for you."
+    code: String!
+    status: ProgrammeStatus!
+  ): Programme! @scope(area: PLANNING, verb: WRITE)
+
   """
   Enter a course this faculty offers and the examination office's catalogue does not list.
 

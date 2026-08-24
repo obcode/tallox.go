@@ -29,10 +29,11 @@ import (
 
 // Programme is a study programme, on the wire.
 type Programme struct {
-	Code   string `json:"code"`
-	Title  string `json:"title"`
-	Active bool   `json:"active"`
-	Spos   []*Spo `json:"spos"`
+	Code           string                 `json:"code"`
+	Title          string                 `json:"title"`
+	Active         bool                   `json:"active"`
+	PlanningStatus domain.ProgrammeStatus `json:"planningStatus"`
+	Spos           []*Spo                 `json:"spos"`
 }
 
 // Spo is one version of one programme's examination regulations, on the wire.

@@ -39,11 +39,11 @@ func NewModules(pool *pgxpool.Pool) *Modules { return &Modules{pool: pool} }
 
 var _ domain.CatalogueReader = (*Modules)(nil)
 
-// Programmes lists every study programme with its versions of the regulations.
-func (m *Modules) Programmes(ctx context.Context) ([]domain.Programme, error) {
+// Programmes lists the study programmes with their versions of the regulations.
+func (m *Modules) Programmes(ctx context.Context, includeUnplanned bool) ([]domain.Programme, error) {
 	q := New(m.pool)
 
-	rows, err := q.ListProgrammes(ctx)
+	rows, err := q.ListProgrammes(ctx, includeUnplanned)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the programmes: %w", err)
 	}
@@ -67,6 +67,7 @@ func (m *Modules) Programmes(ctx context.Context) ([]domain.Programme, error) {
 	for _, row := range rows {
 		programme := domain.Programme{
 			ID: row.ID, Code: row.Code, Title: row.Title, Active: row.Active,
+			PlanningStatus: domain.ProgrammeStatus(row.PlanningStatus),
 		}
 		// The programme is filled in on each of its own versions, so that a caller walking from
 		// a programme to a version and back does not find a hole.
@@ -94,6 +95,7 @@ func (m *Modules) ProgrammesByID(ctx context.Context, ids []uuid.UUID) ([]domain
 	for _, row := range rows {
 		out = append(out, domain.Programme{
 			ID: row.ID, Code: row.Code, Title: row.Title, Active: row.Active,
+			PlanningStatus: domain.ProgrammeStatus(row.PlanningStatus),
 		})
 	}
 	return out, nil
@@ -104,7 +106,11 @@ func (m *Modules) ProgrammeByCode(ctx context.Context, code string) (*domain.Pro
 	// Through the list rather than a query of its own: there are twenty programmes, the list is
 	// already assembled with its regulations attached, and a second assembly of the same shape
 	// is a second place for the two to disagree.
-	all, err := m.Programmes(ctx)
+	//
+	// Including the ones this faculty does not plan. Reading the demand of a programme that has
+	// run out is a legitimate question — it is the record of what the faculty did — and the
+	// refusal to *write* one belongs where the write is.
+	all, err := m.Programmes(ctx, true)
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +285,9 @@ func (m *Modules) ModulesByID(ctx context.Context, ids []uuid.UUID) ([]domain.Mo
 //
 // Three statements regardless of how many modules there are, which is the whole point.
 func (m *Modules) attach(ctx context.Context, q *Queries, modules []domain.Module, ids []uuid.UUID) error {
-	programmes, err := m.Programmes(ctx)
+	// Every programme, planned or not: a module is at home where it is at home, and one whose
+	// programme has run out would otherwise lose its home in every list it appears in.
+	programmes, err := m.Programmes(ctx, true)
 	if err != nil {
 		return err
 	}
@@ -288,7 +296,10 @@ func (m *Modules) attach(ctx context.Context, q *Queries, modules []domain.Modul
 		// Without its own versions attached: a module's home programme is being named here, not
 		// described, and carrying 29 regulations into every one of 500 rows is a lot of bytes
 		// for a field nobody asked for.
-		byID[p.ID] = domain.Programme{ID: p.ID, Code: p.Code, Title: p.Title, Active: p.Active}
+		byID[p.ID] = domain.Programme{
+			ID: p.ID, Code: p.Code, Title: p.Title, Active: p.Active,
+			PlanningStatus: p.PlanningStatus,
+		}
 	}
 
 	// The people the listed modules name as responsible, in one statement. About eighty distinct
@@ -597,4 +608,28 @@ func writeComponents(ctx context.Context, q *Queries, moduleID uuid.UUID,
 		}
 	}
 	return nil
+}
+
+// SetProgrammePlanningStatus records that this faculty plans a programme, or no longer does.
+//
+// No row back means no programme of that code, which the service turns into the ordinary "no
+// such programme" — there is nothing else this statement can fail to match on.
+func (m *Modules) SetProgrammePlanningStatus(ctx context.Context, code string,
+	status domain.ProgrammeStatus, by uuid.UUID,
+) (*domain.Programme, error) {
+	row, err := New(m.pool).SetProgrammePlanningStatus(ctx, SetProgrammePlanningStatusParams{
+		Code:           code,
+		PlanningStatus: string(status),
+		SetBy:          nullUUID(nonNilUUID(by)),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("cannot record the planning status: %w", err)
+	}
+	return &domain.Programme{
+		ID: row.ID, Code: row.Code, Title: row.Title, Active: row.Active,
+		PlanningStatus: domain.ProgrammeStatus(row.PlanningStatus),
+	}, nil
 }

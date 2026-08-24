@@ -23,6 +23,13 @@ var (
 	ErrNotYourProgramme = errors.New("dieses Modul gehört zu einem anderen Studiengang")
 	// ErrComponentInvalid is a split that does not describe anything — no hours, or too many.
 	ErrComponentInvalid = errors.New("die Aufteilung ist nicht gültig")
+	// ErrProgrammeStatusUnknown is a planning status this build does not know.
+	ErrProgrammeStatusUnknown = errors.New("diesen Planungsstatus kennt der Server nicht")
+	// ErrProgrammeNotPlanned is a write against a programme this faculty does not plan. Not a
+	// permission — the person may well lead a programme — but a statement about the thing: it is
+	// somebody else's programme, or it has run out.
+	ErrProgrammeNotPlanned = errors.New(
+		"dieser Studiengang wird von der Fakultät nicht geplant")
 	// ErrLocalModuleInvalid is a local course whose description does not hold together — no
 	// name, an unknown course type, implausible hours.
 	ErrLocalModuleInvalid = errors.New("die Angaben zur Lehrveranstaltung sind nicht gültig")
@@ -43,16 +50,52 @@ func NewCatalogueService(store CatalogueReader) *CatalogueService {
 	return &CatalogueService{store: store}
 }
 
-// Programmes lists every study programme.
+// Programmes lists the study programmes this faculty plans.
 //
 // Readable by anybody with an account and no particular role, like the semester list and for the
 // same reason: this is what a lecturer needs in order to find a module, and a tool that refuses
 // without saying why teaches people to ignore refusals.
-func (s *CatalogueService) Programmes(ctx context.Context, actor principal.Actor) ([]Programme, error) {
+//
+// includeUnplanned adds the ones it does not plan. For the screen that decides which those are,
+// and for a colleague's script asking what the catalogue holds — not for a picker, which would
+// then be asking somebody to plan a programme nobody here runs.
+func (s *CatalogueService) Programmes(ctx context.Context, actor principal.Actor,
+	includeUnplanned bool,
+) ([]Programme, error) {
 	if err := mayRead(actor); err != nil {
 		return nil, err
 	}
-	return s.store.Programmes(ctx)
+	return s.store.Programmes(ctx, includeUnplanned)
+}
+
+// SetProgrammePlanningStatus records that this faculty plans a programme, or no longer does.
+//
+// The dean's office, like the phases and the planning semester, and for the same reason: this is
+// a statement about the faculty's process rather than about running the installation. ADMIN is
+// deliberately not on the list — an administrator who genuinely has to decide it grants
+// themselves DEANS_OFFICE, visibly and with an expiry.
+//
+// Reachable through a Personal Access Token: it is reversible, and a programme running out is
+// ordinary process work.
+func (s *CatalogueService) SetProgrammePlanningStatus(ctx context.Context, actor principal.Actor,
+	code string, status ProgrammeStatus,
+) (*Programme, error) {
+	if !policy.MayAdministerSemesters(actor) {
+		return nil, ErrCatalogueForbidden
+	}
+	if _, ok := ParseProgrammeStatus(string(status)); !ok {
+		return nil, fmt.Errorf("%w: %q", ErrProgrammeStatusUnknown, status)
+	}
+
+	programme, err := s.store.SetProgrammePlanningStatus(ctx, normaliseProgrammeCode(code),
+		status, actor.ID)
+	if err != nil {
+		return nil, err
+	}
+	if programme == nil {
+		return nil, ErrProgrammeNotFound
+	}
+	return programme, nil
 }
 
 // MyProgrammes resolves the study programmes an actor's leadership applies to.
@@ -212,16 +255,31 @@ const MaxLocalModuleName = 200
 // home. Deliberately **no phase condition**: a module hangs off no semester, so there is no phase
 // that could close it. The phase gate applies where it belongs, at the instance.
 func (s *CatalogueService) CreateLocalModule(ctx context.Context, actor principal.Actor,
-	spec NewLocalModule,
+	code string, spec NewLocalModule,
 ) (*Module, error) {
 	if err := mayRead(actor); err != nil {
 		return nil, err
 	}
-	if !policy.MayPlanProgramme(actor, spec.HomeProgrammeID) {
+
+	// Resolved here rather than by the resolver, so that "is this a programme the faculty plans"
+	// is asked in the layer that holds the rules. Entering a course at home in a programme
+	// nobody here runs is not something a role could make sensible.
+	programme, err := s.store.ProgrammeByCode(ctx, normaliseProgrammeCode(code))
+	if err != nil {
+		return nil, err
+	}
+	if programme == nil {
+		return nil, ErrProgrammeNotFound
+	}
+	if !programme.PlanningStatus.Planned() {
+		return nil, ErrProgrammeNotPlanned
+	}
+	if !policy.MayPlanProgramme(actor, programme.ID) {
 		return nil, ErrNotYourProgramme
 	}
+	spec.HomeProgrammeID = programme.ID
 
-	spec, err := validLocalModule(spec)
+	spec, err = validLocalModule(spec)
 	if err != nil {
 		return nil, err
 	}
@@ -252,6 +310,9 @@ func (s *CatalogueService) ChangeLocalModule(ctx context.Context, actor principa
 		// An imported row answers the same as no row at all. It is not this mutation's to edit,
 		// and saying which of the two it is would only invite a second attempt.
 		return nil, ErrModuleNotFound
+	}
+	if !module.HomeProgramme.PlanningStatus.Planned() {
+		return nil, ErrProgrammeNotPlanned
 	}
 	if !policy.MayPlanProgramme(actor, module.HomeProgramme.ID) {
 		return nil, ErrNotYourProgramme

@@ -7,15 +7,26 @@
 -- both simpler than a loader framework and faster than the query-per-field it replaces.
 
 -- name: ListProgrammes :many
--- Every study programme, including the one with no current regulations.
+-- The study programmes, including the one with no current regulations.
+--
+-- Only the ones this faculty plans, unless the caller asks for the others too. The catalogue
+-- holds every programme the examination office's regulations mention, and some of them are not
+-- this faculty's business — a picker that offered them would be asking somebody to plan a
+-- programme nobody here runs. See migration 12 for why this is a column and not a rule.
 --
 -- Ordered by code, which is how the faculty says them and how a picker should show them.
-SELECT id, code, title, active
+SELECT id, code, title, active, planning_status
 FROM programme
+WHERE sqlc.arg('include_unplanned')::boolean OR planning_status = 'PLANNED'
 ORDER BY code;
 
 -- name: ProgrammeByCode :one
-SELECT id, code, title, active
+-- One programme, whatever its planning status.
+--
+-- Deliberately unfiltered: reading the demand of a programme that has run out is a legitimate
+-- question — that is the record of what the faculty did — and the refusal to *write* one belongs
+-- where the write is, with a sentence that says which of the two reasons applies.
+SELECT id, code, title, active, planning_status
 FROM programme
 WHERE code = $1;
 
@@ -139,7 +150,7 @@ VALUES ($1, $2, $3, $4, sqlc.narg(created_by));
 -- For `me`, which has to turn the programme ids an actor carries into codes a person reads. The
 -- full list with its regulations attached would be two statements and 29 rows of examination
 -- regulations for a field that renders two letters.
-SELECT id, code, title, active
+SELECT id, code, title, active, planning_status
 FROM programme
 WHERE id = ANY (sqlc.arg(ids)::uuid[])
 ORDER BY code;
@@ -237,3 +248,18 @@ WHERE id = $1 AND source = 'LOCAL'
 RETURNING id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
        contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
        source, kind;
+
+
+-- name: SetProgrammePlanningStatus :one
+-- Record that this faculty plans a programme, or no longer does.
+--
+-- By code rather than by id: this is the one screen where somebody types what they mean, and the
+-- code is what they mean. Returns no row for a code that names no programme, which the service
+-- turns into the ordinary "no such programme".
+UPDATE programme
+SET planning_status = sqlc.arg('planning_status'),
+    planning_status_set_at = now(),
+    planning_status_set_by = sqlc.narg('set_by'),
+    updated_at = now()
+WHERE code = sqlc.arg('code')
+RETURNING id, code, title, active, planning_status;

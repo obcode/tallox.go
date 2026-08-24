@@ -25,6 +25,8 @@ import (
 var (
 	demandProgramme = uuid.MustParse("33333333-3333-4333-8333-333333333333")
 	otherProgramme  = uuid.MustParse("44444444-4444-4444-8444-444444444444")
+	// unplannedProgramme has run out: it is in the catalogue and this faculty does not plan it.
+	unplannedProgramme = uuid.MustParse("55555555-5555-4555-8555-555555555555")
 )
 
 // fakeDemandStore records what it was asked to do and answers plausibly.
@@ -246,18 +248,30 @@ func (f *fakeSemesterStore) SetPlanningSemester(_ context.Context, id, _ uuid.UU
 // fakeCatalogueReader answers the one question the demand asks of the catalogue.
 type fakeCatalogueReader struct{}
 
-func (fakeCatalogueReader) Programmes(context.Context) ([]domain.Programme, error) { return nil, nil }
+func (fakeCatalogueReader) Programmes(context.Context, bool) ([]domain.Programme, error) {
+	return nil, nil
+}
 
 func (fakeCatalogueReader) ProgrammesByID(context.Context, []uuid.UUID) ([]domain.Programme, error) {
 	return nil, nil
 }
 
+// PC is the programme this faculty does not plan — every write against it is refused whoever
+// holds what, which is the half of the rule that is not a permission.
 func (fakeCatalogueReader) ProgrammeByCode(_ context.Context, code string) (*domain.Programme, error) {
 	switch code {
 	case "PA":
-		return &domain.Programme{ID: demandProgramme, Code: "PA"}, nil
+		return &domain.Programme{
+			ID: demandProgramme, Code: "PA", PlanningStatus: domain.ProgrammePlanned,
+		}, nil
 	case "PB":
-		return &domain.Programme{ID: otherProgramme, Code: "PB"}, nil
+		return &domain.Programme{
+			ID: otherProgramme, Code: "PB", PlanningStatus: domain.ProgrammePlanned,
+		}, nil
+	case "PC":
+		return &domain.Programme{
+			ID: unplannedProgramme, Code: "PC", PlanningStatus: domain.ProgrammeDiscontinued,
+		}, nil
 	default:
 		return nil, nil
 	}
@@ -273,6 +287,12 @@ func (fakeCatalogueReader) Teachers(context.Context, domain.TeacherFilter) ([]do
 
 func (fakeCatalogueReader) ModuleByID(context.Context, uuid.UUID) (*domain.Module, error) {
 	return nil, nil
+}
+
+func (fakeCatalogueReader) SetProgrammePlanningStatus(context.Context, string,
+	domain.ProgrammeStatus, uuid.UUID,
+) (*domain.Programme, error) {
+	return nil, errors.New("not part of this test")
 }
 
 func (fakeCatalogueReader) SetModuleComponents(context.Context, uuid.UUID,

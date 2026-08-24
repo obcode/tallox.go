@@ -187,6 +187,7 @@ type ComplexityRoot struct {
 		SetPersonProgrammes           func(childComplexity int, id string, programmes []string) int
 		SetPersonRoles                func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
 		SetPlanningSemester           func(childComplexity int, code string) int
+		SetProgrammePlanningStatus    func(childComplexity int, code string, status domain.ProgrammeStatus) int
 		SetTeacherAdmitted            func(childComplexity int, teacherID string, admitted bool) int
 		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
 		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
@@ -221,10 +222,11 @@ type ComplexityRoot struct {
 	}
 
 	Programme struct {
-		Active func(childComplexity int) int
-		Code   func(childComplexity int) int
-		Spos   func(childComplexity int) int
-		Title  func(childComplexity int) int
+		Active         func(childComplexity int) int
+		Code           func(childComplexity int) int
+		PlanningStatus func(childComplexity int) int
+		Spos           func(childComplexity int) int
+		Title          func(childComplexity int) int
 	}
 
 	Query struct {
@@ -240,7 +242,7 @@ type ComplexityRoot struct {
 		Person                  func(childComplexity int, id string) int
 		PlanningSemester        func(childComplexity int) int
 		Programme               func(childComplexity int, code string) int
-		Programmes              func(childComplexity int) int
+		Programmes              func(childComplexity int, includeUnplanned bool) int
 		RoleGrants              func(childComplexity int, personID string) int
 		Semester                func(childComplexity int, code string) int
 		Semesters               func(childComplexity int) int
@@ -1161,6 +1163,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetPlanningSemester(childComplexity, args["code"].(string)), true
+	case "Mutation.setProgrammePlanningStatus":
+		if e.ComplexityRoot.Mutation.SetProgrammePlanningStatus == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setProgrammePlanningStatus_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetProgrammePlanningStatus(childComplexity, args["code"].(string), args["status"].(domain.ProgrammeStatus)), true
 	case "Mutation.setTeacherAdmitted":
 		if e.ComplexityRoot.Mutation.SetTeacherAdmitted == nil {
 			break
@@ -1329,6 +1342,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Programme.Code(childComplexity), true
+	case "Programme.planningStatus":
+		if e.ComplexityRoot.Programme.PlanningStatus == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Programme.PlanningStatus(childComplexity), true
 	case "Programme.spos":
 		if e.ComplexityRoot.Programme.Spos == nil {
 			break
@@ -1460,7 +1479,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			break
 		}
 
-		return e.ComplexityRoot.Query.Programmes(childComplexity), true
+		args, err := ec.field_Query_programmes_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Programmes(childComplexity, args["includeUnplanned"].(bool)), true
 	case "Query.roleGrants":
 		if e.ComplexityRoot.Query.RoleGrants == nil {
 			break
@@ -2526,8 +2550,40 @@ type Programme {
   rather than treated as a data error; it simply does not belong in a picker.
   """
   active: Boolean!
+  """
+  Whether this faculty plans this programme — its own decision, not the examination office's.
+
+  The catalogue holds every programme the regulations mention, and some of them this faculty
+  does not plan: ` + "`" + `NOT_OURS` + "`" + ` is somebody else's, ` + "`" + `DISCONTINUED` + "`" + ` is one of ours that has run out.
+  Both stay in the catalogue — their modules are still taught, and what was planned in them
+  stays on record — and neither is offered in a picker or may be granted to a programme lead.
+
+  **It cannot be derived, and that was measured.** The newest regulations of two planned
+  programmes are from 2010, older than every programme on the other list; the discontinued one
+  with the most active modules has more of them than three that are planned; and the programme
+  object the source carries holds a code and nothing else.
+  """
+  planningStatus: ProgrammeStatus!
   "Its versions of the examination regulations, newest first."
   spos: [Spo!]!
+}
+
+"""
+Whether this faculty plans a study programme.
+"""
+enum ProgrammeStatus {
+  "This faculty plans it. The default for a programme the import has just brought in."
+  PLANNED
+  "Somebody else's programme. It is in the catalogue because its regulations mention modules."
+  NOT_OURS
+  """
+  This faculty's, and it has run out.
+
+  Kept apart from ` + "`" + `NOT_OURS` + "`" + ` although the two do the same thing today: this one has demand on
+  record and students still finishing, and "what did we offer in it" is a question it has to be
+  able to answer.
+  """
+  DISCONTINUED
 }
 
 """
@@ -2879,12 +2935,20 @@ input ModuleComponentInput {
 
 extend type Query {
   """
-  Every study programme, by code.
+  The study programmes this faculty plans, by code.
 
   Includes the one with no current regulations, marked ` + "`" + `active: false` + "`" + `, because its modules are
-  still planable.
+  still planable. Excludes the ones the faculty does not plan — see ` + "`" + `Programme.planningStatus` + "`" + `
+  — because a picker built from this list would otherwise ask somebody to plan a programme
+  nobody here runs.
+
+  Pass ` + "`" + `includeUnplanned: true` + "`" + ` for all of them. That is what the screen deciding the statuses
+  asks for, and what a script asking "what does the catalogue hold" wants.
   """
-  programmes: [Programme!]! @scope(area: PLANNING, verb: READ)
+  programmes(
+    "Add the programmes this faculty does not plan."
+    includeUnplanned: Boolean! = false
+  ): [Programme!]! @scope(area: PLANNING, verb: READ)
 
   """
   One study programme by its short code, or ` + "`" + `null` + "`" + ` if there is no such programme.
@@ -2996,6 +3060,28 @@ input LocalModuleInput {
 }
 
 extend type Mutation {
+  """
+  Record that this faculty plans a study programme, or no longer does.
+
+  The catalogue is the examination office's and cannot say this — the measurement is on
+  ` + "`" + `Programme.planningStatus` + "`" + ` — so it is a decision, and this is where it is taken. Both
+  directions: a programme that has run out is marked ` + "`" + `DISCONTINUED` + "`" + `, and one that starts is
+  marked ` + "`" + `PLANNED` + "`" + `.
+
+  The dean's office, like the phases and the planning semester, and through both doors for the
+  same reason: it is reversible and it is ordinary process work. ` + "`" + `ADMIN` + "`" + ` is deliberately not on
+  the list — running the installation is a different job from planning with it.
+
+  A programme this faculty does not plan is offered in no picker and may be granted to no
+  programme lead; the demand of one that has run out stays readable, because that is the record
+  of what the faculty did.
+  """
+  setProgrammePlanningStatus(
+    "The programme's short code. Upper-cased and trimmed for you."
+    code: String!
+    status: ProgrammeStatus!
+  ): Programme! @scope(area: PLANNING, verb: WRITE)
+
   """
   Enter a course this faculty offers and the examination office's catalogue does not list.
 
@@ -3679,7 +3765,8 @@ enum ScopeArea {
   ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
   ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
   ` + "`" + `publishWishes` + "`" + `,
-  ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
+  ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
+  ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
   ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `.
@@ -4985,6 +5072,8 @@ func (ec *executionContext) childFields_Programme(ctx context.Context, field gra
 		return ec.fieldContext_Programme_title(ctx, field)
 	case "active":
 		return ec.fieldContext_Programme_active(ctx, field)
+	case "planningStatus":
+		return ec.fieldContext_Programme_planningStatus(ctx, field)
 	case "spos":
 		return ec.fieldContext_Programme_spos(ctx, field)
 	}

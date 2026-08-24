@@ -25,7 +25,7 @@ type QueryResolver interface {
 	RoleGrants(ctx context.Context, personID string) ([]*model.RoleGrant, error)
 	DiagnoseAccess(ctx context.Context, mail string) (*model.AccessDiagnosis, error)
 	TeacherAccounts(ctx context.Context) ([]*model.TeacherAccount, error)
-	Programmes(ctx context.Context) ([]*model.Programme, error)
+	Programmes(ctx context.Context, includeUnplanned bool) ([]*model.Programme, error)
 	Programme(ctx context.Context, code string) (*model.Programme, error)
 	Modules(ctx context.Context, filter *model.ModuleFilter) ([]*model.Module, error)
 	Module(ctx context.Context, id string) (*model.Module, error)
@@ -195,6 +195,20 @@ func (ec *executionContext) field_Query_programme_args(ctx context.Context, rawA
 		return nil, err
 	}
 	args["code"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_programmes_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "includeUnplanned",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["includeUnplanned"] = arg0
 	return args, nil
 }
 
@@ -691,7 +705,8 @@ func (ec *executionContext) _Query_programmes(ctx context.Context, field graphql
 			return ec.fieldContext_Query_programmes(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return ec.Resolvers.Query().Programmes(ctx)
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Programmes(ctx, fc.Args["includeUnplanned"].(bool))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.Programme) graphql.Marshaler {
@@ -701,7 +716,7 @@ func (ec *executionContext) _Query_programmes(ctx context.Context, field graphql
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_Query_programmes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_programmes(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -710,6 +725,17 @@ func (ec *executionContext) fieldContext_Query_programmes(_ context.Context, fie
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Programme(ctx, field)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_programmes_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }

@@ -247,16 +247,18 @@ func (q *Queries) ListModules(ctx context.Context, arg ListModulesParams) ([]Lis
 
 const listProgrammes = `-- name: ListProgrammes :many
 
-SELECT id, code, title, active
+SELECT id, code, title, active, planning_status
 FROM programme
+WHERE $1::boolean OR planning_status = 'PLANNED'
 ORDER BY code
 `
 
 type ListProgrammesRow struct {
-	ID     uuid.UUID
-	Code   string
-	Title  string
-	Active bool
+	ID             uuid.UUID
+	Code           string
+	Title          string
+	Active         bool
+	PlanningStatus string
 }
 
 // Reading the module catalogue.
@@ -266,11 +268,16 @@ type ListProgrammesRow struct {
 // components, their offerings, and the programmes — stitched together in Go. The catalogue is
 // 506 modules and 1784 offerings, so loading what a screen needs and joining it in memory is
 // both simpler than a loader framework and faster than the query-per-field it replaces.
-// Every study programme, including the one with no current regulations.
+// The study programmes, including the one with no current regulations.
+//
+// Only the ones this faculty plans, unless the caller asks for the others too. The catalogue
+// holds every programme the examination office's regulations mention, and some of them are not
+// this faculty's business — a picker that offered them would be asking somebody to plan a
+// programme nobody here runs. See migration 12 for why this is a column and not a rule.
 //
 // Ordered by code, which is how the faculty says them and how a picker should show them.
-func (q *Queries) ListProgrammes(ctx context.Context) ([]ListProgrammesRow, error) {
-	rows, err := q.db.Query(ctx, listProgrammes)
+func (q *Queries) ListProgrammes(ctx context.Context, includeUnplanned bool) ([]ListProgrammesRow, error) {
+	rows, err := q.db.Query(ctx, listProgrammes, includeUnplanned)
 	if err != nil {
 		return nil, err
 	}
@@ -283,6 +290,7 @@ func (q *Queries) ListProgrammes(ctx context.Context) ([]ListProgrammesRow, erro
 			&i.Code,
 			&i.Title,
 			&i.Active,
+			&i.PlanningStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -654,18 +662,24 @@ func (q *Queries) ModulesByIDs(ctx context.Context, ids []uuid.UUID) ([]ModulesB
 }
 
 const programmeByCode = `-- name: ProgrammeByCode :one
-SELECT id, code, title, active
+SELECT id, code, title, active, planning_status
 FROM programme
 WHERE code = $1
 `
 
 type ProgrammeByCodeRow struct {
-	ID     uuid.UUID
-	Code   string
-	Title  string
-	Active bool
+	ID             uuid.UUID
+	Code           string
+	Title          string
+	Active         bool
+	PlanningStatus string
 }
 
+// One programme, whatever its planning status.
+//
+// Deliberately unfiltered: reading the demand of a programme that has run out is a legitimate
+// question — that is the record of what the faculty did — and the refusal to *write* one belongs
+// where the write is, with a sentence that says which of the two reasons applies.
 func (q *Queries) ProgrammeByCode(ctx context.Context, code string) (ProgrammeByCodeRow, error) {
 	row := q.db.QueryRow(ctx, programmeByCode, code)
 	var i ProgrammeByCodeRow
@@ -674,22 +688,24 @@ func (q *Queries) ProgrammeByCode(ctx context.Context, code string) (ProgrammeBy
 		&i.Code,
 		&i.Title,
 		&i.Active,
+		&i.PlanningStatus,
 	)
 	return i, err
 }
 
 const programmesByIDs = `-- name: ProgrammesByIDs :many
-SELECT id, code, title, active
+SELECT id, code, title, active, planning_status
 FROM programme
 WHERE id = ANY ($1::uuid[])
 ORDER BY code
 `
 
 type ProgrammesByIDsRow struct {
-	ID     uuid.UUID
-	Code   string
-	Title  string
-	Active bool
+	ID             uuid.UUID
+	Code           string
+	Title          string
+	Active         bool
+	PlanningStatus string
 }
 
 // A handful of programmes by id, without their regulations.
@@ -711,6 +727,7 @@ func (q *Queries) ProgrammesByIDs(ctx context.Context, ids []uuid.UUID) ([]Progr
 			&i.Code,
 			&i.Title,
 			&i.Active,
+			&i.PlanningStatus,
 		); err != nil {
 			return nil, err
 		}
@@ -734,6 +751,48 @@ DELETE FROM module_component WHERE module_id = $1
 func (q *Queries) ReplaceModuleComponents(ctx context.Context, moduleID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, replaceModuleComponents, moduleID)
 	return err
+}
+
+const setProgrammePlanningStatus = `-- name: SetProgrammePlanningStatus :one
+UPDATE programme
+SET planning_status = $1,
+    planning_status_set_at = now(),
+    planning_status_set_by = $2,
+    updated_at = now()
+WHERE code = $3
+RETURNING id, code, title, active, planning_status
+`
+
+type SetProgrammePlanningStatusParams struct {
+	PlanningStatus string
+	SetBy          uuid.NullUUID
+	Code           string
+}
+
+type SetProgrammePlanningStatusRow struct {
+	ID             uuid.UUID
+	Code           string
+	Title          string
+	Active         bool
+	PlanningStatus string
+}
+
+// Record that this faculty plans a programme, or no longer does.
+//
+// By code rather than by id: this is the one screen where somebody types what they mean, and the
+// code is what they mean. Returns no row for a code that names no programme, which the service
+// turns into the ordinary "no such programme".
+func (q *Queries) SetProgrammePlanningStatus(ctx context.Context, arg SetProgrammePlanningStatusParams) (SetProgrammePlanningStatusRow, error) {
+	row := q.db.QueryRow(ctx, setProgrammePlanningStatus, arg.PlanningStatus, arg.SetBy, arg.Code)
+	var i SetProgrammePlanningStatusRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Title,
+		&i.Active,
+		&i.PlanningStatus,
+	)
+	return i, err
 }
 
 const teachersByID = `-- name: TeachersByID :many

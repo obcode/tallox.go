@@ -1069,6 +1069,29 @@ func (ec *executionContext) fieldContext_Programme_active(_ context.Context, fie
 	return graphql.NewScalarFieldContext("Programme", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _Programme_planningStatus(ctx context.Context, field graphql.CollectedField, obj *model.Programme) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Programme_planningStatus(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PlanningStatus, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v domain.ProgrammeStatus) graphql.Marshaler {
+			return ec.marshalNProgrammeStatus2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐProgrammeStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Programme_planningStatus(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Programme", field, false, false, errors.New("field of type ProgrammeStatus does not have child fields"))
+}
+
 func (ec *executionContext) _Programme_spos(ctx context.Context, field graphql.CollectedField, obj *model.Programme) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2297,6 +2320,11 @@ func (ec *executionContext) _Programme(ctx context.Context, sel ast.SelectionSet
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "planningStatus":
+			out.Values[i] = ec._Programme_planningStatus(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "spos":
 			out.Values[i] = ec._Programme_spos(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -2695,6 +2723,10 @@ func (ec *executionContext) marshalNModuleSource2githubᚗcomᚋobcodeᚋtallox�
 	return res
 }
 
+func (ec *executionContext) marshalNProgramme2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgramme(ctx context.Context, sel ast.SelectionSet, v model.Programme) graphql.Marshaler {
+	return ec._Programme(ctx, sel, &v)
+}
+
 func (ec *executionContext) marshalNProgramme2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Programme) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -2719,6 +2751,23 @@ func (ec *executionContext) marshalNProgramme2ᚖgithubᚗcomᚋobcodeᚋtallox�
 		return graphql.Null
 	}
 	return ec._Programme(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNProgrammeStatus2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐProgrammeStatus(ctx context.Context, v any) (domain.ProgrammeStatus, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := domain.ProgrammeStatus(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNProgrammeStatus2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐProgrammeStatus(ctx context.Context, sel ast.SelectionSet, v domain.ProgrammeStatus) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) marshalNSpo2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSpoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Spo) graphql.Marshaler {

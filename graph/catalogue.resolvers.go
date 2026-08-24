@@ -72,25 +72,29 @@ func (r *moduleResolver) ProgrammeSemester(ctx context.Context, obj *model.Modul
 	return &semester, nil
 }
 
-// CreateLocalModule is the resolver for the createLocalModule field.
-func (r *mutationResolver) CreateLocalModule(ctx context.Context, input model.LocalModuleInput) (*model.Module, error) {
+// SetProgrammePlanningStatus is the resolver for the setProgrammePlanningStatus field.
+func (r *mutationResolver) SetProgrammePlanningStatus(ctx context.Context, code string, status domain.ProgrammeStatus) (*model.Programme, error) {
 	actor := principal.From(ctx)
 
-	programme, err := r.Catalogue.ProgrammeByCode(ctx, actor, input.Programme)
+	programme, err := r.Catalogue.SetProgrammePlanningStatus(ctx, actor, code, status)
 	if err != nil {
 		return nil, catalogueUserFacing(actor, err)
 	}
-	if programme == nil {
-		return nil, refusal("PROGRAMME_NOT_FOUND", "Diesen Studiengang gibt es nicht.")
-	}
+	return programmeModel(*programme), nil
+}
+
+// CreateLocalModule is the resolver for the createLocalModule field.
+func (r *mutationResolver) CreateLocalModule(ctx context.Context, input model.LocalModuleInput) (*model.Module, error) {
+	actor := principal.From(ctx)
 
 	spec, err := localModuleSpec(input)
 	if err != nil {
 		return nil, err
 	}
-	spec.HomeProgrammeID = programme.ID
 
-	created, err := r.Catalogue.CreateLocalModule(ctx, actor, spec)
+	// The code goes to the service rather than being resolved here: "does this programme exist,
+	// and does the faculty plan it" are rules, and the rules live one layer down.
+	created, err := r.Catalogue.CreateLocalModule(ctx, actor, input.Programme, spec)
 	if err != nil {
 		return nil, catalogueUserFacing(actor, err)
 	}
@@ -138,10 +142,10 @@ func (r *mutationResolver) SetModuleComponents(ctx context.Context, moduleID str
 }
 
 // Programmes is the resolver for the programmes field.
-func (r *queryResolver) Programmes(ctx context.Context) ([]*model.Programme, error) {
+func (r *queryResolver) Programmes(ctx context.Context, includeUnplanned bool) ([]*model.Programme, error) {
 	actor := principal.From(ctx)
 
-	programmes, err := r.Catalogue.Programmes(ctx, actor)
+	programmes, err := r.Catalogue.Programmes(ctx, actor, includeUnplanned)
 	if err != nil {
 		return nil, catalogueUserFacing(actor, err)
 	}

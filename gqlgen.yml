@@ -105,6 +105,8 @@ models:
     model: github.com/obcode/tallox.go/internal/domain.InstancePartKind
   DutyStatus:
     model: github.com/obcode/tallox.go/internal/domain.DutyStatus
+  ProgrammeStatus:
+    model: github.com/obcode/tallox.go/internal/domain.ProgrammeStatus
   ModuleSource:
     model: github.com/obcode/tallox.go/internal/domain.ModuleSource
   ModuleKind:

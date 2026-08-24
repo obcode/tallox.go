@@ -645,3 +645,16 @@ func TestDatabaseAndDomainAgreeOnModuleKinds(t *testing.T) {
 	assertVocabulariesAgree(t, constraintDef(t, s, "module_kind_is_known"), known,
 		func(v string) bool { _, ok := domain.ParseModuleKind(v); return ok })
 }
+
+func TestDatabaseAndDomainAgreeOnProgrammeStatuses(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	known := make([]string, 0, len(domain.AllProgrammeStatuses()))
+	for _, v := range domain.AllProgrammeStatuses() {
+		known = append(known, string(v))
+	}
+	assertVocabulariesAgree(t, constraintDef(t, s, "programme_planning_status_is_known"), known,
+		func(v string) bool { _, ok := domain.ParseProgrammeStatus(v); return ok })
+}

@@ -119,13 +119,16 @@ type PersonalAccessToken struct {
 }
 
 type Programme struct {
-	ID              uuid.UUID
-	Code            string
-	Title           string
-	Active          bool
-	ZpaProgrammeRef *int64
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID                  uuid.UUID
+	Code                string
+	Title               string
+	Active              bool
+	ZpaProgrammeRef     *int64
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
+	PlanningStatus      string
+	PlanningStatusSetAt pgtype.Timestamptz
+	PlanningStatusSetBy uuid.NullUUID
 }
 
 type Semester struct {

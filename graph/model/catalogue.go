@@ -65,27 +65,32 @@ type Teacher struct {
 
 // Module is a catalogue entry, on the wire.
 type Module struct {
-	ID                  string             `json:"id"`
-	Name                string             `json:"name"`
-	HomeProgramme       *Programme         `json:"homeProgramme"`
-	Responsible         *Teacher           `json:"responsible,omitempty"`
-	CourseType          domain.CourseType  `json:"courseType"`
-	Frequency           domain.Frequency   `json:"frequency"`
-	ContactHoursPerWeek *int               `json:"contactHoursPerWeek,omitempty"`
-	Credits             *int               `json:"credits,omitempty"`
-	Active              bool               `json:"active"`
-	Official            bool               `json:"official"`
-	RetiredAt           *time.Time         `json:"retiredAt,omitempty"`
-	ZpaID               *string            `json:"zpaId,omitempty"`
-	Components          []*ModuleComponent `json:"components"`
-	ComponentHours      *float64           `json:"componentHours,omitempty"`
-	Offerings           []*ModuleOffering  `json:"offerings"`
+	ID                  string              `json:"id"`
+	Name                string              `json:"name"`
+	HomeProgramme       *Programme          `json:"homeProgramme"`
+	Responsible         *Teacher            `json:"responsible,omitempty"`
+	CourseType          domain.CourseType   `json:"courseType"`
+	Frequency           domain.Frequency    `json:"frequency"`
+	ContactHoursPerWeek *int                `json:"contactHoursPerWeek,omitempty"`
+	Credits             *int                `json:"credits,omitempty"`
+	Active              bool                `json:"active"`
+	Official            bool                `json:"official"`
+	RetiredAt           *time.Time          `json:"retiredAt,omitempty"`
+	ZpaID               *string             `json:"zpaId,omitempty"`
+	Components          []*ModuleComponent  `json:"components"`
+	ComponentHours      *float64            `json:"componentHours,omitempty"`
+	Offerings           []*ModuleOffering   `json:"offerings"`
+	Source              domain.ModuleSource `json:"source"`
+	Kind                domain.ModuleKind   `json:"kind"`
 
-	// Source is the domain value this was built from, for the two fields that take an argument.
+	// Domain is the value this was built from, for the fields that take an argument.
+	//
+	// Named apart from the schema's own `source` field, which says where a catalogue row came
+	// from — two different things, and one of them is not on the wire at all.
 	//
 	// Never marshalled — gqlgen renders only what the schema names, and the json tag says so for
 	// anything else that might walk this struct.
-	Source domain.Module `json:"-"`
+	Domain domain.Module `json:"-"`
 }
 
 // ModuleComponent is one unit of a module's split, on the wire.

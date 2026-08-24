@@ -1079,3 +1079,127 @@ func TestConfirmingAProposalMakesItAStatedSplit(t *testing.T) {
 			got.ComponentHours)
 	}
 }
+
+const createLocalMutation = `mutation($in: LocalModuleInput!) {
+	createLocalModule(input: $in) {
+		id name source kind plannable splitIsEstimated
+		homeProgramme { code }
+		components { kind teachingHours }
+	}
+}`
+
+type localModuleResult struct {
+	CreateLocalModule struct {
+		ID               string
+		Name             string
+		Source           string
+		Kind             string
+		Plannable        bool
+		SplitIsEstimated bool
+		HomeProgramme    struct{ Code string }
+		Components       []struct {
+			Kind          string
+			TeachingHours float64
+		}
+	}
+}
+
+func localInput(programme, name, kind string) map[string]any {
+	return map[string]any{"in": map[string]any{
+		"programme":           programme,
+		"name":                name,
+		"kind":                kind,
+		"courseType":          "SU",
+		"frequency":           "ON_ANNOUNCEMENT",
+		"contactHoursPerWeek": 4,
+		"components":          []map[string]any{{"kind": "LECTURE", "teachingHours": 4}},
+	}}
+}
+
+// A course the faculty enters itself, through both doors, and scoped to the programme it is at
+// home in.
+//
+// The same rule setModuleComponents uses and the same sentence behind it: a module is planned
+// where it is at home. Not @interactiveOnly — a course is neither confidential nor personnel
+// data, and a programme lead who keeps their placeholders in a script is doing nothing this API
+// should refuse.
+func TestCreatingALocalModuleIsScopedToTheProgrammeThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			// A name per door: the two runs share a database, and the name is the identity of a
+			// local row — which is the point of the unique index.
+			name := "FWP-Platzhalter (technisch)"
+			if c.Door() == graphqltest.Token {
+				name = "FWP-Platzhalter (allgemein)"
+			}
+
+			var out localModuleResult
+			c.MustQuery(t, createLocalMutation,
+				localInput(storetest.FixtureProgrammeA, name, "FWP_PLACEHOLDER"), &out)
+
+			got := out.CreateLocalModule
+			switch {
+			case got.Source != "LOCAL":
+				t.Errorf("the source is %q, want LOCAL", got.Source)
+			case got.Kind != "FWP_PLACEHOLDER":
+				t.Errorf("the kind is %q, want FWP_PLACEHOLDER", got.Kind)
+			case got.HomeProgramme.Code != storetest.FixtureProgrammeA:
+				t.Errorf("it is at home in %s, want %s",
+					got.HomeProgramme.Code, storetest.FixtureProgrammeA)
+			case !got.Plannable:
+				t.Error("the placeholder is not plannable, so no instance could be declared of it")
+			case got.SplitIsEstimated:
+				t.Error("the split it was given is being reported as an estimate")
+			case len(got.Components) != 1:
+				t.Errorf("the split holds %d parts, want the one it was given", len(got.Components))
+			}
+
+			// And not for a programme this person does not lead. The refusal names the right
+			// question — which programme — rather than the role they already hold.
+			refusal := c.Do(t, createLocalMutation,
+				localInput(storetest.FixtureProgrammeZ, "Fremdes Fach", "MODULE"))
+			if code := errorCode(t, refusal); code != "NOT_YOUR_PROGRAMME" {
+				t.Errorf("entering a course for somebody else's programme gave %s, want "+
+					"NOT_YOUR_PROGRAMME", code)
+			}
+		})
+}
+
+// A lecturer may read the catalogue and may not add to it.
+func TestALecturerCannotEnterALocalModule(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil, grants{testdata.Eins, []string{"LECTURER"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			refusal := c.Do(t, createLocalMutation,
+				localInput(storetest.FixtureProgrammeA, "Eigene LV", "MODULE"))
+			if code := errorCode(t, refusal); code != "NOT_YOUR_PROGRAMME" {
+				t.Errorf("a lecturer entering a course gave %s, want NOT_YOUR_PROGRAMME", code)
+			}
+		})
+}
+
+// Two clicks on the button are one row, and the second says which repair it needs.
+func TestASecondLocalModuleOfTheSameNameSaysWhy(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
+
+	c := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail)
+	input := localInput(storetest.FixtureProgrammeA, "Eigene Lehrveranstaltung", "MODULE")
+
+	c.MustQuery(t, createLocalMutation, input, nil)
+	if code := errorCode(t, c.Do(t, createLocalMutation, input)); code != "MODULE_NAME_TAKEN" {
+		t.Errorf("the second course of the same name gave %s, want MODULE_NAME_TAKEN", code)
+	}
+}

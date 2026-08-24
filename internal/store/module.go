@@ -388,25 +388,8 @@ func (m *Modules) SetModuleComponents(
 	// Rollback after a successful commit is a no-op, so this needs no branching.
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	q := New(tx)
-
-	if err := q.ReplaceModuleComponents(ctx, moduleID); err != nil {
-		return nil, fmt.Errorf("cannot clear the split: %w", err)
-	}
-	for _, c := range components {
-		hours, err := numericFrom(c.TeachingHours)
-		if err != nil {
-			return nil, err
-		}
-		if err := q.InsertModuleComponent(ctx, InsertModuleComponentParams{
-			ModuleID:      moduleID,
-			Kind:          string(c.Kind),
-			TeachingHours: hours,
-			Position:      int32(c.Position),
-			CreatedBy:     nullUUID(nonNilUUID(by)),
-		}); err != nil {
-			return nil, fmt.Errorf("cannot record a part of the split: %w", err)
-		}
+	if err := writeComponents(ctx, New(tx), moduleID, components, by); err != nil {
+		return nil, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -427,6 +410,8 @@ func moduleFrom(row ListModulesRow) domain.Module {
 		Active:              row.Active,
 		Official:            row.Official,
 		ZpaID:               row.ZpaModuleRef,
+		Source:              domain.ModuleSource(row.Source),
+		Kind:                domain.ModuleKind(row.Kind),
 	}
 	if row.ResponsibleTeacherID.Valid {
 		// Only the id here; attach() fills in the rest in one statement for the whole list.
@@ -494,4 +479,122 @@ func nonNilUUID(id uuid.UUID) *uuid.UUID {
 		return nil
 	}
 	return &id
+}
+
+// CreateLocalModule adds a catalogue row the faculty enters itself, with its split.
+//
+// One transaction, for the reason SetModuleComponents gives: a module with no split is one no
+// instance can be declared for, and a row that exists for a moment without one is a row somebody
+// can meet in exactly that state. Here it is worse than there — the module is brand new, so the
+// moment is the only one in which anybody would look at it.
+//
+// The unique index on (home programme, lower(name)) is what makes a second click a no-op rather
+// than a second row, and 23505 becomes ErrLocalModuleNameTaken.
+func (m *Modules) CreateLocalModule(ctx context.Context, spec domain.NewLocalModule, by uuid.UUID,
+) (*domain.Module, error) {
+	tx, err := m.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	row, err := q.InsertLocalModule(ctx, InsertLocalModuleParams{
+		HomeProgrammeID:     spec.HomeProgrammeID,
+		Name:                spec.Name,
+		CourseType:          string(spec.CourseType),
+		Frequency:           string(spec.Frequency),
+		ContactHoursPerWeek: int32OrNil(spec.ContactHoursPerWeek),
+		Credits:             int32OrNil(spec.Credits),
+		Kind:                string(spec.Kind),
+		CreatedBy:           nullUUID(nonNilUUID(by)),
+	})
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, domain.ErrLocalModuleNameTaken
+		}
+		return nil, fmt.Errorf("cannot record the course: %w", err)
+	}
+
+	if err := writeComponents(ctx, q, row.ID, spec.Components, by); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+	return m.ModuleByID(ctx, row.ID)
+}
+
+// UpdateLocalModule corrects a local course, or takes it out of the lists with active = false.
+//
+// No rows back means the id names no local module — either nothing at all, or an imported row,
+// and the two are deliberately the same answer here: the statement names the source, so a
+// mistyped id changes nothing instead of editing the catalogue the import owns.
+func (m *Modules) UpdateLocalModule(ctx context.Context, id uuid.UUID,
+	spec domain.NewLocalModule, by uuid.UUID,
+) (*domain.Module, error) {
+	tx, err := m.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	_, err = q.UpdateLocalModule(ctx, UpdateLocalModuleParams{
+		ID:                  id,
+		Name:                spec.Name,
+		CourseType:          string(spec.CourseType),
+		Frequency:           string(spec.Frequency),
+		ContactHoursPerWeek: int32OrNil(spec.ContactHoursPerWeek),
+		Credits:             int32OrNil(spec.Credits),
+		Kind:                string(spec.Kind),
+		Active:              spec.Active,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrModuleNotFound
+		}
+		if isUniqueViolation(err) {
+			return nil, domain.ErrLocalModuleNameTaken
+		}
+		return nil, fmt.Errorf("cannot change the course: %w", err)
+	}
+
+	if err := writeComponents(ctx, q, id, spec.Components, by); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+	return m.ModuleByID(ctx, id)
+}
+
+// writeComponents replaces a module's split inside a transaction somebody else opened.
+//
+// The body SetModuleComponents already had, lifted out so the local-module paths use the same
+// one. A second copy would be a second place for "position is the caller's order" to be true.
+func writeComponents(ctx context.Context, q *Queries, moduleID uuid.UUID,
+	components []domain.ModuleComponent, by uuid.UUID,
+) error {
+	if err := q.ReplaceModuleComponents(ctx, moduleID); err != nil {
+		return fmt.Errorf("cannot clear the split: %w", err)
+	}
+	for _, c := range components {
+		hours, err := numericFrom(c.TeachingHours)
+		if err != nil {
+			return err
+		}
+		if err := q.InsertModuleComponent(ctx, InsertModuleComponentParams{
+			ModuleID:      moduleID,
+			Kind:          string(c.Kind),
+			TeachingHours: hours,
+			Position:      int32(c.Position),
+			CreatedBy:     nullUUID(nonNilUUID(by)),
+		}); err != nil {
+			return fmt.Errorf("cannot record a part of the split: %w", err)
+		}
+	}
+	return nil
 }

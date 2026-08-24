@@ -299,18 +299,27 @@ WHERE NOT active;
 -- The source's module objects carry no name field at all; the name is borrowed from an
 -- association row, so a module in no set of regulations has none anywhere. Skipping them would
 -- mean a programme lead searching for a module they are responsible for and not finding it.
+--
+-- Restricted to the rows the projection wrote. A module the faculty entered itself is not a
+-- finding of an import that has never heard of it — and a nameless one is impossible there
+-- anyway, since somebody typed the name. Without the predicate every local row with an empty
+-- sample would turn up in the nightly report.
 SELECT count(*)::integer AS count,
        (array_agg(zpa_module_ref::text ORDER BY zpa_module_ref))[1:20]::text[] AS sample
 FROM module
-WHERE name = '' AND retired_at IS NULL;
+WHERE name = '' AND retired_at IS NULL AND zpa_module_ref IS NOT NULL;
 
 -- name: CountInactiveModules :one
 -- Projected with the flag, never hidden. "What did this programme offer in 2024" is a question
 -- worth being able to answer.
+--
+-- Same restriction as above, and here it bites: deactivating a local course is how one is
+-- retired, so without the predicate every retired placeholder would appear as a finding of the
+-- next night's import.
 SELECT count(*)::integer AS count,
        (array_agg(zpa_module_ref::text ORDER BY zpa_module_ref))[1:20]::text[] AS sample
 FROM module
-WHERE NOT active;
+WHERE NOT active AND zpa_module_ref IS NOT NULL;
 
 -- name: CountAssociationsWithUnknownRegulations :one
 -- Not projected, and the largest of the nine: 665 real rows over 12 sets of regulations the

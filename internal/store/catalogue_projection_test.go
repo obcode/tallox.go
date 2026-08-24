@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
+
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/store"
 	"github.com/obcode/tallox.go/internal/store/storetest"
@@ -862,5 +864,114 @@ func TestATeachersLastSemesterIsTranslatedIntoThisSystemsSpelling(t *testing.T) 
 	}
 	if code != nil {
 		t.Errorf("an unparseable semester became %q rather than nothing", *code)
+	}
+}
+
+// seedLocalModule puts a course the faculty entered itself into the catalogue.
+func seedLocalModule(t *testing.T, s *storetest.Schema, name string, active bool) uuid.UUID {
+	t.Helper()
+
+	var id uuid.UUID
+	if err := s.Pool.QueryRow(t.Context(),
+		`INSERT INTO module (home_programme_id, name, course_type, frequency,
+		                     contact_hours_per_week, source, kind, active)
+		 SELECT id, $1, 'SU_WITH_LAB', 'ON_ANNOUNCEMENT', 4, 'LOCAL', 'FWP_PLACEHOLDER', $2
+		   FROM programme WHERE code = $3
+		 RETURNING id`, name, active, storetest.FixtureProgrammeA).Scan(&id); err != nil {
+		t.Fatalf("cannot seed the local course: %v", err)
+	}
+	return id
+}
+
+// The import has no opinion about a course the faculty entered itself, and must therefore leave
+// it exactly as it is.
+//
+// Mechanically it cannot do otherwise — it inserts from the ZPA views and resolves conflicts on
+// zpa_module_ref, which a local row does not have — but that is a property of a statement, and
+// statements get rewritten. This is the property asserted from outside.
+func TestProjectionDoesNotTouchLocalModules(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+
+	project(t, s)
+	id := seedLocalModule(t, s, "FWP-Platzhalter (technisch)", true)
+
+	var before struct {
+		name      string
+		active    bool
+		retired   *string
+		updatedAt string
+	}
+	read := func(into *struct {
+		name      string
+		active    bool
+		retired   *string
+		updatedAt string
+	}) {
+		t.Helper()
+		if err := s.Pool.QueryRow(ctx,
+			`SELECT name, active, retired_at::text, updated_at::text FROM module WHERE id = $1`,
+			id).Scan(&into.name, &into.active, &into.retired, &into.updatedAt); err != nil {
+			t.Fatalf("cannot read the local course: %v", err)
+		}
+	}
+	read(&before)
+
+	result := project(t, s)
+
+	var after struct {
+		name      string
+		active    bool
+		retired   *string
+		updatedAt string
+	}
+	read(&after)
+
+	if after != before {
+		t.Errorf("the projection changed the local course:\n before %+v\n after  %+v", before, after)
+	}
+	if after.retired != nil {
+		t.Error("the projection retired a course it has never heard of")
+	}
+
+	// And it is not counted as written, or the report would claim work it did not do.
+	var imported int
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT count(*)::integer FROM module WHERE zpa_module_ref IS NOT NULL`).Scan(&imported); err != nil {
+		t.Fatalf("cannot count the imported modules: %v", err)
+	}
+	if result.ModulesWritten != imported {
+		t.Errorf("the projection reports %d modules written and the catalogue holds %d imported "+
+			"ones — the local row is being counted", result.ModulesWritten, imported)
+	}
+}
+
+// The findings of the nightly import are about what the import found. A local course is not one
+// of them, and a deactivated one least of all — deactivating is how a local course is retired,
+// so without the restriction every retired placeholder would turn up as a finding for ever.
+func TestLocalModulesDoNotAppearInTheProjectionReport(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+
+	before := project(t, s)
+	inactiveBefore := 0
+	if n := note(before, domain.NoteModuleInactive); n != nil {
+		inactiveBefore = n.Count
+	}
+
+	seedLocalModule(t, s, "FWP-Platzhalter (aufgegeben)", false)
+
+	after := project(t, s)
+	inactiveAfter := 0
+	if n := note(after, domain.NoteModuleInactive); n != nil {
+		inactiveAfter = n.Count
+	}
+
+	if inactiveAfter != inactiveBefore {
+		t.Errorf("MODULE_INACTIVE went from %d to %d — a deactivated local course is being "+
+			"reported as a finding of the import", inactiveBefore, inactiveAfter)
 	}
 }

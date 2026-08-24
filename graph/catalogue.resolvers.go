@@ -17,7 +17,7 @@ import (
 
 // DutyStatus is the resolver for the dutyStatus field.
 func (r *moduleResolver) DutyStatus(ctx context.Context, obj *model.Module, programme string) (*domain.DutyStatus, error) {
-	status, ok := obj.Source.DutyStatus(normaliseCode(programme))
+	status, ok := obj.Domain.DutyStatus(normaliseCode(programme))
 	if !ok {
 		// The module does not appear in that programme's catalogue at all, which is a different
 		// thing from being elective in it.
@@ -28,12 +28,12 @@ func (r *moduleResolver) DutyStatus(ctx context.Context, obj *model.Module, prog
 
 // InCatalogue is the resolver for the inCatalogue field.
 func (r *moduleResolver) InCatalogue(ctx context.Context, obj *model.Module, programme string) (bool, error) {
-	return obj.Source.InCatalogue(normaliseCode(programme)), nil
+	return obj.Domain.InCatalogue(normaliseCode(programme)), nil
 }
 
 // ProposedComponents is the resolver for the proposedComponents field.
 func (r *moduleResolver) ProposedComponents(ctx context.Context, obj *model.Module) ([]*model.ComponentProposal, error) {
-	proposals := obj.Source.ProposedComponents()
+	proposals := obj.Domain.ProposedComponents()
 
 	out := make([]*model.ComponentProposal, 0, len(proposals))
 	for _, c := range proposals {
@@ -44,12 +44,12 @@ func (r *moduleResolver) ProposedComponents(ctx context.Context, obj *model.Modu
 
 // SplitIsEstimated is the resolver for the splitIsEstimated field.
 func (r *moduleResolver) SplitIsEstimated(ctx context.Context, obj *model.Module) (bool, error) {
-	return obj.Source.SplitIsEstimated(), nil
+	return obj.Domain.SplitIsEstimated(), nil
 }
 
 // PracticalKind is the resolver for the practicalKind field.
 func (r *moduleResolver) PracticalKind(ctx context.Context, obj *model.Module) (*domain.InstancePartKind, error) {
-	kind, ok := obj.Source.PracticalKind()
+	kind, ok := obj.Domain.PracticalKind()
 	if !ok {
 		return nil, nil
 	}
@@ -58,18 +58,67 @@ func (r *moduleResolver) PracticalKind(ctx context.Context, obj *model.Module) (
 
 // Plannable is the resolver for the plannable field.
 func (r *moduleResolver) Plannable(ctx context.Context, obj *model.Module) (bool, error) {
-	return obj.Source.Plannable(), nil
+	return obj.Domain.Plannable(), nil
 }
 
 // ProgrammeSemester is the resolver for the programmeSemester field.
 func (r *moduleResolver) ProgrammeSemester(ctx context.Context, obj *model.Module, programme string) (*int, error) {
-	semester, ok := obj.Source.ProgrammeSemester(normaliseCode(programme))
+	semester, ok := obj.Domain.ProgrammeSemester(normaliseCode(programme))
 	if !ok {
 		// The regulations do not say, which for an elective means "no restriction" rather than
 		// a number — and is the state nearly half of them are in.
 		return nil, nil
 	}
 	return &semester, nil
+}
+
+// CreateLocalModule is the resolver for the createLocalModule field.
+func (r *mutationResolver) CreateLocalModule(ctx context.Context, input model.LocalModuleInput) (*model.Module, error) {
+	actor := principal.From(ctx)
+
+	programme, err := r.Catalogue.ProgrammeByCode(ctx, actor, input.Programme)
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+	if programme == nil {
+		return nil, refusal("PROGRAMME_NOT_FOUND", "Diesen Studiengang gibt es nicht.")
+	}
+
+	spec, err := localModuleSpec(input)
+	if err != nil {
+		return nil, err
+	}
+	spec.HomeProgrammeID = programme.ID
+
+	created, err := r.Catalogue.CreateLocalModule(ctx, actor, spec)
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+	return moduleModel(*created), nil
+}
+
+// ChangeLocalModule is the resolver for the changeLocalModule field.
+//
+// The input's `programme` is ignored here, and the schema says so: the home programme is what
+// the permission is judged against, so accepting a new one would let somebody push a row out of
+// their own reach in the same request.
+func (r *mutationResolver) ChangeLocalModule(ctx context.Context, id string, input model.LocalModuleInput) (*model.Module, error) {
+	moduleID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, refusal("MODULE_NOT_FOUND", "Diese Lehrveranstaltung gibt es nicht.")
+	}
+
+	spec, err := localModuleSpec(input)
+	if err != nil {
+		return nil, err
+	}
+
+	actor := principal.From(ctx)
+	changed, err := r.Catalogue.ChangeLocalModule(ctx, actor, moduleID, spec)
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+	return moduleModel(*changed), nil
 }
 
 // SetModuleComponents is the resolver for the setModuleComponents field.

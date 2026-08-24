@@ -42,7 +42,8 @@ ORDER BY p.code, s.version DESC;
 -- "compulsory in this programme" cannot accidentally mean "compulsory anywhere". MIXED is
 -- expressed as "has both", which is what makes it a filter rather than a label.
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
-       m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref
+       m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
+       m.source, m.kind
 FROM module m
 WHERE (sqlc.narg('responsible')::uuid IS NULL
        OR m.responsible_teacher_id = sqlc.narg('responsible')::uuid)
@@ -90,7 +91,8 @@ ORDER BY (m.name = ''), m.name, m.id;
 
 -- name: ModuleByID :one
 SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
-       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref
+       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
+       source, kind
 FROM module
 WHERE id = $1;
 
@@ -194,7 +196,44 @@ WHERE t.id = ANY (sqlc.arg(ids)::uuid[]);
 -- with a filter would read the whole table to answer a question about twenty rows. Same ordering
 -- as the list, so that a screen sorted by module reads the same way in both places.
 SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
-       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref
+       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
+       source, kind
 FROM module
 WHERE id = ANY (sqlc.arg(ids)::uuid[])
 ORDER BY (name = ''), name, id;
+
+
+-- name: InsertLocalModule :one
+-- A course the faculty enters itself: not in the examination office's catalogue, or not yet.
+--
+-- No zpa_module_ref, and the constraint says so rather than this statement — see migration 11.
+-- `active` and `official` keep their defaults: both are statements about what the examination
+-- office says, and about a local row it says nothing.
+INSERT INTO module (home_programme_id, name, course_type, frequency, contact_hours_per_week,
+                    credits, source, kind, created_by)
+VALUES ($1, $2, $3, $4, sqlc.narg('contact_hours_per_week'), sqlc.narg('credits'),
+        'LOCAL', sqlc.arg('kind'), sqlc.narg('created_by'))
+RETURNING id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
+       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
+       source, kind;
+
+-- name: UpdateLocalModule :one
+-- Correct one, or take it out of the lists with active = false.
+--
+-- The home programme is not among the editable fields: it is what the permission is judged
+-- against, so moving it would be moving the row out of the reach of the person doing it. The
+-- WHERE clause names the source, so this can never touch an imported row — a mistyped id then
+-- changes nothing rather than editing the catalogue.
+UPDATE module
+SET name = $2,
+    course_type = $3,
+    frequency = $4,
+    contact_hours_per_week = sqlc.narg('contact_hours_per_week'),
+    credits = sqlc.narg('credits'),
+    kind = sqlc.arg('kind'),
+    active = sqlc.arg('active'),
+    updated_at = now()
+WHERE id = $1 AND source = 'LOCAL'
+RETURNING id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
+       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
+       source, kind;

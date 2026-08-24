@@ -147,6 +147,52 @@ func (ec *executionContext) fieldContext_Module_id(_ context.Context, field grap
 	return graphql.NewScalarFieldContext("Module", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
+func (ec *executionContext) _Module_source(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Module_source(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Source, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v domain.ModuleSource) graphql.Marshaler {
+			return ec.marshalNModuleSource2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐModuleSource(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Module_source(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Module", field, false, false, errors.New("field of type ModuleSource does not have child fields"))
+}
+
+func (ec *executionContext) _Module_kind(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Module_kind(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v domain.ModuleKind) graphql.Marshaler {
+			return ec.marshalNModuleKind2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐModuleKind(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Module_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Module", field, false, false, errors.New("field of type ModuleKind does not have child fields"))
+}
+
 func (ec *executionContext) _Module_name(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1459,6 +1505,102 @@ func (ec *executionContext) fieldContext_Teacher_isUser(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputLocalModuleInput(ctx context.Context, obj any) (model.LocalModuleInput, error) {
+	var it model.LocalModuleInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["kind"]; !present {
+		asMap["kind"] = "MODULE"
+	}
+	if _, present := asMap["frequency"]; !present {
+		asMap["frequency"] = "ON_ANNOUNCEMENT"
+	}
+	if _, present := asMap["active"]; !present {
+		asMap["active"] = true
+	}
+
+	fieldsInOrder := [...]string{"programme", "name", "kind", "courseType", "frequency", "contactHoursPerWeek", "credits", "active", "components"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "programme":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("programme"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Programme = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "kind":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("kind"))
+			data, err := ec.unmarshalNModuleKind2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐModuleKind(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Kind = data
+		case "courseType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("courseType"))
+			data, err := ec.unmarshalNCourseType2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐCourseType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CourseType = data
+		case "frequency":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("frequency"))
+			data, err := ec.unmarshalNFrequency2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐFrequency(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Frequency = data
+		case "contactHoursPerWeek":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contactHoursPerWeek"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ContactHoursPerWeek = data
+		case "credits":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("credits"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Credits = data
+		case "active":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("active"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Active = data
+		case "components":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("components"))
+			data, err := ec.unmarshalOModuleComponentInput2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleComponentInputᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Components = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputModuleComponentInput(ctx context.Context, obj any) (model.ModuleComponentInput, error) {
 	var it model.ModuleComponentInput
 	if obj == nil {
@@ -1647,6 +1789,16 @@ func (ec *executionContext) _Module(ctx context.Context, sel ast.SelectionSet, o
 			out.Values[i] = graphql.MarshalString("Module")
 		case "id":
 			out.Values[i] = ec._Module_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "source":
+			out.Values[i] = ec._Module_source(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "kind":
+			out.Values[i] = ec._Module_kind(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
@@ -2403,6 +2555,11 @@ func (ec *executionContext) marshalNInstancePartKind2githubᚗcomᚋobcodeᚋtal
 	return res
 }
 
+func (ec *executionContext) unmarshalNLocalModuleInput2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐLocalModuleInput(ctx context.Context, v any) (model.LocalModuleInput, error) {
+	res, err := ec.unmarshalInputLocalModuleInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
 func (ec *executionContext) marshalNModule2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModule(ctx context.Context, sel ast.SelectionSet, v model.Module) graphql.Marshaler {
 	return ec._Module(ctx, sel, &v)
 }
@@ -2478,6 +2635,23 @@ func (ec *executionContext) unmarshalNModuleComponentInput2ᚖgithubᚗcomᚋobc
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNModuleKind2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐModuleKind(ctx context.Context, v any) (domain.ModuleKind, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := domain.ModuleKind(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNModuleKind2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐModuleKind(ctx context.Context, sel ast.SelectionSet, v domain.ModuleKind) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
+}
+
 func (ec *executionContext) marshalNModuleOffering2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleOfferingᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ModuleOffering) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -2502,6 +2676,23 @@ func (ec *executionContext) marshalNModuleOffering2ᚖgithubᚗcomᚋobcodeᚋta
 		return graphql.Null
 	}
 	return ec._ModuleOffering(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNModuleSource2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐModuleSource(ctx context.Context, v any) (domain.ModuleSource, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := domain.ModuleSource(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNModuleSource2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐModuleSource(ctx context.Context, sel ast.SelectionSet, v domain.ModuleSource) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) marshalNProgramme2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Programme) graphql.Marshaler {
@@ -2677,6 +2868,23 @@ func (ec *executionContext) marshalOModule2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗg
 		return graphql.Null
 	}
 	return ec._Module(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOModuleComponentInput2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleComponentInputᚄ(ctx context.Context, v any) ([]*model.ModuleComponentInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]*model.ModuleComponentInput, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNModuleComponentInput2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleComponentInput(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
 }
 
 func (ec *executionContext) unmarshalOModuleFilter2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleFilter(ctx context.Context, v any) (*model.ModuleFilter, error) {

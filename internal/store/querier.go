@@ -65,6 +65,10 @@ type Querier interface {
 	CountDutyConflicts(ctx context.Context) (CountDutyConflictsRow, error)
 	// Projected with the flag, never hidden. "What did this programme offer in 2024" is a question
 	// worth being able to answer.
+	//
+	// Same restriction as above, and here it bites: deactivating a local course is how one is
+	// retired, so without the predicate every retired placeholder would appear as a finding of the
+	// next night's import.
 	CountInactiveModules(ctx context.Context) (CountInactiveModulesRow, error)
 	// Folded with min(). Two real pairs are in this state, and both are a module sitting in an
 	// ordinary catalogue slot and a specialisation of the same version that disagree about the
@@ -99,6 +103,11 @@ type Querier interface {
 	// The source's module objects carry no name field at all; the name is borrowed from an
 	// association row, so a module in no set of regulations has none anywhere. Skipping them would
 	// mean a programme lead searching for a module they are responsible for and not finding it.
+	//
+	// Restricted to the rows the projection wrote. A module the faculty entered itself is not a
+	// finding of an import that has never heard of it — and a nameless one is impossible there
+	// anyway, since somebody typed the name. Without the predicate every local row with an empty
+	// sample would turn up in the nightly report.
 	CountModulesWithoutName(ctx context.Context) (CountModulesWithoutNameRow, error)
 	// How many people other than this one could still administer the installation.
 	//
@@ -238,6 +247,12 @@ type Querier interface {
 	// undo work in the semester it is copying into.
 	InsertCourseInstanceIfAbsent(ctx context.Context, arg InsertCourseInstanceIfAbsentParams) (uuid.UUID, error)
 	InsertInstancePart(ctx context.Context, arg InsertInstancePartParams) (uuid.UUID, error)
+	// A course the faculty enters itself: not in the examination office's catalogue, or not yet.
+	//
+	// No zpa_module_ref, and the constraint says so rather than this statement — see migration 11.
+	// `active` and `official` keep their defaults: both are statements about what the examination
+	// office says, and about a local row it says nothing.
+	InsertLocalModule(ctx context.Context, arg InsertLocalModuleParams) (InsertLocalModuleRow, error)
 	InsertModuleComponent(ctx context.Context, arg InsertModuleComponentParams) error
 	// The parts of a set of instances, in one statement.
 	InstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]InstancePartsForRow, error)
@@ -661,6 +676,13 @@ type Querier interface {
 	// one that was declared.
 	UpdateCourseInstance(ctx context.Context, arg UpdateCourseInstanceParams) error
 	UpdateInstancePart(ctx context.Context, arg UpdateInstancePartParams) error
+	// Correct one, or take it out of the lists with active = false.
+	//
+	// The home programme is not among the editable fields: it is what the permission is judged
+	// against, so moving it would be moving the row out of the reach of the person doing it. The
+	// WHERE clause names the source, so this can never touch an imported row — a mistyped id then
+	// changes nothing rather than editing the catalogue.
+	UpdateLocalModule(ctx context.Context, arg UpdateLocalModuleParams) (UpdateLocalModuleRow, error)
 	// The cache of the examination office's module master data, its runs and its changes.
 	//
 	// The theme of this file is that a sync never deletes and never overwrites blindly. Every

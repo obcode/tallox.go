@@ -895,3 +895,48 @@ func TestPlanningAModuleOfAnotherProgrammeThroughBothDoors(t *testing.T) {
 			}
 		})
 }
+
+// The point of the whole thing: a placeholder is planned like any other module, and "we need
+// three of them" is three cohorts of it.
+func TestAPlaceholderIsPlannedLikeAnyOtherModule(t *testing.T) {
+	t.Parallel()
+
+	// The demand fixture rather than the catalogue one: this needs both services wired, and
+	// that is the whole claim — a placeholder goes through the ordinary planning path.
+	f := demandHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
+
+	c := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail)
+
+	var created localModuleResult
+	c.MustQuery(t, createLocalMutation,
+		localInput(storetest.FixtureProgrammeA, "FWP-Platzhalter (technisch)", "FWP_PLACEHOLDER"),
+		&created)
+
+	// Three cohorts, which is what three of them *are*: three offerings of one module in one
+	// programme and semester have to differ in their track, so the identity says so already.
+	for _, track := range []string{"A", "B", "C"} {
+		var out struct {
+			DeclareCourseInstance struct {
+				Track  string
+				Module struct{ Kind string }
+				Parts  []struct{ Kind string }
+			}
+		}
+		c.MustQuery(t, declareMutation, map[string]any{"in": map[string]any{
+			"semester":  "2027-SS",
+			"programme": storetest.FixtureProgrammeA,
+			"moduleId":  created.CreateLocalModule.ID,
+			"track":     track,
+		}}, &out)
+
+		if out.DeclareCourseInstance.Track != track {
+			t.Errorf("the cohort is %q, want %q", out.DeclareCourseInstance.Track, track)
+		}
+		if len(out.DeclareCourseInstance.Parts) != 1 {
+			t.Errorf("the instance holds %d parts, want the one the split states",
+				len(out.DeclareCourseInstance.Parts))
+		}
+	}
+}

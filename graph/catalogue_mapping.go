@@ -75,7 +75,9 @@ func moduleModel(m domain.Module) *model.Module {
 		RetiredAt:           m.RetiredAt,
 		Components:          make([]*model.ModuleComponent, 0, len(m.Components)),
 		Offerings:           make([]*model.ModuleOffering, 0, len(m.Offerings)),
-		Source:              m,
+		Source:              m.Source,
+		Kind:                m.Kind,
+		Domain:              m,
 	}
 
 	if m.Responsible != nil {
@@ -238,6 +240,18 @@ func catalogueUserFacing(actor principal.Actor, err error) error {
 			Message:    err.Error(),
 			Extensions: map[string]any{"code": "COMPONENTS_INVALID"},
 		}
+	case errors.Is(err, domain.ErrLocalModuleInvalid):
+		return &gqlerror.Error{
+			Message:    err.Error(),
+			Extensions: map[string]any{"code": "LOCAL_MODULE_INVALID"},
+		}
+	case errors.Is(err, domain.ErrLocalModuleNameTaken):
+		// Its own code rather than a generic write refusal: the repair is to pick another name,
+		// and nothing else about the request is wrong.
+		return &gqlerror.Error{
+			Message:    err.Error(),
+			Extensions: map[string]any{"code": "MODULE_NAME_TAKEN"},
+		}
 	default:
 		// Anything else is ours, not the caller's. The sentence is generic on purpose: a
 		// database error in the clear says things about rows nobody asked about — and it is
@@ -266,4 +280,30 @@ func badRequest(code, message string) error {
 // `if` and `IF` are the same programme to a person.
 func normaliseCode(code string) string {
 	return strings.ToUpper(strings.TrimSpace(code))
+}
+
+// localModuleSpec turns the input into what the service takes.
+//
+// The home programme is filled in by the caller: on the way in it is resolved from the code, and
+// on the way through a change it comes off the stored row — which is the whole reason it is not
+// set here.
+func localModuleSpec(input model.LocalModuleInput) (domain.NewLocalModule, error) {
+	components := make([]domain.ModuleComponent, 0, len(input.Components))
+	for _, c := range input.Components {
+		components = append(components, domain.ModuleComponent{
+			Kind:          c.Kind,
+			TeachingHours: c.TeachingHours,
+		})
+	}
+
+	return domain.NewLocalModule{
+		Name:                input.Name,
+		Kind:                input.Kind,
+		CourseType:          input.CourseType,
+		Frequency:           input.Frequency,
+		ContactHoursPerWeek: input.ContactHoursPerWeek,
+		Credits:             input.Credits,
+		Active:              input.Active,
+		Components:          components,
+	}, nil
 }

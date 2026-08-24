@@ -182,6 +182,7 @@ type ComplexityRoot struct {
 		SetPersonActive               func(childComplexity int, id string, active bool) int
 		SetPersonProgrammes           func(childComplexity int, id string, programmes []string) int
 		SetPersonRoles                func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
+		SetPlanningSemester           func(childComplexity int, code string) int
 		SetTeacherAdmitted            func(childComplexity int, teacherID string, admitted bool) int
 		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
 		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
@@ -233,6 +234,7 @@ type ComplexityRoot struct {
 		MyTokens                func(childComplexity int) int
 		People                  func(childComplexity int, search *string, includeInactive *bool) int
 		Person                  func(childComplexity int, id string) int
+		PlanningSemester        func(childComplexity int) int
 		Programme               func(childComplexity int, code string) int
 		Programmes              func(childComplexity int) int
 		RoleGrants              func(childComplexity int, personID string) int
@@ -255,11 +257,12 @@ type ComplexityRoot struct {
 	}
 
 	Semester struct {
-		Code              func(childComplexity int) int
-		DecidedAt         func(childComplexity int) int
-		Phase             func(childComplexity int) int
-		ReachablePhases   func(childComplexity int) int
-		WishesPublishedAt func(childComplexity int) int
+		Code               func(childComplexity int) int
+		DecidedAt          func(childComplexity int) int
+		IsPlanningSemester func(childComplexity int) int
+		Phase              func(childComplexity int) int
+		ReachablePhases    func(childComplexity int) int
+		WishesPublishedAt  func(childComplexity int) int
 	}
 
 	Session struct {
@@ -1109,6 +1112,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetPersonRoles(childComplexity, args["id"].(string), args["roles"].([]policy.Role), args["expiresAt"].(*time.Time)), true
+	case "Mutation.setPlanningSemester":
+		if e.ComplexityRoot.Mutation.SetPlanningSemester == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setPlanningSemester_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetPlanningSemester(childComplexity, args["code"].(string)), true
 	case "Mutation.setTeacherAdmitted":
 		if e.ComplexityRoot.Mutation.SetTeacherAdmitted == nil {
 			break
@@ -1386,6 +1400,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Person(childComplexity, args["id"].(string)), true
+	case "Query.planningSemester":
+		if e.ComplexityRoot.Query.PlanningSemester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.PlanningSemester(childComplexity), true
 	case "Query.programme":
 		if e.ComplexityRoot.Query.Programme == nil {
 			break
@@ -1536,6 +1556,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Semester.DecidedAt(childComplexity), true
+	case "Semester.isPlanningSemester":
+		if e.ComplexityRoot.Semester.IsPlanningSemester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Semester.IsPlanningSemester(childComplexity), true
 	case "Semester.phase":
 		if e.ComplexityRoot.Semester.Phase == nil {
 			break
@@ -3481,8 +3507,10 @@ enum ScopeArea {
   The first area worth narrowing a token to. ` + "`" + `PUBLIC` + "`" + ` and ` + "`" + `PROFILE` + "`" + ` are you describing
   yourself; ` + "`" + `TOKENS` + "`" + ` and ` + "`" + `ADMIN` + "`" + ` are unreachable through a token at all.
 
-  Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `, ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
-  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `publishWishes` + "`" + `,
+  Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `planningSemester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `,
+  ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
+  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
+  ` + "`" + `publishWishes` + "`" + `,
   ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
@@ -3737,6 +3765,19 @@ type Semester {
   phase: Phase!
 
   """
+  Whether this is the semester the faculty is planning right now. At most one is.
+
+  The answer to "which semester is this page about" before anybody has chosen one — a
+  preselection for every screen and a default for every script, so that neither has to guess.
+
+  **Not derived from ` + "`" + `phase` + "`" + `.** The obvious rule, "the newest one that is not ` + "`" + `FINAL` + "`" + `", is
+  ambiguous exactly when it matters: while the summer is being assigned, the winter is already
+  in demand planning and both are open. Which of the two is meant is a decision somebody takes,
+  the same way the phase is.
+  """
+  isPlanningSemester: Boolean!
+
+  """
   The phases this semester can be switched to right now — one step away, in either direction.
 
   Computed from the same rule the mutation enforces, so an interface can render exactly the
@@ -3771,9 +3812,23 @@ extend type Query {
   """
   The semesters worth showing, newest first.
 
-  The ones near now — a year back and three years forward — plus every semester anybody has
-  already decided something about, however far out it lies. A plan made for five years ahead
-  took a deliberate act to record and is exactly the one that must not fall off the list.
+  Three sources, and each covers what the others get wrong:
+
+  * **The semester being planned** (` + "`" + `planningSemester` + "`" + `), always — even if the calendar window
+    does not reach it. It is the answer to "which one do you mean", so a list without it offers
+    everything except the thing being worked on.
+  * **The calendar window from there onwards**, three years out. Forwards only: before the
+    planning semester there is nothing left to plan, and a list that opens on eight finished
+    semesters makes the one that matters the hardest to find.
+  * **Every semester anybody has decided something about**, however old and however far out. A
+    plan made for five years ahead took a deliberate act to record, and a finished one is the
+    record of what the faculty did.
+
+  That last half also covers "every semester with demand" without a second question, because
+  declaring demand records the semester in the same transaction it writes the demand in.
+
+  While no planning semester is set, the whole calendar window stands — a fresh installation
+  gets a usable list rather than an empty one.
 
   The calendar decides what is *offered* here and nothing else; the phase of each one is still
   a decision somebody made. Use ` + "`" + `semester(code:)` + "`" + ` for anything outside this window.
@@ -3783,6 +3838,18 @@ extend type Query {
   would produce a tool that refuses writes without saying why.
   """
   semesters: [Semester!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  The semester the faculty is planning right now, or ` + "`" + `null` + "`" + ` while nobody has said.
+
+  ` + "`" + `null` + "`" + ` is a real state and not a failure: a fresh installation is in it, and an interface
+  that has to render a preselection needs to tell the two apart. ` + "`" + `semesters` + "`" + ` falls back to the
+  whole calendar window while it lasts.
+
+  Requires an account and no particular role, like the phase: it is the answer to "which
+  semester is this about", and every screen needs it before it can show anything.
+  """
+  planningSemester: Semester @scope(area: PLANNING, verb: READ)
 
   """
   One semester by its code — always an answer, never ` + "`" + `null` + "`" + `.
@@ -3816,6 +3883,27 @@ extend type Mutation {
     "Four digits, a hyphen and SS or WS, for example ` + "`" + `2026-WS` + "`" + `."
     code: String!
     to: Phase!
+  ): Semester! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Say which semester the faculty is planning from now on.
+
+  Moves the mark off whichever semester carried it, in the same act — at most one semester is
+  being planned, and the two halves are one decision. Setting the semester that already carries
+  it is not an error and changes nothing but the timestamp of the decision.
+
+  The dean's office, like the phase, and through both doors for the same reason: rolling the
+  faculty on to the next semester is ordinary process work and it is reversible. Any plannable
+  code is accepted, including one no decision has been recorded about — saying that a semester
+  is the one being planned *is* the first decision about it, and it is what puts the row there.
+
+  Two people setting it at the same moment both succeed; the second one wins. That is the right
+  outcome for a decision somebody is taking on purpose, and it is why there is no
+  ` + "`" + `PHASE_MOVED_ON` + "`" + ` counterpart here.
+  """
+  setPlanningSemester(
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
+    code: String!
   ): Semester! @scope(area: PLANNING, verb: WRITE)
 
   # @interactiveOnly, unlike the two mutations above, and it is the only asymmetry in this
@@ -4751,6 +4839,8 @@ func (ec *executionContext) childFields_Semester(ctx context.Context, field grap
 		return ec.fieldContext_Semester_code(ctx, field)
 	case "phase":
 		return ec.fieldContext_Semester_phase(ctx, field)
+	case "isPlanningSemester":
+		return ec.fieldContext_Semester_isPlanningSemester(ctx, field)
 	case "reachablePhases":
 		return ec.fieldContext_Semester_reachablePhases(ctx, field)
 	case "wishesPublishedAt":

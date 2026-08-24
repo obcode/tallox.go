@@ -24,6 +24,21 @@ func (r *mutationResolver) AdvanceSemesterPhase(ctx context.Context, code string
 	return semesterModel(switched), nil
 }
 
+// SetPlanningSemester is the resolver for the setPlanningSemester field.
+func (r *mutationResolver) SetPlanningSemester(ctx context.Context, code string) (*model.Semester, error) {
+	set, err := r.Planning.SetPlanningSemester(ctx, principal.From(ctx), code)
+	if err != nil {
+		// The generic semester refusal talks about phases, and somebody who tried to say which
+		// semester is being planned would read that as an answer to a question they did not
+		// ask — and go looking for a phase to switch instead.
+		if errors.Is(err, domain.ErrForbidden) {
+			return nil, refusal("FORBIDDEN", policy.PlanningSemesterReason)
+		}
+		return nil, semesterUserFacing(err)
+	}
+	return semesterModel(set), nil
+}
+
 // PublishWishes is the resolver for the publishWishes field.
 func (r *mutationResolver) PublishWishes(ctx context.Context, code string) (*model.Semester, error) {
 	published, err := r.Planning.PublishWishes(ctx, principal.From(ctx), code)
@@ -51,6 +66,22 @@ func (r *queryResolver) Semesters(ctx context.Context) ([]*model.Semester, error
 		out = append(out, semesterModel(s))
 	}
 	return out, nil
+}
+
+// PlanningSemester is the resolver for the planningSemester field.
+//
+// Nullable, and the null is a state rather than a failure: nobody has said yet. An interface
+// rendering a preselection has to tell that apart from an error, so it is not folded into a
+// refusal.
+func (r *queryResolver) PlanningSemester(ctx context.Context) (*model.Semester, error) {
+	planning, err := r.Planning.PlanningSemester(ctx, principal.From(ctx))
+	if err != nil {
+		return nil, semesterUserFacing(err)
+	}
+	if !planning.Recorded() {
+		return nil, nil
+	}
+	return semesterModel(planning), nil
 }
 
 // Semester is the resolver for the semester field.

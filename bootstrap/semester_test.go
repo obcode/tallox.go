@@ -27,6 +27,10 @@ const (
 	publishWishes = `mutation ($code: String!) {
 		publishWishes(code: $code) { code wishesPublishedAt }
 	}`
+	planningSemesterQuery = `{ planningSemester { code phase isPlanningSemester } }`
+	setPlanningSemester   = `mutation ($code: String!) {
+		setPlanningSemester(code: $code) { code phase isPlanningSemester }
+	}`
 )
 
 type semesterEntry struct {
@@ -540,4 +544,129 @@ func TestAScopedTokenIsHeldToItsArea(t *testing.T) {
 		resp := c.Do(t, `{ me { mail } }`, nil)
 		assertRefusal(t, resp, "INSUFFICIENT_SCOPE")
 	})
+}
+
+type planningSemesterResult struct {
+	PlanningSemester *semesterEntry `json:"planningSemester"`
+}
+
+type setPlanningSemesterResult struct {
+	SetPlanningSemester semesterEntry `json:"setPlanningSemester"`
+}
+
+// Which semester is being planned is the answer to "what is this page about", so everybody
+// with an account reads it — the same rule the phase follows, and for the same reason.
+func TestThePlanningSemesterIsReadableByEverybody(t *testing.T) {
+	t.Parallel()
+
+	h := planningHandler(t, lecturer())
+
+	graphqltest.EachDoor(t, h, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out planningSemesterResult
+			c.MustQuery(t, planningSemesterQuery, nil, &out)
+
+			if out.PlanningSemester == nil {
+				t.Fatal("a migrated database answers with no planning semester at all")
+			}
+			if out.PlanningSemester.Code != "2027-SS" {
+				t.Errorf("the planning semester is %q, want the one the migration recorded",
+					out.PlanningSemester.Code)
+			}
+		})
+}
+
+// Saying which semester is being planned is the dean's office's, through both doors.
+//
+// Not @interactiveOnly, unlike publishWishes, and that is a decision rather than an oversight:
+// this one is reversible and it is ordinary process work. A script that rolls the faculty on to
+// the next semester in September is a use this API exists for, so the token door has to reach
+// as far as the browser does — which is what this test pins.
+func TestSettingThePlanningSemesterIsTheDeansOfficeThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	graphqltest.EachDoor(t, planningHandler(t, deansOffice()),
+		testdata.Fuenf.Mail, testdata.Fuenf.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out setPlanningSemesterResult
+			c.MustQuery(t, setPlanningSemester, map[string]any{"code": "2029-ws"}, &out)
+
+			if out.SetPlanningSemester.Code != "2029-WS" {
+				t.Errorf("the code came back as %q, want it upper-cased",
+					out.SetPlanningSemester.Code)
+			}
+
+			// And it is the one the query answers with afterwards — the mark moved off 2027-SS
+			// rather than joining it.
+			var planning planningSemesterResult
+			c.MustQuery(t, planningSemesterQuery, nil, &planning)
+			if planning.PlanningSemester == nil ||
+				planning.PlanningSemester.Code != "2029-WS" {
+				t.Errorf("after setting it, the planning semester reads %+v, want 2029-WS",
+					planning.PlanningSemester)
+			}
+		})
+}
+
+// The list starts at the planning semester, and that is what makes the mark worth having: the
+// finished semesters stop being offered without anybody deleting anything.
+func TestTheListStartsAtThePlanningSemester(t *testing.T) {
+	t.Parallel()
+
+	h := planningHandler(t, deansOffice(), lecturer())
+
+	graphqltest.New(h).AsUser(testdata.Fuenf.Mail).
+		MustQuery(t, setPlanningSemester, map[string]any{"code": "2029-SS"}, nil)
+
+	graphqltest.EachDoor(t, h, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out semesterList
+			c.MustQuery(t, semestersQuery, nil, &out)
+
+			for _, s := range out.Semesters {
+				if s.Code < "2029-SS" && s.DecidedAt == nil {
+					t.Errorf("%s is before the planning semester and nothing was decided about "+
+						"it, so it should not be offered", s.Code)
+				}
+			}
+			find(t, out, "2029-SS")
+			// 2027-SS was recorded by the migration, so it stays — a decision somebody took is
+			// exactly the thing the list never drops.
+			find(t, out, "2027-SS")
+		})
+}
+
+// A lecturer may read it and may not move it, through both doors.
+func TestALecturerCannotSetThePlanningSemester(t *testing.T) {
+	t.Parallel()
+
+	h := planningHandler(t, lecturer())
+
+	graphqltest.EachDoor(t, h, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			assertRefusal(t, c.Do(t, setPlanningSemester,
+				map[string]any{"code": "2029-SS"}), "FORBIDDEN")
+
+			var out planningSemesterResult
+			c.MustQuery(t, planningSemesterQuery, nil, &out)
+			if out.PlanningSemester == nil || out.PlanningSemester.Code != "2027-SS" {
+				t.Errorf("the refused call moved the mark to %+v", out.PlanningSemester)
+			}
+		})
+}
+
+// The same range rule the phase switch obeys. There is no un-deciding, so a mistyped year has
+// to be refused rather than recorded.
+func TestThePlanningSemesterObeysThePlannableRange(t *testing.T) {
+	t.Parallel()
+
+	h := planningHandler(t, deansOffice())
+
+	graphqltest.EachDoor(t, h, testdata.Fuenf.Mail, testdata.Fuenf.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			assertRefusal(t, c.Do(t, setPlanningSemester,
+				map[string]any{"code": "WS 2027"}), "SEMESTER_CODE_INVALID")
+			assertRefusal(t, c.Do(t, setPlanningSemester,
+				map[string]any{"code": "2099-SS"}), "SEMESTER_OUT_OF_RANGE")
+		})
 }

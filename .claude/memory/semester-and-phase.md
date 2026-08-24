@@ -137,5 +137,48 @@ in `internal/policy` und `internal/store`.
 - Die GUI-Fixtures brauchten eine **Dekanats-Persona** (`fuenf`), damit der E2E-Lauf überhaupt
   jemanden hat, der schalten darf.
 
+## Das Planungssemester (Migration 10, 2026-08-24)
+
+`semester.is_planning_semester`, höchstens eine Zeile true — ein **partieller UNIQUE-Index über
+den konstanten Ausdruck**, weil „höchstens eine Zeile" eine Aussage über die Tabelle ist. Ein
+CHECK sieht nur eine Zeile, und ein Trigger sagt es dort, wo niemand nachliest.
+
+**Nicht aus der Phase abgeleitet.** Die naheliegende Regel — das jüngste Semester, das nicht
+FINAL ist — ist genau dann mehrdeutig, wenn es darauf ankommt: während der Sommer zugeteilt
+wird, steht der Winter schon in der Bedarfsplanung, und beide sind offen. Welches gemeint ist,
+ist eine Entscheidung, so wie die Phase eine ist.
+
+**Die Migration trifft die erste Entscheidung** (`2027-SS`). Das ist kein Widerspruch zu
+„niemand legt ein Semester an", sondern ein Beispiel dafür: die Zeile ist das Protokoll einer
+Entscheidung, und *dies ist* die Entscheidung. Die Alternative — das Dekanat klickt es nach dem
+Deploy — ließe ein Fenster offen, in dem `planningSemester` null ist und keine Seite eine
+Vorauswahl hat.
+
+**Zwei Statements, in dieser Reihenfolge, und das ist die Nebenläufigkeitsantwort.**
+`ClearPlanningSemester` läuft vor `MarkPlanningSemester` und nimmt dabei eine Zeilensperre auf
+dem bisherigen Planungssemester. Zwei gleichzeitige Setzer serialisieren sich daran, statt auf
+dem Unique-Index zu kollidieren; **beide gewinnen, der zweite zählt** — anders als bei der
+Phase, wo der Verlierer `PHASE_MOVED_ON` bekommt. Der Unterschied ist inhaltlich: eine
+Phasenschaltung ist ein Schritt, der auf einem gelesenen Zustand aufbaut, das Planungssemester
+ist eine Setzung. Das `AND id <> $1` im Clear ist nicht Deko: ohne es nähme ein erneutes Setzen
+desselben Semesters die Marke ab und wieder auf, und ein No-op sähe aus wie eine Entscheidung.
+
+**`semesters` fängt jetzt beim Planungssemester an** — drei Quellen: die Marke immer (auch
+außerhalb des Kalenderfensters), das Fenster ab ihr **vorwärts**, und jede aufgezeichnete Zeile
+ohne Ausnahme. Die letzte Hälfte deckt „jedes Semester mit Bedarf" umsonst ab, weil `PlanDemand`
+das Semester in derselben Transaktion aufzeichnet. Ohne Marke steht das ganze Fenster — der
+Zustand einer frischen Installation und eines zurückgerollten Schemas.
+
+**`setPlanningSemester` ist nicht `@interactiveOnly`**, anders als `publishWishes` und aus
+demselben Grund, aus dem `advanceSemesterPhase` es nicht ist: rückholbar, gewöhnliche
+Prozessarbeit. `TestSettingThePlanningSemesterIsTheDeansOfficeThroughBothDoors` nagelt das fest,
+weil die Entscheidung sonst nirgends steht.
+
+**Was dabei angefasst werden musste:** `seedSemester` in `catalogue_schema_test.go` wurde ein
+Upsert (die Migration legt 2027-SS an, ein `INSERT` kollidiert), und
+`TestSemestersAreThereWithoutAnybodySettingThemUp` prüft jetzt ein Semester **vor uns** statt des
+aktuellen — das aktuelle liegt hinter der Marke und wird nicht mehr angeboten. Das ist die
+Änderung, nicht ein Testfehler.
+
 Siehe [[scope-enforcement]] — `PLANNING` ist die erste Scope-Fläche, für die ein verengtes Token
 etwas Sinnvolles ausdrückt.

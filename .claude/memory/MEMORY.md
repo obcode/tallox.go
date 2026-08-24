@@ -12,7 +12,7 @@ Kolleg:innen — das gehört nach `tallox.dev`.
 - [ZPA-Import](zpa-import.md) — Cache, Sync, Cron und der Fehler, den erst der echte Lauf zeigte
 - [Integrationstests in der CI](integration-tests-in-ci.md) — zwei Test-Binaries, zwei Container, ein Ryuk: woran man den Ärger erkennt
 - [Zulassung von Lehrenden](admitting-a-teacher.md) — wie aus einer ZPA-Lehrperson ein Konto wird, und die drei Entscheidungen darin
-- [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf
+- [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf, und das Planungssemester
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:
      eine Datei = ein Sachverhalt, Frontmatter mit name/description/metadata.type,

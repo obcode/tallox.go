@@ -106,7 +106,7 @@ enum ScopeArea {
   `module`, `teachers`,
   `courseInstances`, `courseInstance`, `advanceSemesterPhase`, `setPlanningSemester`,
   `publishWishes`,
-  `setModuleComponents`, `declareCourseInstance`, `duplicateCourseInstance`,
+  `setModuleComponents`, `createLocalModule`, `changeLocalModule`, `declareCourseInstance`, `duplicateCourseInstance`,
   `changeCourseInstance`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
   `copyDemandFromSemester`, `planDemand`.

@@ -305,6 +305,41 @@ type InstancePart struct {
 	SharedAcrossTracks bool `json:"sharedAcrossTracks"`
 }
 
+// A course the faculty enters itself, on the way in.
+type LocalModuleInput struct {
+	// The programme it is at home in, by its short code — and therefore who may enter it.
+	//
+	// Only on the way in. `changeLocalModule` does not accept it: the home programme is what the
+	// permission is judged against, so allowing it to move would let somebody push a row out of
+	// their own reach in the same request.
+	Programme string `json:"programme"`
+	// What it is called. Unique within the programme, case-insensitively — that is its identity.
+	Name string `json:"name"`
+	// An ordinary course, or a placeholder for an elective.
+	Kind domain.ModuleKind `json:"kind"`
+	// How the teaching breaks up, in the examination office's own vocabulary.
+	//
+	// It decides what `proposedComponents` suggests, so it is worth getting right even when a split
+	// is stated here as well.
+	CourseType domain.CourseType `json:"courseType"`
+	// How often it runs. `ON_ANNOUNCEMENT` is the honest answer for most placeholders.
+	Frequency domain.Frequency `json:"frequency"`
+	// Contact hours a student attends per week. Not teaching load — see `Module.components`.
+	ContactHoursPerWeek *int `json:"contactHoursPerWeek,omitempty"`
+	// ECTS credits, or `null` where nobody has said.
+	Credits *int `json:"credits,omitempty"`
+	// False takes it out of every list without deleting anything.
+	//
+	// There is no delete and there will not be one: instances point at a module, and later wishes
+	// will point at their parts. This is how a course nobody needs any more is retired.
+	Active bool `json:"active"`
+	// The split, or omitted to let `proposedComponents` stand in.
+	//
+	// Worth stating for a placeholder: a module the catalogue gives no hours for is refused with
+	// `MODULE_NOT_DECOMPOSED` when somebody tries to declare an instance of it.
+	Components []*ModuleComponentInput `json:"components,omitempty"`
+}
+
 // One unit of a module's split, on the way in.
 type ModuleComponentInput struct {
 	// What kind of teaching this unit is.

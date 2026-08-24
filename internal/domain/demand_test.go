@@ -281,6 +281,17 @@ func (fakeCatalogueReader) SetModuleComponents(context.Context, uuid.UUID,
 	return nil, nil
 }
 
+func (fakeCatalogueReader) CreateLocalModule(context.Context, domain.NewLocalModule, uuid.UUID,
+) (*domain.Module, error) {
+	return nil, errors.New("not part of this test")
+}
+
+func (fakeCatalogueReader) UpdateLocalModule(context.Context, uuid.UUID, domain.NewLocalModule,
+	uuid.UUID,
+) (*domain.Module, error) {
+	return nil, errors.New("not part of this test")
+}
+
 // demandFixture wires the service to its fakes at a fixed moment, so that "is this semester
 // plannable" does not depend on the fortnight the test runs in.
 type demandFixture struct {

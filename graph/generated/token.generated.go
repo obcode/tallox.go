@@ -28,6 +28,8 @@ type MutationResolver interface {
 	SetPersonActive(ctx context.Context, id string, active bool) (*model.Person, error)
 	SetPersonProgrammes(ctx context.Context, id string, programmes []string) (*model.Person, error)
 	SetTeacherAdmitted(ctx context.Context, teacherID string, admitted bool) (*model.TeacherAccount, error)
+	CreateLocalModule(ctx context.Context, input model.LocalModuleInput) (*model.Module, error)
+	ChangeLocalModule(ctx context.Context, id string, input model.LocalModuleInput) (*model.Module, error)
 	SetModuleComponents(ctx context.Context, moduleID string, components []*model.ModuleComponentInput) (*model.Module, error)
 	PlanDemand(ctx context.Context, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) (*model.DemandPlanReport, error)
 	DeclareCourseInstance(ctx context.Context, input model.DeclareCourseInstanceInput) (*model.CourseInstance, error)
@@ -163,6 +165,28 @@ func (ec *executionContext) field_Mutation_changeInstancePart_args(ctx context.C
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_changeLocalModule_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.LocalModuleInput, error) {
+			return ec.unmarshalNLocalModuleInput2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐLocalModuleInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg1
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_copyDemandFromSemester_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -190,6 +214,20 @@ func (ec *executionContext) field_Mutation_copyDemandFromSemester_args(ctx conte
 		return nil, err
 	}
 	args["programme"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createLocalModule_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.LocalModuleInput, error) {
+			return ec.unmarshalNLocalModuleInput2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐLocalModuleInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
 	return args, nil
 }
 
@@ -1074,6 +1112,94 @@ func (ec *executionContext) fieldContext_Mutation_setTeacherAdmitted(ctx context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setTeacherAdmitted_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_createLocalModule(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createLocalModule(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateLocalModule(ctx, fc.Args["input"].(model.LocalModuleInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Module) graphql.Marshaler {
+			return ec.marshalNModule2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModule(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createLocalModule(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Module(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createLocalModule_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_changeLocalModule(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_changeLocalModule(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ChangeLocalModule(ctx, fc.Args["id"].(string), fc.Args["input"].(model.LocalModuleInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Module) graphql.Marshaler {
+			return ec.marshalNModule2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModule(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_changeLocalModule(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Module(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_changeLocalModule_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -2131,6 +2257,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setTeacherAdmitted":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setTeacherAdmitted(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "createLocalModule":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createLocalModule(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "changeLocalModule":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_changeLocalModule(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

@@ -134,6 +134,7 @@ type ComplexityRoot struct {
 		HomeProgramme       func(childComplexity int) int
 		ID                  func(childComplexity int) int
 		InCatalogue         func(childComplexity int, programme string) int
+		Kind                func(childComplexity int) int
 		Name                func(childComplexity int) int
 		Offerings           func(childComplexity int) int
 		Official            func(childComplexity int) int
@@ -143,6 +144,7 @@ type ComplexityRoot struct {
 		ProposedComponents  func(childComplexity int) int
 		Responsible         func(childComplexity int) int
 		RetiredAt           func(childComplexity int) int
+		Source              func(childComplexity int) int
 		SplitIsEstimated    func(childComplexity int) int
 		ZpaID               func(childComplexity int) int
 	}
@@ -167,7 +169,9 @@ type ComplexityRoot struct {
 		AdvanceSemesterPhase          func(childComplexity int, code string, to policy.Phase) int
 		ChangeCourseInstance          func(childComplexity int, id string, track string, programmeSemester *int) int
 		ChangeInstancePart            func(childComplexity int, id string, kind domain.InstancePartKind, teachingHours *float64) int
+		ChangeLocalModule             func(childComplexity int, id string, input model.LocalModuleInput) int
 		CopyDemandFromSemester        func(childComplexity int, from string, to string, programme string) int
+		CreateLocalModule             func(childComplexity int, input model.LocalModuleInput) int
 		CreatePerson                  func(childComplexity int, mail string, name *string) int
 		CreatePersonalAccessToken     func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput) int
 		DeclareCourseInstance         func(childComplexity int, input model.DeclareCourseInstanceInput) int
@@ -780,6 +784,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.InCatalogue(childComplexity, args["programme"].(string)), true
+	case "Module.kind":
+		if e.ComplexityRoot.Module.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Kind(childComplexity), true
 	case "Module.name":
 		if e.ComplexityRoot.Module.Name == nil {
 			break
@@ -839,6 +849,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.RetiredAt(childComplexity), true
+	case "Module.source":
+		if e.ComplexityRoot.Module.Source == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.Source(childComplexity), true
 	case "Module.splitIsEstimated":
 		if e.ComplexityRoot.Module.SplitIsEstimated == nil {
 			break
@@ -952,6 +968,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ChangeInstancePart(childComplexity, args["id"].(string), args["kind"].(domain.InstancePartKind), args["teachingHours"].(*float64)), true
+	case "Mutation.changeLocalModule":
+		if e.ComplexityRoot.Mutation.ChangeLocalModule == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_changeLocalModule_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ChangeLocalModule(childComplexity, args["id"].(string), args["input"].(model.LocalModuleInput)), true
 	case "Mutation.copyDemandFromSemester":
 		if e.ComplexityRoot.Mutation.CopyDemandFromSemester == nil {
 			break
@@ -963,6 +990,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CopyDemandFromSemester(childComplexity, args["from"].(string), args["to"].(string), args["programme"].(string)), true
+	case "Mutation.createLocalModule":
+		if e.ComplexityRoot.Mutation.CreateLocalModule == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createLocalModule_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateLocalModule(childComplexity, args["input"].(model.LocalModuleInput)), true
 	case "Mutation.createPerson":
 		if e.ComplexityRoot.Mutation.CreatePerson == nil {
 			break
@@ -1973,6 +2011,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDeclareCourseInstanceInput,
 		ec.unmarshalInputDemandEntryInput,
 		ec.unmarshalInputDemandTrackInput,
+		ec.unmarshalInputLocalModuleInput,
 		ec.unmarshalInputModuleComponentInput,
 		ec.unmarshalInputModuleFilter,
 		ec.unmarshalInputScopeGrantInput,
@@ -2527,6 +2566,28 @@ source, a module keeps its identity across up to 19 sets of regulations and 9 pr
 type Module {
   id: ID!
   """
+  Where this catalogue row comes from: the examination office's import, or the faculty itself.
+
+  Not derivable from ` + "`" + `zpaId` + "`" + ` and deliberately its own field. Two fields that are only ever true
+  together are two chances to write one of them, and this one is a statement the schema
+  enforces (` + "`" + `module_local_has_no_zpa_ref` + "`" + `) rather than a coincidence of the data.
+
+  What it is worth knowing for: ` + "`" + `active` + "`" + `, ` + "`" + `official` + "`" + ` and "retired" are statements the
+  examination office makes, and about a ` + "`" + `LOCAL` + "`" + ` row it makes none.
+  """
+  source: ModuleSource!
+  """
+  What this row stands for: an ordinary module, or a placeholder for an elective nobody has
+  chosen yet.
+
+  A placeholder is a module in every mechanical respect — it has hours, a split, instances, and
+  later wishes — so that the whole planning works on it unchanged. **"We need three of them" is
+  three cohorts of one placeholder**, which is what the identity of an instance already says:
+  three offerings of one module in one programme and semester have to differ in their cohort.
+  The constraint ("ideally something technical") is the placeholder's name.
+  """
+  kind: ModuleKind!
+  """
   The name, which is empty for a handful of modules.
 
   The examination office's module records carry no name field at all — the name exists only
@@ -2858,7 +2919,114 @@ extend type Query {
   ): [Teacher!]! @scope(area: PLANNING, verb: READ)
 }
 
+"""
+Where a catalogue row comes from.
+"""
+enum ModuleSource {
+  "Written by the import from the examination office's catalogue."
+  ZPA
+  """
+  Entered by the faculty: a course that is not in the examination office's catalogue — or not
+  yet — and the FWP placeholders.
+
+  The import never touches such a row, and it never carries a ` + "`" + `zpaId` + "`" + `.
+  """
+  LOCAL
+}
+
+"""
+What a catalogue row stands for.
+"""
+enum ModuleKind {
+  "An ordinary module."
+  MODULE
+  """
+  A placeholder for an elective nobody has chosen yet: "we need three, ideally something
+  technical".
+
+  Planned like any other module, so that the demand, the hours and later the wishes work on it
+  unchanged. Colleagues register interest in one of its cohorts with a concrete subject in mind.
+  """
+  FWP_PLACEHOLDER
+}
+
+"""
+A course the faculty enters itself, on the way in.
+"""
+input LocalModuleInput {
+  """
+  The programme it is at home in, by its short code — and therefore who may enter it.
+
+  Only on the way in. ` + "`" + `changeLocalModule` + "`" + ` does not accept it: the home programme is what the
+  permission is judged against, so allowing it to move would let somebody push a row out of
+  their own reach in the same request.
+  """
+  programme: String!
+  "What it is called. Unique within the programme, case-insensitively — that is its identity."
+  name: String!
+  "An ordinary course, or a placeholder for an elective."
+  kind: ModuleKind! = MODULE
+  """
+  How the teaching breaks up, in the examination office's own vocabulary.
+
+  It decides what ` + "`" + `proposedComponents` + "`" + ` suggests, so it is worth getting right even when a split
+  is stated here as well.
+  """
+  courseType: CourseType!
+  "How often it runs. ` + "`" + `ON_ANNOUNCEMENT` + "`" + ` is the honest answer for most placeholders."
+  frequency: Frequency! = ON_ANNOUNCEMENT
+  "Contact hours a student attends per week. Not teaching load — see ` + "`" + `Module.components` + "`" + `."
+  contactHoursPerWeek: Int
+  "ECTS credits, or ` + "`" + `null` + "`" + ` where nobody has said."
+  credits: Int
+  """
+  False takes it out of every list without deleting anything.
+
+  There is no delete and there will not be one: instances point at a module, and later wishes
+  will point at their parts. This is how a course nobody needs any more is retired.
+  """
+  active: Boolean! = true
+  """
+  The split, or omitted to let ` + "`" + `proposedComponents` + "`" + ` stand in.
+
+  Worth stating for a placeholder: a module the catalogue gives no hours for is refused with
+  ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + ` when somebody tries to declare an instance of it.
+  """
+  components: [ModuleComponentInput!]
+}
+
 extend type Mutation {
+  """
+  Enter a course this faculty offers and the examination office's catalogue does not list.
+
+  Two cases, and both are ordinary planning: a course that is not in the ZPA (yet), and an FWP
+  placeholder — "we need three electives, ideally something technical" — declared before the
+  subjects are known. Both become ` + "`" + `module` + "`" + ` rows, so the split, the instance, the hours and
+  later the wishes all work on them unchanged.
+
+  Allowed for the lead of the programme it is at home in, and for the dean's office — the same
+  rule ` + "`" + `setModuleComponents` + "`" + ` uses, and the same sentence behind it: a module is planned where
+  it is at home. **No phase condition**, deliberately: a module hangs off no semester, so there
+  is no phase that could close it. The phase gate applies at the instance, where it belongs.
+
+  A second course of the same name in the same programme is ` + "`" + `MODULE_NAME_TAKEN` + "`" + ` — there is no
+  other identity for a row somebody typed, so two clicks on the button are one row.
+  """
+  createLocalModule(input: LocalModuleInput!): Module! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Correct one, or take it out of the lists with ` + "`" + `active: false` + "`" + `.
+
+  Only a row this faculty entered. An imported module answers ` + "`" + `MODULE_NOT_FOUND` + "`" + `, exactly as an
+  id that names nothing does: it is not this mutation's to edit, and saying which of the two it
+  is would only invite a second attempt.
+
+  Replaces the whole description, ` + "`" + `components` + "`" + ` included — same reason ` + "`" + `setModuleComponents` + "`" + `
+  does: the entries only mean anything together.
+  """
+  changeLocalModule(id: ID!, input: LocalModuleInput!): Module!
+    @scope(area: PLANNING, verb: WRITE)
+
   """
   State how a module's hours divide between teachable units.
 
@@ -3511,7 +3679,7 @@ enum ScopeArea {
   ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
   ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
   ` + "`" + `publishWishes` + "`" + `,
-  ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
+  ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
   ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `.
@@ -4677,6 +4845,10 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 	switch field.Name {
 	case "id":
 		return ec.fieldContext_Module_id(ctx, field)
+	case "source":
+		return ec.fieldContext_Module_source(ctx, field)
+	case "kind":
+		return ec.fieldContext_Module_kind(ctx, field)
 	case "name":
 		return ec.fieldContext_Module_name(ctx, field)
 	case "homeProgramme":

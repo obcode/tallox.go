@@ -63,6 +63,69 @@ func ParseFrequency(s string) (Frequency, bool) {
 	return "", false
 }
 
+// ModuleSource is where a catalogue row came from.
+//
+// Two values, and the distinction is load-bearing rather than informational: the projection
+// upserts on the ZPA reference and a local row has none, so `source` is what says out loud that
+// the import has no opinion about this row — and what `active`, `official` and `retired_at` are
+// therefore not statements about.
+type ModuleSource string
+
+const (
+	// ModuleSourceZPA is a row the import wrote. Everything the examination office publishes.
+	ModuleSourceZPA ModuleSource = "ZPA"
+	// ModuleSourceLocal is a row the faculty entered: a course that is not in the ZPA, or not
+	// yet, and the FWP placeholders.
+	ModuleSourceLocal ModuleSource = "LOCAL"
+)
+
+// AllModuleSources returns every source, the imported one first.
+func AllModuleSources() []ModuleSource {
+	return []ModuleSource{ModuleSourceZPA, ModuleSourceLocal}
+}
+
+// ParseModuleSource reports whether s is a source this package knows.
+func ParseModuleSource(s string) (ModuleSource, bool) {
+	for _, v := range AllModuleSources() {
+		if string(v) == s {
+			return v, true
+		}
+	}
+	return "", false
+}
+
+// ModuleKind is what a catalogue row stands for.
+//
+// A placeholder is an ordinary module in every mechanical respect — it has hours, a split,
+// instances and later wishes — and this field exists so that a screen can say what it is and a
+// count can ask how many electives are still open. "We need three of them" is three cohorts of
+// one placeholder, because three instances of one module in one programme and semester must
+// differ in their track; the demand table can already express that.
+type ModuleKind string
+
+const (
+	// ModuleKindModule is an ordinary module.
+	ModuleKindModule ModuleKind = "MODULE"
+	// ModuleKindFwpPlaceholder stands in for an elective nobody has chosen yet: "we need three,
+	// ideally something technical". The constraint is the placeholder's name.
+	ModuleKindFwpPlaceholder ModuleKind = "FWP_PLACEHOLDER"
+)
+
+// AllModuleKinds returns every kind, the ordinary one first.
+func AllModuleKinds() []ModuleKind {
+	return []ModuleKind{ModuleKindModule, ModuleKindFwpPlaceholder}
+}
+
+// ParseModuleKind reports whether s is a kind this package knows.
+func ParseModuleKind(s string) (ModuleKind, bool) {
+	for _, v := range AllModuleKinds() {
+		if string(v) == s {
+			return v, true
+		}
+	}
+	return "", false
+}
+
 // frequencyPhrases maps what the examination office writes to what this program stores.
 //
 // Exactly the five phrases the source uses, counted over the whole catalogue: 209 on

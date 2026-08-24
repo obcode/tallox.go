@@ -560,3 +560,88 @@ func TestDatabaseAndDomainAgreeOnProjectionFindings(t *testing.T) {
 		constraintDef(t, s, "zpa_catalogue_projection_note_code_is_known"), known,
 		func(v string) bool { _, ok := domain.ParseProjectionNoteCode(v); return ok })
 }
+
+// The three rules that keep a course the faculty entered apart from one the import owns.
+//
+// Each of them stops something specific, and each is a property of the table rather than of the
+// statements that happen to write it today — which is the point: the statements get rewritten.
+func TestLocalModuleConstraintsRejectTheThingsTheyName(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	ctx := t.Context()
+
+	pa := seedProgramme(t, s, "PA")
+
+	local := func(name string, extra string, args ...any) error {
+		params := append([]any{pa, name}, args...)
+		_, err := s.Pool.Exec(ctx,
+			`INSERT INTO module (home_programme_id, name, source, kind`+extra, params...)
+		return err
+	}
+
+	// A local row with a ZPA reference would be a row the projection could then adopt, silently,
+	// on the next run — and this constraint is what the projection tests are allowed to lean on.
+	if err := local("Eigene LV", `, zpa_module_ref)
+		 VALUES ($1, $2, 'LOCAL', 'MODULE', $3)`, int64(999_001)); err == nil {
+		t.Error("a local course was stored with a ZPA reference")
+	} else if !strings.Contains(err.Error(), "module_local_has_no_zpa_ref") {
+		t.Errorf("the refusal came from somewhere else: %v", err)
+	}
+
+	// retired_at means "a successful import stopped mentioning it". About a local row the import
+	// says nothing, so the honest way to retire one is active = false.
+	if err := local("Zweite eigene LV", `, retired_at)
+		 VALUES ($1, $2, 'LOCAL', 'MODULE', now())`); err == nil {
+		t.Error("a local course was marked as retired by an import that never saw it")
+	} else if !strings.Contains(err.Error(), "module_local_is_never_retired") {
+		t.Errorf("the refusal came from somewhere else: %v", err)
+	}
+
+	// A local row has no identity but its name, so two clicks on "anlegen" have to be one row.
+	if err := local("Dritte eigene LV", `)
+		 VALUES ($1, $2, 'LOCAL', 'MODULE')`); err != nil {
+		t.Fatalf("cannot store an ordinary local course: %v", err)
+	}
+	if err := local("dritte eigene lv", `)
+		 VALUES ($1, $2, 'LOCAL', 'MODULE')`); err == nil {
+		t.Error("the same course was stored twice under a different capitalisation")
+	} else if !strings.Contains(err.Error(), "module_local_name_idx") {
+		t.Errorf("the refusal came from somewhere else: %v", err)
+	}
+
+	// And the index is partial: two imported modules may share a name, and several real ones do.
+	for i := range 2 {
+		if _, err := s.Pool.Exec(ctx,
+			`INSERT INTO module (home_programme_id, name, zpa_module_ref)
+			 VALUES ($1, 'Projektstudium', $2)`, pa, int64(999_100+i)); err != nil {
+			t.Fatalf("two imported modules of one name were refused: %v", err)
+		}
+	}
+}
+
+func TestDatabaseAndDomainAgreeOnModuleSources(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	known := make([]string, 0, len(domain.AllModuleSources()))
+	for _, v := range domain.AllModuleSources() {
+		known = append(known, string(v))
+	}
+	assertVocabulariesAgree(t, constraintDef(t, s, "module_source_is_known"), known,
+		func(v string) bool { _, ok := domain.ParseModuleSource(v); return ok })
+}
+
+func TestDatabaseAndDomainAgreeOnModuleKinds(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	known := make([]string, 0, len(domain.AllModuleKinds()))
+	for _, v := range domain.AllModuleKinds() {
+		known = append(known, string(v))
+	}
+	assertVocabulariesAgree(t, constraintDef(t, s, "module_kind_is_known"), known,
+		func(v string) bool { _, ok := domain.ParseModuleKind(v); return ok })
+}

@@ -12,6 +12,80 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const insertLocalModule = `-- name: InsertLocalModule :one
+INSERT INTO module (home_programme_id, name, course_type, frequency, contact_hours_per_week,
+                    credits, source, kind, created_by)
+VALUES ($1, $2, $3, $4, $5, $6,
+        'LOCAL', $7, $8)
+RETURNING id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
+       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
+       source, kind
+`
+
+type InsertLocalModuleParams struct {
+	HomeProgrammeID     uuid.UUID
+	Name                string
+	CourseType          string
+	Frequency           string
+	ContactHoursPerWeek *int32
+	Credits             *int32
+	Kind                string
+	CreatedBy           uuid.NullUUID
+}
+
+type InsertLocalModuleRow struct {
+	ID                   uuid.UUID
+	Name                 string
+	HomeProgrammeID      uuid.UUID
+	ResponsibleTeacherID uuid.NullUUID
+	CourseType           string
+	Frequency            string
+	ContactHoursPerWeek  *int32
+	Credits              *int32
+	Active               bool
+	Official             bool
+	RetiredAt            pgtype.Timestamptz
+	ZpaModuleRef         *int64
+	Source               string
+	Kind                 string
+}
+
+// A course the faculty enters itself: not in the examination office's catalogue, or not yet.
+//
+// No zpa_module_ref, and the constraint says so rather than this statement — see migration 11.
+// `active` and `official` keep their defaults: both are statements about what the examination
+// office says, and about a local row it says nothing.
+func (q *Queries) InsertLocalModule(ctx context.Context, arg InsertLocalModuleParams) (InsertLocalModuleRow, error) {
+	row := q.db.QueryRow(ctx, insertLocalModule,
+		arg.HomeProgrammeID,
+		arg.Name,
+		arg.CourseType,
+		arg.Frequency,
+		arg.ContactHoursPerWeek,
+		arg.Credits,
+		arg.Kind,
+		arg.CreatedBy,
+	)
+	var i InsertLocalModuleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.HomeProgrammeID,
+		&i.ResponsibleTeacherID,
+		&i.CourseType,
+		&i.Frequency,
+		&i.ContactHoursPerWeek,
+		&i.Credits,
+		&i.Active,
+		&i.Official,
+		&i.RetiredAt,
+		&i.ZpaModuleRef,
+		&i.Source,
+		&i.Kind,
+	)
+	return i, err
+}
+
 const insertModuleComponent = `-- name: InsertModuleComponent :exec
 INSERT INTO module_component (module_id, kind, teaching_hours, position, created_by)
 VALUES ($1, $2, $3, $4, $5)
@@ -38,7 +112,8 @@ func (q *Queries) InsertModuleComponent(ctx context.Context, arg InsertModuleCom
 
 const listModules = `-- name: ListModules :many
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
-       m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref
+       m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
+       m.source, m.kind
 FROM module m
 WHERE ($1::uuid IS NULL
        OR m.responsible_teacher_id = $1::uuid)
@@ -108,6 +183,8 @@ type ListModulesRow struct {
 	Official             bool
 	RetiredAt            pgtype.Timestamptz
 	ZpaModuleRef         *int64
+	Source               string
+	Kind                 string
 }
 
 // The catalogue, filtered.
@@ -155,6 +232,8 @@ func (q *Queries) ListModules(ctx context.Context, arg ListModulesParams) ([]Lis
 			&i.Official,
 			&i.RetiredAt,
 			&i.ZpaModuleRef,
+			&i.Source,
+			&i.Kind,
 		); err != nil {
 			return nil, err
 		}
@@ -350,7 +429,8 @@ func (q *Queries) ListTeachers(ctx context.Context, arg ListTeachersParams) ([]L
 
 const moduleByID = `-- name: ModuleByID :one
 SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
-       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref
+       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
+       source, kind
 FROM module
 WHERE id = $1
 `
@@ -368,6 +448,8 @@ type ModuleByIDRow struct {
 	Official             bool
 	RetiredAt            pgtype.Timestamptz
 	ZpaModuleRef         *int64
+	Source               string
+	Kind                 string
 }
 
 func (q *Queries) ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, error) {
@@ -386,6 +468,8 @@ func (q *Queries) ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, 
 		&i.Official,
 		&i.RetiredAt,
 		&i.ZpaModuleRef,
+		&i.Source,
+		&i.Kind,
 	)
 	return i, err
 }
@@ -505,7 +589,8 @@ func (q *Queries) ModuleOfferingsFor(ctx context.Context, moduleIds []uuid.UUID)
 
 const modulesByIDs = `-- name: ModulesByIDs :many
 SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
-       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref
+       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
+       source, kind
 FROM module
 WHERE id = ANY ($1::uuid[])
 ORDER BY (name = ''), name, id
@@ -524,6 +609,8 @@ type ModulesByIDsRow struct {
 	Official             bool
 	RetiredAt            pgtype.Timestamptz
 	ZpaModuleRef         *int64
+	Source               string
+	Kind                 string
 }
 
 // A handful of modules by id, for attaching them to the instances that offer them.
@@ -553,6 +640,8 @@ func (q *Queries) ModulesByIDs(ctx context.Context, ids []uuid.UUID) ([]ModulesB
 			&i.Official,
 			&i.RetiredAt,
 			&i.ZpaModuleRef,
+			&i.Source,
+			&i.Kind,
 		); err != nil {
 			return nil, err
 		}
@@ -707,4 +796,85 @@ func (q *Queries) TeachersByID(ctx context.Context, ids []uuid.UUID) ([]Teachers
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateLocalModule = `-- name: UpdateLocalModule :one
+UPDATE module
+SET name = $2,
+    course_type = $3,
+    frequency = $4,
+    contact_hours_per_week = $5,
+    credits = $6,
+    kind = $7,
+    active = $8,
+    updated_at = now()
+WHERE id = $1 AND source = 'LOCAL'
+RETURNING id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
+       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
+       source, kind
+`
+
+type UpdateLocalModuleParams struct {
+	ID                  uuid.UUID
+	Name                string
+	CourseType          string
+	Frequency           string
+	ContactHoursPerWeek *int32
+	Credits             *int32
+	Kind                string
+	Active              bool
+}
+
+type UpdateLocalModuleRow struct {
+	ID                   uuid.UUID
+	Name                 string
+	HomeProgrammeID      uuid.UUID
+	ResponsibleTeacherID uuid.NullUUID
+	CourseType           string
+	Frequency            string
+	ContactHoursPerWeek  *int32
+	Credits              *int32
+	Active               bool
+	Official             bool
+	RetiredAt            pgtype.Timestamptz
+	ZpaModuleRef         *int64
+	Source               string
+	Kind                 string
+}
+
+// Correct one, or take it out of the lists with active = false.
+//
+// The home programme is not among the editable fields: it is what the permission is judged
+// against, so moving it would be moving the row out of the reach of the person doing it. The
+// WHERE clause names the source, so this can never touch an imported row — a mistyped id then
+// changes nothing rather than editing the catalogue.
+func (q *Queries) UpdateLocalModule(ctx context.Context, arg UpdateLocalModuleParams) (UpdateLocalModuleRow, error) {
+	row := q.db.QueryRow(ctx, updateLocalModule,
+		arg.ID,
+		arg.Name,
+		arg.CourseType,
+		arg.Frequency,
+		arg.ContactHoursPerWeek,
+		arg.Credits,
+		arg.Kind,
+		arg.Active,
+	)
+	var i UpdateLocalModuleRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.HomeProgrammeID,
+		&i.ResponsibleTeacherID,
+		&i.CourseType,
+		&i.Frequency,
+		&i.ContactHoursPerWeek,
+		&i.Credits,
+		&i.Active,
+		&i.Official,
+		&i.RetiredAt,
+		&i.ZpaModuleRef,
+		&i.Source,
+		&i.Kind,
+	)
+	return i, err
 }

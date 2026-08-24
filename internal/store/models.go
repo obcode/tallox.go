@@ -51,6 +51,9 @@ type Module struct {
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
 	ResponsibleTeacherID uuid.NullUUID
+	Source               string
+	Kind                 string
+	CreatedBy            uuid.NullUUID
 }
 
 type ModuleComponent struct {

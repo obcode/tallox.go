@@ -1,7 +1,10 @@
 package store_test
 
 import (
+	"errors"
 	"testing"
+
+	"github.com/google/uuid"
 
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/store"
@@ -65,5 +68,180 @@ func TestAnInactiveAccountIsNotSomebodyWhoMaySignIn(t *testing.T) {
 	}
 	if teacherByMail(t, after, testdata.Eins.Mail).IsUser {
 		t.Error("a deactivated account still reads as somebody who may sign in")
+	}
+}
+
+// moduleFixture is a projected catalogue with the store that reads and writes it.
+type moduleFixture struct {
+	modules   *store.Modules
+	programme uuid.UUID
+	// module is an imported one, for the paths that must never touch those.
+	module uuid.UUID
+}
+
+func newModuleFixture(t *testing.T) moduleFixture {
+	t.Helper()
+
+	s := storetest.New(t)
+	storetest.SeedZPACatalogue(t, s)
+	project(t, s)
+
+	return moduleFixture{
+		modules:   store.NewModules(s.Pool),
+		programme: programmeID(t, s, storetest.FixtureProgrammeA),
+		module:    moduleID(t, s, storetest.FixtureModuleOrdinary),
+	}
+}
+
+// A course the faculty enters itself is a catalogue row like any other, and appears where its
+// home programme's catalogue is asked for.
+//
+// Nothing in ListModules had to change for that: the programme predicate has had its
+// home-programme half since the beginning — twenty-six real modules are reachable only through
+// it — and a local row has exactly one home.
+func TestALocalModuleIsInItsHomeProgrammesCatalogue(t *testing.T) {
+	t.Parallel()
+
+	f := newModuleFixture(t)
+	ctx := t.Context()
+
+	created, err := f.modules.CreateLocalModule(ctx, domain.NewLocalModule{
+		HomeProgrammeID: f.programme,
+		Name:            "FWP-Platzhalter (technisch)",
+		Kind:            domain.ModuleKindFwpPlaceholder,
+		CourseType:      domain.CourseTypeSU,
+		Frequency:       domain.FrequencyOnAnnouncement,
+		Active:          true,
+		Components: []domain.ModuleComponent{
+			{Kind: domain.PartKindLecture, TeachingHours: 4, Position: 0},
+		},
+	}, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot record the local course: %v", err)
+	}
+
+	switch {
+	case created.Source != domain.ModuleSourceLocal:
+		t.Errorf("the source is %q, want LOCAL", created.Source)
+	case created.Kind != domain.ModuleKindFwpPlaceholder:
+		t.Errorf("the kind is %q, want FWP_PLACEHOLDER", created.Kind)
+	case created.ZpaID != nil:
+		t.Errorf("the local course carries the ZPA reference %d", *created.ZpaID)
+	case len(created.Components) != 1:
+		t.Errorf("the split holds %d parts, want the one it was given",
+			len(created.Components))
+	}
+
+	// A stated split makes it plannable, which is the whole point: an instance is built from it.
+	if created.SplitIsEstimated() {
+		t.Error("the split it was given is being reported as an estimate")
+	}
+
+	listed, err := f.modules.Modules(ctx, domain.ModuleFilter{
+		Programme: storetest.FixtureProgrammeA,
+		Frequency: domain.AllFrequencies(),
+	})
+	if err != nil {
+		t.Fatalf("cannot list the catalogue: %v", err)
+	}
+	found := false
+	for _, m := range listed {
+		if m.ID == created.ID {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("the local course is not in its home programme's catalogue")
+	}
+}
+
+// Two clicks on "anlegen" are one row, and the second one says so rather than raising a
+// constraint violation at the caller.
+func TestASecondLocalModuleOfTheSameNameIsRefusedByName(t *testing.T) {
+	t.Parallel()
+
+	f := newModuleFixture(t)
+	ctx := t.Context()
+
+	spec := domain.NewLocalModule{
+		HomeProgrammeID: f.programme,
+		Name:            "FWP-Platzhalter (technisch)",
+		Kind:            domain.ModuleKindFwpPlaceholder,
+		CourseType:      domain.CourseTypeSU,
+		Frequency:       domain.FrequencyOnAnnouncement,
+		Active:          true,
+	}
+	if _, err := f.modules.CreateLocalModule(ctx, spec, uuid.Nil); err != nil {
+		t.Fatalf("cannot record the local course: %v", err)
+	}
+	if _, err := f.modules.CreateLocalModule(ctx, spec, uuid.Nil); !errors.Is(err,
+		domain.ErrLocalModuleNameTaken) {
+		t.Errorf("the second course of the same name gave %v, want ErrLocalModuleNameTaken", err)
+	}
+}
+
+// Deactivating is how a local course is retired — there is no delete, because instances and
+// later wishes point at it — and it drops out of the lists a planner sees.
+func TestADeactivatedLocalModuleLeavesTheCatalogue(t *testing.T) {
+	t.Parallel()
+
+	f := newModuleFixture(t)
+	ctx := t.Context()
+
+	spec := domain.NewLocalModule{
+		HomeProgrammeID: f.programme,
+		Name:            "Eigene Lehrveranstaltung",
+		Kind:            domain.ModuleKindModule,
+		CourseType:      domain.CourseTypeSU,
+		Frequency:       domain.FrequencyOnAnnouncement,
+		Active:          true,
+	}
+	created, err := f.modules.CreateLocalModule(ctx, spec, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot record the local course: %v", err)
+	}
+
+	spec.Active = false
+	changed, err := f.modules.UpdateLocalModule(ctx, created.ID, spec, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot deactivate the local course: %v", err)
+	}
+	if changed.Active {
+		t.Error("the course is still active")
+	}
+	if changed.RetiredAt != nil {
+		t.Error("deactivating set retired_at, which is the import's word and not this one")
+	}
+
+	listed, err := f.modules.Modules(ctx, domain.ModuleFilter{
+		Programme: storetest.FixtureProgrammeA,
+		Frequency: domain.AllFrequencies(),
+	})
+	if err != nil {
+		t.Fatalf("cannot list the catalogue: %v", err)
+	}
+	for _, m := range listed {
+		if m.ID == created.ID {
+			t.Error("a deactivated course is still offered in the catalogue")
+		}
+	}
+}
+
+// An imported row is not this path's to edit, and answers the same as no row at all.
+func TestUpdateLocalModuleNeverTouchesAnImportedOne(t *testing.T) {
+	t.Parallel()
+
+	f := newModuleFixture(t)
+
+	if _, err := f.modules.UpdateLocalModule(t.Context(), f.module, domain.NewLocalModule{
+		HomeProgrammeID: f.programme,
+		Name:            "Umbenannt",
+		Kind:            domain.ModuleKindModule,
+		CourseType:      domain.CourseTypeSU,
+		Frequency:       domain.FrequencyOnAnnouncement,
+		Active:          true,
+	}, uuid.Nil); !errors.Is(err, domain.ErrModuleNotFound) {
+		t.Errorf("editing an imported module through the local path gave %v, want "+
+			"ErrModuleNotFound", err)
 	}
 }

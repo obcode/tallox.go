@@ -96,8 +96,13 @@ type Module struct {
 	Official            bool
 	// RetiredAt is when a successful import stopped mentioning it. Modules are never deleted.
 	RetiredAt *time.Time
-	// ZpaID is the examination office's identifier, for cross-referencing only.
+	// ZpaID is the examination office's identifier, for cross-referencing only. Always nil for
+	// a local row — the schema refuses any other combination.
 	ZpaID *int64
+	// Source is where this row came from: the import, or the faculty itself.
+	Source ModuleSource
+	// Kind is what it stands for — an ordinary module, or an FWP placeholder.
+	Kind ModuleKind
 	// Components is how the module's hours divide between teachable units. Empty means nobody
 	// has stated it — see EffectiveComponents, which falls back to the proposal.
 	Components []ModuleComponent
@@ -346,4 +351,26 @@ type CatalogueReader interface {
 	ModuleByID(ctx context.Context, id uuid.UUID) (*Module, error)
 	// SetModuleComponents replaces a module's split, as one statement about a set of rows.
 	SetModuleComponents(ctx context.Context, moduleID uuid.UUID, components []ModuleComponent, by uuid.UUID) (*Module, error)
+	// CreateLocalModule adds a catalogue row the faculty enters itself, with its split.
+	CreateLocalModule(ctx context.Context, spec NewLocalModule, by uuid.UUID) (*Module, error)
+	// UpdateLocalModule corrects one, or takes it out of the lists. Never touches an imported
+	// row: the statement names the source.
+	UpdateLocalModule(ctx context.Context, id uuid.UUID, spec NewLocalModule, by uuid.UUID) (*Module, error)
+}
+
+// NewLocalModule is a course the faculty enters itself, on the way in.
+//
+// The home programme is here and nowhere in the update: it is what the permission is judged
+// against, so allowing it to move would let somebody push a row out of their own reach.
+type NewLocalModule struct {
+	HomeProgrammeID     uuid.UUID
+	Name                string
+	Kind                ModuleKind
+	CourseType          CourseType
+	Frequency           Frequency
+	ContactHoursPerWeek *int
+	Credits             *int
+	Active              bool
+	// Components is the split, or empty to leave the proposal standing.
+	Components []ModuleComponent
 }

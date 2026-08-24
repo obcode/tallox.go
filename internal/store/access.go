@@ -124,6 +124,7 @@ func (a *Access) Summary(ctx context.Context, from, until time.Time) (domain.Acc
 	for _, row := range refused {
 		summary.Refused = append(summary.Refused, domain.RefusedSignIn{
 			Mail:     row.Mail,
+			TokenID:  row.TokenID,
 			Reason:   row.Reason,
 			Door:     domain.AccessDoor(row.Door),
 			Attempts: row.Attempts,

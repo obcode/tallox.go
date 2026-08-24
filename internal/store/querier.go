@@ -40,6 +40,12 @@ type Querier interface {
 	// Grouped rather than listed: somebody whose account has no person row will retry, and twelve
 	// identical lines say nothing that one line with a count does not. This is the part of the
 	// nightly report that names people, and it names them because being turned away is the event.
+	//
+	// Both identifiers, and NEITHER is required. A refusal on the browser door has an address and
+	// no token; a refusal on the token door has a token id and no address; a credential too
+	// malformed to parse has neither and is still a knock at the door. An earlier version required
+	// an address here and silently dropped every refused token — which is the half an administrator
+	// most wants to see, because a token being tried repeatedly is what a leaked one looks like.
 	AccessLogRefusedSignIns(ctx context.Context, arg AccessLogRefusedSignInsParams) ([]AccessLogRefusedSignInsRow, error)
 	// Compare-and-set: $3 is the phase the caller believes the semester is in, and no rows come
 	// back if it has moved on since they looked.

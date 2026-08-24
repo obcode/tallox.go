@@ -174,8 +174,14 @@ type AccessRoleCount struct {
 }
 
 // RefusedSignIn is one identity that was turned away, grouped.
+//
+// Mail and TokenID are both optional and both can be empty at once: the browser door knows an
+// address, the token door knows a token id, and a credential too malformed to parse yields
+// neither while still being a knock at the door worth recording.
 type RefusedSignIn struct {
 	Mail string
+	// TokenID is the public half of the token presented, empty on the browser door.
+	TokenID string
 	// Reason is the refusal's error code, empty when the door did not name one.
 	Reason   string
 	Door     AccessDoor

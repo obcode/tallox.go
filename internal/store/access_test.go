@@ -334,6 +334,60 @@ func TestAccessLogSummaryRespectsItsWindow(t *testing.T) {
 	}
 }
 
+// TestARefusedTokenIsNamedInTheSummary.
+//
+// A refusal on the token door has no mail address, and an earlier version of the query required
+// one — so every refused token fell silently out of the nightly report. That is the half an
+// administrator most wants: a token being tried over and over is what a leaked one looks like.
+func TestARefusedTokenIsNamedInTheSummary(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	access := store.NewAccess(s.Pool)
+
+	refused := domain.AccessRecord{
+		Door:      domain.AccessDoorToken,
+		TokenID:   "ZZZZZZZZZZZZZZZZ",
+		Outcome:   domain.AccessRefusedAuth,
+		ErrorCode: "INVALID_TOKEN",
+	}
+	// A credential too malformed to have a token id at all: neither identifier, still a knock.
+	malformed := domain.AccessRecord{
+		Door:      domain.AccessDoorToken,
+		Outcome:   domain.AccessRefusedAuth,
+		ErrorCode: "MALFORMED_TOKEN",
+	}
+	for _, rec := range []domain.AccessRecord{refused, refused, malformed} {
+		if err := access.Record(t.Context(), rec); err != nil {
+			t.Fatalf("cannot record: %v", err)
+		}
+	}
+
+	summary, err := access.Summary(t.Context(), time.Now().Add(-time.Hour), time.Now().Add(time.Hour))
+	if err != nil {
+		t.Fatalf("cannot summarise: %v", err)
+	}
+
+	if len(summary.Refused) != 2 {
+		t.Fatalf("got %d refusal groups, want 2 (the token twice, the malformed one once): %+v",
+			len(summary.Refused), summary.Refused)
+	}
+
+	byToken := map[string]int64{}
+	for _, r := range summary.Refused {
+		byToken[r.TokenID] = r.Attempts
+		if r.Mail != "" {
+			t.Errorf("a token refusal carries mail %q, want empty", r.Mail)
+		}
+	}
+	if byToken["ZZZZZZZZZZZZZZZZ"] != 2 {
+		t.Errorf("the refused token was tried %d times, want 2", byToken["ZZZZZZZZZZZZZZZZ"])
+	}
+	if byToken[""] != 1 {
+		t.Errorf("the unreadable credential appears %d times, want 1", byToken[""])
+	}
+}
+
 func TestAccessLogPruneDeletesOnlyWhatIsOlder(t *testing.T) {
 	t.Parallel()
 

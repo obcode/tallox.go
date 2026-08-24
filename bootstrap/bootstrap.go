@@ -143,6 +143,19 @@ func Serve(build buildinfo.Info) {
 		// working last night". Fetches and diffs, writes nothing at all.
 		dryRun = flag.Bool("dry-run", false,
 			"with -zpa-sync: fetch and report what would change, without writing")
+		// The nightly access report, on the same terms and in the same crontab.
+		//
+		// It also prunes: the retention period is only real if something enforces it, and a
+		// second cron line for the pruning is a second line somebody can forget to add on a new
+		// host — with the failure mode of keeping a year of colleagues' movements while everyone
+		// believes it keeps ninety days.
+		accessReport = flag.Bool("access-report", false,
+			"summarise the access log, prune what has expired, then exit")
+		// The window the report covers. A flag rather than a constant because the answer to
+		// "what happened while I was away" is a longer window run by hand, and because the
+		// nightly line should be able to say what it means.
+		since = flag.Duration("since", 24*time.Hour,
+			"with -access-report: how far back to summarise")
 		// Where the configuration file is. Empty means "look for tallox.yaml in . and $HOME",
 		// which is what the container and the development loop both want.
 		configPath = flag.String("config", "",
@@ -224,6 +237,14 @@ func Serve(build buildinfo.Info) {
 	// crontab happens to invoke, rather than on a deploy somebody is watching.
 	if *zpaSync {
 		runZPASync(ctx, cfg, dsn, *dryRun)
+		return
+	}
+
+	// Beside -zpa-sync, before the auth mode is validated, and for the same reason: this path
+	// serves nobody, and it must be able to answer on an installation whose auth configuration
+	// is exactly what somebody is in the middle of repairing.
+	if *accessReport {
+		runAccessReport(ctx, dsn, *since)
 		return
 	}
 

@@ -936,6 +936,29 @@ func (ec *executionContext) fieldContext_RefusedSignIn_mail(_ context.Context, f
 	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _RefusedSignIn_tokenId(ctx context.Context, field graphql.CollectedField, obj *model.RefusedSignIn) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RefusedSignIn_tokenId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TokenID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RefusedSignIn_tokenId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _RefusedSignIn_reason(ctx context.Context, field graphql.CollectedField, obj *model.RefusedSignIn) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1476,6 +1499,11 @@ func (ec *executionContext) _RefusedSignIn(ctx context.Context, sel ast.Selectio
 			out.Values[i] = graphql.MarshalString("RefusedSignIn")
 		case "mail":
 			out.Values[i] = ec._RefusedSignIn_mail(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tokenId":
+			out.Values[i] = ec._RefusedSignIn_tokenId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

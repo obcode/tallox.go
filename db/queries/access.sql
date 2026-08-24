@@ -95,7 +95,14 @@ ORDER BY operations DESC, role;
 -- Grouped rather than listed: somebody whose account has no person row will retry, and twelve
 -- identical lines say nothing that one line with a count does not. This is the part of the
 -- nightly report that names people, and it names them because being turned away is the event.
-SELECT actor_mail::text AS mail,
+--
+-- Both identifiers, and NEITHER is required. A refusal on the browser door has an address and
+-- no token; a refusal on the token door has a token id and no address; a credential too
+-- malformed to parse has neither and is still a knock at the door. An earlier version required
+-- an address here and silently dropped every refused token — which is the half an administrator
+-- most wants to see, because a token being tried repeatedly is what a leaked one looks like.
+SELECT COALESCE(actor_mail, '')::text AS mail,
+       COALESCE(token_id, '')::text AS token_id,
        COALESCE(error_code, '')::text AS reason,
        door,
        count(*)::bigint AS attempts,
@@ -104,8 +111,7 @@ FROM access_log
 WHERE outcome = 'REFUSED_AUTH'
   AND at >= sqlc.arg('from')::timestamptz
   AND at < sqlc.arg('until')::timestamptz
-  AND actor_mail IS NOT NULL
-GROUP BY actor_mail, error_code, door
+GROUP BY actor_mail, token_id, error_code, door
 ORDER BY last_at DESC;
 
 -- name: AccessLogMutations :many

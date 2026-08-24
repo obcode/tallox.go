@@ -93,6 +93,7 @@ func accessSummaryModel(s domain.AccessSummary) *model.AccessSummary {
 	for _, r := range s.Refused {
 		out.Refused = append(out.Refused, &model.RefusedSignIn{
 			Mail:     r.Mail,
+			TokenID:  r.TokenID,
 			Reason:   r.Reason,
 			Door:     model.AccessDoor(r.Door),
 			Attempts: int(r.Attempts),

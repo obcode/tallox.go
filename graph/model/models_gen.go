@@ -631,8 +631,13 @@ type Query struct {
 // Grouped rather than listed: somebody whose account has no person row will retry, and twelve
 // identical lines say nothing that one line with a count does not.
 type RefusedSignIn struct {
-	// The address the door was knocked on with.
+	// The address the door was knocked on with, empty on the token door.
+	//
+	// Both this and `tokenId` can be empty at once: a credential too malformed to parse yields
+	// neither, and is still a knock at the door.
 	Mail string `json:"mail"`
+	// The public half of the token presented, empty on the browser door.
+	TokenID string `json:"tokenId"`
 	// The refusal's error code, empty when the door did not name one.
 	Reason string `json:"reason"`
 	// Which mount was knocked on.

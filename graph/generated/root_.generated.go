@@ -315,6 +315,7 @@ type ComplexityRoot struct {
 		LastAt   func(childComplexity int) int
 		Mail     func(childComplexity int) int
 		Reason   func(childComplexity int) int
+		TokenID  func(childComplexity int) int
 	}
 
 	RoleGrant struct {
@@ -1922,6 +1923,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.RefusedSignIn.Reason(childComplexity), true
+	case "RefusedSignIn.tokenId":
+		if e.ComplexityRoot.RefusedSignIn.TokenID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RefusedSignIn.TokenID(childComplexity), true
 
 	case "RoleGrant.expiresAt":
 		if e.ComplexityRoot.RoleGrant.ExpiresAt == nil {
@@ -2658,8 +2665,15 @@ Grouped rather than listed: somebody whose account has no person row will retry,
 identical lines say nothing that one line with a count does not.
 """
 type RefusedSignIn {
-  "The address the door was knocked on with."
+  """
+  The address the door was knocked on with, empty on the token door.
+
+  Both this and ` + "`" + `tokenId` + "`" + ` can be empty at once: a credential too malformed to parse yields
+  neither, and is still a knock at the door.
+  """
   mail: String!
+  "The public half of the token presented, empty on the browser door."
+  tokenId: String!
   "The refusal's error code, empty when the door did not name one."
   reason: String!
   "Which mount was knocked on."
@@ -5803,6 +5817,8 @@ func (ec *executionContext) childFields_RefusedSignIn(ctx context.Context, field
 	switch field.Name {
 	case "mail":
 		return ec.fieldContext_RefusedSignIn_mail(ctx, field)
+	case "tokenId":
+		return ec.fieldContext_RefusedSignIn_tokenId(ctx, field)
 	case "reason":
 		return ec.fieldContext_RefusedSignIn_reason(ctx, field)
 	case "door":

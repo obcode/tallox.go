@@ -102,7 +102,7 @@ func record(
 		Door:      domain.AccessDoorInteractive,
 		TokenID:   actor.TokenID,
 		Roles:     actor.Roles,
-		Operation: truncate(oc.OperationName, maxOperationName),
+		Operation: truncate(operationNameOf(oc), maxOperationName),
 		Fields:    fields,
 		Mutation:  oc.Operation.Operation != ast.Query,
 		Outcome:   domain.AccessOK,
@@ -133,6 +133,19 @@ func record(
 			Str("door", string(rec.Door)).
 			Msg("cannot record the access")
 	}
+}
+
+// operationNameOf is what the operation was called.
+//
+// The name in the DOCUMENT first, and only then the one in the request envelope. gqlgen's
+// OperationName is the `operationName` field of the JSON request, which a client sends only
+// when the document holds several operations — so an ordinary named query would be recorded
+// nameless, and the log would be least informative for exactly the well-written clients.
+func operationNameOf(oc *graphql.OperationContext) string {
+	if oc.Operation.Name != "" {
+		return oc.Operation.Name
+	}
+	return oc.OperationName
 }
 
 // outcomeOf reads how the operation ended off the response.

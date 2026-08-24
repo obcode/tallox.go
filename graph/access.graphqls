@@ -199,8 +199,15 @@ Grouped rather than listed: somebody whose account has no person row will retry,
 identical lines say nothing that one line with a count does not.
 """
 type RefusedSignIn {
-  "The address the door was knocked on with."
+  """
+  The address the door was knocked on with, empty on the token door.
+
+  Both this and `tokenId` can be empty at once: a credential too malformed to parse yields
+  neither, and is still a knock at the door.
+  """
   mail: String!
+  "The public half of the token presented, empty on the browser door."
+  tokenId: String!
   "The refusal's error code, empty when the door did not name one."
   reason: String!
   "Which mount was knocked on."

@@ -70,6 +70,17 @@ func NewProxyAuthenticator(cfg Config) *ProxyAuthenticator {
 // Door names the mount for log lines.
 func (*ProxyAuthenticator) Door() string { return "browser" }
 
+// Kind is which door this is, for the rules and for the access log.
+func (*ProxyAuthenticator) Kind() principal.Kind { return principal.KindInteractive }
+
+// Asserted is the address the proxy put on the request, whatever it resolves to.
+//
+// In dev mode with no header at all this is empty, and the development user's address is
+// deliberately not substituted: nothing was asserted, so nothing is recorded as having been.
+func (*ProxyAuthenticator) Asserted(r *http.Request) Asserted {
+	return Asserted{Mail: strings.TrimSpace(r.Header.Get(HeaderRemoteUser))}
+}
+
 // Authenticate resolves the header into an actor.
 func (a *ProxyAuthenticator) Authenticate(ctx context.Context, r *http.Request) (principal.Actor, error) {
 	mail := strings.TrimSpace(r.Header.Get(HeaderRemoteUser))

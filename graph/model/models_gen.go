@@ -3,11 +3,38 @@
 package model
 
 import (
+	"bytes"
+	"fmt"
+	"io"
+	"strconv"
 	"time"
 
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
 )
+
+// The headline figures of one window.
+type AccessCounts struct {
+	// Every entry in the window, refusals included.
+	Total int `json:"total"`
+	// Operations through the browser door.
+	Interactive int `json:"interactive"`
+	// Operations through the Personal Access Token door.
+	Token int `json:"token"`
+	// Operations that changed something.
+	Mutations int `json:"mutations"`
+	// Operations that ran and failed.
+	Errors int `json:"errors"`
+	// Sign-ins that were refused before reaching the schema.
+	RefusedAuth int `json:"refusedAuth"`
+	// Operations refused because the token's scopes did not cover them.
+	RefusedScope int `json:"refusedScope"`
+	// Operations refused because a token reached for an interactive-only field.
+	RefusedInteractive int `json:"refusedInteractive"`
+	// How many distinct people appear. Refused sign-ins have no person and are not counted here —
+	// they are counted by `refusedAuth`, and named in `refused`.
+	People int `json:"people"`
+}
 
 // Why somebody sees what they see.
 //
@@ -24,6 +51,120 @@ type AccessDiagnosis struct {
 	Grants []*RoleGrant `json:"grants"`
 	// What the rules answer for this person, one entry per rule.
 	Decisions []*PolicyDecision `json:"decisions"`
+}
+
+// One entry: one operation, or one sign-in that was refused before there was an operation.
+type AccessLogEntry struct {
+	ID string `json:"id"`
+	// When it happened.
+	At time.Time `json:"at"`
+	// The person this was, when the request had one. `null` for a refused sign-in — which is
+	// precisely the case worth looking at, because it is somebody this installation does not know.
+	//
+	// An id and a name rather than a `Person`. A `Person` carries `roles` and `active` as they are
+	// **now**, and putting one on a log entry would place today's answer next to a record of what
+	// was true at the time — which is the one confusion this whole table is built to avoid. Follow
+	// the id to `person(id:)` to ask about today.
+	PersonID *string `json:"personId,omitempty"`
+	// The person's name as it stands today, `null` when there is no person row. A rendering
+	// convenience, resolved through a join; the entry's own record of who this was is `mail`.
+	PersonName *string `json:"personName,omitempty"`
+	// The identity as asserted, whether or not it resolved to a person.
+	Mail *string `json:"mail,omitempty"`
+	// Which mount the request came through.
+	Door AccessDoor `json:"door"`
+	// The public half of the Personal Access Token used, `null` for the browser door.
+	//
+	// The same value the owner sees in their token list, so an entry can be matched to a token
+	// without the token itself appearing anywhere.
+	TokenID *string `json:"tokenId,omitempty"`
+	// The roles the request was actually judged by.
+	//
+	// The effective set: a session that was narrowed counts under what it was narrowed to, which is
+	// the honest reading of what the rules saw.
+	Roles []policy.Role `json:"roles"`
+	// The roles as held, when and only when the caller asked to be narrowed. `null` otherwise.
+	NarrowedFrom []policy.Role `json:"narrowedFrom,omitempty"`
+	// The operation name from the document. Client-supplied: a label, never a key.
+	Operation *string `json:"operation,omitempty"`
+	// The root fields the operation asked for. See the note at the top of this file.
+	Fields []string `json:"fields"`
+	// Whether the operation changed data.
+	Mutation bool `json:"mutation"`
+	// How it ended.
+	Outcome AccessOutcome `json:"outcome"`
+	// The error code of the first error, `null` when there was none — `INSUFFICIENT_SCOPE`,
+	// `INTERACTIVE_ONLY`, `UNKNOWN_USER`.
+	//
+	// The code and never the message: the German sentences get reworded, and a log that stored them
+	// would be a second place they have to match.
+	ErrorCode *string `json:"errorCode,omitempty"`
+	// How long the operation took, in milliseconds.
+	DurationMs *int `json:"durationMs,omitempty"`
+	// Where the request came from, `null` when it could not be determined.
+	//
+	// A stolen credential is recognised by where it is used and by nothing else, which is the only
+	// reason this is recorded at all.
+	SourceIP *string `json:"sourceIp,omitempty"`
+}
+
+// Narrows a page of the log. Everything is optional; omitting all of it means the whole log,
+// newest first.
+type AccessLogFilter struct {
+	// One person, by id.
+	PersonID *string `json:"personId,omitempty"`
+	// A substring of the mail address — for the support question that starts with half an address.
+	Mail *string `json:"mail,omitempty"`
+	// One door — the browser or a Personal Access Token.
+	Door *AccessDoor `json:"door,omitempty"`
+	// Only entries that did not end in `OK`.
+	OnlyRefused *bool `json:"onlyRefused,omitempty"`
+	// Only entries that changed something.
+	OnlyMutations *bool `json:"onlyMutations,omitempty"`
+	// Only entries at or after this moment.
+	From *time.Time `json:"from,omitempty"`
+	// Only entries strictly before this moment.
+	Until *time.Time `json:"until,omitempty"`
+}
+
+// One root field somebody changed something with, and how often.
+type AccessMutationCount struct {
+	// Who changed something.
+	Mail string `json:"mail"`
+	// The root field they changed it with.
+	Field string `json:"field"`
+	// How often, over the window.
+	Calls int `json:"calls"`
+	// The most recent call.
+	LastAt time.Time `json:"lastAt"`
+}
+
+// How much happened under one effective role.
+type AccessRoleCount struct {
+	// The effective role the operations were judged by.
+	Role policy.Role `json:"role"`
+	// How many operations ran under it.
+	Operations int `json:"operations"`
+}
+
+// What happened in one window.
+//
+// The same type the nightly report is built from, so the page and the mail cannot come to
+// different conclusions about the same night.
+type AccessSummary struct {
+	// The start of the window, inclusive.
+	From time.Time `json:"from"`
+	// The end of the window, exclusive — so two consecutive windows cannot count the same entry.
+	Until time.Time `json:"until"`
+	// The headline figures.
+	Counts *AccessCounts `json:"counts"`
+	// How much happened under each effective role.
+	Roles []*AccessRoleCount `json:"roles"`
+	// The sign-ins that never got in. This is the part that names people, and it names them because
+	// being turned away is itself the event worth reporting.
+	Refused []*RefusedSignIn `json:"refused"`
+	// Everything that was changed, by whom and with which root field.
+	Mutations []*AccessMutationCount `json:"mutations"`
 }
 
 // A sibling cohort's shared part, seen from the cohort it is held for.
@@ -485,6 +626,28 @@ type PolicyDecision struct {
 type Query struct {
 }
 
+// One identity that was turned away, grouped over the window.
+//
+// Grouped rather than listed: somebody whose account has no person row will retry, and twelve
+// identical lines say nothing that one line with a count does not.
+type RefusedSignIn struct {
+	// The address the door was knocked on with, empty on the token door.
+	//
+	// Both this and `tokenId` can be empty at once: a credential too malformed to parse yields
+	// neither, and is still a knock at the door.
+	Mail string `json:"mail"`
+	// The public half of the token presented, empty on the browser door.
+	TokenID string `json:"tokenId"`
+	// The refusal's error code, empty when the door did not name one.
+	Reason string `json:"reason"`
+	// Which mount was knocked on.
+	Door AccessDoor `json:"door"`
+	// How often, over the window.
+	Attempts int `json:"attempts"`
+	// The most recent attempt.
+	LastAt time.Time `json:"lastAt"`
+}
+
 // One role grant, as stored — including one that has already expired.
 //
 // Deliberately unfiltered, unlike `Person.roles`. "DEANS_OFFICE, granted on Tuesday by X,
@@ -728,4 +891,136 @@ type ZpaSyncRunKind struct {
 	Fetched int `json:"fetched"`
 	// Why it failed, in the words the operator needs, or `null`.
 	Error *string `json:"error,omitempty"`
+}
+
+// Which mount a request came through.
+type AccessDoor string
+
+const (
+	// A person in a browser, behind the authentication proxy.
+	AccessDoorInteractive AccessDoor = "INTERACTIVE"
+	// A Personal Access Token: a script, a notebook, a cron job.
+	AccessDoorToken AccessDoor = "TOKEN"
+)
+
+var AllAccessDoor = []AccessDoor{
+	AccessDoorInteractive,
+	AccessDoorToken,
+}
+
+func (e AccessDoor) IsValid() bool {
+	switch e {
+	case AccessDoorInteractive, AccessDoorToken:
+		return true
+	}
+	return false
+}
+
+func (e AccessDoor) String() string {
+	return string(e)
+}
+
+func (e *AccessDoor) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AccessDoor(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AccessDoor", str)
+	}
+	return nil
+}
+
+func (e AccessDoor) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AccessDoor) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AccessDoor) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// How a request ended.
+//
+// Three kinds of refusal rather than one, because they are three different events with three
+// different answers. A refused sign-in is somebody who cannot get in at all. A scope refusal is a
+// colleague's script asking for something its token was not minted for, and the fix is a new
+// token. An interactive-only refusal is a script reaching for personnel data, and the fix is not a
+// new token — it is the person, in a browser.
+type AccessOutcome string
+
+const (
+	// The operation ran and returned no error.
+	AccessOutcomeOk AccessOutcome = "OK"
+	// The operation ran and failed.
+	AccessOutcomeError AccessOutcome = "ERROR"
+	// The request never reached the schema: an unknown identity, a deactivated person, an expired or
+	// revoked token. The only outcome that appears without a person.
+	AccessOutcomeRefusedAuth AccessOutcome = "REFUSED_AUTH"
+	// The token's scopes did not cover what the operation asked for.
+	AccessOutcomeRefusedScope AccessOutcome = "REFUSED_SCOPE"
+	// A token reached for a field that is available only in an interactive session.
+	AccessOutcomeRefusedInteractive AccessOutcome = "REFUSED_INTERACTIVE"
+)
+
+var AllAccessOutcome = []AccessOutcome{
+	AccessOutcomeOk,
+	AccessOutcomeError,
+	AccessOutcomeRefusedAuth,
+	AccessOutcomeRefusedScope,
+	AccessOutcomeRefusedInteractive,
+}
+
+func (e AccessOutcome) IsValid() bool {
+	switch e {
+	case AccessOutcomeOk, AccessOutcomeError, AccessOutcomeRefusedAuth, AccessOutcomeRefusedScope, AccessOutcomeRefusedInteractive:
+		return true
+	}
+	return false
+}
+
+func (e AccessOutcome) String() string {
+	return string(e)
+}
+
+func (e *AccessOutcome) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AccessOutcome(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AccessOutcome", str)
+	}
+	return nil
+}
+
+func (e AccessOutcome) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AccessOutcome) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AccessOutcome) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }

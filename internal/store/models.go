@@ -5,11 +5,30 @@
 package store
 
 import (
+	"net/netip"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type AccessLog struct {
+	ID           uuid.UUID
+	At           time.Time
+	ActorID      uuid.NullUUID
+	ActorMail    *string
+	Door         string
+	TokenID      *string
+	Roles        []string
+	NarrowedFrom []string
+	Operation    *string
+	Fields       []string
+	Mutation     bool
+	Outcome      string
+	ErrorCode    *string
+	DurationMs   *int32
+	SourceIp     *netip.Addr
+}
 
 type CourseInstance struct {
 	ID                uuid.UUID

@@ -35,11 +35,63 @@ type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
+	AccessCounts struct {
+		Errors             func(childComplexity int) int
+		Interactive        func(childComplexity int) int
+		Mutations          func(childComplexity int) int
+		People             func(childComplexity int) int
+		RefusedAuth        func(childComplexity int) int
+		RefusedInteractive func(childComplexity int) int
+		RefusedScope       func(childComplexity int) int
+		Token              func(childComplexity int) int
+		Total              func(childComplexity int) int
+	}
+
 	AccessDiagnosis struct {
 		Active    func(childComplexity int) int
 		Decisions func(childComplexity int) int
 		Grants    func(childComplexity int) int
 		Person    func(childComplexity int) int
+	}
+
+	AccessLogEntry struct {
+		At           func(childComplexity int) int
+		Door         func(childComplexity int) int
+		DurationMs   func(childComplexity int) int
+		ErrorCode    func(childComplexity int) int
+		Fields       func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Mail         func(childComplexity int) int
+		Mutation     func(childComplexity int) int
+		NarrowedFrom func(childComplexity int) int
+		Operation    func(childComplexity int) int
+		Outcome      func(childComplexity int) int
+		PersonID     func(childComplexity int) int
+		PersonName   func(childComplexity int) int
+		Roles        func(childComplexity int) int
+		SourceIP     func(childComplexity int) int
+		TokenID      func(childComplexity int) int
+	}
+
+	AccessMutationCount struct {
+		Calls  func(childComplexity int) int
+		Field  func(childComplexity int) int
+		LastAt func(childComplexity int) int
+		Mail   func(childComplexity int) int
+	}
+
+	AccessRoleCount struct {
+		Operations func(childComplexity int) int
+		Role       func(childComplexity int) int
+	}
+
+	AccessSummary struct {
+		Counts    func(childComplexity int) int
+		From      func(childComplexity int) int
+		Mutations func(childComplexity int) int
+		Refused   func(childComplexity int) int
+		Roles     func(childComplexity int) int
+		Until     func(childComplexity int) int
 	}
 
 	BorrowedPart struct {
@@ -230,6 +282,8 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
+		AccessLog               func(childComplexity int, filter *model.AccessLogFilter, limit *int, before *string) int
+		AccessSummary           func(childComplexity int, from time.Time, until time.Time) int
 		BuildInfo               func(childComplexity int) int
 		CourseInstance          func(childComplexity int, id string) int
 		CourseInstances         func(childComplexity int, semester string, programme *string, module *string) int
@@ -253,6 +307,15 @@ type ComplexityRoot struct {
 		ZpaChanges              func(childComplexity int, runID string) int
 		ZpaSyncRun              func(childComplexity int, id string) int
 		ZpaSyncRuns             func(childComplexity int, limit *int) int
+	}
+
+	RefusedSignIn struct {
+		Attempts func(childComplexity int) int
+		Door     func(childComplexity int) int
+		LastAt   func(childComplexity int) int
+		Mail     func(childComplexity int) int
+		Reason   func(childComplexity int) int
+		TokenID  func(childComplexity int) int
 	}
 
 	RoleGrant struct {
@@ -375,6 +438,61 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	_ = ec
 	switch typeName + "." + field {
 
+	case "AccessCounts.errors":
+		if e.ComplexityRoot.AccessCounts.Errors == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessCounts.Errors(childComplexity), true
+	case "AccessCounts.interactive":
+		if e.ComplexityRoot.AccessCounts.Interactive == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessCounts.Interactive(childComplexity), true
+	case "AccessCounts.mutations":
+		if e.ComplexityRoot.AccessCounts.Mutations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessCounts.Mutations(childComplexity), true
+	case "AccessCounts.people":
+		if e.ComplexityRoot.AccessCounts.People == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessCounts.People(childComplexity), true
+	case "AccessCounts.refusedAuth":
+		if e.ComplexityRoot.AccessCounts.RefusedAuth == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessCounts.RefusedAuth(childComplexity), true
+	case "AccessCounts.refusedInteractive":
+		if e.ComplexityRoot.AccessCounts.RefusedInteractive == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessCounts.RefusedInteractive(childComplexity), true
+	case "AccessCounts.refusedScope":
+		if e.ComplexityRoot.AccessCounts.RefusedScope == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessCounts.RefusedScope(childComplexity), true
+	case "AccessCounts.token":
+		if e.ComplexityRoot.AccessCounts.Token == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessCounts.Token(childComplexity), true
+	case "AccessCounts.total":
+		if e.ComplexityRoot.AccessCounts.Total == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessCounts.Total(childComplexity), true
+
 	case "AccessDiagnosis.active":
 		if e.ComplexityRoot.AccessDiagnosis.Active == nil {
 			break
@@ -399,6 +517,178 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AccessDiagnosis.Person(childComplexity), true
+
+	case "AccessLogEntry.at":
+		if e.ComplexityRoot.AccessLogEntry.At == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.At(childComplexity), true
+	case "AccessLogEntry.door":
+		if e.ComplexityRoot.AccessLogEntry.Door == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.Door(childComplexity), true
+	case "AccessLogEntry.durationMs":
+		if e.ComplexityRoot.AccessLogEntry.DurationMs == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.DurationMs(childComplexity), true
+	case "AccessLogEntry.errorCode":
+		if e.ComplexityRoot.AccessLogEntry.ErrorCode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.ErrorCode(childComplexity), true
+	case "AccessLogEntry.fields":
+		if e.ComplexityRoot.AccessLogEntry.Fields == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.Fields(childComplexity), true
+	case "AccessLogEntry.id":
+		if e.ComplexityRoot.AccessLogEntry.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.ID(childComplexity), true
+	case "AccessLogEntry.mail":
+		if e.ComplexityRoot.AccessLogEntry.Mail == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.Mail(childComplexity), true
+	case "AccessLogEntry.mutation":
+		if e.ComplexityRoot.AccessLogEntry.Mutation == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.Mutation(childComplexity), true
+	case "AccessLogEntry.narrowedFrom":
+		if e.ComplexityRoot.AccessLogEntry.NarrowedFrom == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.NarrowedFrom(childComplexity), true
+	case "AccessLogEntry.operation":
+		if e.ComplexityRoot.AccessLogEntry.Operation == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.Operation(childComplexity), true
+	case "AccessLogEntry.outcome":
+		if e.ComplexityRoot.AccessLogEntry.Outcome == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.Outcome(childComplexity), true
+	case "AccessLogEntry.personId":
+		if e.ComplexityRoot.AccessLogEntry.PersonID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.PersonID(childComplexity), true
+	case "AccessLogEntry.personName":
+		if e.ComplexityRoot.AccessLogEntry.PersonName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.PersonName(childComplexity), true
+	case "AccessLogEntry.roles":
+		if e.ComplexityRoot.AccessLogEntry.Roles == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.Roles(childComplexity), true
+	case "AccessLogEntry.sourceIp":
+		if e.ComplexityRoot.AccessLogEntry.SourceIP == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.SourceIP(childComplexity), true
+	case "AccessLogEntry.tokenId":
+		if e.ComplexityRoot.AccessLogEntry.TokenID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessLogEntry.TokenID(childComplexity), true
+
+	case "AccessMutationCount.calls":
+		if e.ComplexityRoot.AccessMutationCount.Calls == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessMutationCount.Calls(childComplexity), true
+	case "AccessMutationCount.field":
+		if e.ComplexityRoot.AccessMutationCount.Field == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessMutationCount.Field(childComplexity), true
+	case "AccessMutationCount.lastAt":
+		if e.ComplexityRoot.AccessMutationCount.LastAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessMutationCount.LastAt(childComplexity), true
+	case "AccessMutationCount.mail":
+		if e.ComplexityRoot.AccessMutationCount.Mail == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessMutationCount.Mail(childComplexity), true
+
+	case "AccessRoleCount.operations":
+		if e.ComplexityRoot.AccessRoleCount.Operations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessRoleCount.Operations(childComplexity), true
+	case "AccessRoleCount.role":
+		if e.ComplexityRoot.AccessRoleCount.Role == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessRoleCount.Role(childComplexity), true
+
+	case "AccessSummary.counts":
+		if e.ComplexityRoot.AccessSummary.Counts == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessSummary.Counts(childComplexity), true
+	case "AccessSummary.from":
+		if e.ComplexityRoot.AccessSummary.From == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessSummary.From(childComplexity), true
+	case "AccessSummary.mutations":
+		if e.ComplexityRoot.AccessSummary.Mutations == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessSummary.Mutations(childComplexity), true
+	case "AccessSummary.refused":
+		if e.ComplexityRoot.AccessSummary.Refused == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessSummary.Refused(childComplexity), true
+	case "AccessSummary.roles":
+		if e.ComplexityRoot.AccessSummary.Roles == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessSummary.Roles(childComplexity), true
+	case "AccessSummary.until":
+		if e.ComplexityRoot.AccessSummary.Until == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AccessSummary.Until(childComplexity), true
 
 	case "BorrowedPart.fromTrack":
 		if e.ComplexityRoot.BorrowedPart.FromTrack == nil {
@@ -1361,6 +1651,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Programme.Title(childComplexity), true
 
+	case "Query.accessLog":
+		if e.ComplexityRoot.Query.AccessLog == nil {
+			break
+		}
+
+		args, err := ec.field_Query_accessLog_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AccessLog(childComplexity, args["filter"].(*model.AccessLogFilter), args["limit"].(*int), args["before"].(*string)), true
+	case "Query.accessSummary":
+		if e.ComplexityRoot.Query.AccessSummary == nil {
+			break
+		}
+
+		args, err := ec.field_Query_accessSummary_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AccessSummary(childComplexity, args["from"].(time.Time), args["until"].(time.Time)), true
 	case "Query.buildInfo":
 		if e.ComplexityRoot.Query.BuildInfo == nil {
 			break
@@ -1580,6 +1892,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.ZpaSyncRuns(childComplexity, args["limit"].(*int)), true
+
+	case "RefusedSignIn.attempts":
+		if e.ComplexityRoot.RefusedSignIn.Attempts == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RefusedSignIn.Attempts(childComplexity), true
+	case "RefusedSignIn.door":
+		if e.ComplexityRoot.RefusedSignIn.Door == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RefusedSignIn.Door(childComplexity), true
+	case "RefusedSignIn.lastAt":
+		if e.ComplexityRoot.RefusedSignIn.LastAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RefusedSignIn.LastAt(childComplexity), true
+	case "RefusedSignIn.mail":
+		if e.ComplexityRoot.RefusedSignIn.Mail == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RefusedSignIn.Mail(childComplexity), true
+	case "RefusedSignIn.reason":
+		if e.ComplexityRoot.RefusedSignIn.Reason == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RefusedSignIn.Reason(childComplexity), true
+	case "RefusedSignIn.tokenId":
+		if e.ComplexityRoot.RefusedSignIn.TokenID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RefusedSignIn.TokenID(childComplexity), true
 
 	case "RoleGrant.expiresAt":
 		if e.ComplexityRoot.RoleGrant.ExpiresAt == nil {
@@ -2032,6 +2381,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputAccessLogFilter,
 		ec.unmarshalInputDeclareCourseInstanceInput,
 		ec.unmarshalInputDemandEntryInput,
 		ec.unmarshalInputDemandTrackInput,
@@ -2114,6 +2464,285 @@ func newExecutionContext(
 }
 
 var sources = []*ast.Source{
+	{Name: "../access.graphqls", Input: `# The access log: who reached this installation, through which door, and what they asked for.
+#
+# The audit log this schema has referred to since the first release — @interactiveOnly names it
+# among the things a token never reaches, and ` + "`" + `RoleGrant.grantedBy` + "`" + ` is a pointer into it.
+#
+# WHAT IS DELIBERATELY NOT HERE, and it is the whole design: no arguments, no variables, no
+# response. An entry says which root fields an operation asked for and nothing more specific.
+# ADMIN is deliberately not on the exception list of the wish visibility rule, and a log that
+# stored arguments would hand that exception back through the side door — ` + "`" + `wish(id: …)` + "`" + ` with its
+# argument is a copy of the confidential data with none of the policy attached. "Prof. Eins
+# called myWishes" is not a wish.
+#
+# Interactive only, like everything else about running the installation, and for the sharper
+# reason as well: this is a record of when colleagues worked, and a long-lived token in a script
+# is exactly the credential that should not be able to enumerate it silently.
+
+"""
+Which mount a request came through.
+"""
+enum AccessDoor {
+  "A person in a browser, behind the authentication proxy."
+  INTERACTIVE
+  "A Personal Access Token: a script, a notebook, a cron job."
+  TOKEN
+}
+
+"""
+How a request ended.
+
+Three kinds of refusal rather than one, because they are three different events with three
+different answers. A refused sign-in is somebody who cannot get in at all. A scope refusal is a
+colleague's script asking for something its token was not minted for, and the fix is a new
+token. An interactive-only refusal is a script reaching for personnel data, and the fix is not a
+new token — it is the person, in a browser.
+"""
+enum AccessOutcome {
+  "The operation ran and returned no error."
+  OK
+  "The operation ran and failed."
+  ERROR
+  """
+  The request never reached the schema: an unknown identity, a deactivated person, an expired or
+  revoked token. The only outcome that appears without a person.
+  """
+  REFUSED_AUTH
+  "The token's scopes did not cover what the operation asked for."
+  REFUSED_SCOPE
+  "A token reached for a field that is available only in an interactive session."
+  REFUSED_INTERACTIVE
+}
+
+"""
+One entry: one operation, or one sign-in that was refused before there was an operation.
+"""
+type AccessLogEntry {
+  id: ID!
+  "When it happened."
+  at: Time!
+
+  """
+  The person this was, when the request had one. ` + "`" + `null` + "`" + ` for a refused sign-in — which is
+  precisely the case worth looking at, because it is somebody this installation does not know.
+
+  An id and a name rather than a ` + "`" + `Person` + "`" + `. A ` + "`" + `Person` + "`" + ` carries ` + "`" + `roles` + "`" + ` and ` + "`" + `active` + "`" + ` as they are
+  **now**, and putting one on a log entry would place today's answer next to a record of what
+  was true at the time — which is the one confusion this whole table is built to avoid. Follow
+  the id to ` + "`" + `person(id:)` + "`" + ` to ask about today.
+  """
+  personId: ID
+
+  """
+  The person's name as it stands today, ` + "`" + `null` + "`" + ` when there is no person row. A rendering
+  convenience, resolved through a join; the entry's own record of who this was is ` + "`" + `mail` + "`" + `.
+  """
+  personName: String
+
+  """
+  The identity as asserted, whether or not it resolved to a person.
+  """
+  mail: String
+
+  "Which mount the request came through."
+  door: AccessDoor!
+
+  """
+  The public half of the Personal Access Token used, ` + "`" + `null` + "`" + ` for the browser door.
+
+  The same value the owner sees in their token list, so an entry can be matched to a token
+  without the token itself appearing anywhere.
+  """
+  tokenId: String
+
+  """
+  The roles the request was actually judged by.
+
+  The effective set: a session that was narrowed counts under what it was narrowed to, which is
+  the honest reading of what the rules saw.
+  """
+  roles: [Role!]!
+
+  """
+  The roles as held, when and only when the caller asked to be narrowed. ` + "`" + `null` + "`" + ` otherwise.
+  """
+  narrowedFrom: [Role!]
+
+  "The operation name from the document. Client-supplied: a label, never a key."
+  operation: String
+
+  "The root fields the operation asked for. See the note at the top of this file."
+  fields: [String!]!
+
+  "Whether the operation changed data."
+  mutation: Boolean!
+
+  "How it ended."
+  outcome: AccessOutcome!
+
+  """
+  The error code of the first error, ` + "`" + `null` + "`" + ` when there was none — ` + "`" + `INSUFFICIENT_SCOPE` + "`" + `,
+  ` + "`" + `INTERACTIVE_ONLY` + "`" + `, ` + "`" + `UNKNOWN_USER` + "`" + `.
+
+  The code and never the message: the German sentences get reworded, and a log that stored them
+  would be a second place they have to match.
+  """
+  errorCode: String
+
+  "How long the operation took, in milliseconds."
+  durationMs: Int
+
+  """
+  Where the request came from, ` + "`" + `null` + "`" + ` when it could not be determined.
+
+  A stolen credential is recognised by where it is used and by nothing else, which is the only
+  reason this is recorded at all.
+  """
+  sourceIp: String
+}
+
+"""
+Narrows a page of the log. Everything is optional; omitting all of it means the whole log,
+newest first.
+"""
+input AccessLogFilter {
+  "One person, by id."
+  personId: ID
+  "A substring of the mail address — for the support question that starts with half an address."
+  mail: String
+  "One door — the browser or a Personal Access Token."
+  door: AccessDoor
+  "Only entries that did not end in ` + "`" + `OK` + "`" + `."
+  onlyRefused: Boolean
+  "Only entries that changed something."
+  onlyMutations: Boolean
+  "Only entries at or after this moment."
+  from: Time
+  "Only entries strictly before this moment."
+  until: Time
+}
+
+"""
+The headline figures of one window.
+"""
+type AccessCounts {
+  "Every entry in the window, refusals included."
+  total: Int!
+  "Operations through the browser door."
+  interactive: Int!
+  "Operations through the Personal Access Token door."
+  token: Int!
+  "Operations that changed something."
+  mutations: Int!
+  "Operations that ran and failed."
+  errors: Int!
+  "Sign-ins that were refused before reaching the schema."
+  refusedAuth: Int!
+  "Operations refused because the token's scopes did not cover them."
+  refusedScope: Int!
+  "Operations refused because a token reached for an interactive-only field."
+  refusedInteractive: Int!
+  """
+  How many distinct people appear. Refused sign-ins have no person and are not counted here —
+  they are counted by ` + "`" + `refusedAuth` + "`" + `, and named in ` + "`" + `refused` + "`" + `.
+  """
+  people: Int!
+}
+
+"How much happened under one effective role."
+type AccessRoleCount {
+  "The effective role the operations were judged by."
+  role: Role!
+  "How many operations ran under it."
+  operations: Int!
+}
+
+"""
+One identity that was turned away, grouped over the window.
+
+Grouped rather than listed: somebody whose account has no person row will retry, and twelve
+identical lines say nothing that one line with a count does not.
+"""
+type RefusedSignIn {
+  """
+  The address the door was knocked on with, empty on the token door.
+
+  Both this and ` + "`" + `tokenId` + "`" + ` can be empty at once: a credential too malformed to parse yields
+  neither, and is still a knock at the door.
+  """
+  mail: String!
+  "The public half of the token presented, empty on the browser door."
+  tokenId: String!
+  "The refusal's error code, empty when the door did not name one."
+  reason: String!
+  "Which mount was knocked on."
+  door: AccessDoor!
+  "How often, over the window."
+  attempts: Int!
+  "The most recent attempt."
+  lastAt: Time!
+}
+
+"One root field somebody changed something with, and how often."
+type AccessMutationCount {
+  "Who changed something."
+  mail: String!
+  "The root field they changed it with."
+  field: String!
+  "How often, over the window."
+  calls: Int!
+  "The most recent call."
+  lastAt: Time!
+}
+
+"""
+What happened in one window.
+
+The same type the nightly report is built from, so the page and the mail cannot come to
+different conclusions about the same night.
+"""
+type AccessSummary {
+  "The start of the window, inclusive."
+  from: Time!
+  "The end of the window, exclusive — so two consecutive windows cannot count the same entry."
+  until: Time!
+  "The headline figures."
+  counts: AccessCounts!
+  "How much happened under each effective role."
+  roles: [AccessRoleCount!]!
+  """
+  The sign-ins that never got in. This is the part that names people, and it names them because
+  being turned away is itself the event worth reporting.
+  """
+  refused: [RefusedSignIn!]!
+  "Everything that was changed, by whom and with which root field."
+  mutations: [AccessMutationCount!]!
+}
+
+extend type Query {
+  """
+  One page of the access log, newest first.
+
+  Paged by cursor rather than by offset: the log grows at the head while somebody is reading it,
+  and an offset would silently skip or repeat rows exactly when it is busiest — which is when
+  somebody is most likely to be reading it. Pass the ` + "`" + `id` + "`" + ` of the last entry of the previous page
+  as ` + "`" + `before` + "`" + `.
+  """
+  accessLog(filter: AccessLogFilter, limit: Int = 100, before: ID): [AccessLogEntry!]
+    @interactiveOnly @scope(area: ADMIN, verb: READ)
+
+  """
+  The figures for one window.
+
+  Separate from ` + "`" + `accessLog` + "`" + ` rather than a field on it, because the figures are over the whole
+  window and the entries are one page of it. A count that agreed with the page would be a count
+  of the page.
+  """
+  accessSummary(from: Time!, until: Time!): AccessSummary
+    @interactiveOnly @scope(area: ADMIN, verb: READ)
+}
+`, BuiltIn: false},
 	{Name: "../administration.graphqls", Input: `# User administration: who may use this installation, and as what.
 #
 # All of it is @interactiveOnly. Granting somebody a role is precisely the kind of act that
@@ -3782,8 +4411,8 @@ enum ScopeArea {
   TOKENS
 
   """
-  Running the installation: user and role administration, and the module import. Also
-  ` + "`" + `@interactiveOnly` + "`" + `, for the same reason.
+  Running the installation: user and role administration, the module import, and the access
+  log. Also ` + "`" + `@interactiveOnly` + "`" + `, for the same reason.
 
   The import is here rather than under ` + "`" + `PLANNING` + "`" + ` because what these fields expose is the
   operation — did the nightly job run, what did it change, run it now, what did it make of the
@@ -3795,7 +4424,7 @@ enum ScopeArea {
   Fields: ` + "`" + `people` + "`" + `, ` + "`" + `person` + "`" + `, ` + "`" + `roleGrants` + "`" + `, ` + "`" + `diagnoseAccess` + "`" + `, ` + "`" + `teacherAccounts` + "`" + `,
   ` + "`" + `createPerson` + "`" + `, ` + "`" + `renamePerson` + "`" + `, ` + "`" + `setPersonRoles` + "`" + `, ` + "`" + `setPersonActive` + "`" + `, ` + "`" + `setPersonProgrammes` + "`" + `,
   ` + "`" + `setTeacherAdmitted` + "`" + `, ` + "`" + `zpaSyncRuns` + "`" + `, ` + "`" + `zpaSyncRun` + "`" + `, ` + "`" + `zpaChanges` + "`" + `, ` + "`" + `zpaCatalogueProjections` + "`" + `,
-  ` + "`" + `syncZpaNow` + "`" + `, ` + "`" + `projectZpaCatalogue` + "`" + `.
+  ` + "`" + `syncZpaNow` + "`" + `, ` + "`" + `projectZpaCatalogue` + "`" + `, ` + "`" + `accessLog` + "`" + `, ` + "`" + `accessSummary` + "`" + `.
   """
   ADMIN
 }
@@ -4754,6 +5383,30 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // Each function is generated once per unique object type, deduplicating the
 // switch statements that were previously inlined in every fieldContext_* function.
 
+func (ec *executionContext) childFields_AccessCounts(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "total":
+		return ec.fieldContext_AccessCounts_total(ctx, field)
+	case "interactive":
+		return ec.fieldContext_AccessCounts_interactive(ctx, field)
+	case "token":
+		return ec.fieldContext_AccessCounts_token(ctx, field)
+	case "mutations":
+		return ec.fieldContext_AccessCounts_mutations(ctx, field)
+	case "errors":
+		return ec.fieldContext_AccessCounts_errors(ctx, field)
+	case "refusedAuth":
+		return ec.fieldContext_AccessCounts_refusedAuth(ctx, field)
+	case "refusedScope":
+		return ec.fieldContext_AccessCounts_refusedScope(ctx, field)
+	case "refusedInteractive":
+		return ec.fieldContext_AccessCounts_refusedInteractive(ctx, field)
+	case "people":
+		return ec.fieldContext_AccessCounts_people(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AccessCounts", field.Name)
+}
+
 func (ec *executionContext) childFields_AccessDiagnosis(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "person":
@@ -4766,6 +5419,86 @@ func (ec *executionContext) childFields_AccessDiagnosis(ctx context.Context, fie
 		return ec.fieldContext_AccessDiagnosis_decisions(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type AccessDiagnosis", field.Name)
+}
+
+func (ec *executionContext) childFields_AccessLogEntry(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_AccessLogEntry_id(ctx, field)
+	case "at":
+		return ec.fieldContext_AccessLogEntry_at(ctx, field)
+	case "personId":
+		return ec.fieldContext_AccessLogEntry_personId(ctx, field)
+	case "personName":
+		return ec.fieldContext_AccessLogEntry_personName(ctx, field)
+	case "mail":
+		return ec.fieldContext_AccessLogEntry_mail(ctx, field)
+	case "door":
+		return ec.fieldContext_AccessLogEntry_door(ctx, field)
+	case "tokenId":
+		return ec.fieldContext_AccessLogEntry_tokenId(ctx, field)
+	case "roles":
+		return ec.fieldContext_AccessLogEntry_roles(ctx, field)
+	case "narrowedFrom":
+		return ec.fieldContext_AccessLogEntry_narrowedFrom(ctx, field)
+	case "operation":
+		return ec.fieldContext_AccessLogEntry_operation(ctx, field)
+	case "fields":
+		return ec.fieldContext_AccessLogEntry_fields(ctx, field)
+	case "mutation":
+		return ec.fieldContext_AccessLogEntry_mutation(ctx, field)
+	case "outcome":
+		return ec.fieldContext_AccessLogEntry_outcome(ctx, field)
+	case "errorCode":
+		return ec.fieldContext_AccessLogEntry_errorCode(ctx, field)
+	case "durationMs":
+		return ec.fieldContext_AccessLogEntry_durationMs(ctx, field)
+	case "sourceIp":
+		return ec.fieldContext_AccessLogEntry_sourceIp(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AccessLogEntry", field.Name)
+}
+
+func (ec *executionContext) childFields_AccessMutationCount(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "mail":
+		return ec.fieldContext_AccessMutationCount_mail(ctx, field)
+	case "field":
+		return ec.fieldContext_AccessMutationCount_field(ctx, field)
+	case "calls":
+		return ec.fieldContext_AccessMutationCount_calls(ctx, field)
+	case "lastAt":
+		return ec.fieldContext_AccessMutationCount_lastAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AccessMutationCount", field.Name)
+}
+
+func (ec *executionContext) childFields_AccessRoleCount(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "role":
+		return ec.fieldContext_AccessRoleCount_role(ctx, field)
+	case "operations":
+		return ec.fieldContext_AccessRoleCount_operations(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AccessRoleCount", field.Name)
+}
+
+func (ec *executionContext) childFields_AccessSummary(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "from":
+		return ec.fieldContext_AccessSummary_from(ctx, field)
+	case "until":
+		return ec.fieldContext_AccessSummary_until(ctx, field)
+	case "counts":
+		return ec.fieldContext_AccessSummary_counts(ctx, field)
+	case "roles":
+		return ec.fieldContext_AccessSummary_roles(ctx, field)
+	case "refused":
+		return ec.fieldContext_AccessSummary_refused(ctx, field)
+	case "mutations":
+		return ec.fieldContext_AccessSummary_mutations(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AccessSummary", field.Name)
 }
 
 func (ec *executionContext) childFields_BorrowedPart(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -5078,6 +5811,24 @@ func (ec *executionContext) childFields_Programme(ctx context.Context, field gra
 		return ec.fieldContext_Programme_spos(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Programme", field.Name)
+}
+
+func (ec *executionContext) childFields_RefusedSignIn(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "mail":
+		return ec.fieldContext_RefusedSignIn_mail(ctx, field)
+	case "tokenId":
+		return ec.fieldContext_RefusedSignIn_tokenId(ctx, field)
+	case "reason":
+		return ec.fieldContext_RefusedSignIn_reason(ctx, field)
+	case "door":
+		return ec.fieldContext_RefusedSignIn_door(ctx, field)
+	case "attempts":
+		return ec.fieldContext_RefusedSignIn_attempts(ctx, field)
+	case "lastAt":
+		return ec.fieldContext_RefusedSignIn_lastAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type RefusedSignIn", field.Name)
 }
 
 func (ec *executionContext) childFields_RoleGrant(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

@@ -53,6 +53,29 @@ func NewTokenAuthenticator(cfg Config) *TokenAuthenticator {
 // Door names the mount for log lines.
 func (*TokenAuthenticator) Door() string { return "token" }
 
+// Kind is which door this is, for the rules and for the access log.
+func (*TokenAuthenticator) Kind() principal.Kind { return principal.KindToken }
+
+// Asserted is the public half of the token presented, and never the secret half.
+//
+// Empty when the credential is too malformed to have one — which is itself worth recording as
+// an entry with no token id: somebody sent something that is not a Tallox token at all.
+//
+// The id is recorded even when no such token exists. That is deliberate and it is why the log's
+// token column is not a foreign key: the interesting refusal is precisely the one nothing
+// resolves.
+func (*TokenAuthenticator) Asserted(r *http.Request) Asserted {
+	header := strings.TrimSpace(r.Header.Get("Authorization"))
+	if len(header) < len(bearerPrefix) || !strings.EqualFold(header[:len(bearerPrefix)], bearerPrefix) {
+		return Asserted{}
+	}
+	parsed, err := ParseToken(strings.TrimSpace(header[len(bearerPrefix):]))
+	if err != nil {
+		return Asserted{}
+	}
+	return Asserted{TokenID: parsed.ID}
+}
+
 // Wait blocks until the pending last-used writes have finished.
 //
 // For tests. Without it, a goroutine writing to a pool that t.Cleanup is about to close

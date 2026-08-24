@@ -30,6 +30,7 @@ import (
 	"github.com/obcode/tallox.go/internal/buildinfo"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/obs"
+	"github.com/obcode/tallox.go/internal/principal"
 	"github.com/obcode/tallox.go/internal/store"
 	"github.com/obcode/tallox.go/internal/zpa"
 )
@@ -92,6 +93,10 @@ type Options struct {
 	Catalogue *domain.CatalogueService
 	// Demand is the demand planning, on the same terms.
 	Demand *domain.DemandService
+	// Access is the access log. Nil is legitimate and means the installation does not record
+	// accesses — which is what every test that does not care about the log runs as, and what
+	// keeps a missing log from being a missing server.
+	Access *domain.AccessService
 }
 
 // Serve parses flags, sets up logging and runs the HTTP server until a signal arrives.
@@ -138,6 +143,19 @@ func Serve(build buildinfo.Info) {
 		// working last night". Fetches and diffs, writes nothing at all.
 		dryRun = flag.Bool("dry-run", false,
 			"with -zpa-sync: fetch and report what would change, without writing")
+		// The nightly access report, on the same terms and in the same crontab.
+		//
+		// It also prunes: the retention period is only real if something enforces it, and a
+		// second cron line for the pruning is a second line somebody can forget to add on a new
+		// host — with the failure mode of keeping a year of colleagues' movements while everyone
+		// believes it keeps ninety days.
+		accessReport = flag.Bool("access-report", false,
+			"summarise the access log, prune what has expired, then exit")
+		// The window the report covers. A flag rather than a constant because the answer to
+		// "what happened while I was away" is a longer window run by hand, and because the
+		// nightly line should be able to say what it means.
+		since = flag.Duration("since", 24*time.Hour,
+			"with -access-report: how far back to summarise")
 		// Where the configuration file is. Empty means "look for tallox.yaml in . and $HOME",
 		// which is what the container and the development loop both want.
 		configPath = flag.String("config", "",
@@ -222,6 +240,14 @@ func Serve(build buildinfo.Info) {
 		return
 	}
 
+	// Beside -zpa-sync, before the auth mode is validated, and for the same reason: this path
+	// serves nobody, and it must be able to answer on an installation whose auth configuration
+	// is exactly what somebody is in the middle of repairing.
+	if *accessReport {
+		runAccessReport(ctx, dsn, *since)
+		return
+	}
+
 	mode, err := auth.ParseMode(cfg.Auth.Mode)
 	if err != nil {
 		log.Fatal().Err(err).Msg("cannot start")
@@ -281,6 +307,7 @@ func Serve(build buildinfo.Info) {
 	catalogue := domain.NewCatalogueService(modules)
 	demand := domain.NewDemandService(store.NewDemand(pool, modules), modules, planning)
 	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool), catalogueProjection)
+	access := domain.NewAccessService(store.NewAccess(pool))
 
 	// Beside reconcileProtectedAdmins, and for a related reason: a process that died mid-sync
 	// leaves a RUNNING row that the interface would show as a run in progress forever. Not
@@ -309,6 +336,7 @@ func Serve(build buildinfo.Info) {
 			Import:    imports,
 			Catalogue: catalogue,
 			Demand:    demand,
+			Access:    access,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -525,10 +553,13 @@ func router(opts Options) http.Handler {
 	// on the token path. What differs is the authenticating middleware, and only that.
 	gql := graphqlHandler(opts)
 
-	r.With(auth.Middleware(auth.NewProxyAuthenticator(opts.Auth))).Handle("/query", gql)
+	refusals := refusalRecorder(opts.Access)
+
+	r.With(auth.Middleware(auth.NewProxyAuthenticator(opts.Auth), refusals)).Handle("/query", gql)
 
 	if opts.Auth.Mode.TokenDoorEnabled() {
-		r.With(auth.Middleware(auth.NewTokenAuthenticator(opts.Auth))).Handle("/api/graphql", gql)
+		r.With(auth.Middleware(auth.NewTokenAuthenticator(opts.Auth), refusals)).
+			Handle("/api/graphql", gql)
 	} else {
 		// Not mounted at all rather than mounted and refusing. The emergency stop has to
 		// leave no code path that could be wrong about whether it is engaged, and a 404 is
@@ -556,6 +587,7 @@ func graphqlHandler(opts Options) http.Handler {
 			Import:    opts.Import,
 			Catalogue: opts.Catalogue,
 			Demand:    opts.Demand,
+			Access:    opts.Access,
 		},
 		// The generated code fails closed on a directive with no implementation — the field
 		// errors with "directive interactiveOnly is not implemented" rather than passing
@@ -574,6 +606,17 @@ func graphqlHandler(opts Options) http.Handler {
 	// catches it instead is bootstrap/scope_test.go, which drives the assembled handler rather
 	// than a hand-wired one, and TestEveryRootFieldDeclaresAScope, which keeps the annotations
 	// this reads from going missing.
+	// The access log, registered BEFORE the scope check and therefore wrapped around it.
+	//
+	// That order is the whole reason a refused operation appears in the log at all:
+	// EnforceScopes answers with graphql.OneShot instead of calling through, and only a
+	// middleware outside it sees that response. The other way round, the log would hold every
+	// operation that was allowed and no record of the ones that were not — backwards for an
+	// audit trail. bootstrap/access_test.go pins it.
+	if opts.Access != nil {
+		srv.AroundOperations(graph.RecordAccess(opts.Access))
+	}
+
 	srv.AroundOperations(graph.EnforceScopes)
 
 	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
@@ -677,4 +720,42 @@ func setupReporting(build buildinfo.Info) (zerolog.LevelWriter, func()) {
 		With().Caller().Logger()
 
 	return reporter, obs.Flush
+}
+
+// refusalRecorder adapts the access log to what internal/auth needs to record a refused
+// sign-in.
+//
+// The adapter lives here because this is the only package that may know both vocabularies:
+// internal/auth authenticates and is deliberately below the layer that knows what an access
+// log entry is, and internal/domain does not know what a door is called in an HTTP middleware.
+//
+// A nil service yields a nil recorder rather than one that discards: auth checks for nil, and
+// "there is no recorder" should be one state rather than two that behave alike.
+func refusalRecorder(access *domain.AccessService) auth.AccessRecorder {
+	if access == nil {
+		return nil
+	}
+	return refusalAdapter{access: access}
+}
+
+type refusalAdapter struct {
+	access *domain.AccessService
+}
+
+func (a refusalAdapter) RecordRefusal(ctx context.Context, r auth.Refusal) error {
+	door := domain.AccessDoorInteractive
+	if r.Door == principal.KindToken {
+		door = domain.AccessDoorToken
+	}
+	// No actor id and no roles: there is no person row, which is the whole point of the entry.
+	// The table's CHECK constraint says the same thing, so a future version of this function
+	// that filled either in would fail loudly rather than quietly recording a fiction.
+	return a.access.Record(ctx, domain.AccessRecord{
+		ActorMail: r.Mail,
+		Door:      door,
+		TokenID:   r.TokenID,
+		Outcome:   domain.AccessRefusedAuth,
+		ErrorCode: r.Code,
+		SourceIP:  r.Source,
+	})
 }

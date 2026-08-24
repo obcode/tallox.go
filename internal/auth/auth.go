@@ -163,6 +163,20 @@ type Authenticator interface {
 	Authenticate(ctx context.Context, r *http.Request) (principal.Actor, error)
 	// Door names the mount, for log lines.
 	Door() string
+	// Kind is which door this is, in the vocabulary the rules and the access log use.
+	//
+	// Beside Door() rather than derived from it: one is a word for a human reading a log line
+	// and the other is a value other code branches on, and deriving the second from the first
+	// would make renaming the log line a behaviour change.
+	Kind() principal.Kind
+	// Asserted is what the request claimed to be, without any lookup — the address on the
+	// browser door, the token's public half on the token door.
+	//
+	// Only the refusal path uses it, and it exists because that path has to record WHO was
+	// turned away. Reading it off the request rather than out of the error is the point: the
+	// address is in the error's message today, and an audit trail that works by parsing a
+	// sentence stops working the first time somebody rewords it.
+	Asserted(r *http.Request) Asserted
 }
 
 // The reasons authentication can decline. Each maps to a status and a message in Middleware.
@@ -193,10 +207,16 @@ var (
 // One middleware for both doors, parameterised by the authenticator, so the handling of a
 // refusal — status, body shape, what gets logged — cannot drift between them. That drift is
 // the realistic failure here: somebody improves the message on the path they are working on.
-func Middleware(a Authenticator) func(http.Handler) http.Handler {
+func Middleware(a Authenticator, recorder AccessRecorder) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			actor, err := a.Authenticate(r.Context(), r)
+			// Before authentication, and on every branch: the GraphQL layer records the
+			// address for operations that succeed, this one records it for sign-ins that do
+			// not, and neither should have to know how the other gets it.
+			ctx := principal.WithSource(r.Context(), principal.SourceOf(r))
+			r = r.WithContext(ctx)
+
+			actor, err := a.Authenticate(ctx, r)
 
 			switch {
 			case errors.Is(err, ErrNoCredential):
@@ -204,8 +224,11 @@ func Middleware(a Authenticator) func(http.Handler) http.Handler {
 				// nobody means a handler can tell "the middleware ran and nobody is logged
 				// in" from "this route has no authentication", which is a question that
 				// otherwise gets answered by guessing.
+				//
+				// Not recorded as a refusal: nothing was refused. The request carries on and
+				// the GraphQL layer records whatever it goes on to ask for.
 				next.ServeHTTP(w, r.WithContext(
-					principal.NewContext(r.Context(), principal.Anonymous)))
+					principal.NewContext(ctx, principal.Anonymous)))
 
 			case err != nil:
 				status, message := refusal(err)
@@ -214,10 +237,11 @@ func Middleware(a Authenticator) func(http.Handler) http.Handler {
 					Str("door", a.Door()).
 					Int("status", status).
 					Msg("authentication declined")
+				recordRefusal(ctx, recorder, a, r, err)
 				writeGraphQLError(w, status, message)
 
 			default:
-				next.ServeHTTP(w, r.WithContext(principal.NewContext(r.Context(), actor)))
+				next.ServeHTTP(w, r.WithContext(principal.NewContext(ctx, actor)))
 			}
 		})
 	}
@@ -285,6 +309,33 @@ func refusal(err error) (int, string) {
 			"Das Token hat nicht das erwartete Format (tallox_…)."
 	default:
 		return http.StatusUnauthorized, "Token ungültig."
+	}
+}
+
+// recordRefusal writes one refused sign-in to the access log.
+//
+// Best effort, like the operation entries the GraphQL layer writes: a request that was already
+// being refused must not turn into a different failure because the log could not be written,
+// and an installation whose database is down refuses everybody *and* cannot record it. Logged
+// at Error so it reaches the reporter rather than being silence.
+//
+// Deliberately after the log line and before the response: the caller learns nothing about
+// whether they were recorded, and nothing about how long the recording took.
+func recordRefusal(ctx context.Context, recorder AccessRecorder, a Authenticator, r *http.Request, cause error) {
+	if recorder == nil {
+		return
+	}
+
+	asserted := a.Asserted(r)
+	err := recorder.RecordRefusal(ctx, Refusal{
+		Mail:    asserted.Mail,
+		TokenID: asserted.TokenID,
+		Door:    a.Kind(),
+		Code:    RefusalCode(cause),
+		Source:  principal.SourceFrom(ctx),
+	})
+	if err != nil {
+		log.Error().Err(err).Str("door", a.Door()).Msg("cannot record the refused sign-in")
 	}
 }
 

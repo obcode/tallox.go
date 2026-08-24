@@ -126,12 +126,15 @@ type Programme struct {
 }
 
 type Semester struct {
-	ID                uuid.UUID
-	Code              string
-	Phase             string
-	WishesPublishedAt pgtype.Timestamptz
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	ID                 uuid.UUID
+	Code               string
+	Phase              string
+	WishesPublishedAt  pgtype.Timestamptz
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	IsPlanningSemester bool
+	PlanningSetAt      pgtype.Timestamptz
+	PlanningSetBy      uuid.NullUUID
 }
 
 type Spo struct {

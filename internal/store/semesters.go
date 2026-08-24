@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
@@ -15,10 +16,14 @@ import (
 // Semesters is the persistence behind domain.SemesterService.
 type Semesters struct {
 	q *Queries
+	// pool is here for the one operation that needs two statements to be one decision: moving
+	// the planning mark. Everything else on this type is a single statement, which is why the
+	// queries are held separately rather than opened from the pool each time.
+	pool *pgxpool.Pool
 }
 
-// NewSemesters binds the semester queries to a pool or transaction.
-func NewSemesters(db DBTX) *Semesters { return &Semesters{q: New(db)} }
+// NewSemesters binds the semester queries to a pool.
+func NewSemesters(pool *pgxpool.Pool) *Semesters { return &Semesters{q: New(pool), pool: pool} }
 
 var _ domain.SemesterStore = (*Semesters)(nil)
 
@@ -33,6 +38,7 @@ func semesterFrom(row Semester) domain.Semester {
 		ID:                row.ID,
 		Code:              row.Code,
 		Phase:             policy.Phase(row.Phase),
+		IsPlanning:        row.IsPlanningSemester,
 		WishesPublishedAt: nullableTime(row.WishesPublishedAt),
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,
@@ -120,6 +126,60 @@ func (s *Semesters) PublishSemesterWishes(ctx context.Context, id uuid.UUID,
 	row, err := s.q.PublishSemesterWishes(ctx, id)
 	if err != nil {
 		return domain.Semester{}, fmt.Errorf("cannot publish wishes: %w", err)
+	}
+	return semesterFrom(row), nil
+}
+
+// PlanningSemester returns the semester the faculty is planning, or a zero Semester when
+// nobody has said.
+//
+// No row is not an error, for the same reason SemesterByCode says so: it is a state the system
+// really has — a fresh installation, or one whose planning mark was rolled back with the
+// column — and the service turns it into the fallback the list uses.
+func (s *Semesters) PlanningSemester(ctx context.Context) (domain.Semester, error) {
+	row, err := s.q.PlanningSemester(ctx)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return domain.Semester{}, nil
+		}
+		return domain.Semester{}, fmt.Errorf("cannot read the planning semester: %w", err)
+	}
+	return semesterFrom(row), nil
+}
+
+// SetPlanningSemester moves the mark onto this semester, in one transaction.
+//
+// Two statements, and both halves are needed: a database in which two semesters carry the mark
+// is one the unique index refuses to be in, so writing only the second half would fail rather
+// than corrupt — but it would fail with a constraint violation, which says nothing anybody can
+// act on. Clearing first turns that into ordinary serialisation: the UPDATE takes a row lock on
+// whichever semester currently carries the mark, and two people deciding at the same moment
+// take turns instead of colliding. The second one wins, which is what a decision taken on
+// purpose should do.
+func (s *Semesters) SetPlanningSemester(ctx context.Context, id, by uuid.UUID,
+) (domain.Semester, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return domain.Semester{}, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	if err := q.ClearPlanningSemester(ctx, id); err != nil {
+		return domain.Semester{}, fmt.Errorf("cannot clear the planning semester: %w", err)
+	}
+
+	row, err := q.MarkPlanningSemester(ctx, MarkPlanningSemesterParams{
+		ID:    id,
+		SetBy: nullUUID(nonNilUUID(by)),
+	})
+	if err != nil {
+		return domain.Semester{}, fmt.Errorf("cannot set the planning semester: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return domain.Semester{}, fmt.Errorf("cannot commit: %w", err)
 	}
 	return semesterFrom(row), nil
 }

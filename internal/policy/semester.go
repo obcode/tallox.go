@@ -66,6 +66,15 @@ func MayPublishWishes(a principal.Actor) bool {
 // does not exist.
 const SemesterAdminReason = "Nur das Dekanat darf die Phase eines Semesters umschalten."
 
+// PlanningSemesterReason is what a caller who may not move the planning mark is told.
+//
+// Separate from SemesterAdminReason even though the rule behind the two is the same one. That
+// message talks about phases, and a colleague who tried to say which semester the faculty is
+// planning would read it as an answer to a question they did not ask — and go looking for the
+// phase they are supposed to switch instead.
+const PlanningSemesterReason = "Nur das Dekanat darf festlegen, welches Semester gerade " +
+	"geplant wird."
+
 // PublishWishesReason is what a caller who failed MayPublishWishes is told.
 //
 // Deliberately two sentences: the first names the role, the second names the door, because the

@@ -63,6 +63,14 @@ type Semester struct {
 	Code string
 	// Phase is where the planning of this semester stands.
 	Phase policy.Phase
+	// IsPlanning marks the one semester the faculty is planning right now. At most one is, and
+	// none is while nobody has said so.
+	//
+	// Deliberately not derived from Phase. The obvious rule — the newest semester that is not
+	// FINAL — is ambiguous exactly when it matters: while the summer is being assigned, the
+	// winter is already in demand planning and both are open. Which of the two the faculty
+	// means is a decision, and this is where it is recorded.
+	IsPlanning bool
 	// WishesPublishedAt is the moment the confidentiality window closed, or the zero time
 	// while it is still open. Same shape as policy.SemesterState, so the two compose without a
 	// conversion that could invert the meaning.
@@ -106,6 +114,14 @@ type SemesterStore interface {
 	AdvanceSemesterPhase(ctx context.Context, id uuid.UUID, from, to policy.Phase) (Semester, error)
 	// PublishSemesterWishes is idempotent and keeps the first timestamp.
 	PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Semester, error)
+	// PlanningSemester returns the marked semester, or a zero Semester when none is marked.
+	// No row is not an error: an installation where nobody has decided yet is a real state,
+	// and List has a fallback for it.
+	PlanningSemester(ctx context.Context) (Semester, error)
+	// SetPlanningSemester moves the mark onto this semester and off whichever carried it,
+	// as one decision. Two statements in one transaction — see the store for why the order
+	// of them is the concurrency answer.
+	SetPlanningSemester(ctx context.Context, id, by uuid.UUID) (Semester, error)
 }
 
 // SemesterService is the semester workflow: list, look up, advance, publish.
@@ -131,11 +147,23 @@ func NewSemesterService(store SemesterStore, now func() time.Time) *SemesterServ
 
 // List returns the semesters worth showing, newest first.
 //
-// The window from the calendar, plus every semester anybody has already decided something
-// about. Two halves, because either alone is wrong: only the recorded ones would leave a fresh
-// installation with an empty page and no way to start, and only the window would hide a plan
-// somebody made for five years out — which, since it took a deliberate act to record, is
-// exactly the one that must not disappear.
+// Three sources, and each one answers a question the other two get wrong:
+//
+//   - **The planning semester**, always — even if it sits outside the calendar window. It is
+//     the answer to "which one do you mean", so a list without it offers everything except the
+//     thing being worked on.
+//   - **The calendar window from the planning semester onwards.** Forwards, because deciding
+//     today that a module runs in three years is ordinary. Not backwards: before the planning
+//     semester there is nothing left to plan, and a list that opens on eight finished semesters
+//     makes the one that matters the hardest to find.
+//   - **Every recorded semester**, without exception and regardless of how old. A decision
+//     somebody took is exactly the thing that must not fall off — and it covers "every semester
+//     with demand" for free, because PlanDemand records the semester in the same transaction it
+//     writes the demand in. A semester with instances is necessarily recorded.
+//
+// Without a planning semester the whole calendar window stands, which is what this did before
+// the mark existed. That is the state a fresh installation and a rolled-back schema are both
+// in, and it is a usable list rather than an empty one.
 //
 // The calendar decides which semesters are *offered* here and nothing else. It never decides a
 // phase; that stays a decision somebody makes, which is why it lives in a column.
@@ -149,11 +177,25 @@ func (s *SemesterService) List(ctx context.Context, actor principal.Actor) ([]Se
 		return nil, err
 	}
 
+	planning, err := s.store.PlanningSemester(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	byCode := make(map[string]Semester, len(recorded))
 	for _, semester := range recorded {
 		byCode[semester.Code] = semester
 	}
+	if planning.Recorded() {
+		byCode[planning.Code] = planning
+	}
 	for _, code := range SemestersAround(s.now(), windowBack, windowForward) {
+		// The string comparison is chronological — the year leads and SS precedes WS within a
+		// year — which is the property the code format exists for and the one every ORDER BY in
+		// this system already leans on.
+		if planning.Recorded() && code < planning.Code {
+			continue
+		}
 		if _, ok := byCode[code]; !ok {
 			byCode[code] = untouched(code)
 		}
@@ -236,6 +278,49 @@ func (s *SemesterService) AdvancePhase(ctx context.Context, actor principal.Acto
 	}
 
 	return s.store.AdvanceSemesterPhase(ctx, current.ID, current.Phase, to)
+}
+
+// PlanningSemester returns the semester the faculty is planning, or a zero Semester when
+// nobody has said which one that is.
+//
+// Not an error and not a refusal: "nobody has decided yet" is a state this system really has,
+// and an interface that has to render a preselection needs to be able to tell it apart from a
+// failure. Readable by everybody who is signed in, like the phase and for the same reason — it
+// is the answer to "which semester is this page about", which every screen needs before it can
+// show anything.
+func (s *SemesterService) PlanningSemester(ctx context.Context, actor principal.Actor,
+) (Semester, error) {
+	if !policy.MayReadSemesters(actor) {
+		return Semester{}, ErrForbidden
+	}
+	return s.store.PlanningSemester(ctx)
+}
+
+// SetPlanningSemester says which semester the faculty is planning.
+//
+// The third place a row comes into existence, and for the same reason as the other two: saying
+// "we are planning 2027-SS" is a decision about that semester, and the row is what records it.
+//
+// Reversible, which is why it is not @interactiveOnly — the same line MayAdministerSemesters
+// draws against MayPublishWishes. Rolling the faculty on to the next semester is ordinary
+// process work, and a script that does it in September is a use this API exists for.
+func (s *SemesterService) SetPlanningSemester(ctx context.Context, actor principal.Actor,
+	code string,
+) (Semester, error) {
+	if !policy.MayAdministerSemesters(actor) {
+		return Semester{}, ErrForbidden
+	}
+
+	code, err := s.plannable(code)
+	if err != nil {
+		return Semester{}, err
+	}
+
+	existing, err := s.store.EnsureSemester(ctx, code)
+	if err != nil {
+		return Semester{}, err
+	}
+	return s.store.SetPlanningSemester(ctx, existing.ID, actor.ID)
 }
 
 // PublishWishes ends the confidentiality window of a semester.

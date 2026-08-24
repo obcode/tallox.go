@@ -60,11 +60,18 @@ func find(t *testing.T, list semesterList, code string) semesterEntry {
 	return semesterEntry{}
 }
 
-// currentSemester is what the calendar says right now. The tests use the same function the
-// server does — the arithmetic itself is checked in internal/domain against fixed dates, and
-// what matters here is that whatever "now" means, the list contains it without anybody having
-// created anything.
-func currentSemester() string { return domain.CurrentSemester(time.Now()) }
+// untouchedAhead is a semester nobody has decided anything about, far enough forward to be in
+// the list whatever "now" means.
+//
+// Not currentSemester() any more, and that is the change the planning mark made: the list
+// starts at the semester the faculty is planning, and the semester we are sitting in is behind
+// it. What the assertion below is about — a semester is there without anybody setting it up —
+// is unchanged, and forward is where the untouched ones now are.
+func untouchedAhead() string {
+	// Newest first, so [0] is three semesters out: past the seeded planning semester and well
+	// inside the window the calendar offers.
+	return domain.SemestersAround(time.Now(), 0, 3)[0]
+}
 
 // grants is a persona plus the roles the test depends on. Spelled out at every call site
 // rather than attached to the persona, because which grant an assertion rests on is the thing
@@ -138,10 +145,10 @@ func lecturer() grants {
 
 // TestSemestersAreThereWithoutAnybodySettingThemUp is the change stated as an assertion.
 //
-// A database in which nobody has ever done anything still answers with the semester we are in,
-// in the phase every untouched semester is in, through both doors. The alternative — an empty
-// list until somebody with the right role creates a row — is the shape this replaced, and it
-// made the first step of the whole process an administrative act.
+// A database in which nobody has ever done anything still answers with semesters, in the phase
+// every untouched semester is in, through both doors. The alternative — an empty list until
+// somebody with the right role creates a row — is the shape this replaced, and it made the
+// first step of the whole process an administrative act.
 func TestSemestersAreThereWithoutAnybodySettingThemUp(t *testing.T) {
 	t.Parallel()
 
@@ -152,7 +159,7 @@ func TestSemestersAreThereWithoutAnybodySettingThemUp(t *testing.T) {
 			var out semesterList
 			c.MustQuery(t, semestersQuery, nil, &out)
 
-			now := find(t, out, currentSemester())
+			now := find(t, out, untouchedAhead())
 			if now.Phase != string(policy.PhaseDemandPlanning) {
 				t.Errorf("phase = %s, want %s — an untouched semester is at the start of the "+
 					"process", now.Phase, policy.PhaseDemandPlanning)

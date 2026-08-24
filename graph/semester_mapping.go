@@ -24,9 +24,10 @@ import (
 // uuid stays where it earns its keep, as the key the later tables point at.
 func semesterModel(s domain.Semester) *model.Semester {
 	out := &model.Semester{
-		Code:            s.Code,
-		Phase:           s.Phase,
-		ReachablePhases: s.Phase.Neighbours(),
+		Code:               s.Code,
+		Phase:              s.Phase,
+		IsPlanningSemester: s.IsPlanning,
+		ReachablePhases:    s.Phase.Neighbours(),
 	}
 	// The zero time is "nothing has been decided about this semester yet", which on the wire is
 	// null. It is the ordinary state of most of the list.

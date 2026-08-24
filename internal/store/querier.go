@@ -39,6 +39,18 @@ type Querier interface {
 	// would belong to both, and the import/export figure would lose its denominator.
 	BorrowedInstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]BorrowedInstancePartsForRow, error)
 	CatalogueProjectionNotes(ctx context.Context, projectionID uuid.UUID) ([]CatalogueProjectionNotesRow, error)
+	// Take the mark off whichever semester carries it, except the one about to receive it.
+	//
+	// Runs first in the transaction that moves the mark, and that order is what makes concurrency
+	// boring: this UPDATE takes a row lock on the current planning semester, so two people setting
+	// different semesters at the same moment serialise here instead of colliding on the unique
+	// index afterwards. The second one wins, which is the right outcome for a decision somebody is
+	// taking on purpose.
+	//
+	// The exception for the target is not decoration: without it, setting the semester that is
+	// already set would clear the mark and then set it again, moving planning_set_at and making a
+	// no-op look like a decision.
+	ClearPlanningSemester(ctx context.Context, id uuid.UUID) error
 	// Not projected, and the largest of the nine: 665 real rows over 12 sets of regulations the
 	// endpoint stopped returning — the historical ones and a placeholder dated 2099.
 	//
@@ -364,6 +376,12 @@ type Querier interface {
 	LockAdminGrants(ctx context.Context) error
 	// The codes ProjectProgrammes had to leave out, so the report can name them.
 	MalformedProgrammeCodes(ctx context.Context) ([]string, error)
+	// Make this semester the one being planned.
+	//
+	// Unconditional and idempotent in effect: setting the semester that is already set rewrites the
+	// same values. planning_set_at moves, and that is intended — it records the most recent time
+	// somebody decided this, which is what a reader of the audit wants to know.
+	MarkPlanningSemester(ctx context.Context, arg MarkPlanningSemesterParams) (Semester, error)
 	// Coarse on purpose. "Last used" is answering "is this token still in use, can I revoke it",
 	// and five-minute resolution answers that as well as microsecond resolution would.
 	//
@@ -409,6 +427,12 @@ type Querier interface {
 	// is exactly that. The composite foreign key means a scope cannot outlive a *revoked* grant;
 	// this covers the one that merely ran out.
 	PersonByMail(ctx context.Context, mail string) (PersonByMailRow, error)
+	// The semester the faculty is planning, or no row while nobody has said.
+	//
+	// No LIMIT: the partial unique index makes "at most one" a property of the table rather than
+	// of this statement, and a LIMIT here would quietly return one of several if that ever stopped
+	// being true.
+	PlanningSemester(ctx context.Context) (Semester, error)
 	ProgrammeByCode(ctx context.Context, code string) (ProgrammeByCodeRow, error)
 	// Which study programmes a set of people lead.
 	//

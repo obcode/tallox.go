@@ -41,6 +41,7 @@ type MutationResolver interface {
 	SplitInstancePartAcrossTracks(ctx context.Context, id string) (*model.CourseInstance, error)
 	CopyDemandFromSemester(ctx context.Context, from string, to string, programme string) (*model.CopyDemandReport, error)
 	AdvanceSemesterPhase(ctx context.Context, code string, to policy.Phase) (*model.Semester, error)
+	SetPlanningSemester(ctx context.Context, code string) (*model.Semester, error)
 	PublishWishes(ctx context.Context, code string) (*model.Semester, error)
 	SyncZpaNow(ctx context.Context) (*model.ZpaSyncRun, error)
 	ProjectZpaCatalogue(ctx context.Context) (*model.ZpaCatalogueProjection, error)
@@ -483,6 +484,20 @@ func (ec *executionContext) field_Mutation_setPersonRoles_args(ctx context.Conte
 		return nil, err
 	}
 	args["expiresAt"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setPlanningSemester_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "code",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["code"] = arg0
 	return args, nil
 }
 
@@ -1637,6 +1652,50 @@ func (ec *executionContext) fieldContext_Mutation_advanceSemesterPhase(ctx conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_setPlanningSemester(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setPlanningSemester(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetPlanningSemester(ctx, fc.Args["code"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Semester) graphql.Marshaler {
+			return ec.marshalNSemester2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSemester(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setPlanningSemester(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Semester(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setPlanningSemester_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_publishWishes(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2163,6 +2222,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "advanceSemesterPhase":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_advanceSemesterPhase(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setPlanningSemester":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setPlanningSemester(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

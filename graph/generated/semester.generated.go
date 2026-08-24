@@ -72,6 +72,29 @@ func (ec *executionContext) fieldContext_Semester_phase(_ context.Context, field
 	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Phase does not have child fields"))
 }
 
+func (ec *executionContext) _Semester_isPlanningSemester(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Semester_isPlanningSemester(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.IsPlanningSemester, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Semester_isPlanningSemester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _Semester_reachablePhases(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -172,6 +195,11 @@ func (ec *executionContext) _Semester(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "phase":
 			out.Values[i] = ec._Semester_phase(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "isPlanningSemester":
+			out.Values[i] = ec._Semester_isPlanningSemester(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -287,6 +315,13 @@ func (ec *executionContext) marshalNSemester2ᚖgithubᚗcomᚋobcodeᚋtallox�
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
 		}
+		return graphql.Null
+	}
+	return ec._Semester(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOSemester2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSemester(ctx context.Context, sel ast.SelectionSet, v *model.Semester) graphql.Marshaler {
+	if v == nil {
 		return graphql.Null
 	}
 	return ec._Semester(ctx, sel, v)

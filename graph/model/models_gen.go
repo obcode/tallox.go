@@ -499,6 +499,16 @@ type Semester struct {
 	Code string `json:"code"`
 	// Where the planning stands.
 	Phase policy.Phase `json:"phase"`
+	// Whether this is the semester the faculty is planning right now. At most one is.
+	//
+	// The answer to "which semester is this page about" before anybody has chosen one — a
+	// preselection for every screen and a default for every script, so that neither has to guess.
+	//
+	// **Not derived from `phase`.** The obvious rule, "the newest one that is not `FINAL`", is
+	// ambiguous exactly when it matters: while the summer is being assigned, the winter is already
+	// in demand planning and both are open. Which of the two is meant is a decision somebody takes,
+	// the same way the phase is.
+	IsPlanningSemester bool `json:"isPlanningSemester"`
 	// The phases this semester can be switched to right now — one step away, in either direction.
 	//
 	// Computed from the same rule the mutation enforces, so an interface can render exactly the

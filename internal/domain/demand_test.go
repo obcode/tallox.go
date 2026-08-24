@@ -176,6 +176,10 @@ func (f *fakeDemandStore) PlanDemand(_ context.Context, semester string, _ uuid.
 type fakeSemesterStore struct {
 	rows    map[string]domain.Semester
 	ensured []string
+	// planning is the code the mark sits on, or empty while nobody has said. A field rather
+	// than a flag on the rows, because at most one row carries it and a map of booleans can
+	// hold a state the database cannot.
+	planning string
 }
 
 func newFakeSemesterStore(phase policy.Phase) *fakeSemesterStore {
@@ -214,6 +218,29 @@ func (f *fakeSemesterStore) AdvanceSemesterPhase(context.Context, uuid.UUID, pol
 
 func (f *fakeSemesterStore) PublishSemesterWishes(context.Context, uuid.UUID) (domain.Semester, error) {
 	return domain.Semester{}, errors.New("not part of this test")
+}
+
+func (f *fakeSemesterStore) PlanningSemester(context.Context) (domain.Semester, error) {
+	if f.planning == "" {
+		return domain.Semester{}, nil
+	}
+	row := f.rows[f.planning]
+	row.IsPlanning = true
+	return row, nil
+}
+
+func (f *fakeSemesterStore) SetPlanningSemester(_ context.Context, id, _ uuid.UUID,
+) (domain.Semester, error) {
+	for code, row := range f.rows {
+		if row.ID != id {
+			continue
+		}
+		f.planning = code
+		row.IsPlanning = true
+		f.rows[code] = row
+		return row, nil
+	}
+	return domain.Semester{}, errors.New("no such semester")
 }
 
 // fakeCatalogueReader answers the one question the demand asks of the catalogue.

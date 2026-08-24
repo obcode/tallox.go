@@ -149,9 +149,15 @@ func seedModule(t *testing.T, s *storetest.Schema, home uuid.UUID, name string) 
 func seedSemester(t *testing.T, s *storetest.Schema, code string) uuid.UUID {
 	t.Helper()
 
+	// An upsert, like EnsureSemester, because a semester may already be there without this
+	// test having put it there: the migration that introduced the planning mark records one.
+	// Insisting on an insert would make these tests depend on which semesters the schema
+	// happens to have been seeded with.
 	var id uuid.UUID
 	err := s.Pool.QueryRow(t.Context(),
-		`INSERT INTO semester (code) VALUES ($1) RETURNING id`, code).Scan(&id)
+		`INSERT INTO semester (code) VALUES ($1)
+		 ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
+		 RETURNING id`, code).Scan(&id)
 	if err != nil {
 		t.Fatalf("cannot seed the semester %s: %v", code, err)
 	}

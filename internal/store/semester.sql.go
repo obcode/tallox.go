@@ -17,7 +17,8 @@ SET phase = $2,
     updated_at = now()
 WHERE id = $1
   AND phase = $3
-RETURNING id, code, phase, wishes_published_at, created_at, updated_at
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by
 `
 
 type AdvanceSemesterPhaseParams struct {
@@ -43,8 +44,35 @@ func (q *Queries) AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterP
 		&i.WishesPublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsPlanningSemester,
+		&i.PlanningSetAt,
+		&i.PlanningSetBy,
 	)
 	return i, err
+}
+
+const clearPlanningSemester = `-- name: ClearPlanningSemester :exec
+UPDATE semester
+SET is_planning_semester = false,
+    updated_at = now()
+WHERE is_planning_semester
+  AND id <> $1
+`
+
+// Take the mark off whichever semester carries it, except the one about to receive it.
+//
+// Runs first in the transaction that moves the mark, and that order is what makes concurrency
+// boring: this UPDATE takes a row lock on the current planning semester, so two people setting
+// different semesters at the same moment serialise here instead of colliding on the unique
+// index afterwards. The second one wins, which is the right outcome for a decision somebody is
+// taking on purpose.
+//
+// The exception for the target is not decoration: without it, setting the semester that is
+// already set would clear the mark and then set it again, moving planning_set_at and making a
+// no-op look like a decision.
+func (q *Queries) ClearPlanningSemester(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearPlanningSemester, id)
+	return err
 }
 
 const ensureSemester = `-- name: EnsureSemester :one
@@ -52,7 +80,8 @@ const ensureSemester = `-- name: EnsureSemester :one
 INSERT INTO semester (code)
 VALUES ($1)
 ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
-RETURNING id, code, phase, wishes_published_at, created_at, updated_at
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by
 `
 
 // Semesters and the phase each one is in.
@@ -84,6 +113,76 @@ func (q *Queries) EnsureSemester(ctx context.Context, code string) (Semester, er
 		&i.WishesPublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsPlanningSemester,
+		&i.PlanningSetAt,
+		&i.PlanningSetBy,
+	)
+	return i, err
+}
+
+const markPlanningSemester = `-- name: MarkPlanningSemester :one
+UPDATE semester
+SET is_planning_semester = true,
+    planning_set_at = now(),
+    planning_set_by = $2,
+    updated_at = now()
+WHERE id = $1
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by
+`
+
+type MarkPlanningSemesterParams struct {
+	ID    uuid.UUID
+	SetBy uuid.NullUUID
+}
+
+// Make this semester the one being planned.
+//
+// Unconditional and idempotent in effect: setting the semester that is already set rewrites the
+// same values. planning_set_at moves, and that is intended — it records the most recent time
+// somebody decided this, which is what a reader of the audit wants to know.
+func (q *Queries) MarkPlanningSemester(ctx context.Context, arg MarkPlanningSemesterParams) (Semester, error) {
+	row := q.db.QueryRow(ctx, markPlanningSemester, arg.ID, arg.SetBy)
+	var i Semester
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Phase,
+		&i.WishesPublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsPlanningSemester,
+		&i.PlanningSetAt,
+		&i.PlanningSetBy,
+	)
+	return i, err
+}
+
+const planningSemester = `-- name: PlanningSemester :one
+SELECT id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by
+FROM semester
+WHERE is_planning_semester
+`
+
+// The semester the faculty is planning, or no row while nobody has said.
+//
+// No LIMIT: the partial unique index makes "at most one" a property of the table rather than
+// of this statement, and a LIMIT here would quietly return one of several if that ever stopped
+// being true.
+func (q *Queries) PlanningSemester(ctx context.Context) (Semester, error) {
+	row := q.db.QueryRow(ctx, planningSemester)
+	var i Semester
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Phase,
+		&i.WishesPublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsPlanningSemester,
+		&i.PlanningSetAt,
+		&i.PlanningSetBy,
 	)
 	return i, err
 }
@@ -93,7 +192,8 @@ UPDATE semester
 SET wishes_published_at = COALESCE(wishes_published_at, now()),
     updated_at = CASE WHEN wishes_published_at IS NULL THEN now() ELSE updated_at END
 WHERE id = $1
-RETURNING id, code, phase, wishes_published_at, created_at, updated_at
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by
 `
 
 // Idempotent, and it keeps the *first* timestamp.
@@ -115,12 +215,16 @@ func (q *Queries) PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Seme
 		&i.WishesPublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsPlanningSemester,
+		&i.PlanningSetAt,
+		&i.PlanningSetBy,
 	)
 	return i, err
 }
 
 const semesterByCode = `-- name: SemesterByCode :one
-SELECT id, code, phase, wishes_published_at, created_at, updated_at
+SELECT id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by
 FROM semester
 WHERE code = $1
 `
@@ -135,12 +239,16 @@ func (q *Queries) SemesterByCode(ctx context.Context, code string) (Semester, er
 		&i.WishesPublishedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.IsPlanningSemester,
+		&i.PlanningSetAt,
+		&i.PlanningSetBy,
 	)
 	return i, err
 }
 
 const semesters = `-- name: Semesters :many
-SELECT id, code, phase, wishes_published_at, created_at, updated_at
+SELECT id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by
 FROM semester
 ORDER BY code DESC
 `
@@ -167,6 +275,9 @@ func (q *Queries) Semesters(ctx context.Context) ([]Semester, error) {
 			&i.WishesPublishedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.IsPlanningSemester,
+			&i.PlanningSetAt,
+			&i.PlanningSetBy,
 		); err != nil {
 			return nil, err
 		}

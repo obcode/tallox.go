@@ -483,3 +483,184 @@ func TestUnknownPhasesCannotBeStored(t *testing.T) {
 		t.Error("the database accepted a phase internal/policy does not know")
 	}
 }
+
+// The planning mark is at most one, and the database is what says so.
+//
+// A partial unique index rather than a check in Go, because "at most one row" is a statement
+// about the table: two setters arriving together both pass a check in a service and leave a
+// database in which two semesters are being planned, which is a state nothing downstream knows
+// how to read.
+func TestOnlyOneSemesterCanBeThePlanningSemester(t *testing.T) {
+	t.Parallel()
+
+	semesters, s := semesters(t)
+	ctx := t.Context()
+
+	first, err := semesters.EnsureSemester(ctx, "2028-SS")
+	if err != nil {
+		t.Fatalf("cannot record: %v", err)
+	}
+	second, err := semesters.EnsureSemester(ctx, "2028-WS")
+	if err != nil {
+		t.Fatalf("cannot record: %v", err)
+	}
+
+	// Straight past the store, so what is being tested is the index and not the transaction
+	// that is careful about it.
+	if _, err := s.Pool.Exec(ctx,
+		`UPDATE semester SET is_planning_semester = true WHERE id = ANY($1)`,
+		[]uuid.UUID{first.ID, second.ID},
+	); err == nil {
+		t.Error("two semesters were marked as the planning semester at once")
+	} else if !strings.Contains(err.Error(), "semester_one_planning_semester_idx") {
+		t.Errorf("the refusal came from somewhere other than the partial unique index: %v", err)
+	}
+}
+
+// Setting the mark moves it: the semester that had it loses it in the same act.
+//
+// Two statements, one decision. A database in which the old one keeps the mark is one the index
+// refuses to be in, so the failure mode this guards against is not corruption but a constraint
+// violation where the caller expected a semester back.
+func TestSettingThePlanningSemesterMovesIt(t *testing.T) {
+	t.Parallel()
+
+	semesters, _ := semesters(t)
+	ctx := t.Context()
+
+	first, err := semesters.EnsureSemester(ctx, "2028-SS")
+	if err != nil {
+		t.Fatalf("cannot record: %v", err)
+	}
+	second, err := semesters.EnsureSemester(ctx, "2028-WS")
+	if err != nil {
+		t.Fatalf("cannot record: %v", err)
+	}
+
+	if _, err := semesters.SetPlanningSemester(ctx, first.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot set the planning semester: %v", err)
+	}
+	marked, err := semesters.SetPlanningSemester(ctx, second.ID, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot move the planning semester: %v", err)
+	}
+	if !marked.IsPlanning || marked.Code != "2028-WS" {
+		t.Errorf("the mark landed on %+v, want 2028-WS carrying it", marked)
+	}
+
+	planning, err := semesters.PlanningSemester(ctx)
+	if err != nil {
+		t.Fatalf("cannot read the planning semester: %v", err)
+	}
+	if planning.Code != "2028-WS" {
+		t.Errorf("the planning semester is %q, want 2028-WS", planning.Code)
+	}
+
+	back, err := semesters.SemesterByCode(ctx, "2028-SS")
+	if err != nil {
+		t.Fatalf("cannot read back: %v", err)
+	}
+	if back.IsPlanning {
+		t.Error("the semester the mark moved off still carries it")
+	}
+}
+
+// Setting the semester that already carries the mark is not an error, and does not clear it on
+// the way.
+//
+// The exception in ClearPlanningSemester is what makes this hold: without it the transaction
+// would take the mark off and put it back, which works and is indistinguishable from a decision
+// nobody took.
+func TestSettingThePlanningSemesterTwiceIsIdempotent(t *testing.T) {
+	t.Parallel()
+
+	semesters, _ := semesters(t)
+	ctx := t.Context()
+
+	only, err := semesters.EnsureSemester(ctx, "2028-SS")
+	if err != nil {
+		t.Fatalf("cannot record: %v", err)
+	}
+
+	for range 2 {
+		if _, err := semesters.SetPlanningSemester(ctx, only.ID, uuid.Nil); err != nil {
+			t.Fatalf("cannot set the planning semester: %v", err)
+		}
+	}
+
+	planning, err := semesters.PlanningSemester(ctx)
+	if err != nil {
+		t.Fatalf("cannot read the planning semester: %v", err)
+	}
+	if planning.Code != "2028-SS" || !planning.IsPlanning {
+		t.Errorf("after setting it twice the planning semester is %+v, want 2028-SS", planning)
+	}
+}
+
+// Two people deciding at the same moment take turns rather than colliding.
+//
+// The clearing UPDATE runs first and takes a row lock on whichever semester currently carries
+// the mark, so the second transaction waits for the first instead of meeting the unique index.
+// Both succeed, one of the two semesters ends up marked, and — unlike the phase, where the
+// loser is told — neither caller is refused: this is a decision somebody is taking on purpose,
+// and the last one to take it is the one that counts.
+func TestConcurrentPlanningSemesterSettersDoNotCollide(t *testing.T) {
+	t.Parallel()
+
+	semesters, _ := semesters(t)
+	ctx := t.Context()
+
+	first, err := semesters.EnsureSemester(ctx, "2028-SS")
+	if err != nil {
+		t.Fatalf("cannot record: %v", err)
+	}
+	second, err := semesters.EnsureSemester(ctx, "2028-WS")
+	if err != nil {
+		t.Fatalf("cannot record: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	for _, id := range []uuid.UUID{first.ID, second.ID} {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := semesters.SetPlanningSemester(ctx, id, uuid.Nil); err != nil {
+				t.Errorf("a simultaneous setter was refused: %v", err)
+			}
+		}()
+	}
+	wg.Wait()
+
+	planning, err := semesters.PlanningSemester(ctx)
+	if err != nil {
+		t.Fatalf("cannot read the planning semester: %v", err)
+	}
+	if planning.Code != "2028-SS" && planning.Code != "2028-WS" {
+		t.Errorf("after two simultaneous setters the mark is on %q", planning.Code)
+	}
+}
+
+// The migration that introduced the mark took the first decision, and this is that decision
+// asserted rather than assumed.
+//
+// A fresh database already knows which semester the faculty is planning. Without it there is a
+// window in which every screen has nothing to preselect and every script has to guess — which
+// is the state this whole mechanism exists to end.
+func TestAFreshDatabaseAlreadyKnowsWhatIsBeingPlanned(t *testing.T) {
+	t.Parallel()
+
+	semesters, _ := semesters(t)
+
+	planning, err := semesters.PlanningSemester(t.Context())
+	if err != nil {
+		t.Fatalf("cannot read the planning semester: %v", err)
+	}
+	if planning.Code != "2027-SS" {
+		t.Errorf("a migrated database plans %q, want 2027-SS", planning.Code)
+	}
+	if planning.Phase != policy.PhaseDemandPlanning {
+		t.Errorf("the seeded planning semester is in %s, want %s — saying which semester is "+
+			"being planned is not a statement about how far along it is",
+			planning.Phase, policy.PhaseDemandPlanning)
+	}
+}

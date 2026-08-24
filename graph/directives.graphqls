@@ -102,8 +102,10 @@ enum ScopeArea {
   The first area worth narrowing a token to. `PUBLIC` and `PROFILE` are you describing
   yourself; `TOKENS` and `ADMIN` are unreachable through a token at all.
 
-  Fields: `semesters`, `semester`, `programmes`, `programme`, `modules`, `module`, `teachers`,
-  `courseInstances`, `courseInstance`, `advanceSemesterPhase`, `publishWishes`,
+  Fields: `semesters`, `semester`, `planningSemester`, `programmes`, `programme`, `modules`,
+  `module`, `teachers`,
+  `courseInstances`, `courseInstance`, `advanceSemesterPhase`, `setPlanningSemester`,
+  `publishWishes`,
   `setModuleComponents`, `declareCourseInstance`, `duplicateCourseInstance`,
   `changeCourseInstance`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,

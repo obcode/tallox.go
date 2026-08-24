@@ -1081,3 +1081,64 @@ func recorded(t *testing.T, s *storetest.Schema, code string) bool {
 	}
 	return exists
 }
+
+// A programme may declare a module that is at home somewhere else.
+//
+// The identity of an instance names a programme and a module and says nothing about the two
+// belonging together — and that is deliberate rather than an omission. Modules are borrowed
+// across programmes and across faculties; the difference between where a module is at home and
+// who declares it *is* the dean's office's import/export figure, so a schema that refused the
+// case would refuse the thing it exists to measure. It is also the escape hatch the faculty
+// needs: a module that has to be offered and is not in this programme's catalogue.
+//
+// Written down as a test because nothing else says it. There is no constraint to read, no
+// comment on a WHERE clause — the rule is the absence of a predicate, and an absence is what
+// somebody adds back while tidying up.
+func TestAModuleOfAnotherProgrammeCanBeDeclared(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	// Its home is PZ; the demand is PA's.
+	foreign := moduleID(t, f.schema, storetest.FixtureModuleOfProgrammeZ)
+
+	instance, err := f.demand.CreateCourseInstance(ctx, domain.NewCourseInstance{
+		SemesterID:  f.semester.ID,
+		ProgrammeID: f.programme,
+		ModuleID:    foreign,
+	})
+	if err != nil {
+		t.Fatalf("declaring a module of another programme: %v", err)
+	}
+	if instance.Programme.Code != storetest.FixtureProgrammeA || instance.Module.ID != foreign {
+		t.Errorf("the instance is %s's offering of %s, want PA's demand for PZ's module",
+			instance.Programme.Code, instance.Module.Name)
+	}
+	if instance.Module.HomeProgramme.Code != storetest.FixtureProgrammeZ {
+		t.Errorf("the module's home is %s, so this test is no longer about a foreign one",
+			instance.Module.HomeProgramme.Code)
+	}
+	if len(instance.Parts) == 0 {
+		t.Error("the instance has no parts — it was built from neither a split nor a proposal")
+	}
+
+	// And it comes back on the programme's own demand, which is the half that makes it usable:
+	// a row nobody can see is a row nobody can take back.
+	held, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+		SemesterCode: f.semester.Code,
+		Programme:    storetest.FixtureProgrammeA,
+	})
+	if err != nil {
+		t.Fatalf("reading the demand: %v", err)
+	}
+	found := false
+	for _, i := range held {
+		if i.Module.ID == foreign {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("the foreign module is not in the programme's demand")
+	}
+}

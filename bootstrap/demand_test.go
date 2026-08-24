@@ -32,6 +32,9 @@ type demandFixture struct {
 	// withoutHours is the module the examination office states no hours for — the one an
 	// instance still cannot be declared for.
 	withoutHours uuid.UUID
+	// foreign is at home in another programme entirely. Declaring it is allowed, and the test
+	// below is the only place that says so.
+	foreign uuid.UUID
 }
 
 // demandHandler seeds people and their programme assignments, projects the catalogue, states a
@@ -85,6 +88,8 @@ func demandHandler(t *testing.T, scoped map[string][]string, people ...grants) d
 			storetest.FixtureModuleOrdinary),
 		withoutHours: read(`SELECT id FROM module WHERE zpa_module_ref = $1`,
 			storetest.FixtureModuleWithoutHours),
+		foreign: read(`SELECT id FROM module WHERE zpa_module_ref = $1`,
+			storetest.FixtureModuleOfProgrammeZ),
 	}
 
 	if _, err := modules.SetModuleComponents(t.Context(), fixture.module, []domain.ModuleComponent{
@@ -819,4 +824,74 @@ func TestPlanningLeavesTheModulesItDoesNotNameAlone(t *testing.T) {
 		t.Errorf("a plan naming no modules reports %+v — silence has to mean nothing at all",
 			out.PlanDemand)
 	}
+}
+
+// A programme lead may declare a module that is at home in another programme — and still only
+// for their own programme.
+//
+// Two halves of one rule, and they are easy to confuse. The permission is about the *programme
+// whose demand this is*, never about where the module comes from: modules are borrowed across
+// programmes and faculties, and the difference between where one is at home and who declares it
+// is precisely the figure the dean's office's import/export statistics are. A tool that refused
+// the case would refuse the thing it exists to measure — and would leave a programme lead with
+// no way to offer a module their catalogue does not list, which is the situation this escape
+// hatch is for.
+//
+// Through both doors, because the rule is a permission and permissions are what drift between
+// the two.
+func TestPlanningAModuleOfAnotherProgrammeThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			// A semester per door: the two runs share a database, and the identity refuses the
+			// same cohort twice — which is the point of the identity.
+			semester := "2027-SS"
+			if c.Door() == graphqltest.Token {
+				semester = "2027-WS"
+			}
+
+			var out struct {
+				DeclareCourseInstance struct {
+					Programme struct{ Code string }
+					Module    struct{ Name string }
+					Parts     []struct{ Kind string }
+				}
+			}
+			c.MustQuery(t, declareMutation, map[string]any{"in": map[string]any{
+				"semester":  semester,
+				"programme": storetest.FixtureProgrammeA,
+				"moduleId":  f.foreign.String(),
+			}}, &out)
+
+			got := out.DeclareCourseInstance
+			if got.Programme.Code != storetest.FixtureProgrammeA {
+				t.Errorf("the instance belongs to %s, want %s — the demand is the declaring "+
+					"programme's, whatever the module's home is",
+					got.Programme.Code, storetest.FixtureProgrammeA)
+			}
+			if len(got.Parts) == 0 {
+				t.Error("the instance holds no parts — it was built from neither a split nor a " +
+					"proposal")
+			}
+
+			// The other half: the module's home programme is not a programme this person may
+			// plan, and borrowing the module does not change that.
+			refusal := c.Do(t, declareMutation, map[string]any{"in": map[string]any{
+				"semester":  semester,
+				"programme": storetest.FixtureProgrammeZ,
+				"moduleId":  f.foreign.String(),
+			}})
+			// NOT_YOUR_PROGRAMME rather than a bare FORBIDDEN: the two refusals have
+			// different repairs, and this one names the right question — which programme is
+			// this demand for.
+			if code := errorCode(t, refusal); code != "NOT_YOUR_PROGRAMME" {
+				t.Errorf("declaring for somebody else's programme gave %s, want NOT_YOUR_PROGRAMME",
+					code)
+			}
+		})
 }

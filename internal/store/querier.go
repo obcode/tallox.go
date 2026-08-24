@@ -12,6 +12,35 @@ import (
 )
 
 type Querier interface {
+	// How much happened under each role, for one window.
+	//
+	// Over the EFFECTIVE roles, so a narrowed session counts under what it was narrowed to. That is
+	// the honest reading: the request was judged by those roles, whatever the person holds.
+	AccessLogByRole(ctx context.Context, arg AccessLogByRoleParams) ([]AccessLogByRoleRow, error)
+	// The headline figures for one window, in one pass.
+	//
+	// One query rather than six, because the nightly report and the page both want all of them and
+	// six round trips to count the same rows six times is how a report becomes something one is
+	// reluctant to run.
+	AccessLogCounts(ctx context.Context, arg AccessLogCountsParams) (AccessLogCountsRow, error)
+	// One page of the log, newest first.
+	//
+	// Keyset pagination on (at, id) rather than OFFSET: the table grows at the head while somebody
+	// is reading it, and OFFSET would silently skip or repeat rows exactly when the log is busiest —
+	// which is when somebody is most likely to be reading it because something happened.
+	AccessLogEntries(ctx context.Context, arg AccessLogEntriesParams) ([]AccessLogEntriesRow, error)
+	// Every change made in one window, by whom and to what — grouped by person and root field.
+	//
+	// The field name is as specific as this gets, and deliberately so: see the note in the
+	// migration. "setPersonRoles, three times, by X" is a report; the arguments would be a copy of
+	// the data with none of the policy on it.
+	AccessLogMutations(ctx context.Context, arg AccessLogMutationsParams) ([]AccessLogMutationsRow, error)
+	// Who was turned away, and why, for one window.
+	//
+	// Grouped rather than listed: somebody whose account has no person row will retry, and twelve
+	// identical lines say nothing that one line with a count does not. This is the part of the
+	// nightly report that names people, and it names them because being turned away is the event.
+	AccessLogRefusedSignIns(ctx context.Context, arg AccessLogRefusedSignInsParams) ([]AccessLogRefusedSignInsRow, error)
 	// Compare-and-set: $3 is the phase the caller believes the semester is in, and no rows come
 	// back if it has moved on since they looked.
 	//
@@ -552,6 +581,12 @@ type Querier interface {
 	// people administration. Six of the 257 carry addresses the identity provider will never
 	// assert, so the two sets are not the same even in principle.
 	ProjectTeachers(ctx context.Context) (int64, error)
+	// Delete what is older than the cutoff and say how much that was.
+	//
+	// Returning the count is not decoration: it goes into the nightly report, so a prune that has
+	// silently stopped working shows up as a number that stops moving rather than as a table that
+	// quietly grows for a year.
+	PruneAccessLog(ctx context.Context, cutoff time.Time) (int64, error)
 	// Idempotent, and it keeps the *first* timestamp.
 	//
 	// Publishing twice is not an error — the second caller wanted the wishes published and they
@@ -562,6 +597,18 @@ type Querier interface {
 	// updated_at stays untouched when nothing changed, so a repeated call does not make the row
 	// look edited.
 	PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Semester, error)
+	// The access log: one row per operation, plus the sign-ins that were refused before there was
+	// an operation at all.
+	//
+	// The theme of this file is that every read is an aggregate or a bounded page. An audit trail
+	// is the one table where "select everything and filter in Go" is not merely slow but wrong:
+	// the row limit is what keeps a support question from pulling a term's worth of colleagues'
+	// movements into a process that then logs its own memory usage.
+	// Append one entry. Called on the request path, best-effort — see graph.RecordAccess.
+	//
+	// Nothing here is read back. The caller has no use for the id, and returning one would cost a
+	// round trip on every single request for a value nobody wants.
+	RecordAccess(ctx context.Context, arg RecordAccessParams) error
 	// Only ever called with a positive count — a note saying "nothing happened" is noise in a
 	// report whose whole value is that every line means something.
 	RecordCatalogueProjectionNote(ctx context.Context, arg RecordCatalogueProjectionNoteParams) error

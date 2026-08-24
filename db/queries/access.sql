@@ -40,10 +40,20 @@ WHERE (sqlc.narg('actor_id')::uuid IS NULL OR a.actor_id = sqlc.narg('actor_id')
   AND (NOT sqlc.arg('only_mutations')::boolean OR a.mutation)
   AND (sqlc.narg('from')::timestamptz IS NULL OR a.at >= sqlc.narg('from')::timestamptz)
   AND (sqlc.narg('until')::timestamptz IS NULL OR a.at < sqlc.narg('until')::timestamptz)
-  -- The cursor. Both halves, because two entries can share a microsecond and a cursor on the
-  -- timestamp alone would drop whichever of them landed second.
-  AND (sqlc.narg('before_at')::timestamptz IS NULL
-       OR (a.at, a.id) < (sqlc.narg('before_at')::timestamptz, sqlc.arg('before_id')::uuid))
+  -- The cursor, as the id of the entry the previous page ended on.
+  --
+  -- The comparison is on (at, id) and not on at alone: a page load fires several operations at
+  -- once, two entries can share a microsecond, and a cursor on the timestamp would drop
+  -- whichever of them landed second. The subquery is what lets the caller pass an id and
+  -- nothing else — an API that made the client carry a timestamp back would make the client
+  -- responsible for a tie-break it cannot see.
+  --
+  -- An id that no longer exists yields NULL and therefore an empty page. That is the honest
+  -- answer: the entry it pointed at has fallen out of the retention window, so the page it was
+  -- the middle of is gone too.
+  AND (sqlc.narg('before_id')::uuid IS NULL
+       OR (a.at, a.id) < (SELECT b.at, b.id FROM access_log b
+                           WHERE b.id = sqlc.narg('before_id')::uuid))
 ORDER BY a.at DESC, a.id DESC
 LIMIT sqlc.arg('lim');
 

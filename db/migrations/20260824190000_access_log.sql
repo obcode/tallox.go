@@ -62,14 +62,22 @@ CREATE TABLE access_log (
     -- person in a browser or a script" is answerable months later without inference.
     door          text NOT NULL,
 
-    -- Which token, when it was the token door. The token's public half is its primary key and
-    -- is shown in the token list, so this both names the token and cannot reveal it: the secret
-    -- half is not in that column and not in this one.
+    -- Which token, when it was the token door. The token's public half is also its primary key
+    -- there and is shown in the owner's token list, so this both names the token and cannot
+    -- reveal it: the secret half is not in that column and not in this one.
     --
-    -- Tokens are revoked rather than deleted, so this reference ordinarily survives revocation —
-    -- which is the point, because "what did the token we revoked in October actually do" is the
-    -- question one asks after revoking it. ON DELETE SET NULL for the reason actor_id has it.
-    token_id      text REFERENCES personal_access_token (token_id) ON DELETE SET NULL,
+    -- NOT a foreign key, and that is the considered choice rather than an omission. This column
+    -- records what was PRESENTED, and the most interesting thing anyone ever presents is a
+    -- token id that does not exist — somebody working through guesses, or a token deleted by
+    -- hand on the host. A reference would refuse exactly those rows, so the log would be silent
+    -- about the one case it is worth reading, and the refusal would arrive as a constraint
+    -- violation in a best-effort insert that swallows it.
+    --
+    -- The integrity that reference would have given is not lost in practice: tokens are revoked
+    -- rather than deleted, so a real token id keeps resolving long after the token stops
+    -- working — which is the point, because "what did the token we revoked in October actually
+    -- do" is the question one asks after revoking it.
+    token_id      text,
 
     -- The EFFECTIVE roles: what the request was judged by. Empty for a refusal and for an
     -- anonymous caller.

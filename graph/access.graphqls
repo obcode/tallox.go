@@ -1,0 +1,271 @@
+# The access log: who reached this installation, through which door, and what they asked for.
+#
+# The audit log this schema has referred to since the first release — @interactiveOnly names it
+# among the things a token never reaches, and `RoleGrant.grantedBy` is a pointer into it.
+#
+# WHAT IS DELIBERATELY NOT HERE, and it is the whole design: no arguments, no variables, no
+# response. An entry says which root fields an operation asked for and nothing more specific.
+# ADMIN is deliberately not on the exception list of the wish visibility rule, and a log that
+# stored arguments would hand that exception back through the side door — `wish(id: …)` with its
+# argument is a copy of the confidential data with none of the policy attached. "Prof. Eins
+# called myWishes" is not a wish.
+#
+# Interactive only, like everything else about running the installation, and for the sharper
+# reason as well: this is a record of when colleagues worked, and a long-lived token in a script
+# is exactly the credential that should not be able to enumerate it silently.
+
+"""
+Which mount a request came through.
+"""
+enum AccessDoor {
+  "A person in a browser, behind the authentication proxy."
+  INTERACTIVE
+  "A Personal Access Token: a script, a notebook, a cron job."
+  TOKEN
+}
+
+"""
+How a request ended.
+
+Three kinds of refusal rather than one, because they are three different events with three
+different answers. A refused sign-in is somebody who cannot get in at all. A scope refusal is a
+colleague's script asking for something its token was not minted for, and the fix is a new
+token. An interactive-only refusal is a script reaching for personnel data, and the fix is not a
+new token — it is the person, in a browser.
+"""
+enum AccessOutcome {
+  "The operation ran and returned no error."
+  OK
+  "The operation ran and failed."
+  ERROR
+  """
+  The request never reached the schema: an unknown identity, a deactivated person, an expired or
+  revoked token. The only outcome that appears without a person.
+  """
+  REFUSED_AUTH
+  "The token's scopes did not cover what the operation asked for."
+  REFUSED_SCOPE
+  "A token reached for a field that is available only in an interactive session."
+  REFUSED_INTERACTIVE
+}
+
+"""
+One entry: one operation, or one sign-in that was refused before there was an operation.
+"""
+type AccessLogEntry {
+  id: ID!
+  "When it happened."
+  at: Time!
+
+  """
+  The person this was, when the request had one. `null` for a refused sign-in — which is
+  precisely the case worth looking at, because it is somebody this installation does not know.
+
+  An id and a name rather than a `Person`. A `Person` carries `roles` and `active` as they are
+  **now**, and putting one on a log entry would place today's answer next to a record of what
+  was true at the time — which is the one confusion this whole table is built to avoid. Follow
+  the id to `person(id:)` to ask about today.
+  """
+  personId: ID
+
+  """
+  The person's name as it stands today, `null` when there is no person row. A rendering
+  convenience, resolved through a join; the entry's own record of who this was is `mail`.
+  """
+  personName: String
+
+  """
+  The identity as asserted, whether or not it resolved to a person.
+  """
+  mail: String
+
+  "Which mount the request came through."
+  door: AccessDoor!
+
+  """
+  The public half of the Personal Access Token used, `null` for the browser door.
+
+  The same value the owner sees in their token list, so an entry can be matched to a token
+  without the token itself appearing anywhere.
+  """
+  tokenId: String
+
+  """
+  The roles the request was actually judged by.
+
+  The effective set: a session that was narrowed counts under what it was narrowed to, which is
+  the honest reading of what the rules saw.
+  """
+  roles: [Role!]!
+
+  """
+  The roles as held, when and only when the caller asked to be narrowed. `null` otherwise.
+  """
+  narrowedFrom: [Role!]
+
+  "The operation name from the document. Client-supplied: a label, never a key."
+  operation: String
+
+  "The root fields the operation asked for. See the note at the top of this file."
+  fields: [String!]!
+
+  "Whether the operation changed data."
+  mutation: Boolean!
+
+  "How it ended."
+  outcome: AccessOutcome!
+
+  """
+  The error code of the first error, `null` when there was none — `INSUFFICIENT_SCOPE`,
+  `INTERACTIVE_ONLY`, `UNKNOWN_USER`.
+
+  The code and never the message: the German sentences get reworded, and a log that stored them
+  would be a second place they have to match.
+  """
+  errorCode: String
+
+  "How long the operation took, in milliseconds."
+  durationMs: Int
+
+  """
+  Where the request came from, `null` when it could not be determined.
+
+  A stolen credential is recognised by where it is used and by nothing else, which is the only
+  reason this is recorded at all.
+  """
+  sourceIp: String
+}
+
+"""
+Narrows a page of the log. Everything is optional; omitting all of it means the whole log,
+newest first.
+"""
+input AccessLogFilter {
+  "One person, by id."
+  personId: ID
+  "A substring of the mail address — for the support question that starts with half an address."
+  mail: String
+  "One door — the browser or a Personal Access Token."
+  door: AccessDoor
+  "Only entries that did not end in `OK`."
+  onlyRefused: Boolean
+  "Only entries that changed something."
+  onlyMutations: Boolean
+  "Only entries at or after this moment."
+  from: Time
+  "Only entries strictly before this moment."
+  until: Time
+}
+
+"""
+The headline figures of one window.
+"""
+type AccessCounts {
+  "Every entry in the window, refusals included."
+  total: Int!
+  "Operations through the browser door."
+  interactive: Int!
+  "Operations through the Personal Access Token door."
+  token: Int!
+  "Operations that changed something."
+  mutations: Int!
+  "Operations that ran and failed."
+  errors: Int!
+  "Sign-ins that were refused before reaching the schema."
+  refusedAuth: Int!
+  "Operations refused because the token's scopes did not cover them."
+  refusedScope: Int!
+  "Operations refused because a token reached for an interactive-only field."
+  refusedInteractive: Int!
+  """
+  How many distinct people appear. Refused sign-ins have no person and are not counted here —
+  they are counted by `refusedAuth`, and named in `refused`.
+  """
+  people: Int!
+}
+
+"How much happened under one effective role."
+type AccessRoleCount {
+  "The effective role the operations were judged by."
+  role: Role!
+  "How many operations ran under it."
+  operations: Int!
+}
+
+"""
+One identity that was turned away, grouped over the window.
+
+Grouped rather than listed: somebody whose account has no person row will retry, and twelve
+identical lines say nothing that one line with a count does not.
+"""
+type RefusedSignIn {
+  "The address the door was knocked on with."
+  mail: String!
+  "The refusal's error code, empty when the door did not name one."
+  reason: String!
+  "Which mount was knocked on."
+  door: AccessDoor!
+  "How often, over the window."
+  attempts: Int!
+  "The most recent attempt."
+  lastAt: Time!
+}
+
+"One root field somebody changed something with, and how often."
+type AccessMutationCount {
+  "Who changed something."
+  mail: String!
+  "The root field they changed it with."
+  field: String!
+  "How often, over the window."
+  calls: Int!
+  "The most recent call."
+  lastAt: Time!
+}
+
+"""
+What happened in one window.
+
+The same type the nightly report is built from, so the page and the mail cannot come to
+different conclusions about the same night.
+"""
+type AccessSummary {
+  "The start of the window, inclusive."
+  from: Time!
+  "The end of the window, exclusive — so two consecutive windows cannot count the same entry."
+  until: Time!
+  "The headline figures."
+  counts: AccessCounts!
+  "How much happened under each effective role."
+  roles: [AccessRoleCount!]!
+  """
+  The sign-ins that never got in. This is the part that names people, and it names them because
+  being turned away is itself the event worth reporting.
+  """
+  refused: [RefusedSignIn!]!
+  "Everything that was changed, by whom and with which root field."
+  mutations: [AccessMutationCount!]!
+}
+
+extend type Query {
+  """
+  One page of the access log, newest first.
+
+  Paged by cursor rather than by offset: the log grows at the head while somebody is reading it,
+  and an offset would silently skip or repeat rows exactly when it is busiest — which is when
+  somebody is most likely to be reading it. Pass the `id` of the last entry of the previous page
+  as `before`.
+  """
+  accessLog(filter: AccessLogFilter, limit: Int = 100, before: ID): [AccessLogEntry!]
+    @interactiveOnly @scope(area: ADMIN, verb: READ)
+
+  """
+  The figures for one window.
+
+  Separate from `accessLog` rather than a field on it, because the figures are over the whole
+  window and the entries are one page of it. A count that agreed with the page would be a count
+  of the page.
+  """
+  accessSummary(from: Time!, until: Time!): AccessSummary
+    @interactiveOnly @scope(area: ADMIN, verb: READ)
+}

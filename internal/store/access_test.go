@@ -182,7 +182,7 @@ func TestAccessLogPagesWithoutSkippingOrRepeating(t *testing.T) {
 	}
 
 	seen := map[uuid.UUID]bool{}
-	var cursor *domain.AccessCursor
+	var cursor *uuid.UUID
 	for range total { // an upper bound on the number of pages, so a broken cursor cannot hang
 		page, err := access.Entries(t.Context(), domain.AccessFilter{Limit: 3, Before: cursor})
 		if err != nil {
@@ -197,8 +197,8 @@ func TestAccessLogPagesWithoutSkippingOrRepeating(t *testing.T) {
 			}
 			seen[entry.ID] = true
 		}
-		last := page[len(page)-1]
-		cursor = &domain.AccessCursor{At: last.At, ID: last.ID}
+		last := page[len(page)-1].ID
+		cursor = &last
 	}
 
 	if len(seen) != total {

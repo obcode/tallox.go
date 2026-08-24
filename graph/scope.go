@@ -114,6 +114,49 @@ func requiredScopes(op *ast.OperationDefinition) []policy.Scope {
 		introspection int
 	)
 
+	forEachRootField(op, func(field *ast.Field) {
+		// __schema, __type and __typename. Introspection is deliberately on, in production too
+		// — it is what makes editor completion and codegen work for colleagues writing their
+		// own evaluations — so it carries no scope and is not counted as an unrecognised field
+		// below.
+		if IsIntrospectionField(field.Name) {
+			introspection++
+			return
+		}
+		fields++
+		required = append(required, scopeOf(field, write))
+	})
+
+	switch {
+	case write && len(required) == 0:
+		// A mutation that reaches no annotated field still changes something, or it would not
+		// be a mutation. This is the structural rule doing its job on its own.
+		required = append(required, policy.ScopeFallback)
+
+	case fields == 0 && introspection == 0 && len(op.SelectionSet) > 0:
+		// The operation selects something and the walk recognised none of it. That is not a
+		// query anybody wrote on purpose; it is this function being wrong about the document
+		// shape, which is the failure the sibling project shipped.
+		required = append(required, policy.ScopeFallback)
+	}
+
+	return required
+}
+
+// forEachRootField calls visit for every root field of the operation, fragments included.
+//
+// The one walk. Two callers ask different questions of the same document — which scopes are
+// required, and which fields to record in the access log — and a second walk written for the
+// second question is how the two come to disagree about what a root field is.
+//
+// Following fragments is the whole point. The sibling project's walk does not, so
+//
+//	mutation { ... on Mutation { setPersonRoles(...) } }
+//
+// yields an empty field list there. Here it yields setPersonRoles, for the scope check and for
+// the log alike — an audit trail that went blank whenever somebody used a fragment would be an
+// audit trail with a documented way around it.
+func forEachRootField(op *ast.OperationDefinition, visit func(*ast.Field)) {
 	// Fragment spreads are followed by name, and a name is only followed once. Validation
 	// rejects fragment cycles before this runs, so the set is not what makes this terminate —
 	// it is what keeps a deeply cross-referenced document from being walked exponentially.
@@ -124,16 +167,7 @@ func requiredScopes(op *ast.OperationDefinition) []policy.Scope {
 		for _, selection := range set {
 			switch sel := selection.(type) {
 			case *ast.Field:
-				// __schema, __type and __typename. Introspection is deliberately on, in
-				// production too — it is what makes editor completion and codegen work for
-				// colleagues writing their own evaluations — so it carries no scope and is not
-				// counted as an unrecognised field below.
-				if strings.HasPrefix(sel.Name, "__") {
-					introspection++
-					continue
-				}
-				fields++
-				required = append(required, scopeOf(sel, write))
+				visit(sel)
 
 			case *ast.InlineFragment:
 				// `... on Query { … }` and `... @include(if: …) { … }`. The fields inside are
@@ -150,21 +184,12 @@ func requiredScopes(op *ast.OperationDefinition) []policy.Scope {
 		}
 	}
 	walk(op.SelectionSet)
+}
 
-	switch {
-	case write && len(required) == 0:
-		// A mutation that reaches no annotated field still changes something, or it would not
-		// be a mutation. This is the structural rule doing its job on its own.
-		required = append(required, policy.ScopeFallback)
-
-	case fields == 0 && introspection == 0 && len(op.SelectionSet) > 0:
-		// The operation selects something and the walk recognised none of it. That is not a
-		// query anybody wrote on purpose; it is this function being wrong about the document
-		// shape, which is the failure the sibling project shipped.
-		required = append(required, policy.ScopeFallback)
-	}
-
-	return required
+// IsIntrospectionField reports whether a field name is one of GraphQL's own — __schema,
+// __type, __typename.
+func IsIntrospectionField(name string) bool {
+	return strings.HasPrefix(name, "__")
 }
 
 // scopeOf reads one field's annotation, with the operation's verb taking precedence.

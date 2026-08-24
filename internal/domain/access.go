@@ -121,18 +121,14 @@ type AccessFilter struct {
 	OnlyMutations bool
 	From          *time.Time
 	Until         *time.Time
-	// Before is the keyset cursor: the entry the previous page ended on.
-	Before *AccessCursor
+	// Before is the keyset cursor: the id of the entry the previous page ended on.
+	//
+	// An id rather than a timestamp, although the comparison in SQL is on (at, id) — two
+	// entries can share a microsecond, so the tie-break has to exist, and it is not something
+	// a caller should have to carry back. An id that no longer exists yields an empty page,
+	// which is the honest answer once the entry it pointed at has been pruned.
+	Before *uuid.UUID
 	Limit  int
-}
-
-// AccessCursor is where a page continues, as (at, id).
-//
-// Both halves. Two entries can share a microsecond — a browser fires several operations at
-// once on a page load — and a cursor on the timestamp alone would drop whichever landed second.
-type AccessCursor struct {
-	At time.Time
-	ID uuid.UUID
 }
 
 // DefaultAccessLimit and MaxAccessLimit bound a page.

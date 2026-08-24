@@ -66,11 +66,8 @@ func (a *Access) Entries(ctx context.Context, filter domain.AccessFilter) ([]dom
 		OnlyMutations: filter.OnlyMutations,
 		From:          timestamp(filter.From),
 		Until:         timestamp(filter.Until),
+		BeforeID:      nullUUID(filter.Before),
 		Lim:           int32(filter.Limit),
-	}
-	if filter.Before != nil {
-		params.BeforeAt = pgtype.Timestamptz{Time: filter.Before.At, Valid: true}
-		params.BeforeID = filter.Before.ID
 	}
 
 	rows, err := a.q.AccessLogEntries(ctx, params)

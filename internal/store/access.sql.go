@@ -126,12 +126,22 @@ WHERE ($1::uuid IS NULL OR a.actor_id = $1::uuid)
   AND (NOT $5::boolean OR a.mutation)
   AND ($6::timestamptz IS NULL OR a.at >= $6::timestamptz)
   AND ($7::timestamptz IS NULL OR a.at < $7::timestamptz)
-  -- The cursor. Both halves, because two entries can share a microsecond and a cursor on the
-  -- timestamp alone would drop whichever of them landed second.
-  AND ($8::timestamptz IS NULL
-       OR (a.at, a.id) < ($8::timestamptz, $9::uuid))
+  -- The cursor, as the id of the entry the previous page ended on.
+  --
+  -- The comparison is on (at, id) and not on at alone: a page load fires several operations at
+  -- once, two entries can share a microsecond, and a cursor on the timestamp would drop
+  -- whichever of them landed second. The subquery is what lets the caller pass an id and
+  -- nothing else — an API that made the client carry a timestamp back would make the client
+  -- responsible for a tie-break it cannot see.
+  --
+  -- An id that no longer exists yields NULL and therefore an empty page. That is the honest
+  -- answer: the entry it pointed at has fallen out of the retention window, so the page it was
+  -- the middle of is gone too.
+  AND ($8::uuid IS NULL
+       OR (a.at, a.id) < (SELECT b.at, b.id FROM access_log b
+                           WHERE b.id = $8::uuid))
 ORDER BY a.at DESC, a.id DESC
-LIMIT $10
+LIMIT $9
 `
 
 type AccessLogEntriesParams struct {
@@ -142,8 +152,7 @@ type AccessLogEntriesParams struct {
 	OnlyMutations bool
 	From          pgtype.Timestamptz
 	Until         pgtype.Timestamptz
-	BeforeAt      pgtype.Timestamptz
-	BeforeID      uuid.UUID
+	BeforeID      uuid.NullUUID
 	Lim           int32
 }
 
@@ -180,7 +189,6 @@ func (q *Queries) AccessLogEntries(ctx context.Context, arg AccessLogEntriesPara
 		arg.OnlyMutations,
 		arg.From,
 		arg.Until,
-		arg.BeforeAt,
 		arg.BeforeID,
 		arg.Lim,
 	)

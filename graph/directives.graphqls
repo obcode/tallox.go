@@ -123,8 +123,8 @@ enum ScopeArea {
   TOKENS
 
   """
-  Running the installation: user and role administration, and the module import. Also
-  `@interactiveOnly`, for the same reason.
+  Running the installation: user and role administration, the module import, and the access
+  log. Also `@interactiveOnly`, for the same reason.
 
   The import is here rather than under `PLANNING` because what these fields expose is the
   operation — did the nightly job run, what did it change, run it now, what did it make of the
@@ -136,7 +136,7 @@ enum ScopeArea {
   Fields: `people`, `person`, `roleGrants`, `diagnoseAccess`, `teacherAccounts`,
   `createPerson`, `renamePerson`, `setPersonRoles`, `setPersonActive`, `setPersonProgrammes`,
   `setTeacherAdmitted`, `zpaSyncRuns`, `zpaSyncRun`, `zpaChanges`, `zpaCatalogueProjections`,
-  `syncZpaNow`, `projectZpaCatalogue`.
+  `syncZpaNow`, `projectZpaCatalogue`, `accessLog`, `accessSummary`.
   """
   ADMIN
 }

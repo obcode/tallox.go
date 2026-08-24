@@ -473,7 +473,7 @@ func TestAnonymousRequestsReachTheHandler(t *testing.T) {
 
 			var seen principal.Actor
 			var ran bool
-			handler := auth.Middleware(tc.auth)(http.HandlerFunc(
+			handler := auth.Middleware(tc.auth, nil)(http.HandlerFunc(
 				func(_ http.ResponseWriter, r *http.Request) {
 					ran = true
 					// Lookup rather than From: the middleware has to have put something in,
@@ -568,7 +568,7 @@ func TestParseMode(t *testing.T) {
 // The trivial handler is the assertion: reaching it at all means the middleware let the
 // request through, so "200" reads as "not refused" in every table above.
 func mounted(a auth.Authenticator) http.Handler {
-	return auth.Middleware(a)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	return auth.Middleware(a, nil)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 }

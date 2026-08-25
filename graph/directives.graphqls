@@ -96,8 +96,8 @@ enum ScopeArea {
   PROFILE
 
   """
-  The planning process: which semesters exist, where each one stands, and — as they arrive —
-  the demand, the assignments and the statistics.
+  The planning process: which semesters exist, where each one stands, the faculty's subject
+  groups, and — as they arrive — the demand, the assignments and the statistics.
 
   The first area worth narrowing a token to. `PUBLIC` and `PROFILE` are you describing
   yourself; `TOKENS` and `ADMIN` are unreachable through a token at all.
@@ -110,7 +110,9 @@ enum ScopeArea {
   `setProgrammePlanningStatus`, `declareCourseInstance`, `duplicateCourseInstance`,
   `changeCourseInstance`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
-  `copyDemandFromSemester`, `planDemand`.
+  `copyDemandFromSemester`, `planDemand`,
+  `subjectGroups`, `subjectGroup`, `mySubjectGroups`, `modulesWithoutSubjectGroup`,
+  `subjectGroupsWithoutLead`.
   """
   PLANNING
 
@@ -136,7 +138,9 @@ enum ScopeArea {
   Fields: `people`, `person`, `roleGrants`, `diagnoseAccess`, `teacherAccounts`,
   `createPerson`, `renamePerson`, `setPersonRoles`, `setPersonActive`, `setPersonProgrammes`,
   `setTeacherAdmitted`, `zpaSyncRuns`, `zpaSyncRun`, `zpaChanges`, `zpaCatalogueProjections`,
-  `syncZpaNow`, `projectZpaCatalogue`, `accessLog`, `accessSummary`.
+  `syncZpaNow`, `projectZpaCatalogue`, `accessLog`, `accessSummary`,
+  `createSubjectGroup`, `renameSubjectGroup`, `setSubjectGroupActive`, `setModulesSubjectGroup`,
+  `setSubjectGroupMembers`, `setSubjectGroupLeads`.
   """
   ADMIN
 }

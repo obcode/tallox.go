@@ -759,6 +759,75 @@ type Session struct {
 	Interactive bool `json:"interactive"`
 }
 
+// A subject the faculty groups modules and people by.
+//
+// Three things hang off it and they are not the same thing:
+//
+//   - **Modules.** Exactly one group per module — "whose group fills this instance" is the sentence
+//     the whole assignment phase is made of, and it has to have one answer.
+//   - **Members.** The colleagues who work in these subjects. This is **not** a permission: it decides
+//     what the wish screen offers first and nothing else.
+//   - **Leads.** The colleagues who fill this group's instances — and, before publication, who read
+//     the wishes on them. This one *is* a grant.
+type SubjectGroup struct {
+	ID string `json:"id"`
+	// The short name the faculty says out loud: `MATHE`, `SWE`, `TI`.
+	//
+	// What belongs in a URL and in a colleague's evaluation script, like a programme's code. Up to
+	// sixteen characters, so that a group split off another can carry a distinguishable suffix
+	// (`MATHE-ML`) instead of encoding it into the name.
+	Code string `json:"code"`
+	// The name a person reads: `Mathematik (klassisch)`.
+	Name string `json:"name"`
+	// False for a group that has been retired — split into two, or wound up.
+	//
+	// There is no delete and there will not be one. A retired group still has to render in the
+	// planning it was part of, and its modules keep their assignment: reassigning 506 modules is
+	// weeks of somebody's judgement, and a delete that took it would be silent.
+	Active bool `json:"active"`
+	// The colleagues who lead this group, in the order a list reads.
+	//
+	// Empty is a real state, and the reason the faculty's "keine Fachgruppe ohne Person, die sich
+	// ihrer annimmt" is a work list here rather than a constraint: a group has to be creatable before
+	// its lead is decided, and a lead has to be revocable without destroying the group.
+	//
+	// A lead whose grant has expired is not in this list. The grant is what the scope narrows, so a
+	// scope outliving it would be a permission nobody granted.
+	Leads []*Person `json:"leads"`
+	// The colleagues who work in this group's subjects.
+	//
+	// Readable by anybody with an account, and that is a decision rather than an oversight. The
+	// kickoff asks for it — "jeder in einer Fachgruppe müsste alles lesen können" — and who teaches at
+	// this faculty is already answerable through `teachers`. What that sentence does **not** extend to
+	// is unpublished wishes: those are read by the lead alone, because the first-come-first-served
+	// race the confidentiality rule ends plays out inside a subject group, not across them.
+	//
+	// Membership grants nothing. `policy.AssignmentScope` deliberately does not read it.
+	Members []*Person `json:"members"`
+	// How many modules are assigned to this group.
+	//
+	// Safe in a way a count over wishes never is: a module assignment is catalogue data, and nobody
+	// is protected from it being known.
+	ModuleCount int `json:"moduleCount"`
+}
+
+// What assigning a batch of modules did.
+//
+// Reported as a number even when it is zero, because "nothing happened" and "it failed" are
+// indistinguishable to the person who pressed the button otherwise.
+type SubjectGroupAssignmentReport struct {
+	// The group the modules were put into, or `null` where they were taken out of every group.
+	SubjectGroup *SubjectGroup `json:"subjectGroup,omitempty"`
+	// How many module assignments were written or removed.
+	ModulesAssigned int `json:"modulesAssigned"`
+	// How many active modules still have no subject group at all.
+	//
+	// October's work list as a number: a bounded, finishable task, the same shape as "14 modules
+	// without a split". Retired modules are not counted — a module the examination office stopped
+	// publishing is not work anybody has to finish.
+	ModulesWithoutSubjectGroup int `json:"modulesWithoutSubjectGroup"`
+}
+
 // Somebody the examination office publishes, together with the account they have here.
 type TeacherAccount struct {
 	// The person as the examination office publishes them. Importing them granted nothing.

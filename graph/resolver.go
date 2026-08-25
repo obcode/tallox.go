@@ -23,6 +23,13 @@ type Resolver struct {
 	Tokens *domain.TokenService
 	// People is user administration, on the same terms as Tokens.
 	People *domain.PeopleService
+	// SubjectGroups is the faculty's own grouping of modules and people: who works on what,
+	// who leads which group, and which modules belong to it.
+	//
+	// Named for the area like the fields below it, and here the shadowing it avoids is real: a
+	// field called Groups would read as anything at all, and SubjectGroup would collide with the
+	// generated queryResolver method of that name.
+	SubjectGroups *domain.SubjectGroupService
 	// Planning is the semester workflow: which semesters exist and where each one stands.
 	//
 	// Named for the scope area rather than for the type, because `Semesters` would be shadowed

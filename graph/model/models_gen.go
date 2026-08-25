@@ -530,6 +530,14 @@ type ModuleFilter struct {
 	// finds is where the software is guessing and a person has not yet agreed. A bounded, finishable
 	// task rather than an open form.
 	WithoutComponents *bool `json:"withoutComponents,omitempty"`
+	// Keep only modules that are in no subject group yet.
+	//
+	// The other half of the same work list, and the one October starts with: an instance can be
+	// declared without a subject group, but nobody can be shown their own subjects on the wish screen
+	// until the modules are in one.
+	WithoutSubjectGroup *bool `json:"withoutSubjectGroup,omitempty"`
+	// Keep only the modules of one subject group, by id.
+	SubjectGroup *string `json:"subjectGroup,omitempty"`
 }
 
 // Everything that changes something.
@@ -826,6 +834,26 @@ type SubjectGroupAssignmentReport struct {
 	// without a split". Retired modules are not counted — a module the examination office stopped
 	// publishing is not work anybody has to finish.
 	ModulesWithoutSubjectGroup int `json:"modulesWithoutSubjectGroup"`
+}
+
+// A subject group as it is referred to from somewhere else: enough to label it and to link to it.
+//
+// Deliberately not the whole `SubjectGroup`. That one carries its leads and its members, and
+// filling those in for every row of a 506-module catalogue would be a statement per module. Having
+// a name for the reference is what stops a half-populated group being passed around as if it were a
+// whole one.
+type SubjectGroupRef struct {
+	ID string `json:"id"`
+	// The short name the faculty says out loud: `MATHE`, `SWE`, `TI`.
+	Code string `json:"code"`
+	// The name a person reads: `Mathematik (klassisch)`.
+	Name string `json:"name"`
+	// False while this group is retired.
+	//
+	// Worth carrying rather than assuming: a module can sit in a retired group for as long as a split
+	// takes, and a screen that called it active would hide exactly the rows somebody is in the middle
+	// of moving.
+	Active bool `json:"active"`
 }
 
 // Somebody the examination office publishes, together with the account they have here.

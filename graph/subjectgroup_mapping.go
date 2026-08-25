@@ -94,3 +94,18 @@ func parseIDs(raw []string) ([]uuid.UUID, error) {
 func errorsIsSubjectGroupNotFound(err error) bool {
 	return errors.Is(err, domain.ErrSubjectGroupNotFound)
 }
+
+// subjectGroupRefModel reshapes the reference a module carries. nil in, nil out: a module in no
+// subject group is the ordinary state until the faculty has worked through its catalogue, and it
+// has to render as an absence rather than as an empty group.
+func subjectGroupRefModel(ref *domain.SubjectGroupRef) *model.SubjectGroupRef {
+	if ref == nil {
+		return nil
+	}
+	return &model.SubjectGroupRef{
+		ID:     ref.ID.String(),
+		Code:   ref.Code,
+		Name:   ref.Name,
+		Active: ref.Active,
+	}
+}

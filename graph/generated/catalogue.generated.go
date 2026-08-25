@@ -248,6 +248,38 @@ func (ec *executionContext) fieldContext_Module_homeProgramme(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Module_subjectGroup(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Module_subjectGroup(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SubjectGroup, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.SubjectGroupRef) graphql.Marshaler {
+			return ec.marshalOSubjectGroupRef2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupRef(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Module_subjectGroup(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Module",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SubjectGroupRef(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Module_responsible(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1678,8 +1710,11 @@ func (ec *executionContext) unmarshalInputModuleFilter(ctx context.Context, obj 
 	if _, present := asMap["withoutComponents"]; !present {
 		asMap["withoutComponents"] = false
 	}
+	if _, present := asMap["withoutSubjectGroup"]; !present {
+		asMap["withoutSubjectGroup"] = false
+	}
 
-	fieldsInOrder := [...]string{"programme", "spo", "frequency", "duty", "search", "includeInactive", "responsible", "withoutComponents"}
+	fieldsInOrder := [...]string{"programme", "spo", "frequency", "duty", "search", "includeInactive", "responsible", "withoutComponents", "withoutSubjectGroup", "subjectGroup"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -1742,6 +1777,20 @@ func (ec *executionContext) unmarshalInputModuleFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.WithoutComponents = data
+		case "withoutSubjectGroup":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("withoutSubjectGroup"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.WithoutSubjectGroup = data
+		case "subjectGroup":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("subjectGroup"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.SubjectGroup = data
 		}
 	}
 	return it, nil
@@ -1833,6 +1882,11 @@ func (ec *executionContext) _Module(ctx context.Context, sel ast.SelectionSet, o
 		case "homeProgramme":
 			out.Values[i] = ec._Module_homeProgramme(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "subjectGroup":
+			out.Values[i] = ec._Module_subjectGroup(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "responsible":

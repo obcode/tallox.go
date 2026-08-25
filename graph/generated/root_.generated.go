@@ -198,6 +198,7 @@ type ComplexityRoot struct {
 		RetiredAt           func(childComplexity int) int
 		Source              func(childComplexity int) int
 		SplitIsEstimated    func(childComplexity int) int
+		SubjectGroup        func(childComplexity int) int
 		ZpaID               func(childComplexity int) int
 	}
 
@@ -375,6 +376,13 @@ type ComplexityRoot struct {
 		ModulesAssigned            func(childComplexity int) int
 		ModulesWithoutSubjectGroup func(childComplexity int) int
 		SubjectGroup               func(childComplexity int) int
+	}
+
+	SubjectGroupRef struct {
+		Active func(childComplexity int) int
+		Code   func(childComplexity int) int
+		ID     func(childComplexity int) int
+		Name   func(childComplexity int) int
 	}
 
 	Teacher struct {
@@ -1180,6 +1188,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.SplitIsEstimated(childComplexity), true
+	case "Module.subjectGroup":
+		if e.ComplexityRoot.Module.SubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.SubjectGroup(childComplexity), true
 	case "Module.zpaId":
 		if e.ComplexityRoot.Module.ZpaID == nil {
 			break
@@ -2248,6 +2262,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SubjectGroupAssignmentReport.SubjectGroup(childComplexity), true
+
+	case "SubjectGroupRef.active":
+		if e.ComplexityRoot.SubjectGroupRef.Active == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroupRef.Active(childComplexity), true
+	case "SubjectGroupRef.code":
+		if e.ComplexityRoot.SubjectGroupRef.Code == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroupRef.Code(childComplexity), true
+	case "SubjectGroupRef.id":
+		if e.ComplexityRoot.SubjectGroupRef.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroupRef.ID(childComplexity), true
+	case "SubjectGroupRef.name":
+		if e.ComplexityRoot.SubjectGroupRef.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroupRef.Name(childComplexity), true
 
 	case "Teacher.active":
 		if e.ComplexityRoot.Teacher.Active == nil {
@@ -3479,6 +3518,18 @@ type Module {
   "The programme that plans this module. Every module has exactly one."
   homeProgramme: Programme!
   """
+  The faculty's own grouping this module belongs to, or ` + "`" + `null` + "`" + ` while nobody has assigned one.
+
+  Exactly one, or none. "Whose subject group fills this instance" is the sentence the assignment
+  phase is made of, and it has to have one answer.
+
+  ` + "`" + `null` + "`" + ` is the ordinary state until the faculty has worked through its catalogue — see the
+  ` + "`" + `withoutSubjectGroup` + "`" + ` filter, which is that work list. A reference rather than the whole group:
+  the full ` + "`" + `SubjectGroup` + "`" + ` carries its leads and its members, and filling those in for every row of
+  a 506-module catalogue would be a statement per module.
+  """
+  subjectGroup: SubjectGroupRef
+  """
   Who the examination office names as responsible for this module, or ` + "`" + `null` + "`" + `.
 
   Null for about one module in thirty, and for two different reasons that are not
@@ -3745,6 +3796,18 @@ input ModuleFilter {
   task rather than an open form.
   """
   withoutComponents: Boolean = false
+  """
+  Keep only modules that are in no subject group yet.
+
+  The other half of the same work list, and the one October starts with: an instance can be
+  declared without a subject group, but nobody can be shown their own subjects on the wish screen
+  until the modules are in one.
+  """
+  withoutSubjectGroup: Boolean = false
+  """
+  Keep only the modules of one subject group, by id.
+  """
+  subjectGroup: ID
 }
 
 """
@@ -5146,6 +5209,30 @@ type SubjectGroup {
 }
 
 """
+A subject group as it is referred to from somewhere else: enough to label it and to link to it.
+
+Deliberately not the whole ` + "`" + `SubjectGroup` + "`" + `. That one carries its leads and its members, and
+filling those in for every row of a 506-module catalogue would be a statement per module. Having
+a name for the reference is what stops a half-populated group being passed around as if it were a
+whole one.
+"""
+type SubjectGroupRef {
+  id: ID!
+  "The short name the faculty says out loud: ` + "`" + `MATHE` + "`" + `, ` + "`" + `SWE` + "`" + `, ` + "`" + `TI` + "`" + `."
+  code: String!
+  "The name a person reads: ` + "`" + `Mathematik (klassisch)` + "`" + `."
+  name: String!
+  """
+  False while this group is retired.
+
+  Worth carrying rather than assuming: a module can sit in a retired group for as long as a split
+  takes, and a screen that called it active would hide exactly the rows somebody is in the middle
+  of moving.
+  """
+  active: Boolean!
+}
+
+"""
 What assigning a batch of modules did.
 
 Reported as a number even when it is zero, because "nothing happened" and "it failed" are
@@ -6098,6 +6185,8 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_name(ctx, field)
 	case "homeProgramme":
 		return ec.fieldContext_Module_homeProgramme(ctx, field)
+	case "subjectGroup":
+		return ec.fieldContext_Module_subjectGroup(ctx, field)
 	case "responsible":
 		return ec.fieldContext_Module_responsible(ctx, field)
 	case "courseType":
@@ -6350,6 +6439,20 @@ func (ec *executionContext) childFields_SubjectGroupAssignmentReport(ctx context
 		return ec.fieldContext_SubjectGroupAssignmentReport_modulesWithoutSubjectGroup(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type SubjectGroupAssignmentReport", field.Name)
+}
+
+func (ec *executionContext) childFields_SubjectGroupRef(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_SubjectGroupRef_id(ctx, field)
+	case "code":
+		return ec.fieldContext_SubjectGroupRef_code(ctx, field)
+	case "name":
+		return ec.fieldContext_SubjectGroupRef_name(ctx, field)
+	case "active":
+		return ec.fieldContext_SubjectGroupRef_active(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type SubjectGroupRef", field.Name)
 }
 
 func (ec *executionContext) childFields_Teacher(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

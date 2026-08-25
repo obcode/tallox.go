@@ -74,6 +74,30 @@ type SubjectGroup {
 }
 
 """
+A subject group as it is referred to from somewhere else: enough to label it and to link to it.
+
+Deliberately not the whole `SubjectGroup`. That one carries its leads and its members, and
+filling those in for every row of a 506-module catalogue would be a statement per module. Having
+a name for the reference is what stops a half-populated group being passed around as if it were a
+whole one.
+"""
+type SubjectGroupRef {
+  id: ID!
+  "The short name the faculty says out loud: `MATHE`, `SWE`, `TI`."
+  code: String!
+  "The name a person reads: `Mathematik (klassisch)`."
+  name: String!
+  """
+  False while this group is retired.
+
+  Worth carrying rather than assuming: a module can sit in a retired group for as long as a split
+  takes, and a screen that called it active would hide exactly the rows somebody is in the middle
+  of moving.
+  """
+  active: Boolean!
+}
+
+"""
 What assigning a batch of modules did.
 
 Reported as a number even when it is zero, because "nothing happened" and "it failed" are

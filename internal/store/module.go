@@ -182,8 +182,9 @@ func (m *Modules) Modules(ctx context.Context, filter domain.ModuleFilter) ([]do
 	q := New(m.pool)
 
 	params := ListModulesParams{
-		IncludeInactive:   filter.IncludeInactive,
-		WithoutComponents: filter.WithoutComponents,
+		IncludeInactive:     filter.IncludeInactive,
+		WithoutComponents:   filter.WithoutComponents,
+		WithoutSubjectGroup: filter.WithoutSubjectGroup,
 		// An empty frequency list means "every frequency", carried as its own flag rather than
 		// as an empty array: `= ANY('{}')` is false for every row, so the natural reading of an
 		// empty filter would return nothing at all.
@@ -208,6 +209,9 @@ func (m *Modules) Modules(ctx context.Context, filter domain.ModuleFilter) ([]do
 	}
 	if filter.Responsible != uuid.Nil {
 		params.Responsible = uuid.NullUUID{UUID: filter.Responsible, Valid: true}
+	}
+	if filter.SubjectGroup != uuid.Nil {
+		params.SubjectGroup = uuid.NullUUID{UUID: filter.SubjectGroup, Valid: true}
 	}
 
 	rows, err := q.ListModules(ctx, params)
@@ -423,6 +427,17 @@ func moduleFrom(row ListModulesRow) domain.Module {
 		ZpaID:               row.ZpaModuleRef,
 		Source:              domain.ModuleSource(row.Source),
 		Kind:                domain.ModuleKind(row.Kind),
+	}
+	if row.SubjectGroupID.Valid {
+		module.SubjectGroup = &domain.SubjectGroupRef{
+			ID:   row.SubjectGroupID.UUID,
+			Code: stringOrEmpty(row.SubjectGroupCode),
+			Name: stringOrEmpty(row.SubjectGroupName),
+			// Read rather than assumed: a module can sit in a retired group for as long as a split
+			// takes, and a screen that called it active would hide exactly the rows somebody is in
+			// the middle of moving.
+			Active: row.SubjectGroupActive != nil && *row.SubjectGroupActive,
+		}
 	}
 	if row.ResponsibleTeacherID.Valid {
 		// Only the id here; attach() fills in the rest in one statement for the whole list.

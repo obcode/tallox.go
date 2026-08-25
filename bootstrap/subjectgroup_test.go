@@ -44,6 +44,13 @@ func subjectGroupHandler(t *testing.T, people ...grants) subjectGroupFixture {
 		})
 	}
 
+	// The catalogue is projected here because half of what a subject group is for is the modules
+	// in it: the work list, the counts, and the filter a screen opens to shrink it.
+	storetest.SeedZPACatalogue(t, s)
+	if _, err := store.NewCatalogue(s.Pool).Project(t.Context(), nil); err != nil {
+		t.Fatalf("cannot project the catalogue: %v", err)
+	}
+
 	modules := store.NewModules(s.Pool)
 	return subjectGroupFixture{
 		schema: s,
@@ -375,5 +382,153 @@ func TestAnUnknownSubjectGroupIsNull(t *testing.T) {
 
 	if out.SubjectGroup != nil {
 		t.Errorf("an unknown subject group answered %+v", out.SubjectGroup)
+	}
+}
+
+// The work list, from both ends: the number shrinks as modules are assigned, and the filter finds
+// exactly the ones that are left. This is the shape "14 modules without a split" already has, and
+// the reason it is a shape rather than an open form.
+func TestModulesWithoutASubjectGroupAreTheWorkList(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t, grants{testdata.Sechs, []string{"ADMIN"}})
+	group := f.create(t, "MATHE", "Mathematik")
+
+	c := graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail)
+
+	var before struct {
+		ModulesWithoutSubjectGroup int
+		Modules                    []struct{ ID string }
+	}
+	c.MustQuery(t, `query {
+		modulesWithoutSubjectGroup
+		modules(filter: { withoutSubjectGroup: true }) { id }
+	}`, nil, &before)
+
+	if before.ModulesWithoutSubjectGroup == 0 {
+		t.Fatal("no modules are waiting for a subject group, so this test proves nothing")
+	}
+	if len(before.Modules) != before.ModulesWithoutSubjectGroup {
+		t.Errorf("the filter finds %d modules and the count says %d. One of them is not applying "+
+			"the same rule, and the number on the screen is the one somebody trusts.",
+			len(before.Modules), before.ModulesWithoutSubjectGroup)
+	}
+
+	var report struct {
+		SetModulesSubjectGroup struct {
+			ModulesAssigned            int
+			ModulesWithoutSubjectGroup int
+			SubjectGroup               struct {
+				Code        string
+				ModuleCount int
+			}
+		}
+	}
+	c.MustQuery(t, `mutation($m: [ID!]!, $g: ID) {
+		setModulesSubjectGroup(moduleIds: $m, subjectGroup: $g) {
+			modulesAssigned modulesWithoutSubjectGroup
+			subjectGroup { code moduleCount }
+		}
+	}`, map[string]any{
+		"m": []string{before.Modules[0].ID, before.Modules[1].ID},
+		"g": group,
+	}, &report)
+
+	got := report.SetModulesSubjectGroup
+	if got.ModulesAssigned != 2 {
+		t.Errorf("assigned %d modules, want 2", got.ModulesAssigned)
+	}
+	if got.ModulesWithoutSubjectGroup != before.ModulesWithoutSubjectGroup-2 {
+		t.Errorf("the work list went from %d to %d, want %d",
+			before.ModulesWithoutSubjectGroup, got.ModulesWithoutSubjectGroup,
+			before.ModulesWithoutSubjectGroup-2)
+	}
+	if got.SubjectGroup.ModuleCount != 2 {
+		t.Errorf("the group counts %d modules, want 2", got.SubjectGroup.ModuleCount)
+	}
+}
+
+// A module carries its group as a reference, and moving it is one statement — so there is no
+// moment in which it belongs to nothing.
+func TestAModuleCarriesItsSubjectGroupAndCanBeMoved(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t, grants{testdata.Sechs, []string{"ADMIN"}})
+	maths := f.create(t, "MATHE", "Mathematik")
+	ml := f.create(t, "MATHE-ML", "Mathematik (Machine Learning)")
+
+	c := graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail)
+
+	var waiting struct {
+		Modules []struct{ ID string }
+	}
+	c.MustQuery(t, `query { modules(filter: { withoutSubjectGroup: true }) { id } }`, nil, &waiting)
+	if len(waiting.Modules) == 0 {
+		t.Fatal("no module is waiting for a subject group")
+	}
+	module := waiting.Modules[0].ID
+
+	assign := func(t *testing.T, group string) {
+		t.Helper()
+		var out struct {
+			SetModulesSubjectGroup struct{ ModulesAssigned int }
+		}
+		c.MustQuery(t, `mutation($m: [ID!]!, $g: ID) {
+			setModulesSubjectGroup(moduleIds: $m, subjectGroup: $g) { modulesAssigned }
+		}`, map[string]any{"m": []string{module}, "g": group}, &out)
+	}
+
+	read := func(t *testing.T) *struct {
+		Code   string
+		Name   string
+		Active bool
+	} {
+		t.Helper()
+		var out struct {
+			Module *struct {
+				SubjectGroup *struct {
+					Code   string
+					Name   string
+					Active bool
+				}
+			}
+		}
+		c.MustQuery(t, `query($m: ID!) { module(id: $m) { subjectGroup { code name active } } }`,
+			map[string]any{"m": module}, &out)
+		if out.Module == nil {
+			t.Fatal("the module disappeared")
+		}
+		return out.Module.SubjectGroup
+	}
+
+	if read(t) != nil {
+		t.Fatal("an unassigned module already carries a subject group")
+	}
+
+	assign(t, maths)
+	if got := read(t); got == nil || got.Code != "MATHE" || !got.Active {
+		t.Fatalf("got %+v, want an active MATHE", got)
+	}
+
+	// Splitting the group: the module moves, and the assignment is never absent in between.
+	assign(t, ml)
+	if got := read(t); got == nil || got.Code != "MATHE-ML" {
+		t.Fatalf("got %+v after the move, want MATHE-ML", got)
+	}
+
+	// And taking it out of every group is the same screen's other button.
+	var cleared struct {
+		SetModulesSubjectGroup struct{ ModulesAssigned int }
+	}
+	c.MustQuery(t, `mutation($m: [ID!]!) {
+		setModulesSubjectGroup(moduleIds: $m, subjectGroup: null) { modulesAssigned }
+	}`, map[string]any{"m": []string{module}}, &cleared)
+
+	if cleared.SetModulesSubjectGroup.ModulesAssigned != 1 {
+		t.Errorf("clearing removed %d assignments, want 1",
+			cleared.SetModulesSubjectGroup.ModulesAssigned)
+	}
+	if read(t) != nil {
+		t.Error("the module still carries a subject group after being taken out of every group")
 	}
 }

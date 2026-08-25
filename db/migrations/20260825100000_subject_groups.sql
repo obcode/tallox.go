@@ -194,8 +194,39 @@ CREATE INDEX person_subject_group_scope_group_idx ON person_subject_group_scope 
 -- people's unpublished ones. What such a person meets instead is a refusal that names its own
 -- repair.
 
+-- Both scoped grants, as one relation
+-- ----------------------------------
+--
+-- Every request through either door reads the caller's scopes, and until now that meant one
+-- correlated subquery over person_programme_scope, repeated in three places, each carrying its
+-- own copy of the expiry filter. A second scoped role would have made that six copies of a rule
+-- whose whole job is to be applied everywhere.
+--
+-- So the union and the expiry rule live here, once. A grant that has run out carries no scopes:
+-- the composite foreign key on person_role covers a grant that was *revoked*, and this covers
+-- one that merely expired. The two are different events and both have to end the scope.
+--
+-- The nullable columns are what a union of two differently-shaped scopes looks like, and the
+-- queries above this read them into principal.RoleScope's two named targets, coalescing NULL to
+-- the nil uuid — which that type already reads as "this scope names no thing of that kind".
+--
+-- A view rather than a table for the reason migration 6 gives: CREATE OR REPLACE costs nothing,
+-- sqlc reads views out of these migrations exactly like tables, and there is no data to keep in
+-- step. It carries no constraints, so nothing about the foreign-key rules changes.
+CREATE VIEW person_role_scope AS
+SELECT s.person_id, s.role, s.programme_id, NULL::uuid AS subject_group_id
+FROM person_programme_scope s
+JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+WHERE r.expires_at IS NULL OR r.expires_at > now()
+UNION ALL
+SELECT g.person_id, g.role, NULL::uuid AS programme_id, g.subject_group_id
+FROM person_subject_group_scope g
+JOIN person_role r ON r.person_id = g.person_id AND r.role = g.role
+WHERE r.expires_at IS NULL OR r.expires_at > now();
+
 -- +goose Down
 
+DROP VIEW person_role_scope;
 DROP TABLE person_subject_group_scope;
 DROP TABLE person_subject_group;
 DROP TABLE module_subject_group;

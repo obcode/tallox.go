@@ -99,6 +99,13 @@ type ModuleOffering struct {
 	UpdatedAt            time.Time
 }
 
+type ModuleSubjectGroup struct {
+	ModuleID       uuid.UUID
+	SubjectGroupID uuid.UUID
+	AssignedAt     time.Time
+	AssignedBy     uuid.NullUUID
+}
+
 type Person struct {
 	ID        uuid.UUID
 	Mail      string
@@ -123,6 +130,28 @@ type PersonRole struct {
 	GrantedBy uuid.NullUUID
 	// When this grant stops taking effect. NULL means it does not expire. An expired row is kept rather than deleted: it is the record that the grant was held, which is exactly what the audit question "who could see this in October" needs.
 	ExpiresAt pgtype.Timestamptz
+}
+
+type PersonRoleScope struct {
+	PersonID       uuid.UUID
+	Role           string
+	ProgrammeID    uuid.UUID
+	SubjectGroupID uuid.NullUUID
+}
+
+type PersonSubjectGroup struct {
+	PersonID       uuid.UUID
+	SubjectGroupID uuid.UUID
+	JoinedAt       time.Time
+	GrantedBy      uuid.NullUUID
+}
+
+type PersonSubjectGroupScope struct {
+	PersonID       uuid.UUID
+	Role           string
+	SubjectGroupID uuid.UUID
+	GrantedAt      time.Time
+	GrantedBy      uuid.NullUUID
 }
 
 type PersonalAccessToken struct {
@@ -171,6 +200,15 @@ type Spo struct {
 	ZpaSpoRef   *int64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+}
+
+type SubjectGroup struct {
+	ID        uuid.UUID
+	Code      string
+	Name      string
+	Active    bool
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 type Teacher struct {

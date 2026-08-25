@@ -120,8 +120,9 @@ func roleScopesFrom(raw []byte) ([]principal.RoleScope, error) {
 	}
 
 	var encoded []struct {
-		Role      string    `json:"role"`
-		Programme uuid.UUID `json:"programme"`
+		Role         string    `json:"role"`
+		Programme    uuid.UUID `json:"programme"`
+		SubjectGroup uuid.UUID `json:"subjectGroup"`
 	}
 	if err := json.Unmarshal(raw, &encoded); err != nil {
 		return nil, err
@@ -132,7 +133,20 @@ func roleScopesFrom(raw []byte) ([]principal.RoleScope, error) {
 
 	scopes := make([]principal.RoleScope, 0, len(encoded))
 	for _, e := range encoded {
-		scopes = append(scopes, principal.RoleScope{Role: e.Role, ProgrammeID: e.Programme})
+		scope := principal.RoleScope{
+			Role:           e.Role,
+			ProgrammeID:    e.Programme,
+			SubjectGroupID: e.SubjectGroup,
+		}
+		// A scope naming nothing is dropped rather than carried. It cannot arise from the view,
+		// which selects one of the two columns per branch — so if one appears, the query and
+		// this decoder have drifted, and the safe reading of a grant whose subject could not be
+		// read is that it grants no subject. Carrying it would hand every rule a zero uuid to
+		// compare against.
+		if scope.NamesNothing() {
+			continue
+		}
+		scopes = append(scopes, scope)
 	}
 	return scopes, nil
 }

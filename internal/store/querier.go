@@ -473,14 +473,20 @@ type Querier interface {
 	// case-insensitive without a lower() that would defeat the unique index.
 	//
 	// role_scopes carries the grants that name a thing as well as an action — leading *one* study
-	// programme rather than leading in general. A correlated subquery rather than a second LEFT
-	// JOIN, because joining two one-to-many tables in one SELECT multiplies their rows and the
-	// roles array would repeat every role once per scope.
+	// programme, or *one* subject group, rather than leading in general. A correlated subquery
+	// rather than a second LEFT JOIN, because joining two one-to-many tables in one SELECT
+	// multiplies their rows and the roles array would repeat every role once per scope.
 	//
-	// It applies the same expiry filter as the roles above, for the same reason: a grant the
-	// database considers over must not still take effect, and a scope belonging to an expired grant
-	// is exactly that. The composite foreign key means a scope cannot outlive a *revoked* grant;
-	// this covers the one that merely ran out.
+	// It reads person_role_scope, the view that unions the two scope tables and applies the expiry
+	// filter. That filter is the same rule as the one on the roles above and for the same reason —
+	// a grant the database considers over must not still take effect — and it lives in the view
+	// because this subquery appears three times in this file and once in token.sql. The composite
+	// foreign keys mean a scope cannot outlive a *revoked* grant; the view covers the one that
+	// merely ran out.
+	//
+	// The nil uuid stands for "this scope names no thing of that kind", which is exactly how
+	// principal.RoleScope reads it. Coalescing here rather than emitting JSON null keeps the
+	// decoding free of a subtlety about how null unmarshals into a non-pointer.
 	PersonByMail(ctx context.Context, mail string) (PersonByMailRow, error)
 	// The semester the faculty is planning, or no row while nobody has said.
 	//

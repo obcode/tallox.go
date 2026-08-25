@@ -216,12 +216,13 @@ SELECT
         ARRAY[]::text[]
     )::text[] AS roles,
     COALESCE((
-        SELECT jsonb_agg(jsonb_build_object('role', s.role, 'programme', s.programme_id)
-                         ORDER BY s.role, s.programme_id)
-        FROM person_programme_scope s
-        JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+        SELECT jsonb_agg(jsonb_build_object(
+                   'role', s.role,
+                   'programme', COALESCE(s.programme_id, '00000000-0000-0000-0000-000000000000'::uuid),
+                   'subjectGroup', COALESCE(s.subject_group_id, '00000000-0000-0000-0000-000000000000'::uuid))
+                         ORDER BY s.role, s.programme_id, s.subject_group_id)
+        FROM person_role_scope s
         WHERE s.person_id = t.owner_id
-          AND (r.expires_at IS NULL OR r.expires_at > now())
     ), '[]'::jsonb)::jsonb AS role_scopes
 FROM personal_access_token t
 JOIN person p ON p.id = t.owner_id

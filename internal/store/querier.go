@@ -232,6 +232,14 @@ type Querier interface {
 	// cohort has one lecture, and after the merge the faculty holds one lecture for both. A sibling
 	// part that something already hangs off refuses to go, and the merge fails as a whole.
 	DeleteInstancePartsOfKind(ctx context.Context, arg DeleteInstancePartsOfKindParams) (int64, error)
+	// Withdraw one's own wish.
+	//
+	// Ownership is in the WHERE clause rather than in a read-then-write in Go, which collapses three
+	// things into one, exactly as RevokeTokenOfOwner does: the check cannot race with a concurrent
+	// change, "no such wish" and "not your wish" become the same empty result — the difference is
+	// not information the caller is entitled to — and there is no window in which an id has been
+	// confirmed to exist before the write is refused.
+	DeleteOwnWish(ctx context.Context, arg DeleteOwnWishParams) (int64, error)
 	// Offerings the source no longer supports.
 	//
 	// The only catalogue table anything is deleted from, and it is safe for one reason that is
@@ -696,6 +704,12 @@ type Querier interface {
 	// as an interface, and MIN over no rows is NULL, which is exactly the case this seeds for.
 	SeedProgrammeSemester(ctx context.Context, arg SeedProgrammeSemesterParams) (int32, error)
 	SemesterByCode(ctx context.Context, code string) (Semester, error)
+	// Which semester a part belongs to, and whether its instance is still there.
+	//
+	// Needed before a write: the phase that decides whether wishes may be entered is the *semester's*
+	// phase, and the part is all the caller names. One statement rather than three round trips
+	// through the instance.
+	SemesterOfInstancePart(ctx context.Context, id uuid.UUID) (SemesterOfInstancePartRow, error)
 	// The recorded ones — the semesters somebody has decided something about. The ones nobody has
 	// touched are not here to be listed, and the domain adds them from the calendar.
 	//
@@ -830,6 +844,15 @@ type Querier interface {
 	// WHERE clause names the source, so this can never touch an imported row — a mistyped id then
 	// changes nothing rather than editing the catalogue.
 	UpdateLocalModule(ctx context.Context, arg UpdateLocalModuleParams) (UpdateLocalModuleRow, error)
+	// Register interest, or change your mind about something you already registered.
+	//
+	// An upsert rather than an insert that can fail: registering twice for the same part is not a
+	// second wish and not an error, it is a correction. The unique constraint still exists — it is
+	// what makes this one row per person per part — but the ordinary path never trips it.
+	//
+	// Only ever the caller's own row. person_id comes from the actor and never from the request; see
+	// the header of migration 15.
+	UpsertWish(ctx context.Context, arg UpsertWishParams) (Wish, error)
 	// The cache of the examination office's module master data, its runs and its changes.
 	//
 	// The theme of this file is that a sync never deletes and never overwrites blindly. Every
@@ -848,6 +871,47 @@ type Querier interface {
 	// key order arrived. A sync that changes nothing leaves every timestamp but last_seen_at
 	// alone, which is what makes "what actually moved, and when" answerable months later.
 	UpsertZPAObject(ctx context.Context, arg UpsertZPAObjectParams) (UpsertZPAObjectRow, error)
+	// One wish, through the same filter. A detail view that skipped it would be the hole the list
+	// does not have — and the realistic shape of that mistake is somebody adding a by-id lookup
+	// because "it is only one row".
+	WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow, error)
+	// Wishes: one person's interest in one instance part.
+	//
+	// THE RULE THIS FILE IS MADE OF
+	//
+	// Every SELECT here carries the same four filter parameters, and they are not optional. The
+	// visibility rule is a WHERE clause — internal/policy has it in two forms precisely so that this
+	// one can run in the database — and a query written without it is not a slow query, it is a leak.
+	//
+	//     @scope = 'all'            no restriction
+	//     @scope = 'own'            the caller's own entries
+	//     @scope = 'own_or_scoped'  their own, plus the programmes and subject groups they lead
+	//     anything else             nothing at all
+	//
+	// The last line is the important one: an unrecognised scope string matches no branch and
+	// therefore no row, which is the same fail-closed reading WishFilter.Matches takes in its
+	// default arm.
+	//
+	// WHAT IS NOT IN THIS FILE
+	//
+	// **There is no COUNT.** Not an oversight and not a gap to be filled: "3 Kolleg:innen haben
+	// bereits Interesse" is the confidential fact with the names taken out, and an aggregate that
+	// skipped the filter would be the same failure as a list that skipped it, only harder to notice.
+	// Anybody who wants a number counts the rows they were allowed to see. There is nothing here that
+	// could answer differently.
+	//
+	// store.TestEveryWishQueryIsFiltered reads this file and requires the predicate in every SELECT,
+	// so a new query cannot quietly be written without it.
+	// The wishes of one semester, filtered, with everything a screen needs to render a row.
+	//
+	// One query for the wish screen and for the planning screens both, because they differ only in
+	// what the filter lets through — which is the property the whole design rests on. A second query
+	// "for planners" would be a second place for the rule to be forgotten.
+	//
+	// The joins carry the two things the rule is scoped by. module_subject_group is a LEFT JOIN and
+	// has to be: a module nobody has sorted into a subject group yet is the ordinary state until the
+	// faculty has worked through its catalogue, and its wishes still belong to somebody.
+	WishesInSemester(ctx context.Context, arg WishesInSemesterParams) ([]WishesInSemesterRow, error)
 	ZPAChangesByRun(ctx context.Context, runID uuid.UUID) ([]ZPAChangesByRunRow, error)
 	ZPAObjectPayload(ctx context.Context, arg ZPAObjectPayloadParams) (ZPAObjectPayloadRow, error)
 	// What is currently held for one kind: enough to decide the diff without reading the payloads.

@@ -229,6 +229,16 @@ type Teacher struct {
 	UpdatedAt            time.Time
 }
 
+type Wish struct {
+	ID             uuid.UUID
+	InstancePartID uuid.UUID
+	PersonID       uuid.UUID
+	Priority       int16
+	Note           string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type ZpaBasketV struct {
 	BasketID      int64
 	Name          string

@@ -170,14 +170,6 @@ func MayWriteDemand(a principal.Actor, programmeID uuid.UUID, phase Phase) bool 
 // saying "0 rows". That day is here: the wish row has three closed cells.
 const PhaseClosedReason = "In dieser Phase kann der Bedarf nicht mehr geändert werden."
 
-// WishPhaseClosedReason is the same refusal for the wish area, in its own words.
-//
-// Its own sentence rather than a shared one, because the repair differs and the audience differs:
-// somebody told "the demand can no longer be changed" while trying to register interest goes
-// looking for a demand screen. What this says is when the window is.
-const WishPhaseClosedReason = "Wünsche können nur in der Wunschphase eingetragen " +
-	"und geändert werden."
-
 // DemandRefusal picks the sentence for a refused write, out of the three that can be true.
 //
 // Three, because the repair differs each time: an unassigned programme lead needs an

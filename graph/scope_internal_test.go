@@ -204,7 +204,7 @@ func TestRequiredScopesFailsClosed(t *testing.T) {
 						Directives: ast.DirectiveList{{
 							Name: scopeDirectiveName,
 							Arguments: ast.ArgumentList{
-								{Name: "area", Value: &ast.Value{Raw: "WISHES"}},
+								{Name: "area", Value: &ast.Value{Raw: "ASSIGNMENTS"}},
 								{Name: "verb", Value: &ast.Value{Raw: "READ"}},
 							},
 						}},

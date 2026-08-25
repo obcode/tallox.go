@@ -115,7 +115,7 @@ func TestProxyDoorResolvesTheHeaderAgainstTheDatabase(t *testing.T) {
 	if got.TokenID != "" {
 		t.Errorf("a browser session carries token id %q", got.TokenID)
 	}
-	if !policy.RolesOf(got).Plans() {
+	if !policy.RolesOf(got).Has(policy.RoleProgrammeLead) {
 		t.Errorf("roles %v did not survive the lookup", got.Roles)
 	}
 }
@@ -285,7 +285,7 @@ func TestTokenDoorAuthenticatesItsOwner(t *testing.T) {
 	if len(got.Scopes) != 1 || got.Scopes[0] != "wishes:read" {
 		t.Errorf("scopes are %v", got.Scopes)
 	}
-	if !policy.RolesOf(got).Plans() {
+	if !policy.RolesOf(got).Has(policy.RoleProgrammeLead) {
 		t.Errorf("the owner's roles did not reach the actor: %v", got.Roles)
 	}
 

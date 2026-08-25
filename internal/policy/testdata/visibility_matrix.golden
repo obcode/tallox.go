@@ -13,133 +13,215 @@ A wish is visible if and only if
   · it belongs to the person asking, or
   · the wishes of that semester have been published
     (semester.wishes_published_at IS NOT NULL), or
-  · that person plans (subject group lead or programme lead) or belongs to the dean's office
+  · the person is responsible for it — they lead the study programme whose demand the instance
+    is, or the subject group the instance's module belongs to, or they are the dean's office
     — and then only in an interactive session, never through a Personal Access Token.
 
 The purpose is to end the first-come-first-served race: a new colleague should be able to
 register interest without it looking like an attack on somebody who has taught the subject
 for years.
 
+Responsible for what, exactly
+-----------------------------
+
+Two reaches, and they are orthogonal — neither implies the other:
+
+  Study programme   The programme whose demand the instance is. **The programme of the
+                    instance, never of the person.** Somebody at home in IF who registers
+                    interest in an IG instance is visible to the IG lead and not to the IF one:
+                    what is being planned is the instance.
+  Subject group     The subject group of the module the instance offers. Derived through the
+                    module, so it holds across semesters — and a module nobody has sorted into
+                    a group yet reaches no subject group lead at all, which is the ordinary
+                    state until the faculty has worked through its catalogue.
+
+A subject group reaches across study programmes and a study programme across subject groups,
+so somebody sees a row through one axis or through neither.
+
+The one that surprises people
+-----------------------------
+
+**A lead who has not been assigned a subject reads only their own entries.** Not everything.
+
+The same reading the planning and assignment matrices take, and the one that is wrong
+everywhere else in this system: an empty token scope list and an empty role selection both mean
+"unrestricted", because both are mechanisms that can only ever remove. A programme or a subject
+group is not a narrowing of the grant; it is what the grant is about. The role that means all of
+them is the dean's office.
+
 The columns
 -----------
 
-  own / other   Does this person see their own wish / somebody else's?
-  Filter        The same rule as a query restriction. **Counts run through exactly this
-                filter** — otherwise "three colleagues have already registered interest"
-                gives the confidential answer away in full, without naming anybody.
+  Responsible for   What this person has been assigned. Programme 1 and group 1 below.
+  own               Their own entry — always visible, through either door.
+  prog. 1           A colleague's entry on an instance of programme 1, whose module is in
+                    group 2.
+  group 1           A colleague's entry on an instance of programme 2, whose module is in
+                    group 1. The column that shows the two reaches are separate.
+  neither           A colleague's entry on programme 2, in group 2.
+  Filter            The same rule as a query restriction. **Counts run through exactly this
+                    filter** — otherwise "three colleagues have already registered interest"
+                    gives the confidential answer away in full, without naming anybody.
 
 Notes
 -----
 
   · The phase appears in every row and never changes the answer. Publication is a timestamp
     of its own, not a consequence of the phase: the wish phase can end without publishing,
-    and publication can happen while the assignment is already running.
+    and publication can happen while the assignment is already running. What the phase *does*
+    decide is whether a wish may be written — see write_matrix.golden.
   · Combinations of roles are not listed. Somebody holding several sees the union — checked
     over the complete cartesian product in TestGuardAndFilterAgree.
   · ADMIN is deliberately not a wish reader. Running the system is a different job from
     planning with it; an administrator who genuinely needs to look is granted DEANS_OFFICE,
     visibly.
-  · Through a Personal Access Token, even a planner sees only their own wishes until
-    publication. A long-lived token in a script makes silent bulk export possible and
-    decouples "who saw this" from any login event.
+  · Through a Personal Access Token, even a lead sees only their own wishes until publication.
+    A long-lived token in a script makes silent bulk export possible and decouples "who saw
+    this" from any login event.
+  · **Being in a subject group is not leading it.** Membership decides what the wish screen
+    offers first and grants nothing here. The kickoff sentence "jeder in einer Fachgruppe
+    müsste alles lesen können" is about planning data: if it covered wishes, the rule would
+    switch itself off precisely inside the subject group, which is where the
+    first-come-first-served race actually happens.
 
-Role                Door         Phase            Wishes       own   other  Filter
-----------------------------------------------------------------------------------
-(not signed in)     —            DEMAND_PLANNING  unpublished  no    no     no access
-(not signed in)     —            WISHES           unpublished  no    no     no access
-(not signed in)     —            ASSIGNMENT       unpublished  no    no     no access
-(not signed in)     —            FINAL            unpublished  no    no     no access
-(not signed in)     —            DEMAND_PLANNING  published    no    no     no access
-(not signed in)     —            WISHES           published    no    no     no access
-(not signed in)     —            ASSIGNMENT       published    no    no     no access
-(not signed in)     —            FINAL            published    no    no     no access
+Role                Door         Responsible for  Phase            Wishes       own   prog. 1  group 1  neither  Filter
+-----------------------------------------------------------------------------------------------------------------------
+(not signed in)     —            —                DEMAND_PLANNING  unpublished  no    no       no       no       no access
+(not signed in)     —            —                WISHES           unpublished  no    no       no       no       no access
+(not signed in)     —            —                ASSIGNMENT       unpublished  no    no       no       no       no access
+(not signed in)     —            —                FINAL            unpublished  no    no       no       no       no access
+(not signed in)     —            —                DEMAND_PLANNING  published    no    no       no       no       no access
+(not signed in)     —            —                WISHES           published    no    no       no       no       no access
+(not signed in)     —            —                ASSIGNMENT       published    no    no       no       no       no access
+(not signed in)     —            —                FINAL            published    no    no       no       no       no access
 
-LECTURER            interactive  DEMAND_PLANNING  unpublished  yes   no     own only
-LECTURER            interactive  WISHES           unpublished  yes   no     own only
-LECTURER            interactive  ASSIGNMENT       unpublished  yes   no     own only
-LECTURER            interactive  FINAL            unpublished  yes   no     own only
-LECTURER            interactive  DEMAND_PLANNING  published    yes   yes    all
-LECTURER            interactive  WISHES           published    yes   yes    all
-LECTURER            interactive  ASSIGNMENT       published    yes   yes    all
-LECTURER            interactive  FINAL            published    yes   yes    all
 
-LECTURER            token        DEMAND_PLANNING  unpublished  yes   no     own only
-LECTURER            token        WISHES           unpublished  yes   no     own only
-LECTURER            token        ASSIGNMENT       unpublished  yes   no     own only
-LECTURER            token        FINAL            unpublished  yes   no     own only
-LECTURER            token        DEMAND_PLANNING  published    yes   yes    all
-LECTURER            token        WISHES           published    yes   yes    all
-LECTURER            token        ASSIGNMENT       published    yes   yes    all
-LECTURER            token        FINAL            published    yes   yes    all
+LECTURER            interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+LECTURER            interactive  —                WISHES           unpublished  yes   no       no       no       own only
+LECTURER            interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+LECTURER            interactive  —                FINAL            unpublished  yes   no       no       no       own only
+LECTURER            interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+LECTURER            interactive  —                WISHES           published    yes   yes      yes      yes      all
+LECTURER            interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
+LECTURER            interactive  —                FINAL            published    yes   yes      yes      yes      all
 
-SUBJECT_GROUP_LEAD  interactive  DEMAND_PLANNING  unpublished  yes   yes    all
-SUBJECT_GROUP_LEAD  interactive  WISHES           unpublished  yes   yes    all
-SUBJECT_GROUP_LEAD  interactive  ASSIGNMENT       unpublished  yes   yes    all
-SUBJECT_GROUP_LEAD  interactive  FINAL            unpublished  yes   yes    all
-SUBJECT_GROUP_LEAD  interactive  DEMAND_PLANNING  published    yes   yes    all
-SUBJECT_GROUP_LEAD  interactive  WISHES           published    yes   yes    all
-SUBJECT_GROUP_LEAD  interactive  ASSIGNMENT       published    yes   yes    all
-SUBJECT_GROUP_LEAD  interactive  FINAL            published    yes   yes    all
+LECTURER            token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+LECTURER            token        —                WISHES           unpublished  yes   no       no       no       own only
+LECTURER            token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+LECTURER            token        —                FINAL            unpublished  yes   no       no       no       own only
+LECTURER            token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+LECTURER            token        —                WISHES           published    yes   yes      yes      yes      all
+LECTURER            token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
+LECTURER            token        —                FINAL            published    yes   yes      yes      yes      all
 
-SUBJECT_GROUP_LEAD  token        DEMAND_PLANNING  unpublished  yes   no     own only
-SUBJECT_GROUP_LEAD  token        WISHES           unpublished  yes   no     own only
-SUBJECT_GROUP_LEAD  token        ASSIGNMENT       unpublished  yes   no     own only
-SUBJECT_GROUP_LEAD  token        FINAL            unpublished  yes   no     own only
-SUBJECT_GROUP_LEAD  token        DEMAND_PLANNING  published    yes   yes    all
-SUBJECT_GROUP_LEAD  token        WISHES           published    yes   yes    all
-SUBJECT_GROUP_LEAD  token        ASSIGNMENT       published    yes   yes    all
-SUBJECT_GROUP_LEAD  token        FINAL            published    yes   yes    all
 
-PROGRAMME_LEAD      interactive  DEMAND_PLANNING  unpublished  yes   yes    all
-PROGRAMME_LEAD      interactive  WISHES           unpublished  yes   yes    all
-PROGRAMME_LEAD      interactive  ASSIGNMENT       unpublished  yes   yes    all
-PROGRAMME_LEAD      interactive  FINAL            unpublished  yes   yes    all
-PROGRAMME_LEAD      interactive  DEMAND_PLANNING  published    yes   yes    all
-PROGRAMME_LEAD      interactive  WISHES           published    yes   yes    all
-PROGRAMME_LEAD      interactive  ASSIGNMENT       published    yes   yes    all
-PROGRAMME_LEAD      interactive  FINAL            published    yes   yes    all
+SUBJECT_GROUP_LEAD  interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  interactive  —                WISHES           unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  interactive  —                FINAL            unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  interactive  —                WISHES           published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  interactive  —                FINAL            published    yes   yes      yes      yes      all
 
-PROGRAMME_LEAD      token        DEMAND_PLANNING  unpublished  yes   no     own only
-PROGRAMME_LEAD      token        WISHES           unpublished  yes   no     own only
-PROGRAMME_LEAD      token        ASSIGNMENT       unpublished  yes   no     own only
-PROGRAMME_LEAD      token        FINAL            unpublished  yes   no     own only
-PROGRAMME_LEAD      token        DEMAND_PLANNING  published    yes   yes    all
-PROGRAMME_LEAD      token        WISHES           published    yes   yes    all
-PROGRAMME_LEAD      token        ASSIGNMENT       published    yes   yes    all
-PROGRAMME_LEAD      token        FINAL            published    yes   yes    all
+SUBJECT_GROUP_LEAD  interactive  group 1          DEMAND_PLANNING  unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  interactive  group 1          WISHES           unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  interactive  group 1          ASSIGNMENT       unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  interactive  group 1          FINAL            unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  interactive  group 1          DEMAND_PLANNING  published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  interactive  group 1          WISHES           published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  interactive  group 1          ASSIGNMENT       published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  interactive  group 1          FINAL            published    yes   yes      yes      yes      all
 
-DEANS_OFFICE        interactive  DEMAND_PLANNING  unpublished  yes   yes    all
-DEANS_OFFICE        interactive  WISHES           unpublished  yes   yes    all
-DEANS_OFFICE        interactive  ASSIGNMENT       unpublished  yes   yes    all
-DEANS_OFFICE        interactive  FINAL            unpublished  yes   yes    all
-DEANS_OFFICE        interactive  DEMAND_PLANNING  published    yes   yes    all
-DEANS_OFFICE        interactive  WISHES           published    yes   yes    all
-DEANS_OFFICE        interactive  ASSIGNMENT       published    yes   yes    all
-DEANS_OFFICE        interactive  FINAL            published    yes   yes    all
+SUBJECT_GROUP_LEAD  token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        —                WISHES           unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        —                FINAL            unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  token        —                WISHES           published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  token        —                FINAL            published    yes   yes      yes      yes      all
 
-DEANS_OFFICE        token        DEMAND_PLANNING  unpublished  yes   no     own only
-DEANS_OFFICE        token        WISHES           unpublished  yes   no     own only
-DEANS_OFFICE        token        ASSIGNMENT       unpublished  yes   no     own only
-DEANS_OFFICE        token        FINAL            unpublished  yes   no     own only
-DEANS_OFFICE        token        DEMAND_PLANNING  published    yes   yes    all
-DEANS_OFFICE        token        WISHES           published    yes   yes    all
-DEANS_OFFICE        token        ASSIGNMENT       published    yes   yes    all
-DEANS_OFFICE        token        FINAL            published    yes   yes    all
+SUBJECT_GROUP_LEAD  token        group 1          DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        group 1          WISHES           unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        group 1          ASSIGNMENT       unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        group 1          FINAL            unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        group 1          DEMAND_PLANNING  published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  token        group 1          WISHES           published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  token        group 1          ASSIGNMENT       published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  token        group 1          FINAL            published    yes   yes      yes      yes      all
 
-ADMIN               interactive  DEMAND_PLANNING  unpublished  yes   no     own only
-ADMIN               interactive  WISHES           unpublished  yes   no     own only
-ADMIN               interactive  ASSIGNMENT       unpublished  yes   no     own only
-ADMIN               interactive  FINAL            unpublished  yes   no     own only
-ADMIN               interactive  DEMAND_PLANNING  published    yes   yes    all
-ADMIN               interactive  WISHES           published    yes   yes    all
-ADMIN               interactive  ASSIGNMENT       published    yes   yes    all
-ADMIN               interactive  FINAL            published    yes   yes    all
 
-ADMIN               token        DEMAND_PLANNING  unpublished  yes   no     own only
-ADMIN               token        WISHES           unpublished  yes   no     own only
-ADMIN               token        ASSIGNMENT       unpublished  yes   no     own only
-ADMIN               token        FINAL            unpublished  yes   no     own only
-ADMIN               token        DEMAND_PLANNING  published    yes   yes    all
-ADMIN               token        WISHES           published    yes   yes    all
-ADMIN               token        ASSIGNMENT       published    yes   yes    all
-ADMIN               token        FINAL            published    yes   yes    all
+PROGRAMME_LEAD      interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      interactive  —                WISHES           unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      interactive  —                FINAL            unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      interactive  —                WISHES           published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      interactive  —                FINAL            published    yes   yes      yes      yes      all
+
+PROGRAMME_LEAD      interactive  programme 1      DEMAND_PLANNING  unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      interactive  programme 1      WISHES           unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      interactive  programme 1      ASSIGNMENT       unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      interactive  programme 1      FINAL            unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      interactive  programme 1      DEMAND_PLANNING  published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      interactive  programme 1      WISHES           published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      interactive  programme 1      ASSIGNMENT       published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      interactive  programme 1      FINAL            published    yes   yes      yes      yes      all
+
+PROGRAMME_LEAD      token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        —                WISHES           unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        —                FINAL            unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      token        —                WISHES           published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      token        —                FINAL            published    yes   yes      yes      yes      all
+
+PROGRAMME_LEAD      token        programme 1      DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        programme 1      WISHES           unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        programme 1      ASSIGNMENT       unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        programme 1      FINAL            unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        programme 1      DEMAND_PLANNING  published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      token        programme 1      WISHES           published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      token        programme 1      ASSIGNMENT       published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      token        programme 1      FINAL            published    yes   yes      yes      yes      all
+
+
+DEANS_OFFICE        interactive  —                DEMAND_PLANNING  unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                WISHES           unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                ASSIGNMENT       unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                FINAL            unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                WISHES           published    yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                FINAL            published    yes   yes      yes      yes      all
+
+DEANS_OFFICE        token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+DEANS_OFFICE        token        —                WISHES           unpublished  yes   no       no       no       own only
+DEANS_OFFICE        token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+DEANS_OFFICE        token        —                FINAL            unpublished  yes   no       no       no       own only
+DEANS_OFFICE        token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+DEANS_OFFICE        token        —                WISHES           published    yes   yes      yes      yes      all
+DEANS_OFFICE        token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
+DEANS_OFFICE        token        —                FINAL            published    yes   yes      yes      yes      all
+
+
+ADMIN               interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+ADMIN               interactive  —                WISHES           unpublished  yes   no       no       no       own only
+ADMIN               interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+ADMIN               interactive  —                FINAL            unpublished  yes   no       no       no       own only
+ADMIN               interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+ADMIN               interactive  —                WISHES           published    yes   yes      yes      yes      all
+ADMIN               interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
+ADMIN               interactive  —                FINAL            published    yes   yes      yes      yes      all
+
+ADMIN               token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+ADMIN               token        —                WISHES           unpublished  yes   no       no       no       own only
+ADMIN               token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+ADMIN               token        —                FINAL            unpublished  yes   no       no       no       own only
+ADMIN               token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+ADMIN               token        —                WISHES           published    yes   yes      yes      yes      all
+ADMIN               token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
+ADMIN               token        —                FINAL            published    yes   yes      yes      yes      all

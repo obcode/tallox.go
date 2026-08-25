@@ -68,32 +68,17 @@ func TestRolesOfDropsWhatItDoesNotKnow(t *testing.T) {
 	}
 }
 
-// TestPlansIsTheSetOfPeopleWhoFillGaps documents which roles the planning exception covers, in
-// a place that fails when somebody widens it.
-func TestPlansIsTheSetOfPeopleWhoFillGaps(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		roles []policy.Role
-		want  bool
-	}{
-		{[]policy.Role{}, false},
-		{[]policy.Role{policy.RoleLecturer}, false},
-		{[]policy.Role{policy.RoleAdmin}, false},
-		{[]policy.Role{policy.RoleDeansOffice}, false}, // reads across programmes, does not plan
-		{[]policy.Role{policy.RoleSubjectGroupLead}, true},
-		{[]policy.Role{policy.RoleProgrammeLead}, true},
-		{[]policy.Role{policy.RoleLecturer, policy.RoleProgrammeLead}, true},
-	} {
-		set := policy.RoleSet{}
-		for _, r := range tc.roles {
-			set[r] = true
-		}
-		if got := set.Plans(); got != tc.want {
-			t.Errorf("RoleSet%v.Plans() = %v, want %v", tc.roles, got, tc.want)
-		}
-	}
-}
+// There used to be a RoleSet.Plans() here, and its removal is the point of this note.
+//
+// It answered "do these roles run the planning process" as a faculty-wide boolean, and the wish
+// rule read it. That was correct only while there was nothing for a role to be scoped to: an IG
+// lead has no business in IF wishes, and a mathematics lead none in the software subjects. Both
+// roles are scoped now, so the question is not "does this person plan" but "does this person plan
+// *this*" — which is policy.UnpublishedWishScope, and which cannot be a boolean.
+//
+// It is deleted rather than left unused deliberately. A faculty-wide predicate named after
+// planning is exactly what the next rule reaches for, and the next rule would be wrong in the
+// direction that leaks.
 
 // TestSortedIsStable: the golden matrix and every log line render role sets, and a map
 // iteration order would make both of them differ from run to run.

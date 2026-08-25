@@ -50,6 +50,10 @@ const (
 	// WriteAreaDemand is declaring which course instances a study programme needs: creating,
 	// changing and withdrawing instances and their parts.
 	WriteAreaDemand WriteArea = "DEMAND"
+
+	// WriteAreaWishes is registering interest in an instance part: creating, changing and
+	// withdrawing one's own wishes.
+	WriteAreaWishes WriteArea = "WISHES"
 )
 
 // AllWriteAreas returns every area, in the order of the planning process.
@@ -58,7 +62,7 @@ const (
 // the assignments — rather than being declared in advance, for the same reason ScopeArea gives:
 // an area with nothing behind it is a promise that somebody can read and nobody keeps.
 func AllWriteAreas() []WriteArea {
-	return []WriteArea{WriteAreaDemand}
+	return []WriteArea{WriteAreaDemand, WriteAreaWishes}
 }
 
 // Valid reports whether a is an area this package knows.
@@ -83,6 +87,23 @@ var writeMatrix = map[WriteArea]map[Phase][]Role{
 		PhaseAssignment:     {RoleProgrammeLead, RoleDeansOffice},
 		PhaseFinal:          {RoleProgrammeLead, RoleDeansOffice},
 	},
+	// The first row with a closed cell, which is what makes PhaseClosedReason reachable at last.
+	//
+	// LECTURER alone, and that is the whole list rather than an abbreviation of it: role.go says
+	// LECTURER is the baseline everybody who appears in the planning holds, so a colleague who
+	// also leads a programme registers interest as a lecturer like anybody else.
+	//
+	// Open in the wish phase and closed everywhere else, which is a decision about the process and
+	// not a mechanism. Before it, the demand is not settled and there is nothing stable to want;
+	// after it, the assignment is working from a list that would move underneath it. If the
+	// faculty wants it otherwise it is one changed row and a golden diff somebody reads — which is
+	// exactly what this table is for.
+	WriteAreaWishes: {
+		PhaseDemandPlanning: nil,
+		PhaseWishes:         {RoleLecturer},
+		PhaseAssignment:     nil,
+		PhaseFinal:          nil,
+	},
 }
 
 // WritersIn returns the roles that may write in one cell of the table.
@@ -91,6 +112,24 @@ var writeMatrix = map[WriteArea]map[Phase][]Role{
 // refusal. A copy, so that a caller cannot edit the matrix by holding one of its slices.
 func WritersIn(area WriteArea, phase Phase) []Role {
 	return slices.Clone(writeMatrix[area][phase])
+}
+
+// Decided reports whether the table has an entry for this cell at all.
+//
+// The distinction WritersIn cannot make: a cell that says "nobody" and a cell nobody filled in
+// both come back as an empty list, and they mean opposite things. Absent means no — that is the
+// fail-closed default a lookup should have — but absent must not be *allowed*, or adding a phase
+// to the process would close every area in it on a deploy without anybody choosing that.
+//
+// TestWriteMatrixDecidesEveryCell is the only caller, and that is the point: the distinction
+// exists to be asserted, not to be branched on.
+func Decided(area WriteArea, phase Phase) bool {
+	phases, ok := writeMatrix[area]
+	if !ok {
+		return false
+	}
+	_, ok = phases[phase]
+	return ok
 }
 
 // MayWriteInPhase is the phase half of a write rule: does this actor hold a role that writes
@@ -126,10 +165,18 @@ func MayWriteDemand(a principal.Actor, programmeID uuid.UUID, phase Phase) bool 
 
 // PhaseClosedReason is what somebody is told when the phase is what refuses them.
 //
-// Unreachable while the demand is open in every phase, and written anyway, because the day the
-// table gets its first closed cell is the day this sentence is needed — and a refusal invented in
-// a hurry is how a German sentence ends up saying "0 rows".
+// Written before it was reachable, because the day the table gets its first closed cell is the day
+// this sentence is needed — and a refusal invented in a hurry is how a German sentence ends up
+// saying "0 rows". That day is here: the wish row has three closed cells.
 const PhaseClosedReason = "In dieser Phase kann der Bedarf nicht mehr geändert werden."
+
+// WishPhaseClosedReason is the same refusal for the wish area, in its own words.
+//
+// Its own sentence rather than a shared one, because the repair differs and the audience differs:
+// somebody told "the demand can no longer be changed" while trying to register interest goes
+// looking for a demand screen. What this says is when the window is.
+const WishPhaseClosedReason = "Wünsche können nur in der Wunschphase eingetragen " +
+	"und geändert werden."
 
 // DemandRefusal picks the sentence for a refused write, out of the three that can be true.
 //

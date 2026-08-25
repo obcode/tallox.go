@@ -46,6 +46,20 @@ const (
 	// becomes a sentence somebody would want to say.
 	ScopeAreaPlanning ScopeArea = "PLANNING"
 
+	// ScopeAreaWishes is registering interest in instance parts, and reading what may be read of
+	// other people's.
+	//
+	// Its own area rather than part of PLANNING, because it is the one part of the planning a
+	// colleague might sensibly want a token narrowed *to*: "this script keeps my wishes in step
+	// with my calendar" is a sentence somebody would say, and it should not carry the demand of
+	// the whole faculty with it. The reverse matters more — an evaluation script scoped to
+	// PLANNING does not thereby reach anybody's wishes.
+	//
+	// What it does not do is decide what is visible. Through a token the wish rule collapses to
+	// the caller's own entries whatever the scope says; the area bounds the surface, the policy
+	// bounds the rows.
+	ScopeAreaWishes ScopeArea = "WISHES"
+
 	// ScopeAreaTokens is Personal Access Token management.
 	//
 	// A token can never actually reach it — those fields are @interactiveOnly, precisely so
@@ -69,6 +83,7 @@ func AllScopeAreas() []ScopeArea {
 		ScopeAreaPublic,
 		ScopeAreaProfile,
 		ScopeAreaPlanning,
+		ScopeAreaWishes,
 		ScopeAreaTokens,
 		ScopeAreaAdmin,
 	}

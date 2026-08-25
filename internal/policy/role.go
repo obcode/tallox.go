@@ -118,12 +118,6 @@ func (rs RoleSet) Any(roles ...Role) bool {
 	return false
 }
 
-// Plans reports whether these roles run the planning process — the people who have to see
-// what is on the table before it is public, because their job is to fill the gaps.
-func (rs RoleSet) Plans() bool {
-	return rs.Any(RoleSubjectGroupLead, RoleProgrammeLead)
-}
-
 // Sorted returns the roles in AllRoles order, for rendering and for stable test output.
 func (rs RoleSet) Sorted() []Role {
 	order := make(map[Role]int, len(AllRoles()))

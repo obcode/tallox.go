@@ -12,10 +12,16 @@ field that cannot be null, and on every mutation, the call is refused with the e
 `INTERACTIVE_ONLY`.
 
 Behind it: teaching load and overtime, other people's unpublished wishes, free-text notes
-about people, the audit log, and token management itself. A long-lived token in a script is a
-different risk from a login: it makes silent bulk export possible and separates "who saw this"
-from any sign-in. Token management is on the list because a leaked token that can mint its
-successors would outlive its own expiry date.
+about people, the audit log, token management itself, and every mutation that writes the demand.
+A long-lived token in a script is a different risk from a login: it makes silent bulk export
+possible and separates "who saw this" from any sign-in. Token management is on the list because a
+leaked token that can mint its successors would outlive its own expiry date.
+
+Writing the demand is on it for a less obvious reason, and it is worth reading once: a withdrawal
+refused with `INSTANCE_IN_USE` is an answer about wishes. Interactively that gives nothing away —
+whoever may write a programme's demand may already read its unpublished wishes — but through a
+token the wish rule reaches only your own, so a dry-run plan would have been a free, traceless
+enumeration of which instances somebody wants. See the note at the top of `demand.graphqls`.
 """
 directive @interactiveOnly on FIELD_DEFINITION
 
@@ -115,6 +121,23 @@ enum ScopeArea {
   `subjectGroupsWithoutLead`.
   """
   PLANNING
+
+  """
+  Registering interest in instance parts, and reading what may be read of other people's.
+
+  Its own area rather than part of `PLANNING`, because it is the one part of the planning somebody
+  might sensibly want a token narrowed *to*: "this script keeps my wishes in step with my
+  calendar" is a sentence a colleague would say, and it should not carry the demand of the whole
+  faculty with it. The reverse matters more — an evaluation script scoped to `PLANNING` does not
+  thereby reach anybody's wishes.
+
+  What this area does **not** do is decide what is visible. Through a token the wish rule collapses
+  to your own entries whatever the scope says: the area bounds the surface, the policy bounds the
+  rows.
+
+  Fields: `myWishes`, `wishes`, `setWish`, `withdrawWish`.
+  """
+  WISHES
 
   """
   Personal Access Token management. Not reachable through a token at all — those fields are

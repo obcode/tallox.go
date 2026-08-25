@@ -16,13 +16,20 @@ import (
 	"github.com/obcode/tallox.go/internal/testdata"
 )
 
-// The demand through the API, and through both doors.
+// The demand through the API.
 //
-// EachDoor is not ceremony here. Planning is neither confidential nor personnel data, so a
-// Personal Access Token is supposed to reach exactly as far as a browser session — a colleague
-// declaring their own programme's demand from a script is a use this API exists for. The
-// realistic failure is not a wrong answer but a rule somebody adds for the browser and forgets
-// on the token path, and that is what running the same assertion twice catches.
+// **Reading is asserted through both doors; writing is asserted in the browser only, because the
+// writes no longer answer through a token at all.** That is a change and not an omission, and the
+// reason is a sentence about wishes rather than about the demand: a withdrawal refused with
+// INSTANCE_IN_USE is an answer about who wants an instance, and `planDemand(dryRun: true)` would
+// have handed a whole programme's worth of those back for free, with no login event. The argument
+// in full is at the top of graph/demand.graphqls; the counterpart of these tests is
+// TestEveryDemandMutationRefusesAToken, which asserts the mechanical rule rather than the cases.
+//
+// EachDoor is still not ceremony on the reads. The catalogue and the demand are neither
+// confidential nor personnel data, and a colleague evaluating their own programme's demand from a
+// script is a use this API exists for. The realistic failure there is not a wrong answer but a
+// rule somebody adds for the browser and forgets on the token path.
 
 // demandFixture is a handler with a projected catalogue and a split module behind it.
 type demandFixture struct {
@@ -157,7 +164,7 @@ func TestDeclaringDemandIsScopedToTheProgrammeThroughBothDoors(t *testing.T) {
 		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
 		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}})
 
-	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
 			var out struct {
 				DeclareCourseInstance struct {
@@ -218,7 +225,7 @@ func TestALeadWithNoProgrammeIsToldWhatIsMissing(t *testing.T) {
 
 	f := demandHandler(t, nil, grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}})
 
-	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
 			resp := c.Do(t, declareMutation,
 				declareInput(f, storetest.FixtureProgrammeA, "2027-SS", ""))
@@ -249,7 +256,7 @@ func TestWhoMayNotDeclareDemand(t *testing.T) {
 
 			f := demandHandler(t, nil, grants{tc.persona, tc.roles})
 
-			graphqltest.EachDoor(t, f.handler, tc.persona.Mail, tc.persona.Token,
+			inTheBrowser(t, f.handler, tc.persona.Mail,
 				func(t *testing.T, c *graphqltest.Client) {
 					resp := c.Do(t, declareMutation,
 						declareInput(f, storetest.FixtureProgrammeA, "2027-SS", ""))
@@ -267,7 +274,7 @@ func TestTheDeansOfficeDeclaresForEveryProgramme(t *testing.T) {
 
 	f := demandHandler(t, nil, grants{testdata.Vier, []string{"DEANS_OFFICE"}})
 
-	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
 			semester := "2027-SS"
 			if c.Door() == graphqltest.Token {
@@ -294,7 +301,7 @@ func TestAModuleWithoutHoursIsRefusedByName(t *testing.T) {
 		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
 		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
 
-	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
 			resp := c.Do(t, declareMutation, map[string]any{"in": map[string]any{
 				"semester":  "2027-SS",
@@ -321,7 +328,7 @@ func TestAWriteRefusalSaysNothingAboutTheDatabase(t *testing.T) {
 		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
 		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
 
-	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
 			semester := "2028-SS"
 			if c.Door() == graphqltest.Token {
@@ -388,15 +395,24 @@ func TestTheDemandIsReadableByAnybodyWithAnAccount(t *testing.T) {
 			}
 		})
 
-	// And a lecturer may not write it.
-	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+	// And a lecturer may not write it — refused at each door for its own reason, which is worth
+	// asserting per door rather than as "some error": in the browser the refusal is about the
+	// programme, and through a token the door itself answers first.
+	withdraw := `mutation($id: ID!) { withdrawCourseInstance(id: $id) }`
+	variables := map[string]any{"id": declared.DeclareCourseInstance.ID}
+
+	inTheBrowser(t, f.handler, testdata.Eins.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
-			resp := c.Do(t, `mutation($id: ID!) { withdrawCourseInstance(id: $id) }`,
-				map[string]any{"id": declared.DeclareCourseInstance.ID})
-			if code := errorCode(t, resp); code != "NOT_YOUR_PROGRAMME" {
+			if code := errorCode(t, c.Do(t, withdraw, variables)); code != "NOT_YOUR_PROGRAMME" {
 				t.Errorf("a lecturer withdrew an instance, or was told %s", code)
 			}
 		})
+
+	resp := graphqltest.New(f.handler).WithToken(testdata.Eins.Token).Do(t, withdraw, variables)
+	if code := errorCode(t, resp); code != "INTERACTIVE_ONLY" {
+		t.Errorf("through a token the withdrawal was answered with %s, want INTERACTIVE_ONLY — "+
+			"a refusal that reached the instance would be an answer about who wants it", code)
+	}
 }
 
 // The whole cohort workflow through the API, on one door each, because what is under test here
@@ -559,7 +575,7 @@ func TestCopyingASemestersDemandThroughBothDoors(t *testing.T) {
 		}
 	}`
 
-	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
 			target := "2027-SS"
 			if c.Door() == graphqltest.Token {
@@ -620,7 +636,7 @@ func TestTheDemandRefusesASemesterNobodyCanPlan(t *testing.T) {
 		"9999-WS": "SEMESTER_OUT_OF_RANGE",
 	}
 
-	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
 			for code, want := range cases {
 				resp := c.Do(t, declareMutation,
@@ -676,7 +692,7 @@ func TestPlanningAWholeScreenThroughBothDoors(t *testing.T) {
 		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
 		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
 
-	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
 			// A semester per door: the two runs share a database, and the identity of an
 			// instance is what stops the same cohort being declared twice.
@@ -767,7 +783,7 @@ func TestPlanningIsRefusedForAnotherProgramme(t *testing.T) {
 		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
 		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
 
-	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
 			resp := c.Do(t, planMutation, map[string]any{
 				"s": "2027-SS",
@@ -849,7 +865,7 @@ func TestPlanningAModuleOfAnotherProgrammeThroughBothDoors(t *testing.T) {
 		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
 		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}})
 
-	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
 			// A semester per door: the two runs share a database, and the identity refuses the
 			// same cohort twice — which is the point of the identity.
@@ -969,7 +985,7 @@ func TestAProgrammeTheFacultyDoesNotPlanTakesNoDemandThroughBothDoors(t *testing
 		t.Fatalf("cannot retire the programme: %v", err)
 	}
 
-	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
 		func(t *testing.T, c *graphqltest.Client) {
 			refusal := c.Do(t, declareMutation,
 				declareInput(f, storetest.FixtureProgrammeA, "2027-WS", "A"))
@@ -990,4 +1006,21 @@ func TestAProgrammeTheFacultyDoesNotPlanTakesNoDemandThroughBothDoors(t *testing
 					"one declared before it did", len(out.CourseInstances))
 			}
 		})
+}
+
+// inTheBrowser runs an assertion once, in a signed-in browser session.
+//
+// The counterpart of graphqltest.EachDoor for the demand *writes*, which are @interactiveOnly and
+// therefore have nothing to assert on the token path beyond the refusal itself — which
+// TestEveryDemandMutationRefusesAToken asserts once, for all of them, from the schema.
+//
+// A named helper rather than an inline client, so that a write test written later reads as
+// deliberately one-door rather than as somebody who forgot EachDoor.
+func inTheBrowser(t *testing.T, h http.Handler, user string,
+	fn func(*testing.T, *graphqltest.Client)) {
+	t.Helper()
+
+	t.Run("interactive", func(t *testing.T) {
+		fn(t, graphqltest.New(h).AsUser(user).On(graphqltest.Browser))
+	})
 }

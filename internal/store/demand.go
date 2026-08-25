@@ -862,7 +862,21 @@ func isUniqueViolation(err error) bool { return hasSQLState(err, "23505") }
 // This is what "something still hangs off it" is, and it is deliberately the only thing the
 // caller learns. Reading which constraint fired would name the table — and the first table to
 // point at an instance part is the wish table.
-func isForeignKeyViolation(err error) bool { return hasSQLState(err, "23503") }
+//
+// **Two SQLSTATEs, and the second one is not a belt-and-braces addition.** 23503 is a plain
+// foreign key violation; 23001 is what an ON DELETE RESTRICT raises, and RESTRICT is what the
+// wish table uses. Until the wish table existed nothing in this schema was RESTRICT on a path
+// anything deleted, so 23503 alone was enough and looked complete — and the day it stopped being
+// enough, the failure was not a missed refusal but a leak: the driver's message names the
+// constraint, `wish_instance_part_id_fkey`, so a programme lead trying to withdraw an instance
+// would have been told in so many words that somebody wants it.
+//
+// The distinction is worth knowing rather than papering over: NO ACTION defers the check to the
+// end of the statement and raises 23503, RESTRICT checks immediately and raises 23001. Both mean
+// the same thing to a caller here.
+func isForeignKeyViolation(err error) bool {
+	return hasSQLState(err, "23503") || hasSQLState(err, "23001")
+}
 
 func hasSQLState(err error, code string) bool {
 	var pgErr *pgconn.PgError

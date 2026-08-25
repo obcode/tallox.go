@@ -248,10 +248,12 @@ type ComplexityRoot struct {
 		SetSubjectGroupLeads          func(childComplexity int, id string, personIds []string) int
 		SetSubjectGroupMembers        func(childComplexity int, id string, personIds []string) int
 		SetTeacherAdmitted            func(childComplexity int, teacherID string, admitted bool) int
+		SetWish                       func(childComplexity int, instancePartID string, priority domain.WishPriority, note *string) int
 		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
 		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
 		SyncZpaNow                    func(childComplexity int) int
 		WithdrawCourseInstance        func(childComplexity int, id string) int
+		WithdrawWish                  func(childComplexity int, id string) int
 	}
 
 	Person struct {
@@ -301,6 +303,7 @@ type ComplexityRoot struct {
 		ModulesWithoutSubjectGroup func(childComplexity int) int
 		MySubjectGroups            func(childComplexity int) int
 		MyTokens                   func(childComplexity int) int
+		MyWishes                   func(childComplexity int, semester string) int
 		People                     func(childComplexity int, search *string, includeInactive *bool) int
 		Person                     func(childComplexity int, id string) int
 		PlanningSemester           func(childComplexity int) int
@@ -315,6 +318,7 @@ type ComplexityRoot struct {
 		SubjectGroupsWithoutLead   func(childComplexity int) int
 		TeacherAccounts            func(childComplexity int) int
 		Teachers                   func(childComplexity int, search *string, includeInactive *bool) int
+		Wishes                     func(childComplexity int, semester string, programme *string, module *string, part *string, person *string) int
 		ZpaCatalogueProjections    func(childComplexity int, limit *int) int
 		ZpaChanges                 func(childComplexity int, runID string) int
 		ZpaSyncRun                 func(childComplexity int, id string) int
@@ -403,6 +407,17 @@ type ComplexityRoot struct {
 	TeacherAccount struct {
 		Account func(childComplexity int) int
 		Teacher func(childComplexity int) int
+	}
+
+	Wish struct {
+		CreatedAt func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Instance  func(childComplexity int) int
+		Note      func(childComplexity int) int
+		Part      func(childComplexity int) int
+		Person    func(childComplexity int) int
+		Priority  func(childComplexity int) int
+		UpdatedAt func(childComplexity int) int
 	}
 
 	ZpaCatalogueProjection struct {
@@ -1582,6 +1597,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetTeacherAdmitted(childComplexity, args["teacherId"].(string), args["admitted"].(bool)), true
+	case "Mutation.setWish":
+		if e.ComplexityRoot.Mutation.SetWish == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setWish_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetWish(childComplexity, args["instancePartId"].(string), args["priority"].(domain.WishPriority), args["note"].(*string)), true
 	case "Mutation.shareInstancePartAcrossTracks":
 		if e.ComplexityRoot.Mutation.ShareInstancePartAcrossTracks == nil {
 			break
@@ -1621,6 +1647,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.WithdrawCourseInstance(childComplexity, args["id"].(string)), true
+	case "Mutation.withdrawWish":
+		if e.ComplexityRoot.Mutation.WithdrawWish == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_withdrawWish_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.WithdrawWish(childComplexity, args["id"].(string)), true
 
 	case "Person.active":
 		if e.ComplexityRoot.Person.Active == nil {
@@ -1866,6 +1903,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.MyTokens(childComplexity), true
+	case "Query.myWishes":
+		if e.ComplexityRoot.Query.MyWishes == nil {
+			break
+		}
+
+		args, err := ec.field_Query_myWishes_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.MyWishes(childComplexity, args["semester"].(string)), true
 	case "Query.people":
 		if e.ComplexityRoot.Query.People == nil {
 			break
@@ -1995,6 +2043,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Teachers(childComplexity, args["search"].(*string), args["includeInactive"].(*bool)), true
+	case "Query.wishes":
+		if e.ComplexityRoot.Query.Wishes == nil {
+			break
+		}
+
+		args, err := ec.field_Query_wishes_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Wishes(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string), args["part"].(*string), args["person"].(*string)), true
 	case "Query.zpaCatalogueProjections":
 		if e.ComplexityRoot.Query.ZpaCatalogueProjections == nil {
 			break
@@ -2373,6 +2432,55 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TeacherAccount.Teacher(childComplexity), true
+
+	case "Wish.createdAt":
+		if e.ComplexityRoot.Wish.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.CreatedAt(childComplexity), true
+	case "Wish.id":
+		if e.ComplexityRoot.Wish.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.ID(childComplexity), true
+	case "Wish.instance":
+		if e.ComplexityRoot.Wish.Instance == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.Instance(childComplexity), true
+	case "Wish.note":
+		if e.ComplexityRoot.Wish.Note == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.Note(childComplexity), true
+	case "Wish.part":
+		if e.ComplexityRoot.Wish.Part == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.Part(childComplexity), true
+	case "Wish.person":
+		if e.ComplexityRoot.Wish.Person == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.Person(childComplexity), true
+	case "Wish.priority":
+		if e.ComplexityRoot.Wish.Priority == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.Priority(childComplexity), true
+	case "Wish.updatedAt":
+		if e.ComplexityRoot.Wish.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.UpdatedAt(childComplexity), true
 
 	case "ZpaCatalogueProjection.error":
 		if e.ComplexityRoot.ZpaCatalogueProjection.Error == nil {
@@ -4032,6 +4140,29 @@ extend type Mutation {
 # what the wish phase is about, and a lecturer who cannot see which instances exist has nothing
 # to register interest in. What is scoped is writing it, and only to the study programme somebody
 # actually leads.
+#
+# EVERY MUTATION HERE IS @interactiveOnly, AND THAT IS ABOUT THE WISHES
+#
+# The reads stay open through both doors. The writes do not, and the reason is not that declaring
+# demand is dangerous — it is that ` + "`" + `INSTANCE_IN_USE` + "`" + ` is an answer about wishes.
+#
+# Once the wish table points at instance parts, a withdrawal that is refused says "somebody wants
+# this". Interactively that reveals nothing: whoever may write a programme's demand may already
+# read its unpublished wishes, and the two sets are the same by construction — see
+# TestInstanceInUseTellsNobodySomethingNew. Through a Personal Access Token they are *not* the
+# same: the wish rule collapses to own-only there, deliberately, so that a long-lived credential
+# in a script cannot make a silent bulk export. ` + "`" + `planDemand(dryRun: true)` + "`" + ` would have handed
+# exactly that back — the whole programme's "which instances are wished for", in one call, with
+# no side effect and no login event.
+#
+# So the annotation goes on the whole file rather than on the four mutations that can raise
+# INSTANCE_IN_USE. A rule that applies to four gets forgotten on the fifth, and the fifth is the
+# one nobody reviewed. ` + "`" + `publishWishes` + "`" + ` in semester.graphqls is the precedent and takes the same
+# shape of argument.
+#
+# What this costs: a colleague cannot declare demand from a script. The API is a product here,
+# but the product is *evaluations* — reading — and declaring demand is a planning act by somebody
+# holding a scoped role, not an evaluation.
 
 """
 One module, offered in one semester, for one study programme, to one parallel cohort.
@@ -4408,6 +4539,11 @@ extend type Mutation {
   Runs the same reconciliation and rolls it back, so the report is what a save would do rather
   than a second computation that might disagree. It also records nothing about the semester: the
   row that says a decision was taken comes into being with the decision, not with the preview.
+
+  It is the reason every mutation in this file is ` + "`" + `@interactiveOnly` + "`" + `. A dry run is free, leaves no
+  trace and reports ` + "`" + `INSTANCE_IN_USE` + "`" + ` per cohort — which through a Personal Access Token would be
+  "which of this programme's instances are wished for", in one call, with no login event. See the
+  note at the top of this file.
   """
   planDemand(
     "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
@@ -4418,7 +4554,7 @@ extend type Mutation {
     entries: [DemandEntryInput!]!
     "Report what would happen and write nothing."
     dryRun: Boolean! = false
-  ): DemandPlanReport! @scope(area: PLANNING, verb: WRITE)
+  ): DemandPlanReport! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Declare that a study programme needs this module in this semester, for this cohort.
@@ -4434,7 +4570,7 @@ extend type Mutation {
   Declaring the same cohort twice is ` + "`" + `TRACK_TAKEN` + "`" + `.
   """
   declareCourseInstance(input: DeclareCourseInstanceInput!): CourseInstance!
-    @scope(area: PLANNING, verb: WRITE)
+    @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Copy an instance to a second parallel cohort — IF1 becomes IF1A and IF1B.
@@ -4452,7 +4588,7 @@ extend type Mutation {
     track: String!
     "What the source cohort should be called from now on. Omit to leave it as it is."
     sourceTrack: String
-  ): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Change the two editable things about an instance: its cohort and its cohort year.
@@ -4462,19 +4598,23 @@ extend type Mutation {
   to the one that was declared.
   """
   changeCourseInstance(id: ID!, track: String!, programmeSemester: Int): CourseInstance!
-    @scope(area: PLANNING, verb: WRITE)
+    @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Withdraw an instance that is not needed after all. Its parts go with it.
 
   Refused with ` + "`" + `INSTANCE_IN_USE` + "`" + ` once anything hangs off it. That refusal deliberately says
-  nothing about *what* — no count, no kind of thing named. The first table to point at an
-  instance part will be the wish table, and "this instance has three wishes" is the confidential
-  fact with the names taken out.
+  nothing about *what* — no count, no kind of thing named. The wish table is what points at an
+  instance part, and "this instance has three wishes" is the confidential fact with the names
+  taken out.
+
+  Only in a signed-in browser session: through a Personal Access Token this fails with
+  ` + "`" + `INTERACTIVE_ONLY` + "`" + `. The refusal above is an answer about wishes, and through a token the wish
+  rule reaches only your own — see the note at the top of this file.
 
   Returns the id of the withdrawn instance, so that a list can drop it without asking again.
   """
-  withdrawCourseInstance(id: ID!): ID! @scope(area: PLANNING, verb: WRITE)
+  withdrawCourseInstance(id: ID!): ID! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Add a part to an instance — the second laboratory group, the tutorial nobody planned for.
@@ -4487,18 +4627,18 @@ extend type Mutation {
     kind: InstancePartKind!
     "What a lecturer is credited with. Omit while it is not settled."
     teachingHours: Float
-  ): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Correct a part's kind or hours.
   """
   changeInstancePart(id: ID!, kind: InstancePartKind!, teachingHours: Float): CourseInstance!
-    @scope(area: PLANNING, verb: WRITE)
+    @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Remove a part. Refused with ` + "`" + `INSTANCE_IN_USE` + "`" + ` once anything hangs off it.
   """
-  removeInstancePart(id: ID!): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+  removeInstancePart(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Hold this part once for all the parallel cohorts of its module.
@@ -4510,7 +4650,7 @@ extend type Mutation {
   Refused with ` + "`" + `NO_SIBLING_TRACKS` + "`" + ` where there is no second cohort to share with, and with
   ` + "`" + `INSTANCE_IN_USE` + "`" + ` if one of the parts that would go is already spoken for.
   """
-  shareInstancePartAcrossTracks(id: ID!): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+  shareInstancePartAcrossTracks(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Undo that: every cohort holds its own again, with the same hours.
@@ -4519,7 +4659,7 @@ extend type Mutation {
   who was going to give both lectures is on sabbatical. A cohort that already has a part of that
   kind is left alone rather than given a second one.
   """
-  splitInstancePartAcrossTracks(id: ID!): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+  splitInstancePartAcrossTracks(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Declare in one semester what the same programme declared in another.
@@ -4541,7 +4681,7 @@ extend type Mutation {
     to: String!
     "The study programme, by its short code."
     programme: String!
-  ): CopyDemandReport! @scope(area: PLANNING, verb: WRITE)
+  ): CopyDemandReport! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../directives.graphqls", Input: `# Why a real directive rather than a check inside each resolver: generated code calls it, so
@@ -4558,10 +4698,16 @@ field that cannot be null, and on every mutation, the call is refused with the e
 ` + "`" + `INTERACTIVE_ONLY` + "`" + `.
 
 Behind it: teaching load and overtime, other people's unpublished wishes, free-text notes
-about people, the audit log, and token management itself. A long-lived token in a script is a
-different risk from a login: it makes silent bulk export possible and separates "who saw this"
-from any sign-in. Token management is on the list because a leaked token that can mint its
-successors would outlive its own expiry date.
+about people, the audit log, token management itself, and every mutation that writes the demand.
+A long-lived token in a script is a different risk from a login: it makes silent bulk export
+possible and separates "who saw this" from any sign-in. Token management is on the list because a
+leaked token that can mint its successors would outlive its own expiry date.
+
+Writing the demand is on it for a less obvious reason, and it is worth reading once: a withdrawal
+refused with ` + "`" + `INSTANCE_IN_USE` + "`" + ` is an answer about wishes. Interactively that gives nothing away —
+whoever may write a programme's demand may already read its unpublished wishes — but through a
+token the wish rule reaches only your own, so a dry-run plan would have been a free, traceless
+enumeration of which instances somebody wants. See the note at the top of ` + "`" + `demand.graphqls` + "`" + `.
 """
 directive @interactiveOnly on FIELD_DEFINITION
 
@@ -4661,6 +4807,23 @@ enum ScopeArea {
   ` + "`" + `subjectGroupsWithoutLead` + "`" + `.
   """
   PLANNING
+
+  """
+  Registering interest in instance parts, and reading what may be read of other people's.
+
+  Its own area rather than part of ` + "`" + `PLANNING` + "`" + `, because it is the one part of the planning somebody
+  might sensibly want a token narrowed *to*: "this script keeps my wishes in step with my
+  calendar" is a sentence a colleague would say, and it should not carry the demand of the whole
+  faculty with it. The reverse matters more — an evaluation script scoped to ` + "`" + `PLANNING` + "`" + ` does not
+  thereby reach anybody's wishes.
+
+  What this area does **not** do is decide what is visible. Through a token the wish rule collapses
+  to your own entries whatever the scope says: the area bounds the surface, the policy bounds the
+  rows.
+
+  Fields: ` + "`" + `myWishes` + "`" + `, ` + "`" + `wishes` + "`" + `, ` + "`" + `setWish` + "`" + `, ` + "`" + `withdrawWish` + "`" + `.
+  """
+  WISHES
 
   """
   Personal Access Token management. Not reachable through a token at all — those fields are
@@ -5500,6 +5663,158 @@ type Mutation {
   does not exist and a token belonging to somebody else produce the same refusal.
   """
   revokePersonalAccessToken(id: ID!): PersonalAccessToken! @interactiveOnly @scope(area: TOKENS, verb: WRITE)
+}
+`, BuiltIn: false},
+	{Name: "../wish.graphqls", Input: `# Wishes: one person's interest in one instance part.
+#
+# The area the confidentiality rule was written for, and the reason the rule lives in
+# internal/policy rather than in a resolver. What is visible here is decided by a WHERE clause,
+# so it is decided the same way for this API, for the CSV exports that will come, and for the
+# nightly digests — none of which will pass through these fields.
+#
+# THE RULE, ONCE
+#
+# A wish is visible if and only if it belongs to you, or the wishes of that semester have been
+# published, or you are responsible for it — you lead the study programme whose demand the
+# instance is, or the subject group its module belongs to, or you are the dean's office — and
+# then only in a signed-in browser session, never through a Personal Access Token.
+#
+# Read the whole thing in ` + "`" + `internal/policy/testdata/visibility_matrix.golden` + "`" + `, which is generated
+# from the code that enforces it.
+#
+# WHAT IS DELIBERATELY MISSING
+#
+# There is no count. No ` + "`" + `wishCount` + "`" + `, no ` + "`" + `hasWishes` + "`" + `, no "how many people want this part" anywhere
+# in this schema — not even a filtered one. "3 Kolleg:innen haben bereits Interesse" is the
+# confidential fact with the names taken out, and a field that answers 0 or 1 before publication
+# is a field somebody renders as a badge. Anybody who wants a number counts the rows they were
+# allowed to read.
+
+"""
+How much somebody wants a part.
+
+Three fixed levels rather than a rank. A rank is more expressive and costs a reordering dance on
+every insert in the middle, and a number nobody can read off a list without a legend. Ties are the
+common case: somebody wants four things equally and would rather say so than invent an order.
+"""
+enum WishPriority {
+  "Unbedingt — the parts somebody is actually asking for."
+  FIRST_CHOICE
+  "Gerne. The default, because it is the honest answer to a form being filled in for the first time."
+  HAPPY_TO
+  "Notfalls — held to fill a gap, and the level the assignment reads last."
+  IF_NEEDED
+}
+
+"""
+One person's interest in one instance part.
+
+Points at a **part** and never at an instance: the faculty's own sentence is "one holds the
+lecture, another the laboratory", so the assignable unit is the part and so is the unit of
+interest.
+"""
+type Wish {
+  id: ID!
+  """
+  Who registered it.
+
+  Always the person who made the call. There is no way to register interest on somebody's behalf
+  and no column that would record one: a wish entered by somebody else is not an expression of
+  interest but their opinion about you, and the process has a place for that — the assignment.
+  """
+  person: Person!
+  "The assignable unit wanted."
+  part: InstancePart!
+  """
+  The cohort that part belongs to, with its module and its programme.
+
+  Carried because a wish is unreadable without it: "Analysis, IF1B, Praktikum" is the row somebody
+  recognises, and a part id is not.
+  """
+  instance: CourseInstance!
+  "How much."
+  priority: WishPriority!
+  """
+  The owner's own words: „lieber die Dienstagsgruppe“, „nur wenn es sonst niemand macht“.
+
+  Read by whoever may read the wish — the same rule as the row, because it is part of the row.
+  """
+  note: String!
+  "When it was first registered."
+  createdAt: Time!
+  "When it was last changed. Changing your mind moves this and keeps ` + "`" + `createdAt` + "`" + `."
+  updatedAt: Time!
+}
+
+extend type Query {
+  """
+  Your own wishes in a semester.
+
+  The one question whose answer never depends on the confidentiality rule, through either door:
+  they are your entries. A script that keeps your wishes in step with your calendar is a use this
+  API exists for.
+  """
+  myWishes(
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
+    semester: String!
+  ): [Wish!]! @scope(area: WISHES, verb: READ)
+
+  """
+  The wishes of a semester — as many of them as you may see.
+
+  **Not an error when you may see none.** Asking for a colleague's wishes before publication
+  answers with an empty list rather than a refusal, and that is deliberate: the difference between
+  "refused" and "empty" is exactly the fact being protected, so a refusal would turn this field
+  into an oracle for it.
+
+  Through a Personal Access Token this collapses to your own entries whatever your role — a
+  long-lived token in a script makes silent bulk export possible and decouples "who saw this" from
+  any login event. Your own stay readable, because they are your data.
+  """
+  wishes(
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
+    semester: String!
+    "One study programme's instances, by its short code."
+    programme: String
+    "One module, across its cohorts."
+    module: ID
+    "One instance part."
+    part: ID
+    "One person's entries, by id."
+    person: ID
+  ): [Wish!]! @scope(area: WISHES, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Register your interest in a part, or change it.
+
+  Yours only: there is no argument for whose it is. Registering twice for the same part is not a
+  second wish and not an error — it is a correction, and it keeps the original ` + "`" + `createdAt` + "`" + `.
+
+  Only in the wish phase. ` + "`" + `WISH_PHASE_CLOSED` + "`" + ` otherwise, in either direction: a list that may be
+  added to but not corrected is worse than a closed one, so both are the same decision about when
+  the window is open.
+
+  Reachable through both doors, unlike the demand: this is your own data.
+  """
+  setWish(
+    "The part you are interested in."
+    instancePartId: ID!
+    priority: WishPriority! = HAPPY_TO
+    "Up to 500 characters, or nothing at all."
+    note: String
+  ): Wish! @scope(area: WISHES, verb: WRITE)
+
+  """
+  Withdraw one of your own wishes.
+
+  A wish that is not there and a wish that is not yours answer the same way, with
+  ` + "`" + `WISH_NOT_FOUND` + "`" + ` — which of the two it is, is the confidential part.
+
+  Returns the id, so that a list can drop the row without asking again.
+  """
+  withdrawWish(id: ID!): ID! @scope(area: WISHES, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../zpa.graphqls", Input: `# The module master data import, as far as it is visible from outside.
@@ -6493,6 +6808,28 @@ func (ec *executionContext) childFields_TeacherAccount(ctx context.Context, fiel
 		return ec.fieldContext_TeacherAccount_account(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type TeacherAccount", field.Name)
+}
+
+func (ec *executionContext) childFields_Wish(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Wish_id(ctx, field)
+	case "person":
+		return ec.fieldContext_Wish_person(ctx, field)
+	case "part":
+		return ec.fieldContext_Wish_part(ctx, field)
+	case "instance":
+		return ec.fieldContext_Wish_instance(ctx, field)
+	case "priority":
+		return ec.fieldContext_Wish_priority(ctx, field)
+	case "note":
+		return ec.fieldContext_Wish_note(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_Wish_createdAt(ctx, field)
+	case "updatedAt":
+		return ec.fieldContext_Wish_updatedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Wish", field.Name)
 }
 
 func (ec *executionContext) childFields_ZpaCatalogueProjection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

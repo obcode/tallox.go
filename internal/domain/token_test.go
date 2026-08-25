@@ -326,7 +326,7 @@ func TestScopesAreStoredAsTheyWereAsked(t *testing.T) {
 		},
 		{
 			name:    "an area this build does not know",
-			scopes:  []policy.Scope{{Area: "WISHES", Verb: policy.ScopeVerbRead}},
+			scopes:  []policy.Scope{{Area: "ASSIGNMENTS", Verb: policy.ScopeVerbRead}},
 			wantErr: domain.ErrScopeUnknown,
 		},
 		{

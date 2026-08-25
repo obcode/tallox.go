@@ -23,7 +23,7 @@ func TestWriteMatrixDecidesEveryCell(t *testing.T) {
 
 	for _, area := range policy.AllWriteAreas() {
 		for _, phase := range policy.AllPhases() {
-			if policy.WritersIn(area, phase) == nil {
+			if !policy.Decided(area, phase) {
 				t.Errorf("%s in %s: no entry — every cell has to be decided, "+
 					"including the ones that decide nobody may write", area, phase)
 			}

@@ -57,6 +57,19 @@ ADMIN               no               no       no          no
 
 (unknown phase)     no               no       no          no
 
+WISHES
+------
+
+Role                DEMAND_PLANNING  WISHES   ASSIGNMENT  FINAL
+---------------------------------------------------------------
+LECTURER            no               yes      no          no
+SUBJECT_GROUP_LEAD  no               no       no          no
+PROGRAMME_LEAD      no               no       no          no
+DEANS_OFFICE        no               no       no          no
+ADMIN               no               no       no          no
+
+(unknown phase)     no               no       no          no
+
 How this combines with the planning matrix
 -----------------------------------------
 

@@ -95,6 +95,8 @@ type Options struct {
 	Demand *domain.DemandService
 	// SubjectGroups is the faculty's own grouping of modules and people, on the same terms.
 	SubjectGroups *domain.SubjectGroupService
+	// Wishes is the wish phase, on the same terms.
+	Wishes *domain.WishService
 	// Access is the access log. Nil is legitimate and means the installation does not record
 	// accesses — which is what every test that does not care about the log runs as, and what
 	// keeps a missing log from being a missing server.
@@ -309,6 +311,7 @@ func Serve(build buildinfo.Info) {
 	catalogue := domain.NewCatalogueService(modules)
 	demand := domain.NewDemandService(store.NewDemand(pool, modules), modules, planning)
 	subjectGroups := domain.NewSubjectGroupService(store.NewSubjectGroups(pool))
+	wishes := domain.NewWishService(store.NewWishes(pool), planning)
 	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool), catalogueProjection)
 	access := domain.NewAccessService(store.NewAccess(pool))
 
@@ -340,6 +343,7 @@ func Serve(build buildinfo.Info) {
 			Catalogue:     catalogue,
 			Demand:        demand,
 			SubjectGroups: subjectGroups,
+			Wishes:        wishes,
 			Access:        access,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
@@ -592,6 +596,7 @@ func graphqlHandler(opts Options) http.Handler {
 			Catalogue:     opts.Catalogue,
 			Demand:        opts.Demand,
 			SubjectGroups: opts.SubjectGroups,
+			Wishes:        opts.Wishes,
 			Access:        opts.Access,
 		},
 		// The generated code fails closed on a directive with no implementation — the field

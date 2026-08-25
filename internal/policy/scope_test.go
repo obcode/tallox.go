@@ -36,7 +36,12 @@ func TestParseScope(t *testing.T) {
 		},
 		{name: "no separator", in: "PROFILE"},
 		{name: "empty", in: ""},
-		{name: "an area this build does not know", in: "WISHES:READ"},
+		// WISHES was the stand-in for an unknown area here until the wish table arrived and it
+		// became a real one — which is the whole point of areas arriving with the fields that need
+		// them. Replaced rather than deleted: an area this build does not know still has to parse
+		// as nothing, and that is the case an evaluation script written against a newer server
+		// meets.
+		{name: "an area this build does not know", in: "ASSIGNMENTS:READ"},
 		{name: "a verb this build does not know", in: "PROFILE:DELETE"},
 		{name: "an empty half", in: "PROFILE:"},
 		{name: "the separator alone", in: ":"},

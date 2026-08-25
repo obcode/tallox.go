@@ -279,3 +279,54 @@ func assertEnumMatches(t *testing.T, schema *ast.Schema, name string, known []st
 			"policy.ParseScope will discard it", name, leftover)
 	}
 }
+
+// TestEveryDemandMutationRefusesAToken pins a rule that is deliberately file-shaped.
+//
+// Every mutation defined in graph/demand.graphqls is @interactiveOnly, and the annotation goes on
+// all of them rather than on the four that can raise INSTANCE_IN_USE. The reason is the same one
+// the scope fallback has: a rule that applies to a hand-picked subset is a rule somebody forgets
+// on the next member, and the next member is the one nobody reviewed.
+//
+// Why the demand writes at all — the argument is about wishes and not about the demand. A
+// withdrawal refused with INSTANCE_IN_USE says that somebody wants the instance. Interactively
+// that reveals nothing, because whoever may write a programme's demand may already read its
+// unpublished wishes. Through a Personal Access Token they are deliberately not the same set, so
+// `planDemand(dryRun: true)` would have been a free, traceless enumeration of which instances are
+// wished for.
+//
+// Which file a field came from is read off the parsed position rather than matched against the
+// text: gqlparser keeps the source on every definition, so this asks the schema where a field is
+// declared instead of guessing from a substring.
+func TestEveryDemandMutationRefusesAToken(t *testing.T) {
+	t.Parallel()
+
+	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}).Schema()
+	if schema.Mutation == nil {
+		t.Fatal("the schema has no Mutation type")
+	}
+
+	checked := 0
+	for _, field := range schema.Mutation.Fields {
+		if field.Position == nil || field.Position.Src == nil ||
+			!strings.HasSuffix(field.Position.Src.Name, "demand.graphqls") {
+			continue
+		}
+		checked++
+
+		if field.Directives.ForName("interactiveOnly") == nil {
+			t.Errorf("Mutation.%s is declared in demand.graphqls without @interactiveOnly.\n"+
+				"Every mutation in that file carries it, because a refusal of INSTANCE_IN_USE "+
+				"is an answer about who wants an instance — and through a token the wish rule "+
+				"reaches only your own. See the note at the top of the file.", field.Name)
+		}
+	}
+
+	// The demand has eleven mutations today. A floor rather than an exact number, so that adding
+	// one fails in the loop above — which is the message that helps — rather than here. What this
+	// catches is the other failure: a walk that stopped matching the file at all and was
+	// defending nothing while passing.
+	if checked < 11 {
+		t.Errorf("found %d mutations declared in demand.graphqls, want at least 11 — this test "+
+			"is defending less than it claims", checked)
+	}
+}

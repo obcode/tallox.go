@@ -21,14 +21,19 @@ import (
 // this service would not have it.
 
 var (
-	// ErrWishPhaseClosed is registering interest outside the wish phase.
+	// ErrWishPhaseClosed is registering interest in a semester that is finished.
+	//
+	// The only phase that refuses one. Wishes may be entered and changed for as long as the
+	// semester is not closed — through the demand planning, the wish phase and the assignment —
+	// because a correction that the tool refuses happens in a mail instead, and then the list the
+	// tool holds is the wrong one.
 	//
 	// Its own sentence rather than the demand's policy.PhaseClosedReason, because the audience
 	// and the repair differ: somebody told "the demand can no longer be changed" while trying to
-	// register interest goes looking for a demand screen. What this one says is when the window
-	// is.
+	// register interest goes looking for a demand screen. What this one says is that the semester
+	// is over, which is not something the reader can repair at all — and saying so is the point.
 	ErrWishPhaseClosed = errors.New(
-		"nur während der Wunschphase lassen sich Wünsche eintragen und ändern")
+		"dieses Semester ist abgeschlossen — Wünsche lassen sich nicht mehr ändern")
 	// ErrWishNotFound is a wish that is not there — or is not the caller's, which is deliberately
 	// the same answer. Whose it is, is the confidential part.
 	ErrWishNotFound = errors.New("dieser Wunsch ist nicht (mehr) da")

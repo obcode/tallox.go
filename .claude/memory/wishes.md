@@ -63,10 +63,22 @@ Auslöser mit, damit er nicht leerläuft.
 **Kontraktbruch:** ein PAT kann keinen Bedarf mehr schreiben. Als `feat:` committet, Bruchstelle
 im Body, Major-Bump ist eine Frage fürs nächste Release — siehe [[release-versioning]].
 
-## Die Phase
+## Die Phase: offen bis das Semester abgeschlossen ist
 
-Die Schreibmatrix hat mit `WISHES × WISHES → {LECTURER}` ihre **erste geschlossene Zelle**;
-`PhaseClosedReason` ist damit kein toter Code mehr. Nebeneffekt: „Zelle sagt niemand" und „Zelle
-fehlt" mussten unterscheidbar werden — `policy.Decided`, statt sich auf nil-vs-leer zu verlassen.
+**Entschieden mit der Fakultät am 2026-08-25, und es ersetzt die engere Lesart, die die Tabelle
+einen Tag lang trug** („nur in der Wunschphase"). Gewünscht ist: solange das Semester nicht
+abgeschlossen ist, also solange die Zuteilung nicht erfolgt ist — das sind
+`DEMAND_PLANNING`, `WISHES` und `ASSIGNMENT`.
+
+Dasselbe Argument wie beim Bedarf eine Zeile darüber: wer im März sagt, er nähme doch die zweite
+Praktikumsgruppe, korrigiert etwas — und eine Korrektur, die das Werkzeug verweigert, passiert
+trotzdem, nur per Mail. Danach ist die Liste im Werkzeug die falsche. Was die Zuteilung schützt,
+ist die Zuteilung selbst und nicht eine geschlossene Phase.
+
+`FINAL` ist zu und ist damit die **einzige geschlossene Zelle der ganzen Schreibmatrix**: ein
+abgeschlossenes Semester ist das Protokoll dessen, was die Fakultät getan hat.
+
+Nebeneffekt vom Bau: „Zelle sagt niemand" und „Zelle fehlt" mussten unterscheidbar werden —
+`policy.Decided`, statt sich auf nil-vs-leer zu verlassen.
 
 Siehe auch [[identity-and-auth]], [[semester-and-phase]].

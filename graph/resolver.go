@@ -23,6 +23,15 @@ type Resolver struct {
 	Tokens *domain.TokenService
 	// People is user administration, on the same terms as Tokens.
 	People *domain.PeopleService
+	// Wishes is the wish phase: who has registered interest in which instance part.
+	//
+	// Named for the area rather than for the type like its neighbours, and here the shadowing
+	// its neighbours only warn about is real: `Wishes` is also the generated queryResolver method
+	// for the `wishes` field, so inside any *query* resolver `r.Wishes` is that method and the
+	// service has to be reached as `r.Resolver.Wishes`. The mutation resolvers have no such
+	// method and say `r.Wishes` — which is why the two halves of wish.resolvers.go do not match,
+	// and why that is not a slip.
+	Wishes *domain.WishService
 	// SubjectGroups is the faculty's own grouping of modules and people: who works on what,
 	// who leads which group, and which modules belong to it.
 	//

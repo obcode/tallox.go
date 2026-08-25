@@ -105,6 +105,11 @@ models:
     model: github.com/obcode/tallox.go/internal/domain.InstancePartKind
   DutyStatus:
     model: github.com/obcode/tallox.go/internal/domain.DutyStatus
+  # Bound for the same reason, and here the third home is the CHECK on wish.priority rather than
+  # a text column: store.TestDatabaseAndDomainAgreeOnWishPriorities compares the two that are
+  # left, by writing each level and reading it back.
+  WishPriority:
+    model: github.com/obcode/tallox.go/internal/domain.WishPriority
   ProgrammeStatus:
     model: github.com/obcode/tallox.go/internal/domain.ProgrammeStatus
   ModuleSource:

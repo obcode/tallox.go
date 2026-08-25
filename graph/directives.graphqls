@@ -117,6 +117,23 @@ enum ScopeArea {
   PLANNING
 
   """
+  Registering interest in instance parts, and reading what may be read of other people's.
+
+  Its own area rather than part of `PLANNING`, because it is the one part of the planning somebody
+  might sensibly want a token narrowed *to*: "this script keeps my wishes in step with my
+  calendar" is a sentence a colleague would say, and it should not carry the demand of the whole
+  faculty with it. The reverse matters more — an evaluation script scoped to `PLANNING` does not
+  thereby reach anybody's wishes.
+
+  What this area does **not** do is decide what is visible. Through a token the wish rule collapses
+  to your own entries whatever the scope says: the area bounds the surface, the policy bounds the
+  rows.
+
+  Fields: `myWishes`, `wishes`, `setWish`, `withdrawWish`.
+  """
+  WISHES
+
+  """
   Personal Access Token management. Not reachable through a token at all — those fields are
   `@interactiveOnly`, so that a leaked token cannot mint its successors.
 

@@ -868,6 +868,38 @@ type TeacherAccount struct {
 	Account *Person `json:"account,omitempty"`
 }
 
+// One person's interest in one instance part.
+//
+// Points at a **part** and never at an instance: the faculty's own sentence is "one holds the
+// lecture, another the laboratory", so the assignable unit is the part and so is the unit of
+// interest.
+type Wish struct {
+	ID string `json:"id"`
+	// Who registered it.
+	//
+	// Always the person who made the call. There is no way to register interest on somebody's behalf
+	// and no column that would record one: a wish entered by somebody else is not an expression of
+	// interest but their opinion about you, and the process has a place for that — the assignment.
+	Person *Person `json:"person"`
+	// The assignable unit wanted.
+	Part *InstancePart `json:"part"`
+	// The cohort that part belongs to, with its module and its programme.
+	//
+	// Carried because a wish is unreadable without it: "Analysis, IF1B, Praktikum" is the row somebody
+	// recognises, and a part id is not.
+	Instance *CourseInstance `json:"instance"`
+	// How much.
+	Priority domain.WishPriority `json:"priority"`
+	// The owner's own words: „lieber die Dienstagsgruppe“, „nur wenn es sonst niemand macht“.
+	//
+	// Read by whoever may read the wish — the same rule as the row, because it is part of the row.
+	Note string `json:"note"`
+	// When it was first registered.
+	CreatedAt time.Time `json:"createdAt"`
+	// When it was last changed. Changing your mind moves this and keeps `createdAt`.
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // One rebuild of the module catalogue out of the cached payloads.
 type ZpaCatalogueProjection struct {
 	ID string `json:"id"`

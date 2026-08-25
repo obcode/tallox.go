@@ -248,10 +248,12 @@ type ComplexityRoot struct {
 		SetSubjectGroupLeads          func(childComplexity int, id string, personIds []string) int
 		SetSubjectGroupMembers        func(childComplexity int, id string, personIds []string) int
 		SetTeacherAdmitted            func(childComplexity int, teacherID string, admitted bool) int
+		SetWish                       func(childComplexity int, instancePartID string, priority domain.WishPriority, note *string) int
 		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
 		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
 		SyncZpaNow                    func(childComplexity int) int
 		WithdrawCourseInstance        func(childComplexity int, id string) int
+		WithdrawWish                  func(childComplexity int, id string) int
 	}
 
 	Person struct {
@@ -301,6 +303,7 @@ type ComplexityRoot struct {
 		ModulesWithoutSubjectGroup func(childComplexity int) int
 		MySubjectGroups            func(childComplexity int) int
 		MyTokens                   func(childComplexity int) int
+		MyWishes                   func(childComplexity int, semester string) int
 		People                     func(childComplexity int, search *string, includeInactive *bool) int
 		Person                     func(childComplexity int, id string) int
 		PlanningSemester           func(childComplexity int) int
@@ -315,6 +318,7 @@ type ComplexityRoot struct {
 		SubjectGroupsWithoutLead   func(childComplexity int) int
 		TeacherAccounts            func(childComplexity int) int
 		Teachers                   func(childComplexity int, search *string, includeInactive *bool) int
+		Wishes                     func(childComplexity int, semester string, programme *string, module *string, part *string, person *string) int
 		ZpaCatalogueProjections    func(childComplexity int, limit *int) int
 		ZpaChanges                 func(childComplexity int, runID string) int
 		ZpaSyncRun                 func(childComplexity int, id string) int
@@ -403,6 +407,17 @@ type ComplexityRoot struct {
 	TeacherAccount struct {
 		Account func(childComplexity int) int
 		Teacher func(childComplexity int) int
+	}
+
+	Wish struct {
+		CreatedAt func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Instance  func(childComplexity int) int
+		Note      func(childComplexity int) int
+		Part      func(childComplexity int) int
+		Person    func(childComplexity int) int
+		Priority  func(childComplexity int) int
+		UpdatedAt func(childComplexity int) int
 	}
 
 	ZpaCatalogueProjection struct {
@@ -1582,6 +1597,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetTeacherAdmitted(childComplexity, args["teacherId"].(string), args["admitted"].(bool)), true
+	case "Mutation.setWish":
+		if e.ComplexityRoot.Mutation.SetWish == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setWish_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetWish(childComplexity, args["instancePartId"].(string), args["priority"].(domain.WishPriority), args["note"].(*string)), true
 	case "Mutation.shareInstancePartAcrossTracks":
 		if e.ComplexityRoot.Mutation.ShareInstancePartAcrossTracks == nil {
 			break
@@ -1621,6 +1647,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.WithdrawCourseInstance(childComplexity, args["id"].(string)), true
+	case "Mutation.withdrawWish":
+		if e.ComplexityRoot.Mutation.WithdrawWish == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_withdrawWish_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.WithdrawWish(childComplexity, args["id"].(string)), true
 
 	case "Person.active":
 		if e.ComplexityRoot.Person.Active == nil {
@@ -1866,6 +1903,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.MyTokens(childComplexity), true
+	case "Query.myWishes":
+		if e.ComplexityRoot.Query.MyWishes == nil {
+			break
+		}
+
+		args, err := ec.field_Query_myWishes_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.MyWishes(childComplexity, args["semester"].(string)), true
 	case "Query.people":
 		if e.ComplexityRoot.Query.People == nil {
 			break
@@ -1995,6 +2043,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Teachers(childComplexity, args["search"].(*string), args["includeInactive"].(*bool)), true
+	case "Query.wishes":
+		if e.ComplexityRoot.Query.Wishes == nil {
+			break
+		}
+
+		args, err := ec.field_Query_wishes_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Wishes(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string), args["part"].(*string), args["person"].(*string)), true
 	case "Query.zpaCatalogueProjections":
 		if e.ComplexityRoot.Query.ZpaCatalogueProjections == nil {
 			break
@@ -2373,6 +2432,55 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TeacherAccount.Teacher(childComplexity), true
+
+	case "Wish.createdAt":
+		if e.ComplexityRoot.Wish.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.CreatedAt(childComplexity), true
+	case "Wish.id":
+		if e.ComplexityRoot.Wish.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.ID(childComplexity), true
+	case "Wish.instance":
+		if e.ComplexityRoot.Wish.Instance == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.Instance(childComplexity), true
+	case "Wish.note":
+		if e.ComplexityRoot.Wish.Note == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.Note(childComplexity), true
+	case "Wish.part":
+		if e.ComplexityRoot.Wish.Part == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.Part(childComplexity), true
+	case "Wish.person":
+		if e.ComplexityRoot.Wish.Person == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.Person(childComplexity), true
+	case "Wish.priority":
+		if e.ComplexityRoot.Wish.Priority == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.Priority(childComplexity), true
+	case "Wish.updatedAt":
+		if e.ComplexityRoot.Wish.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.UpdatedAt(childComplexity), true
 
 	case "ZpaCatalogueProjection.error":
 		if e.ComplexityRoot.ZpaCatalogueProjection.Error == nil {
@@ -4663,6 +4771,23 @@ enum ScopeArea {
   PLANNING
 
   """
+  Registering interest in instance parts, and reading what may be read of other people's.
+
+  Its own area rather than part of ` + "`" + `PLANNING` + "`" + `, because it is the one part of the planning somebody
+  might sensibly want a token narrowed *to*: "this script keeps my wishes in step with my
+  calendar" is a sentence a colleague would say, and it should not carry the demand of the whole
+  faculty with it. The reverse matters more — an evaluation script scoped to ` + "`" + `PLANNING` + "`" + ` does not
+  thereby reach anybody's wishes.
+
+  What this area does **not** do is decide what is visible. Through a token the wish rule collapses
+  to your own entries whatever the scope says: the area bounds the surface, the policy bounds the
+  rows.
+
+  Fields: ` + "`" + `myWishes` + "`" + `, ` + "`" + `wishes` + "`" + `, ` + "`" + `setWish` + "`" + `, ` + "`" + `withdrawWish` + "`" + `.
+  """
+  WISHES
+
+  """
   Personal Access Token management. Not reachable through a token at all — those fields are
   ` + "`" + `@interactiveOnly` + "`" + `, so that a leaked token cannot mint its successors.
 
@@ -5500,6 +5625,158 @@ type Mutation {
   does not exist and a token belonging to somebody else produce the same refusal.
   """
   revokePersonalAccessToken(id: ID!): PersonalAccessToken! @interactiveOnly @scope(area: TOKENS, verb: WRITE)
+}
+`, BuiltIn: false},
+	{Name: "../wish.graphqls", Input: `# Wishes: one person's interest in one instance part.
+#
+# The area the confidentiality rule was written for, and the reason the rule lives in
+# internal/policy rather than in a resolver. What is visible here is decided by a WHERE clause,
+# so it is decided the same way for this API, for the CSV exports that will come, and for the
+# nightly digests — none of which will pass through these fields.
+#
+# THE RULE, ONCE
+#
+# A wish is visible if and only if it belongs to you, or the wishes of that semester have been
+# published, or you are responsible for it — you lead the study programme whose demand the
+# instance is, or the subject group its module belongs to, or you are the dean's office — and
+# then only in a signed-in browser session, never through a Personal Access Token.
+#
+# Read the whole thing in ` + "`" + `internal/policy/testdata/visibility_matrix.golden` + "`" + `, which is generated
+# from the code that enforces it.
+#
+# WHAT IS DELIBERATELY MISSING
+#
+# There is no count. No ` + "`" + `wishCount` + "`" + `, no ` + "`" + `hasWishes` + "`" + `, no "how many people want this part" anywhere
+# in this schema — not even a filtered one. "3 Kolleg:innen haben bereits Interesse" is the
+# confidential fact with the names taken out, and a field that answers 0 or 1 before publication
+# is a field somebody renders as a badge. Anybody who wants a number counts the rows they were
+# allowed to read.
+
+"""
+How much somebody wants a part.
+
+Three fixed levels rather than a rank. A rank is more expressive and costs a reordering dance on
+every insert in the middle, and a number nobody can read off a list without a legend. Ties are the
+common case: somebody wants four things equally and would rather say so than invent an order.
+"""
+enum WishPriority {
+  "Unbedingt — the parts somebody is actually asking for."
+  FIRST_CHOICE
+  "Gerne. The default, because it is the honest answer to a form being filled in for the first time."
+  HAPPY_TO
+  "Notfalls — held to fill a gap, and the level the assignment reads last."
+  IF_NEEDED
+}
+
+"""
+One person's interest in one instance part.
+
+Points at a **part** and never at an instance: the faculty's own sentence is "one holds the
+lecture, another the laboratory", so the assignable unit is the part and so is the unit of
+interest.
+"""
+type Wish {
+  id: ID!
+  """
+  Who registered it.
+
+  Always the person who made the call. There is no way to register interest on somebody's behalf
+  and no column that would record one: a wish entered by somebody else is not an expression of
+  interest but their opinion about you, and the process has a place for that — the assignment.
+  """
+  person: Person!
+  "The assignable unit wanted."
+  part: InstancePart!
+  """
+  The cohort that part belongs to, with its module and its programme.
+
+  Carried because a wish is unreadable without it: "Analysis, IF1B, Praktikum" is the row somebody
+  recognises, and a part id is not.
+  """
+  instance: CourseInstance!
+  "How much."
+  priority: WishPriority!
+  """
+  The owner's own words: „lieber die Dienstagsgruppe“, „nur wenn es sonst niemand macht“.
+
+  Read by whoever may read the wish — the same rule as the row, because it is part of the row.
+  """
+  note: String!
+  "When it was first registered."
+  createdAt: Time!
+  "When it was last changed. Changing your mind moves this and keeps ` + "`" + `createdAt` + "`" + `."
+  updatedAt: Time!
+}
+
+extend type Query {
+  """
+  Your own wishes in a semester.
+
+  The one question whose answer never depends on the confidentiality rule, through either door:
+  they are your entries. A script that keeps your wishes in step with your calendar is a use this
+  API exists for.
+  """
+  myWishes(
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
+    semester: String!
+  ): [Wish!]! @scope(area: WISHES, verb: READ)
+
+  """
+  The wishes of a semester — as many of them as you may see.
+
+  **Not an error when you may see none.** Asking for a colleague's wishes before publication
+  answers with an empty list rather than a refusal, and that is deliberate: the difference between
+  "refused" and "empty" is exactly the fact being protected, so a refusal would turn this field
+  into an oracle for it.
+
+  Through a Personal Access Token this collapses to your own entries whatever your role — a
+  long-lived token in a script makes silent bulk export possible and decouples "who saw this" from
+  any login event. Your own stay readable, because they are your data.
+  """
+  wishes(
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
+    semester: String!
+    "One study programme's instances, by its short code."
+    programme: String
+    "One module, across its cohorts."
+    module: ID
+    "One instance part."
+    part: ID
+    "One person's entries, by id."
+    person: ID
+  ): [Wish!]! @scope(area: WISHES, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Register your interest in a part, or change it.
+
+  Yours only: there is no argument for whose it is. Registering twice for the same part is not a
+  second wish and not an error — it is a correction, and it keeps the original ` + "`" + `createdAt` + "`" + `.
+
+  Only in the wish phase. ` + "`" + `WISH_PHASE_CLOSED` + "`" + ` otherwise, in either direction: a list that may be
+  added to but not corrected is worse than a closed one, so both are the same decision about when
+  the window is open.
+
+  Reachable through both doors, unlike the demand: this is your own data.
+  """
+  setWish(
+    "The part you are interested in."
+    instancePartId: ID!
+    priority: WishPriority! = HAPPY_TO
+    "Up to 500 characters, or nothing at all."
+    note: String
+  ): Wish! @scope(area: WISHES, verb: WRITE)
+
+  """
+  Withdraw one of your own wishes.
+
+  A wish that is not there and a wish that is not yours answer the same way, with
+  ` + "`" + `WISH_NOT_FOUND` + "`" + ` — which of the two it is, is the confidential part.
+
+  Returns the id, so that a list can drop the row without asking again.
+  """
+  withdrawWish(id: ID!): ID! @scope(area: WISHES, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../zpa.graphqls", Input: `# The module master data import, as far as it is visible from outside.
@@ -6493,6 +6770,28 @@ func (ec *executionContext) childFields_TeacherAccount(ctx context.Context, fiel
 		return ec.fieldContext_TeacherAccount_account(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type TeacherAccount", field.Name)
+}
+
+func (ec *executionContext) childFields_Wish(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Wish_id(ctx, field)
+	case "person":
+		return ec.fieldContext_Wish_person(ctx, field)
+	case "part":
+		return ec.fieldContext_Wish_part(ctx, field)
+	case "instance":
+		return ec.fieldContext_Wish_instance(ctx, field)
+	case "priority":
+		return ec.fieldContext_Wish_priority(ctx, field)
+	case "note":
+		return ec.fieldContext_Wish_note(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_Wish_createdAt(ctx, field)
+	case "updatedAt":
+		return ec.fieldContext_Wish_updatedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Wish", field.Name)
 }
 
 func (ec *executionContext) childFields_ZpaCatalogueProjection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

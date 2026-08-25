@@ -1,0 +1,107 @@
+Subject groups — who may act in which one
+=========================================
+
+Generated from internal/policy (TestAssignmentMatrix). Do not edit by hand:
+
+    go test ./internal/policy/ -update-golden
+
+The rule
+--------
+
+Somebody may act in a subject group if
+
+  · they are the dean's office — every group, including one created tomorrow, or
+  · they lead that subject group, and no others.
+
+Acting means filling the group's instances, and — before publication — reading the wishes on
+them. Nobody else, through either door.
+
+Subject groups have no semester
+-------------------------------
+
+A subject group is a statement about a subject, not about a plan: mathematics, software,
+technical computer science. It is not copied between semesters and it survives every change of
+examination regulations. So the subject group of anything planned is derived through the
+module — instance part → course instance → module → subject group — and never stored beside
+it.
+
+That has a consequence worth stating before somebody meets it: re-cutting a group, which the
+faculty already expects to do, moves modules with an UPDATE and therefore changes
+**retroactively** who may read the unpublished wishes on them. This is the intended behaviour
+— whoever is responsible now is who may look now — and it is the reason the responsibility is
+derived rather than copied onto the wish.
+
+Membership is not on this table
+-------------------------------
+
+Being in a subject group and leading one are different things. Membership says which subjects
+a colleague works in; it is what the wish screen offers first, and it grants nothing here.
+
+The kickoff sentence "jeder in einer Fachgruppe müsste alles lesen können" is about planning
+data. It is deliberately not extended to unpublished wishes, because the
+first-come-first-served race the confidentiality rule exists to end plays out *inside* a
+subject group — the colleague who has taught the subject for years is in it — so a membership
+that granted wish visibility would switch the rule off exactly where it is needed.
+
+The one that surprises people
+-----------------------------
+
+**A subject group lead who has not been assigned a group may do nothing.** Not everything.
+
+The same reading person_programme_scope settled for study programmes, and it is worth repeating
+because it is the reading that is wrong everywhere else in this system. An empty token scope
+list and an empty role selection both mean "unrestricted", because both are mechanisms that can
+only ever remove. A subject group scope is not a narrowing of the grant; it is the grant's
+subject. The role fills the instances of ONE group, and the role that means all of them is the
+dean's office.
+
+Read the other way, the release that introduced subject groups would have been the moment every
+existing lead silently gained faculty-wide access to other people's unpublished wishes.
+
+What such a person is shown is not "you may not do this" — which would send them to ask for a
+role they already hold — but "your subject group leadership has not been assigned to a subject
+group yet".
+
+The columns
+-----------
+
+  Scoped to     Which subject groups this person has been assigned.
+  own / other   May they act in group one / group two?
+  Query scope   The same rule as a query restriction, and what the interface reads to decide
+                which groups to offer at all. "every group" is not the list of groups that
+                exist today — a group created afterwards is in it, which matters here because
+                splitting a group creates one.
+
+Notes
+-----
+
+  · ADMIN acts in no group, the same decision the wish rule and the planning rule both make:
+    running the system is a different job from planning with it.
+  · A programme lead declares instances and does not fill them, so it acts in no group here.
+  · Combinations of roles are not listed. Somebody holding several gets the union — checked
+    over the complete cartesian product in TestAssignmentGuardAndScopeAgree.
+  · Both doors reach equally far. What a subject group lead may *see* through a token is a
+    different question, decided by the wish rule and not by this one.
+
+Role                Door          Scoped to   own   other  Query scope
+----------------------------------------------------------------------
+(not signed in)     —             —           no    no     none
+
+LECTURER            interactive   —           no    no     none
+LECTURER            token         —           no    no     none
+
+SUBJECT_GROUP_LEAD  interactive   —           no    no     none
+SUBJECT_GROUP_LEAD  interactive   one         yes   no     1 group
+SUBJECT_GROUP_LEAD  interactive   one, two    yes   yes    2 groups
+SUBJECT_GROUP_LEAD  token         —           no    no     none
+SUBJECT_GROUP_LEAD  token         one         yes   no     1 group
+SUBJECT_GROUP_LEAD  token         one, two    yes   yes    2 groups
+
+PROGRAMME_LEAD      interactive   —           no    no     none
+PROGRAMME_LEAD      token         —           no    no     none
+
+DEANS_OFFICE        interactive   —           yes   yes    every group
+DEANS_OFFICE        token         —           yes   yes    every group
+
+ADMIN               interactive   —           no    no     none
+ADMIN               token         —           no    no     none

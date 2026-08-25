@@ -113,8 +113,12 @@ func (q *Queries) InsertModuleComponent(ctx context.Context, arg InsertModuleCom
 const listModules = `-- name: ListModules :many
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind
+       m.source, m.kind,
+       g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
+       sg.active AS subject_group_active
 FROM module m
+LEFT JOIN module_subject_group g ON g.module_id = m.id
+LEFT JOIN subject_group sg ON sg.id = g.subject_group_id
 WHERE ($1::uuid IS NULL
        OR m.responsible_teacher_id = $1::uuid)
   AND ($2::text IS NULL
@@ -155,19 +159,26 @@ WHERE ($1::uuid IS NULL
   AND ($8::boolean OR (m.active AND m.retired_at IS NULL))
   AND (NOT $9::boolean
        OR NOT EXISTS (SELECT 1 FROM module_component c WHERE c.module_id = m.id))
+  -- The other half of October's work list, in the same shape and for the same reason: a bounded
+  -- set somebody can open, work through and see shrink.
+  AND (NOT $10::boolean OR g.module_id IS NULL)
+  AND ($11::uuid IS NULL
+       OR g.subject_group_id = $11::uuid)
 ORDER BY (m.name = ''), m.name, m.id
 `
 
 type ListModulesParams struct {
-	Responsible       uuid.NullUUID
-	Programme         *string
-	Spo               uuid.NullUUID
-	AnyFrequency      bool
-	Frequencies       []string
-	Duty              *string
-	Search            *string
-	IncludeInactive   bool
-	WithoutComponents bool
+	Responsible         uuid.NullUUID
+	Programme           *string
+	Spo                 uuid.NullUUID
+	AnyFrequency        bool
+	Frequencies         []string
+	Duty                *string
+	Search              *string
+	IncludeInactive     bool
+	WithoutComponents   bool
+	WithoutSubjectGroup bool
+	SubjectGroup        uuid.NullUUID
 }
 
 type ListModulesRow struct {
@@ -185,6 +196,10 @@ type ListModulesRow struct {
 	ZpaModuleRef         *int64
 	Source               string
 	Kind                 string
+	SubjectGroupID       uuid.NullUUID
+	SubjectGroupCode     *string
+	SubjectGroupName     *string
+	SubjectGroupActive   *bool
 }
 
 // The catalogue, filtered.
@@ -211,6 +226,8 @@ func (q *Queries) ListModules(ctx context.Context, arg ListModulesParams) ([]Lis
 		arg.Search,
 		arg.IncludeInactive,
 		arg.WithoutComponents,
+		arg.WithoutSubjectGroup,
+		arg.SubjectGroup,
 	)
 	if err != nil {
 		return nil, err
@@ -234,6 +251,10 @@ func (q *Queries) ListModules(ctx context.Context, arg ListModulesParams) ([]Lis
 			&i.ZpaModuleRef,
 			&i.Source,
 			&i.Kind,
+			&i.SubjectGroupID,
+			&i.SubjectGroupCode,
+			&i.SubjectGroupName,
+			&i.SubjectGroupActive,
 		); err != nil {
 			return nil, err
 		}
@@ -436,11 +457,15 @@ func (q *Queries) ListTeachers(ctx context.Context, arg ListTeachersParams) ([]L
 }
 
 const moduleByID = `-- name: ModuleByID :one
-SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
-       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
-       source, kind
-FROM module
-WHERE id = $1
+SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
+       m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
+       m.source, m.kind,
+       g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
+       sg.active AS subject_group_active
+FROM module m
+LEFT JOIN module_subject_group g ON g.module_id = m.id
+LEFT JOIN subject_group sg ON sg.id = g.subject_group_id
+WHERE m.id = $1
 `
 
 type ModuleByIDRow struct {
@@ -458,6 +483,10 @@ type ModuleByIDRow struct {
 	ZpaModuleRef         *int64
 	Source               string
 	Kind                 string
+	SubjectGroupID       uuid.NullUUID
+	SubjectGroupCode     *string
+	SubjectGroupName     *string
+	SubjectGroupActive   *bool
 }
 
 func (q *Queries) ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, error) {
@@ -478,6 +507,10 @@ func (q *Queries) ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, 
 		&i.ZpaModuleRef,
 		&i.Source,
 		&i.Kind,
+		&i.SubjectGroupID,
+		&i.SubjectGroupCode,
+		&i.SubjectGroupName,
+		&i.SubjectGroupActive,
 	)
 	return i, err
 }
@@ -596,12 +629,16 @@ func (q *Queries) ModuleOfferingsFor(ctx context.Context, moduleIds []uuid.UUID)
 }
 
 const modulesByIDs = `-- name: ModulesByIDs :many
-SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
-       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
-       source, kind
-FROM module
-WHERE id = ANY ($1::uuid[])
-ORDER BY (name = ''), name, id
+SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
+       m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
+       m.source, m.kind,
+       g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
+       sg.active AS subject_group_active
+FROM module m
+LEFT JOIN module_subject_group g ON g.module_id = m.id
+LEFT JOIN subject_group sg ON sg.id = g.subject_group_id
+WHERE m.id = ANY ($1::uuid[])
+ORDER BY (m.name = ''), m.name, m.id
 `
 
 type ModulesByIDsRow struct {
@@ -619,6 +656,10 @@ type ModulesByIDsRow struct {
 	ZpaModuleRef         *int64
 	Source               string
 	Kind                 string
+	SubjectGroupID       uuid.NullUUID
+	SubjectGroupCode     *string
+	SubjectGroupName     *string
+	SubjectGroupActive   *bool
 }
 
 // A handful of modules by id, for attaching them to the instances that offer them.
@@ -650,6 +691,10 @@ func (q *Queries) ModulesByIDs(ctx context.Context, ids []uuid.UUID) ([]ModulesB
 			&i.ZpaModuleRef,
 			&i.Source,
 			&i.Kind,
+			&i.SubjectGroupID,
+			&i.SubjectGroupCode,
+			&i.SubjectGroupName,
+			&i.SubjectGroupActive,
 		); err != nil {
 			return nil, err
 		}

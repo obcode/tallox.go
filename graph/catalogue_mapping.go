@@ -67,6 +67,7 @@ func moduleModel(m domain.Module) *model.Module {
 		ID:                  m.ID.String(),
 		Name:                m.Name,
 		HomeProgramme:       programmeModel(m.HomeProgramme),
+		SubjectGroup:        subjectGroupRefModel(m.SubjectGroup),
 		CourseType:          m.CourseType,
 		Frequency:           m.Frequency,
 		ContactHoursPerWeek: m.ContactHoursPerWeek,
@@ -177,6 +178,16 @@ func moduleFilterFrom(in *model.ModuleFilter) (domain.ModuleFilter, error) {
 	}
 	if in.IncludeInactive != nil {
 		filter.IncludeInactive = *in.IncludeInactive
+	}
+	if in.WithoutSubjectGroup != nil {
+		filter.WithoutSubjectGroup = *in.WithoutSubjectGroup
+	}
+	if in.SubjectGroup != nil {
+		id, err := uuid.Parse(*in.SubjectGroup)
+		if err != nil {
+			return domain.ModuleFilter{}, refusal("INVALID_ID", "Das ist keine gültige Kennung.")
+		}
+		filter.SubjectGroup = id
 	}
 	if in.WithoutComponents != nil {
 		filter.WithoutComponents = *in.WithoutComponents

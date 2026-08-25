@@ -15,6 +15,20 @@ import (
 // is 506 modules and 1784 offerings; loading what a list needs in four statements and stitching
 // it here is both simpler and faster than a loader framework.
 
+// SubjectGroupRef is a subject group as it is referred to from somewhere else: enough to label
+// it and to link to it, and deliberately not the whole thing.
+//
+// The full SubjectGroup carries its leads and its members, and filling those in for every row of
+// a 506-module catalogue would be a statement per module. A reference is what a module row
+// actually needs, and having a name for it is what stops a half-populated SubjectGroup being
+// passed around as if it were a whole one.
+type SubjectGroupRef struct {
+	ID     uuid.UUID
+	Code   string
+	Name   string
+	Active bool
+}
+
 // Programme is a study programme of the faculty.
 type Programme struct {
 	ID    uuid.UUID
@@ -87,6 +101,13 @@ type Module struct {
 	// name field, so there is nothing to borrow one from.
 	Name          string
 	HomeProgramme Programme
+	// SubjectGroup is the faculty's own grouping this module belongs to, or nil while nobody has
+	// assigned one — which is the ordinary state until October's work list is finished, and what
+	// the withoutSubjectGroup filter finds.
+	//
+	// Exactly one, or none. "Whose group fills this instance" is the sentence the assignment
+	// phase is made of, and it has to have one answer.
+	SubjectGroup *SubjectGroupRef
 	// Responsible is who the examination office names for this module, or nil. Nil for about one
 	// in thirty: the source names a placeholder, or an address the teacher list does not have.
 	Responsible *Teacher
@@ -339,6 +360,11 @@ type ModuleFilter struct {
 	IncludeInactive bool
 	// WithoutComponents keeps only the modules whose hours nobody has split yet — the work list.
 	WithoutComponents bool
+	// WithoutSubjectGroup keeps only the modules nobody has put into a subject group yet — the
+	// other half of the same work list, and the one October starts with.
+	WithoutSubjectGroup bool
+	// SubjectGroup keeps only the modules of one group. uuid.Nil means every group.
+	SubjectGroup uuid.UUID
 	// Responsible keeps only the modules this teacher is responsible for.
 	Responsible uuid.UUID
 }

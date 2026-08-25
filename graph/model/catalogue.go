@@ -69,6 +69,7 @@ type Module struct {
 	ID                  string              `json:"id"`
 	Name                string              `json:"name"`
 	HomeProgramme       *Programme          `json:"homeProgramme"`
+	SubjectGroup        *SubjectGroupRef    `json:"subjectGroup,omitempty"`
 	Responsible         *Teacher            `json:"responsible,omitempty"`
 	CourseType          domain.CourseType   `json:"courseType"`
 	Frequency           domain.Frequency    `json:"frequency"`

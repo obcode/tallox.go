@@ -93,6 +93,8 @@ type Options struct {
 	Catalogue *domain.CatalogueService
 	// Demand is the demand planning, on the same terms.
 	Demand *domain.DemandService
+	// SubjectGroups is the faculty's own grouping of modules and people, on the same terms.
+	SubjectGroups *domain.SubjectGroupService
 	// Access is the access log. Nil is legitimate and means the installation does not record
 	// accesses — which is what every test that does not care about the log runs as, and what
 	// keeps a missing log from being a missing server.
@@ -306,6 +308,7 @@ func Serve(build buildinfo.Info) {
 	modules := store.NewModules(pool)
 	catalogue := domain.NewCatalogueService(modules)
 	demand := domain.NewDemandService(store.NewDemand(pool, modules), modules, planning)
+	subjectGroups := domain.NewSubjectGroupService(store.NewSubjectGroups(pool))
 	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool), catalogueProjection)
 	access := domain.NewAccessService(store.NewAccess(pool))
 
@@ -330,13 +333,14 @@ func Serve(build buildinfo.Info) {
 				Tokens:  directory,
 				DevUser: cfg.Auth.DevUser,
 			},
-			Tokens:    tokens,
-			People:    people,
-			Planning:  planning,
-			Import:    imports,
-			Catalogue: catalogue,
-			Demand:    demand,
-			Access:    access,
+			Tokens:        tokens,
+			People:        people,
+			Planning:      planning,
+			Import:        imports,
+			Catalogue:     catalogue,
+			Demand:        demand,
+			SubjectGroups: subjectGroups,
+			Access:        access,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
@@ -580,14 +584,15 @@ func router(opts Options) http.Handler {
 func graphqlHandler(opts Options) http.Handler {
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{
 		Resolvers: &graph.Resolver{
-			Build:     opts.Build,
-			Tokens:    opts.Tokens,
-			People:    opts.People,
-			Planning:  opts.Planning,
-			Import:    opts.Import,
-			Catalogue: opts.Catalogue,
-			Demand:    opts.Demand,
-			Access:    opts.Access,
+			Build:         opts.Build,
+			Tokens:        opts.Tokens,
+			People:        opts.People,
+			Planning:      opts.Planning,
+			Import:        opts.Import,
+			Catalogue:     opts.Catalogue,
+			Demand:        opts.Demand,
+			SubjectGroups: opts.SubjectGroups,
+			Access:        opts.Access,
 		},
 		// The generated code fails closed on a directive with no implementation — the field
 		// errors with "directive interactiveOnly is not implemented" rather than passing

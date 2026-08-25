@@ -29,16 +29,15 @@ const (
 
 	// RoleSubjectGroupLead assigns the instances of one subject group.
 	//
-	// The grant is stored unscoped for now — which group it applies to becomes a question the
-	// moment subject groups exist as rows, and the migration that creates them is where the
-	// scoped grant belongs. Nothing in this file depends on the answer: the only rule shipped
-	// so far, wish confidentiality, is faculty-wide by construction. Anything that does depend
-	// on it must wait for the scoped form rather than approximate it with this one.
+	// Scoped to subject groups via person_subject_group_scope; see AssignmentScope. This entry
+	// used to say the grant was stored unscoped and that anything depending on the answer had
+	// to wait for the scoped form rather than approximate it with this one. Migration 14 is
+	// that form, and the wish rule is what was waiting.
 	RoleSubjectGroupLead Role = "SUBJECT_GROUP_LEAD"
 
 	// RoleProgrammeLead declares the demand of one study programme: which instances have to be
-	// offered, the compulsory and elective catalogues, the FWP wildcards. Unscoped for the same
-	// reason as above.
+	// offered, the compulsory and elective catalogues, the FWP wildcards. Scoped to study
+	// programmes via person_programme_scope; see PlanningScope.
 	RoleProgrammeLead Role = "PROGRAMME_LEAD"
 
 	// RoleDeansOffice reads across programmes for the import/export statistics and maintains

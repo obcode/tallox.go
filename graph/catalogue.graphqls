@@ -304,6 +304,18 @@ type Module {
   "The programme that plans this module. Every module has exactly one."
   homeProgramme: Programme!
   """
+  The faculty's own grouping this module belongs to, or `null` while nobody has assigned one.
+
+  Exactly one, or none. "Whose subject group fills this instance" is the sentence the assignment
+  phase is made of, and it has to have one answer.
+
+  `null` is the ordinary state until the faculty has worked through its catalogue — see the
+  `withoutSubjectGroup` filter, which is that work list. A reference rather than the whole group:
+  the full `SubjectGroup` carries its leads and its members, and filling those in for every row of
+  a 506-module catalogue would be a statement per module.
+  """
+  subjectGroup: SubjectGroupRef
+  """
   Who the examination office names as responsible for this module, or `null`.
 
   Null for about one module in thirty, and for two different reasons that are not
@@ -570,6 +582,18 @@ input ModuleFilter {
   task rather than an open form.
   """
   withoutComponents: Boolean = false
+  """
+  Keep only modules that are in no subject group yet.
+
+  The other half of the same work list, and the one October starts with: an instance can be
+  declared without a subject group, but nobody can be shown their own subjects on the wish screen
+  until the modules are in one.
+  """
+  withoutSubjectGroup: Boolean = false
+  """
+  Keep only the modules of one subject group, by id.
+  """
+  subjectGroup: ID
 }
 
 """

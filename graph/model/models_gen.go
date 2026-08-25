@@ -530,6 +530,14 @@ type ModuleFilter struct {
 	// finds is where the software is guessing and a person has not yet agreed. A bounded, finishable
 	// task rather than an open form.
 	WithoutComponents *bool `json:"withoutComponents,omitempty"`
+	// Keep only modules that are in no subject group yet.
+	//
+	// The other half of the same work list, and the one October starts with: an instance can be
+	// declared without a subject group, but nobody can be shown their own subjects on the wish screen
+	// until the modules are in one.
+	WithoutSubjectGroup *bool `json:"withoutSubjectGroup,omitempty"`
+	// Keep only the modules of one subject group, by id.
+	SubjectGroup *string `json:"subjectGroup,omitempty"`
 }
 
 // Everything that changes something.
@@ -757,6 +765,95 @@ type Session struct {
 	// `false` means the `@interactiveOnly` fields will answer `null` — worth checking before
 	// concluding that something is empty.
 	Interactive bool `json:"interactive"`
+}
+
+// A subject the faculty groups modules and people by.
+//
+// Three things hang off it and they are not the same thing:
+//
+//   - **Modules.** Exactly one group per module — "whose group fills this instance" is the sentence
+//     the whole assignment phase is made of, and it has to have one answer.
+//   - **Members.** The colleagues who work in these subjects. This is **not** a permission: it decides
+//     what the wish screen offers first and nothing else.
+//   - **Leads.** The colleagues who fill this group's instances — and, before publication, who read
+//     the wishes on them. This one *is* a grant.
+type SubjectGroup struct {
+	ID string `json:"id"`
+	// The short name the faculty says out loud: `MATHE`, `SWE`, `TI`.
+	//
+	// What belongs in a URL and in a colleague's evaluation script, like a programme's code. Up to
+	// sixteen characters, so that a group split off another can carry a distinguishable suffix
+	// (`MATHE-ML`) instead of encoding it into the name.
+	Code string `json:"code"`
+	// The name a person reads: `Mathematik (klassisch)`.
+	Name string `json:"name"`
+	// False for a group that has been retired — split into two, or wound up.
+	//
+	// There is no delete and there will not be one. A retired group still has to render in the
+	// planning it was part of, and its modules keep their assignment: reassigning 506 modules is
+	// weeks of somebody's judgement, and a delete that took it would be silent.
+	Active bool `json:"active"`
+	// The colleagues who lead this group, in the order a list reads.
+	//
+	// Empty is a real state, and the reason the faculty's "keine Fachgruppe ohne Person, die sich
+	// ihrer annimmt" is a work list here rather than a constraint: a group has to be creatable before
+	// its lead is decided, and a lead has to be revocable without destroying the group.
+	//
+	// A lead whose grant has expired is not in this list. The grant is what the scope narrows, so a
+	// scope outliving it would be a permission nobody granted.
+	Leads []*Person `json:"leads"`
+	// The colleagues who work in this group's subjects.
+	//
+	// Readable by anybody with an account, and that is a decision rather than an oversight. The
+	// kickoff asks for it — "jeder in einer Fachgruppe müsste alles lesen können" — and who teaches at
+	// this faculty is already answerable through `teachers`. What that sentence does **not** extend to
+	// is unpublished wishes: those are read by the lead alone, because the first-come-first-served
+	// race the confidentiality rule ends plays out inside a subject group, not across them.
+	//
+	// Membership grants nothing. `policy.AssignmentScope` deliberately does not read it.
+	Members []*Person `json:"members"`
+	// How many modules are assigned to this group.
+	//
+	// Safe in a way a count over wishes never is: a module assignment is catalogue data, and nobody
+	// is protected from it being known.
+	ModuleCount int `json:"moduleCount"`
+}
+
+// What assigning a batch of modules did.
+//
+// Reported as a number even when it is zero, because "nothing happened" and "it failed" are
+// indistinguishable to the person who pressed the button otherwise.
+type SubjectGroupAssignmentReport struct {
+	// The group the modules were put into, or `null` where they were taken out of every group.
+	SubjectGroup *SubjectGroup `json:"subjectGroup,omitempty"`
+	// How many module assignments were written or removed.
+	ModulesAssigned int `json:"modulesAssigned"`
+	// How many active modules still have no subject group at all.
+	//
+	// October's work list as a number: a bounded, finishable task, the same shape as "14 modules
+	// without a split". Retired modules are not counted — a module the examination office stopped
+	// publishing is not work anybody has to finish.
+	ModulesWithoutSubjectGroup int `json:"modulesWithoutSubjectGroup"`
+}
+
+// A subject group as it is referred to from somewhere else: enough to label it and to link to it.
+//
+// Deliberately not the whole `SubjectGroup`. That one carries its leads and its members, and
+// filling those in for every row of a 506-module catalogue would be a statement per module. Having
+// a name for the reference is what stops a half-populated group being passed around as if it were a
+// whole one.
+type SubjectGroupRef struct {
+	ID string `json:"id"`
+	// The short name the faculty says out loud: `MATHE`, `SWE`, `TI`.
+	Code string `json:"code"`
+	// The name a person reads: `Mathematik (klassisch)`.
+	Name string `json:"name"`
+	// False while this group is retired.
+	//
+	// Worth carrying rather than assuming: a module can sit in a retired group for as long as a split
+	// takes, and a screen that called it active would hide exactly the rows somebody is in the middle
+	// of moving.
+	Active bool `json:"active"`
 }
 
 // Somebody the examination office publishes, together with the account they have here.

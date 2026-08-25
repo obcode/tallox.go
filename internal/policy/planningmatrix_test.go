@@ -175,8 +175,9 @@ Notes
   · A subject group lead fills instances and does not declare them, so it plans nothing here.
   · Combinations of roles are not listed. Somebody holding several gets the union — checked
     over the complete cartesian product in TestPlanningGuardAndScopeAgree.
-  · Only the programme lead has a scope dimension today. The subject group lead gets its own
-    when subject groups exist as rows.
+  · Only the programme lead has a scope dimension in this table. The subject group lead has
+    one of its own — see assignment_matrix.golden — and the two are orthogonal: a subject
+    group reaches across study programmes, and a study programme across subject groups.
 
 `
 

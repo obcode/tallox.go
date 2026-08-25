@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"slices"
-
 	"github.com/google/uuid"
 
 	"github.com/obcode/tallox.go/internal/principal"
@@ -71,24 +69,18 @@ type ProgrammeScope struct {
 }
 
 // Allows reports whether this scope covers one programme.
+//
+// The nil programme is not a programme — see idScopeAllows, which is where that guard and the
+// rest of the mechanics live, shared with the subject group scope.
 func (s ProgrammeScope) Allows(programmeID uuid.UUID) bool {
-	if s.All {
-		return true
-	}
-	// The nil programme is not a programme. Without this an actor with an empty scope and a
-	// caller passing a zero uuid would meet in the middle, which is the shape of mistake
-	// person_id_not_nil exists to prevent one table over.
-	if programmeID == uuid.Nil {
-		return false
-	}
-	return slices.Contains(s.IDs, programmeID)
+	return idScopeAllows(s.All, s.IDs, programmeID)
 }
 
 // Empty reports whether this scope reaches nothing at all.
 //
 // The distinction the interface needs in order to say the useful sentence: an actor who holds
 // PROGRAMME_LEAD and reaches nothing is waiting for an administrator, not being refused.
-func (s ProgrammeScope) Empty() bool { return !s.All && len(s.IDs) == 0 }
+func (s ProgrammeScope) Empty() bool { return idScopeEmpty(s.All, s.IDs) }
 
 // PlanningScope is what an actor may plan for.
 //
@@ -106,16 +98,9 @@ func PlanningScope(a principal.Actor) ProgrammeScope {
 		return ProgrammeScope{}
 	}
 
-	ids := make([]uuid.UUID, 0, len(a.RoleScopes))
-	for _, scope := range a.RoleScopes {
-		if scope.Role != string(RoleProgrammeLead) || scope.ProgrammeID == uuid.Nil {
-			continue
-		}
-		if !slices.Contains(ids, scope.ProgrammeID) {
-			ids = append(ids, scope.ProgrammeID)
-		}
-	}
-	return ProgrammeScope{IDs: ids}
+	return ProgrammeScope{IDs: scopedIDs(a, RoleProgrammeLead, func(s principal.RoleScope) uuid.UUID {
+		return s.ProgrammeID
+	})}
 }
 
 // MayPlanProgramme is the guard half: may this actor declare demand for this programme?

@@ -54,8 +54,12 @@ ORDER BY p.code, s.version DESC;
 -- expressed as "has both", which is what makes it a filter rather than a label.
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind
+       m.source, m.kind,
+       g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
+       sg.active AS subject_group_active
 FROM module m
+LEFT JOIN module_subject_group g ON g.module_id = m.id
+LEFT JOIN subject_group sg ON sg.id = g.subject_group_id
 WHERE (sqlc.narg('responsible')::uuid IS NULL
        OR m.responsible_teacher_id = sqlc.narg('responsible')::uuid)
   AND (sqlc.narg('programme')::text IS NULL
@@ -96,16 +100,25 @@ WHERE (sqlc.narg('responsible')::uuid IS NULL
   AND (sqlc.arg('include_inactive')::boolean OR (m.active AND m.retired_at IS NULL))
   AND (NOT sqlc.arg('without_components')::boolean
        OR NOT EXISTS (SELECT 1 FROM module_component c WHERE c.module_id = m.id))
+  -- The other half of October's work list, in the same shape and for the same reason: a bounded
+  -- set somebody can open, work through and see shrink.
+  AND (NOT sqlc.arg('without_subject_group')::boolean OR g.module_id IS NULL)
+  AND (sqlc.narg('subject_group')::uuid IS NULL
+       OR g.subject_group_id = sqlc.narg('subject_group')::uuid)
 -- A module with no name sorts last rather than first: the empty string would otherwise put the
 -- handful of nameless ones at the top of every list in the system.
 ORDER BY (m.name = ''), m.name, m.id;
 
 -- name: ModuleByID :one
-SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
-       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
-       source, kind
-FROM module
-WHERE id = $1;
+SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
+       m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
+       m.source, m.kind,
+       g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
+       sg.active AS subject_group_active
+FROM module m
+LEFT JOIN module_subject_group g ON g.module_id = m.id
+LEFT JOIN subject_group sg ON sg.id = g.subject_group_id
+WHERE m.id = $1;
 
 -- name: ModuleComponentsFor :many
 -- The splits of a set of modules, in one statement.
@@ -206,12 +219,16 @@ WHERE t.id = ANY (sqlc.arg(ids)::uuid[]);
 -- The demand of a semester names tens of modules and the catalogue holds 506, so the list query
 -- with a filter would read the whole table to answer a question about twenty rows. Same ordering
 -- as the list, so that a screen sorted by module reads the same way in both places.
-SELECT id, name, home_programme_id, responsible_teacher_id, course_type, frequency,
-       contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
-       source, kind
-FROM module
-WHERE id = ANY (sqlc.arg(ids)::uuid[])
-ORDER BY (name = ''), name, id;
+SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
+       m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
+       m.source, m.kind,
+       g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
+       sg.active AS subject_group_active
+FROM module m
+LEFT JOIN module_subject_group g ON g.module_id = m.id
+LEFT JOIN subject_group sg ON sg.id = g.subject_group_id
+WHERE m.id = ANY (sqlc.arg(ids)::uuid[])
+ORDER BY (m.name = ''), m.name, m.id;
 
 
 -- name: InsertLocalModule :one

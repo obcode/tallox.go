@@ -198,6 +198,7 @@ type ComplexityRoot struct {
 		RetiredAt           func(childComplexity int) int
 		Source              func(childComplexity int) int
 		SplitIsEstimated    func(childComplexity int) int
+		SubjectGroup        func(childComplexity int) int
 		ZpaID               func(childComplexity int) int
 	}
 
@@ -226,6 +227,7 @@ type ComplexityRoot struct {
 		CreateLocalModule             func(childComplexity int, input model.LocalModuleInput) int
 		CreatePerson                  func(childComplexity int, mail string, name *string) int
 		CreatePersonalAccessToken     func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput) int
+		CreateSubjectGroup            func(childComplexity int, code string, name string) int
 		DeclareCourseInstance         func(childComplexity int, input model.DeclareCourseInstanceInput) int
 		DuplicateCourseInstance       func(childComplexity int, id string, track string, sourceTrack *string) int
 		PlanDemand                    func(childComplexity int, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) int
@@ -233,13 +235,18 @@ type ComplexityRoot struct {
 		PublishWishes                 func(childComplexity int, code string) int
 		RemoveInstancePart            func(childComplexity int, id string) int
 		RenamePerson                  func(childComplexity int, id string, name string) int
+		RenameSubjectGroup            func(childComplexity int, id string, name string) int
 		RevokePersonalAccessToken     func(childComplexity int, id string) int
 		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
+		SetModulesSubjectGroup        func(childComplexity int, moduleIds []string, subjectGroup *string) int
 		SetPersonActive               func(childComplexity int, id string, active bool) int
 		SetPersonProgrammes           func(childComplexity int, id string, programmes []string) int
 		SetPersonRoles                func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
 		SetPlanningSemester           func(childComplexity int, code string) int
 		SetProgrammePlanningStatus    func(childComplexity int, code string, status domain.ProgrammeStatus) int
+		SetSubjectGroupActive         func(childComplexity int, id string, active bool) int
+		SetSubjectGroupLeads          func(childComplexity int, id string, personIds []string) int
+		SetSubjectGroupMembers        func(childComplexity int, id string, personIds []string) int
 		SetTeacherAdmitted            func(childComplexity int, teacherID string, admitted bool) int
 		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
 		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
@@ -282,31 +289,36 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		AccessLog               func(childComplexity int, filter *model.AccessLogFilter, limit *int, before *string) int
-		AccessSummary           func(childComplexity int, from time.Time, until time.Time) int
-		BuildInfo               func(childComplexity int) int
-		CourseInstance          func(childComplexity int, id string) int
-		CourseInstances         func(childComplexity int, semester string, programme *string, module *string) int
-		DiagnoseAccess          func(childComplexity int, mail string) int
-		Me                      func(childComplexity int) int
-		Module                  func(childComplexity int, id string) int
-		Modules                 func(childComplexity int, filter *model.ModuleFilter) int
-		MyTokens                func(childComplexity int) int
-		People                  func(childComplexity int, search *string, includeInactive *bool) int
-		Person                  func(childComplexity int, id string) int
-		PlanningSemester        func(childComplexity int) int
-		Programme               func(childComplexity int, code string) int
-		Programmes              func(childComplexity int, includeUnplanned bool) int
-		RoleGrants              func(childComplexity int, personID string) int
-		Semester                func(childComplexity int, code string) int
-		Semesters               func(childComplexity int) int
-		Session                 func(childComplexity int) int
-		TeacherAccounts         func(childComplexity int) int
-		Teachers                func(childComplexity int, search *string, includeInactive *bool) int
-		ZpaCatalogueProjections func(childComplexity int, limit *int) int
-		ZpaChanges              func(childComplexity int, runID string) int
-		ZpaSyncRun              func(childComplexity int, id string) int
-		ZpaSyncRuns             func(childComplexity int, limit *int) int
+		AccessLog                  func(childComplexity int, filter *model.AccessLogFilter, limit *int, before *string) int
+		AccessSummary              func(childComplexity int, from time.Time, until time.Time) int
+		BuildInfo                  func(childComplexity int) int
+		CourseInstance             func(childComplexity int, id string) int
+		CourseInstances            func(childComplexity int, semester string, programme *string, module *string) int
+		DiagnoseAccess             func(childComplexity int, mail string) int
+		Me                         func(childComplexity int) int
+		Module                     func(childComplexity int, id string) int
+		Modules                    func(childComplexity int, filter *model.ModuleFilter) int
+		ModulesWithoutSubjectGroup func(childComplexity int) int
+		MySubjectGroups            func(childComplexity int) int
+		MyTokens                   func(childComplexity int) int
+		People                     func(childComplexity int, search *string, includeInactive *bool) int
+		Person                     func(childComplexity int, id string) int
+		PlanningSemester           func(childComplexity int) int
+		Programme                  func(childComplexity int, code string) int
+		Programmes                 func(childComplexity int, includeUnplanned bool) int
+		RoleGrants                 func(childComplexity int, personID string) int
+		Semester                   func(childComplexity int, code string) int
+		Semesters                  func(childComplexity int) int
+		Session                    func(childComplexity int) int
+		SubjectGroup               func(childComplexity int, id string) int
+		SubjectGroups              func(childComplexity int, includeInactive *bool) int
+		SubjectGroupsWithoutLead   func(childComplexity int) int
+		TeacherAccounts            func(childComplexity int) int
+		Teachers                   func(childComplexity int, search *string, includeInactive *bool) int
+		ZpaCatalogueProjections    func(childComplexity int, limit *int) int
+		ZpaChanges                 func(childComplexity int, runID string) int
+		ZpaSyncRun                 func(childComplexity int, id string) int
+		ZpaSyncRuns                func(childComplexity int, limit *int) int
 	}
 
 	RefusedSignIn struct {
@@ -348,6 +360,29 @@ type ComplexityRoot struct {
 		Programme func(childComplexity int) int
 		ValidFrom func(childComplexity int) int
 		Version   func(childComplexity int) int
+	}
+
+	SubjectGroup struct {
+		Active      func(childComplexity int) int
+		Code        func(childComplexity int) int
+		ID          func(childComplexity int) int
+		Leads       func(childComplexity int) int
+		Members     func(childComplexity int) int
+		ModuleCount func(childComplexity int) int
+		Name        func(childComplexity int) int
+	}
+
+	SubjectGroupAssignmentReport struct {
+		ModulesAssigned            func(childComplexity int) int
+		ModulesWithoutSubjectGroup func(childComplexity int) int
+		SubjectGroup               func(childComplexity int) int
+	}
+
+	SubjectGroupRef struct {
+		Active func(childComplexity int) int
+		Code   func(childComplexity int) int
+		ID     func(childComplexity int) int
+		Name   func(childComplexity int) int
 	}
 
 	Teacher struct {
@@ -1153,6 +1188,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.SplitIsEstimated(childComplexity), true
+	case "Module.subjectGroup":
+		if e.ComplexityRoot.Module.SubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.SubjectGroup(childComplexity), true
 	case "Module.zpaId":
 		if e.ComplexityRoot.Module.ZpaID == nil {
 			break
@@ -1315,6 +1356,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreatePersonalAccessToken(childComplexity, args["description"].(string), args["expiresInDays"].(*int), args["scopes"].([]*model.ScopeGrantInput)), true
+	case "Mutation.createSubjectGroup":
+		if e.ComplexityRoot.Mutation.CreateSubjectGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createSubjectGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateSubjectGroup(childComplexity, args["code"].(string), args["name"].(string)), true
 	case "Mutation.declareCourseInstance":
 		if e.ComplexityRoot.Mutation.DeclareCourseInstance == nil {
 			break
@@ -1387,6 +1439,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RenamePerson(childComplexity, args["id"].(string), args["name"].(string)), true
+	case "Mutation.renameSubjectGroup":
+		if e.ComplexityRoot.Mutation.RenameSubjectGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_renameSubjectGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RenameSubjectGroup(childComplexity, args["id"].(string), args["name"].(string)), true
 	case "Mutation.revokePersonalAccessToken":
 		if e.ComplexityRoot.Mutation.RevokePersonalAccessToken == nil {
 			break
@@ -1409,6 +1472,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetModuleComponents(childComplexity, args["moduleId"].(string), args["components"].([]*model.ModuleComponentInput)), true
+	case "Mutation.setModulesSubjectGroup":
+		if e.ComplexityRoot.Mutation.SetModulesSubjectGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setModulesSubjectGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetModulesSubjectGroup(childComplexity, args["moduleIds"].([]string), args["subjectGroup"].(*string)), true
 	case "Mutation.setPersonActive":
 		if e.ComplexityRoot.Mutation.SetPersonActive == nil {
 			break
@@ -1464,6 +1538,39 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetProgrammePlanningStatus(childComplexity, args["code"].(string), args["status"].(domain.ProgrammeStatus)), true
+	case "Mutation.setSubjectGroupActive":
+		if e.ComplexityRoot.Mutation.SetSubjectGroupActive == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setSubjectGroupActive_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetSubjectGroupActive(childComplexity, args["id"].(string), args["active"].(bool)), true
+	case "Mutation.setSubjectGroupLeads":
+		if e.ComplexityRoot.Mutation.SetSubjectGroupLeads == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setSubjectGroupLeads_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetSubjectGroupLeads(childComplexity, args["id"].(string), args["personIds"].([]string)), true
+	case "Mutation.setSubjectGroupMembers":
+		if e.ComplexityRoot.Mutation.SetSubjectGroupMembers == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setSubjectGroupMembers_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetSubjectGroupMembers(childComplexity, args["id"].(string), args["personIds"].([]string)), true
 	case "Mutation.setTeacherAdmitted":
 		if e.ComplexityRoot.Mutation.SetTeacherAdmitted == nil {
 			break
@@ -1741,6 +1848,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Modules(childComplexity, args["filter"].(*model.ModuleFilter)), true
+	case "Query.modulesWithoutSubjectGroup":
+		if e.ComplexityRoot.Query.ModulesWithoutSubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.ModulesWithoutSubjectGroup(childComplexity), true
+	case "Query.mySubjectGroups":
+		if e.ComplexityRoot.Query.MySubjectGroups == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.MySubjectGroups(childComplexity), true
 	case "Query.myTokens":
 		if e.ComplexityRoot.Query.MyTokens == nil {
 			break
@@ -1831,6 +1950,34 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Session(childComplexity), true
+	case "Query.subjectGroup":
+		if e.ComplexityRoot.Query.SubjectGroup == nil {
+			break
+		}
+
+		args, err := ec.field_Query_subjectGroup_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.SubjectGroup(childComplexity, args["id"].(string)), true
+	case "Query.subjectGroups":
+		if e.ComplexityRoot.Query.SubjectGroups == nil {
+			break
+		}
+
+		args, err := ec.field_Query_subjectGroups_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.SubjectGroups(childComplexity, args["includeInactive"].(*bool)), true
+	case "Query.subjectGroupsWithoutLead":
+		if e.ComplexityRoot.Query.SubjectGroupsWithoutLead == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.SubjectGroupsWithoutLead(childComplexity), true
 	case "Query.teacherAccounts":
 		if e.ComplexityRoot.Query.TeacherAccounts == nil {
 			break
@@ -2053,6 +2200,93 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Spo.Version(childComplexity), true
+
+	case "SubjectGroup.active":
+		if e.ComplexityRoot.SubjectGroup.Active == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroup.Active(childComplexity), true
+	case "SubjectGroup.code":
+		if e.ComplexityRoot.SubjectGroup.Code == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroup.Code(childComplexity), true
+	case "SubjectGroup.id":
+		if e.ComplexityRoot.SubjectGroup.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroup.ID(childComplexity), true
+	case "SubjectGroup.leads":
+		if e.ComplexityRoot.SubjectGroup.Leads == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroup.Leads(childComplexity), true
+	case "SubjectGroup.members":
+		if e.ComplexityRoot.SubjectGroup.Members == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroup.Members(childComplexity), true
+	case "SubjectGroup.moduleCount":
+		if e.ComplexityRoot.SubjectGroup.ModuleCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroup.ModuleCount(childComplexity), true
+	case "SubjectGroup.name":
+		if e.ComplexityRoot.SubjectGroup.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroup.Name(childComplexity), true
+
+	case "SubjectGroupAssignmentReport.modulesAssigned":
+		if e.ComplexityRoot.SubjectGroupAssignmentReport.ModulesAssigned == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroupAssignmentReport.ModulesAssigned(childComplexity), true
+	case "SubjectGroupAssignmentReport.modulesWithoutSubjectGroup":
+		if e.ComplexityRoot.SubjectGroupAssignmentReport.ModulesWithoutSubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroupAssignmentReport.ModulesWithoutSubjectGroup(childComplexity), true
+	case "SubjectGroupAssignmentReport.subjectGroup":
+		if e.ComplexityRoot.SubjectGroupAssignmentReport.SubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroupAssignmentReport.SubjectGroup(childComplexity), true
+
+	case "SubjectGroupRef.active":
+		if e.ComplexityRoot.SubjectGroupRef.Active == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroupRef.Active(childComplexity), true
+	case "SubjectGroupRef.code":
+		if e.ComplexityRoot.SubjectGroupRef.Code == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroupRef.Code(childComplexity), true
+	case "SubjectGroupRef.id":
+		if e.ComplexityRoot.SubjectGroupRef.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroupRef.ID(childComplexity), true
+	case "SubjectGroupRef.name":
+		if e.ComplexityRoot.SubjectGroupRef.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroupRef.Name(childComplexity), true
 
 	case "Teacher.active":
 		if e.ComplexityRoot.Teacher.Active == nil {
@@ -3284,6 +3518,18 @@ type Module {
   "The programme that plans this module. Every module has exactly one."
   homeProgramme: Programme!
   """
+  The faculty's own grouping this module belongs to, or ` + "`" + `null` + "`" + ` while nobody has assigned one.
+
+  Exactly one, or none. "Whose subject group fills this instance" is the sentence the assignment
+  phase is made of, and it has to have one answer.
+
+  ` + "`" + `null` + "`" + ` is the ordinary state until the faculty has worked through its catalogue — see the
+  ` + "`" + `withoutSubjectGroup` + "`" + ` filter, which is that work list. A reference rather than the whole group:
+  the full ` + "`" + `SubjectGroup` + "`" + ` carries its leads and its members, and filling those in for every row of
+  a 506-module catalogue would be a statement per module.
+  """
+  subjectGroup: SubjectGroupRef
+  """
   Who the examination office names as responsible for this module, or ` + "`" + `null` + "`" + `.
 
   Null for about one module in thirty, and for two different reasons that are not
@@ -3550,6 +3796,18 @@ input ModuleFilter {
   task rather than an open form.
   """
   withoutComponents: Boolean = false
+  """
+  Keep only modules that are in no subject group yet.
+
+  The other half of the same work list, and the one October starts with: an instance can be
+  declared without a subject group, but nobody can be shown their own subjects on the wish screen
+  until the modules are in one.
+  """
+  withoutSubjectGroup: Boolean = false
+  """
+  Keep only the modules of one subject group, by id.
+  """
+  subjectGroup: ID
 }
 
 """
@@ -4384,8 +4642,8 @@ enum ScopeArea {
   PROFILE
 
   """
-  The planning process: which semesters exist, where each one stands, and — as they arrive —
-  the demand, the assignments and the statistics.
+  The planning process: which semesters exist, where each one stands, the faculty's subject
+  groups, and — as they arrive — the demand, the assignments and the statistics.
 
   The first area worth narrowing a token to. ` + "`" + `PUBLIC` + "`" + ` and ` + "`" + `PROFILE` + "`" + ` are you describing
   yourself; ` + "`" + `TOKENS` + "`" + ` and ` + "`" + `ADMIN` + "`" + ` are unreachable through a token at all.
@@ -4398,7 +4656,9 @@ enum ScopeArea {
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
-  ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `.
+  ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `,
+  ` + "`" + `subjectGroups` + "`" + `, ` + "`" + `subjectGroup` + "`" + `, ` + "`" + `mySubjectGroups` + "`" + `, ` + "`" + `modulesWithoutSubjectGroup` + "`" + `,
+  ` + "`" + `subjectGroupsWithoutLead` + "`" + `.
   """
   PLANNING
 
@@ -4424,7 +4684,9 @@ enum ScopeArea {
   Fields: ` + "`" + `people` + "`" + `, ` + "`" + `person` + "`" + `, ` + "`" + `roleGrants` + "`" + `, ` + "`" + `diagnoseAccess` + "`" + `, ` + "`" + `teacherAccounts` + "`" + `,
   ` + "`" + `createPerson` + "`" + `, ` + "`" + `renamePerson` + "`" + `, ` + "`" + `setPersonRoles` + "`" + `, ` + "`" + `setPersonActive` + "`" + `, ` + "`" + `setPersonProgrammes` + "`" + `,
   ` + "`" + `setTeacherAdmitted` + "`" + `, ` + "`" + `zpaSyncRuns` + "`" + `, ` + "`" + `zpaSyncRun` + "`" + `, ` + "`" + `zpaChanges` + "`" + `, ` + "`" + `zpaCatalogueProjections` + "`" + `,
-  ` + "`" + `syncZpaNow` + "`" + `, ` + "`" + `projectZpaCatalogue` + "`" + `, ` + "`" + `accessLog` + "`" + `, ` + "`" + `accessSummary` + "`" + `.
+  ` + "`" + `syncZpaNow` + "`" + `, ` + "`" + `projectZpaCatalogue` + "`" + `, ` + "`" + `accessLog` + "`" + `, ` + "`" + `accessSummary` + "`" + `,
+  ` + "`" + `createSubjectGroup` + "`" + `, ` + "`" + `renameSubjectGroup` + "`" + `, ` + "`" + `setSubjectGroupActive` + "`" + `, ` + "`" + `setModulesSubjectGroup` + "`" + `,
+  ` + "`" + `setSubjectGroupMembers` + "`" + `, ` + "`" + `setSubjectGroupLeads` + "`" + `.
   """
   ADMIN
 }
@@ -4869,6 +5131,256 @@ extend type Query {
   a signed-out state from it rather than from a failed query.
   """
   session: Session! @scope(area: PROFILE, verb: READ)
+}
+`, BuiltIn: false},
+	{Name: "../subjectgroup.graphqls", Input: `# Subject groups: the faculty's own grouping of modules and people.
+#
+# Mathematics, software, technical computer science — and mathematics has already been split into
+# a classical and a machine-learning group, which is the shape of change this area has to expect.
+#
+# A subject group has no semester. It is a statement about a subject, not about a plan: it is not
+# copied between semesters and it survives every change of examination regulations. So the subject
+# group of anything planned is derived through the module, and never stored beside it.
+#
+# Nothing here comes from the examination office; its data model has no notion of one.
+
+"""
+A subject the faculty groups modules and people by.
+
+Three things hang off it and they are not the same thing:
+
+* **Modules.** Exactly one group per module — "whose group fills this instance" is the sentence
+  the whole assignment phase is made of, and it has to have one answer.
+* **Members.** The colleagues who work in these subjects. This is **not** a permission: it decides
+  what the wish screen offers first and nothing else.
+* **Leads.** The colleagues who fill this group's instances — and, before publication, who read
+  the wishes on them. This one *is* a grant.
+"""
+type SubjectGroup {
+  id: ID!
+  """
+  The short name the faculty says out loud: ` + "`" + `MATHE` + "`" + `, ` + "`" + `SWE` + "`" + `, ` + "`" + `TI` + "`" + `.
+
+  What belongs in a URL and in a colleague's evaluation script, like a programme's code. Up to
+  sixteen characters, so that a group split off another can carry a distinguishable suffix
+  (` + "`" + `MATHE-ML` + "`" + `) instead of encoding it into the name.
+  """
+  code: String!
+  "The name a person reads: ` + "`" + `Mathematik (klassisch)` + "`" + `."
+  name: String!
+  """
+  False for a group that has been retired — split into two, or wound up.
+
+  There is no delete and there will not be one. A retired group still has to render in the
+  planning it was part of, and its modules keep their assignment: reassigning 506 modules is
+  weeks of somebody's judgement, and a delete that took it would be silent.
+  """
+  active: Boolean!
+  """
+  The colleagues who lead this group, in the order a list reads.
+
+  Empty is a real state, and the reason the faculty's "keine Fachgruppe ohne Person, die sich
+  ihrer annimmt" is a work list here rather than a constraint: a group has to be creatable before
+  its lead is decided, and a lead has to be revocable without destroying the group.
+
+  A lead whose grant has expired is not in this list. The grant is what the scope narrows, so a
+  scope outliving it would be a permission nobody granted.
+  """
+  leads: [Person!]!
+  """
+  The colleagues who work in this group's subjects.
+
+  Readable by anybody with an account, and that is a decision rather than an oversight. The
+  kickoff asks for it — "jeder in einer Fachgruppe müsste alles lesen können" — and who teaches at
+  this faculty is already answerable through ` + "`" + `teachers` + "`" + `. What that sentence does **not** extend to
+  is unpublished wishes: those are read by the lead alone, because the first-come-first-served
+  race the confidentiality rule ends plays out inside a subject group, not across them.
+
+  Membership grants nothing. ` + "`" + `policy.AssignmentScope` + "`" + ` deliberately does not read it.
+  """
+  members: [Person!]!
+  """
+  How many modules are assigned to this group.
+
+  Safe in a way a count over wishes never is: a module assignment is catalogue data, and nobody
+  is protected from it being known.
+  """
+  moduleCount: Int!
+}
+
+"""
+A subject group as it is referred to from somewhere else: enough to label it and to link to it.
+
+Deliberately not the whole ` + "`" + `SubjectGroup` + "`" + `. That one carries its leads and its members, and
+filling those in for every row of a 506-module catalogue would be a statement per module. Having
+a name for the reference is what stops a half-populated group being passed around as if it were a
+whole one.
+"""
+type SubjectGroupRef {
+  id: ID!
+  "The short name the faculty says out loud: ` + "`" + `MATHE` + "`" + `, ` + "`" + `SWE` + "`" + `, ` + "`" + `TI` + "`" + `."
+  code: String!
+  "The name a person reads: ` + "`" + `Mathematik (klassisch)` + "`" + `."
+  name: String!
+  """
+  False while this group is retired.
+
+  Worth carrying rather than assuming: a module can sit in a retired group for as long as a split
+  takes, and a screen that called it active would hide exactly the rows somebody is in the middle
+  of moving.
+  """
+  active: Boolean!
+}
+
+"""
+What assigning a batch of modules did.
+
+Reported as a number even when it is zero, because "nothing happened" and "it failed" are
+indistinguishable to the person who pressed the button otherwise.
+"""
+type SubjectGroupAssignmentReport {
+  "The group the modules were put into, or ` + "`" + `null` + "`" + ` where they were taken out of every group."
+  subjectGroup: SubjectGroup
+  "How many module assignments were written or removed."
+  modulesAssigned: Int!
+  """
+  How many active modules still have no subject group at all.
+
+  October's work list as a number: a bounded, finishable task, the same shape as "14 modules
+  without a split". Retired modules are not counted — a module the examination office stopped
+  publishing is not work anybody has to finish.
+  """
+  modulesWithoutSubjectGroup: Int!
+}
+
+extend type Query {
+  """
+  The subject groups of the faculty.
+
+  Readable by anybody with an account, like the catalogue and the demand: who leads mathematics is
+  not confidential inside the faculty, and a lecturer who cannot see the groups cannot be shown
+  their own subjects on the wish screen. What is administered is writing them.
+  """
+  subjectGroups(
+    "Include the groups that have been retired. They are left out by default."
+    includeInactive: Boolean = false
+  ): [SubjectGroup!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  One subject group by its id, or ` + "`" + `null` + "`" + `.
+  """
+  subjectGroup(id: ID!): SubjectGroup @scope(area: PLANNING, verb: READ)
+
+  """
+  The subject groups **you** are a member of.
+
+  Your own data, through both doors. This is what the wish screen filters by: it offers your own
+  subjects first, and it is a preselection rather than a rule — registering interest outside your
+  groups stays possible, because FWP wildcards, teaching for another programme and simply moving
+  into a new subject are all real. The repair for the last one is joining the group, not meeting a
+  refusal.
+
+  Retired groups are left out: a wound-up group is not a subject you are currently working in.
+  """
+  mySubjectGroups: [SubjectGroup!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  How many active modules have no subject group yet.
+
+  The work list, on its own, so that a screen can show the number without loading the modules.
+  """
+  modulesWithoutSubjectGroup: Int! @scope(area: PLANNING, verb: READ)
+
+  """
+  How many active subject groups have nobody leading them.
+
+  "Keine Fachgruppe ohne Person, die sich ihrer annimmt", as a number rather than as a constraint
+  — which is what makes it a task somebody can finish instead of a reason a group cannot be
+  created.
+  """
+  subjectGroupsWithoutLead: Int! @scope(area: PLANNING, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Create a subject group.
+
+  Administration, and only in a signed-in browser session — the same terms as every other act
+  that shapes who may do what here.
+  """
+  createSubjectGroup(
+    "Up to sixteen characters: upper case, digits, dot, underscore or hyphen. Upper-cased and trimmed for you."
+    code: String!
+    "The name a person reads."
+    name: String!
+  ): SubjectGroup! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+
+  """
+  Change a subject group's name.
+
+  The code is not among the things this changes. It is the address — it appears in URLs and in
+  colleagues' scripts — and moving it is not a rename but a different group.
+  """
+  renameSubjectGroup(id: ID!, name: String!): SubjectGroup!
+    @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+
+  """
+  Retire a subject group, or bring it back.
+
+  There is no delete. Splitting a group is: create the new one, move the modules and the people,
+  retire the old one — three steps, none of which loses anything.
+  """
+  setSubjectGroupActive(id: ID!, active: Boolean!): SubjectGroup!
+    @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+
+  """
+  Put a batch of modules into one subject group, or take them out of every group.
+
+  A batch because the task this exists for is assigning 506 modules, and a screen that saves one
+  row per click is a task nobody finishes.
+
+  A module already in another group is **moved**, in one statement, so there is no moment in which
+  it belongs to nothing. Pass ` + "`" + `null` + "`" + ` for ` + "`" + `subjectGroup` + "`" + ` to clear the assignment instead.
+  """
+  setModulesSubjectGroup(
+    "The modules to assign. Modules not named here are untouched."
+    moduleIds: [ID!]!
+    "The group to put them in, or ` + "`" + `null` + "`" + ` to take them out of every group."
+    subjectGroup: ID
+  ): SubjectGroupAssignmentReport! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+
+  """
+  Replace the **members** of one subject group.
+
+  The whole set at once, like ` + "`" + `setPersonRoles` + "`" + ` and ` + "`" + `setPersonProgrammes` + "`" + ` and for the same reason: a
+  per-person mutation would let the two calls of a swap be separated, and the interval between them
+  is one in which somebody is in a group nobody meant them to be in.
+
+  Membership grants nothing — it decides what the wish screen offers first. It is administered
+  anyway, because who works in which subject group is what the faculty's organisation looks like,
+  not a preference somebody sets for themselves.
+  """
+  setSubjectGroupMembers(id: ID!, personIds: [ID!]!): SubjectGroup!
+    @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+
+  """
+  Replace the people who **lead** one subject group.
+
+  This one is a grant: it decides who fills the group's instances and — before publication — who
+  reads the wishes on them. Refused with ` + "`" + `NOT_A_SUBJECT_GROUP_LEAD` + "`" + ` for somebody who does not hold
+  the role, because a scope without the grant it scopes is a row the database refuses anyway and a
+  sentence is more use than a constraint violation.
+
+  An empty list is allowed and means nobody leads this group, which is the state a fresh group is
+  in. It is the thing ` + "`" + `subjectGroupsWithoutLead` + "`" + ` counts, and the thing "keine Fachgruppe ohne
+  Person, die sich ihrer annimmt" asks somebody to finish.
+
+  The mirror image is also true and is the reading this system takes everywhere it can: a lead with
+  no group may do **nothing**, not everything. The role that means every group is the dean's
+  office.
+  """
+  setSubjectGroupLeads(id: ID!, personIds: [ID!]!): SubjectGroup!
+    @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../token.graphqls", Input: `"""
@@ -5673,6 +6185,8 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_name(ctx, field)
 	case "homeProgramme":
 		return ec.fieldContext_Module_homeProgramme(ctx, field)
+	case "subjectGroup":
+		return ec.fieldContext_Module_subjectGroup(ctx, field)
 	case "responsible":
 		return ec.fieldContext_Module_responsible(ctx, field)
 	case "courseType":
@@ -5893,6 +6407,52 @@ func (ec *executionContext) childFields_Spo(ctx context.Context, field graphql.C
 		return ec.fieldContext_Spo_programme(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Spo", field.Name)
+}
+
+func (ec *executionContext) childFields_SubjectGroup(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_SubjectGroup_id(ctx, field)
+	case "code":
+		return ec.fieldContext_SubjectGroup_code(ctx, field)
+	case "name":
+		return ec.fieldContext_SubjectGroup_name(ctx, field)
+	case "active":
+		return ec.fieldContext_SubjectGroup_active(ctx, field)
+	case "leads":
+		return ec.fieldContext_SubjectGroup_leads(ctx, field)
+	case "members":
+		return ec.fieldContext_SubjectGroup_members(ctx, field)
+	case "moduleCount":
+		return ec.fieldContext_SubjectGroup_moduleCount(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type SubjectGroup", field.Name)
+}
+
+func (ec *executionContext) childFields_SubjectGroupAssignmentReport(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "subjectGroup":
+		return ec.fieldContext_SubjectGroupAssignmentReport_subjectGroup(ctx, field)
+	case "modulesAssigned":
+		return ec.fieldContext_SubjectGroupAssignmentReport_modulesAssigned(ctx, field)
+	case "modulesWithoutSubjectGroup":
+		return ec.fieldContext_SubjectGroupAssignmentReport_modulesWithoutSubjectGroup(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type SubjectGroupAssignmentReport", field.Name)
+}
+
+func (ec *executionContext) childFields_SubjectGroupRef(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_SubjectGroupRef_id(ctx, field)
+	case "code":
+		return ec.fieldContext_SubjectGroupRef_code(ctx, field)
+	case "name":
+		return ec.fieldContext_SubjectGroupRef_name(ctx, field)
+	case "active":
+		return ec.fieldContext_SubjectGroupRef_active(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type SubjectGroupRef", field.Name)
 }
 
 func (ec *executionContext) childFields_Teacher(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

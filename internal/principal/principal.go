@@ -64,11 +64,37 @@ const (
 // Uninterpreted here, exactly like the role strings it accompanies: this package carries who
 // the caller is and what was granted to them, and internal/policy decides what a role name and
 // a programme id mean together. A field named after the rule would put the rule here.
+//
+// # Why two named fields rather than one Target
+//
+// Exactly one of them is set, and the role string already says which — so a single
+// Target uuid.UUID would carry the same information in half the space. It is two fields
+// because the failure it has to survive is a row whose role string is wrong. With named
+// fields such a row is visibly malformed: a subject group id sitting in ProgrammeID is a
+// scope that matches no programme. With one field it would be indistinguishable from a
+// well-formed scope of the other kind, and the rule reading it would grant something nobody
+// granted. policy.TestTheTwoScopesDoNotReadEachOther asserts that a crossed row grants
+// nothing, and store.TestRoleScopesNameExactlyOneThing asserts that the queries never build
+// one.
 type RoleScope struct {
 	// Role is the grant this narrows, as stored.
 	Role string
-	// ProgrammeID is the study programme the grant applies to.
+	// ProgrammeID is the study programme the grant applies to. uuid.Nil when this scope names
+	// something else.
 	ProgrammeID uuid.UUID
+	// SubjectGroupID is the subject group the grant applies to. uuid.Nil when this scope names
+	// something else.
+	SubjectGroupID uuid.UUID
+}
+
+// NamesNothing reports whether this scope points at no thing at all.
+//
+// A scope like that grants nothing — it is the shape a malformed row takes — and every rule
+// that reads RoleScopes drops it rather than treating the zero uuid as a wildcard. The check
+// lives here and not in the rules because it is a statement about the struct, not about a
+// permission.
+func (s RoleScope) NamesNothing() bool {
+	return s.ProgrammeID == uuid.Nil && s.SubjectGroupID == uuid.Nil
 }
 
 // Actor is the authenticated caller of the current request.

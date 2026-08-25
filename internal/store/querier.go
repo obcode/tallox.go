@@ -47,6 +47,10 @@ type Querier interface {
 	// an address here and silently dropped every refused token — which is the half an administrator
 	// most wants to see, because a token being tried repeatedly is what a leaked one looks like.
 	AccessLogRefusedSignIns(ctx context.Context, arg AccessLogRefusedSignInsParams) ([]AccessLogRefusedSignInsRow, error)
+	// The foreign key to person_role is what refuses a lead who does not hold the role. The service
+	// checks first so that the ordinary case gets a sentence; this is the race the constraint closes.
+	AddSubjectGroupLead(ctx context.Context, arg AddSubjectGroupLeadParams) error
+	AddSubjectGroupMembership(ctx context.Context, arg AddSubjectGroupMembershipParams) error
 	// Compare-and-set: $3 is the phase the caller believes the semester is in, and no rows come
 	// back if it has moved on since they looked.
 	//
@@ -55,6 +59,14 @@ type Querier interface {
 	// would write ASSIGNMENT over the first one's WISHES — a skipped phase, arrived at by nobody's
 	// decision, and invisible afterwards because the row looks like somebody chose it.
 	AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterPhaseParams) (Semester, error)
+	// A batch, because the task this exists for is assigning 506 modules and a screen that saves one
+	// row per click is a task nobody finishes.
+	//
+	// An upsert rather than delete-then-insert: moving a module between groups is one statement, so
+	// there is no moment in which the module belongs to nothing. assigned_by moves with it, because
+	// the question this column answers — who says this module is mathematics — is about the current
+	// assignment and not about the first one.
+	AssignModulesToSubjectGroup(ctx context.Context, arg AssignModulesToSubjectGroupParams) (int64, error)
 	// Give somebody's grant one more programme.
 	//
 	// ON CONFLICT DO NOTHING rather than an error: setting the same list twice is not a mistake, and
@@ -74,6 +86,9 @@ type Querier interface {
 	// would belong to both, and the import/export figure would lose its denominator.
 	BorrowedInstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]BorrowedInstancePartsForRow, error)
 	CatalogueProjectionNotes(ctx context.Context, projectionID uuid.UUID) ([]CatalogueProjectionNotesRow, error)
+	// Taking modules out of every group, which is the same screen's other button. A module with no
+	// group is a normal state and the whole of October's work list.
+	ClearModulesSubjectGroup(ctx context.Context, moduleIds []uuid.UUID) (int64, error)
 	// Take the mark off whichever semester carries it, except the one about to receive it.
 	//
 	// Runs first in the transaction that moves the mark, and that order is what makes concurrency
@@ -86,6 +101,8 @@ type Querier interface {
 	// already set would clear the mark and then set it again, moving planning_set_at and making a
 	// no-op look like a decision.
 	ClearPlanningSemester(ctx context.Context, id uuid.UUID) error
+	ClearSubjectGroupLeads(ctx context.Context, subjectGroupID uuid.UUID) error
+	ClearSubjectGroupMembers(ctx context.Context, subjectGroupID uuid.UUID) error
 	// Not projected, and the largest of the nine: 665 real rows over 12 sets of regulations the
 	// endpoint stopped returning — the historical ones and a placeholder dated 2099.
 	//
@@ -194,6 +211,7 @@ type Querier interface {
 	// The id is supplied by the caller rather than defaulted, so that a fixture, a seed and an
 	// import can all say who they are creating before the insert happens.
 	CreatePerson(ctx context.Context, arg CreatePersonParams) (Person, error)
+	CreateSubjectGroup(ctx context.Context, arg CreateSubjectGroupParams) (CreateSubjectGroupRow, error)
 	// Personal Access Tokens: the second door.
 	// The secret is generated and hashed by the caller (internal/auth), never here: a secret that
 	// travelled through a query is a secret in a log somewhere.
@@ -460,6 +478,11 @@ type Querier interface {
 	// with a filter would read the whole table to answer a question about twenty rows. Same ordering
 	// as the list, so that a screen sorted by module reads the same way in both places.
 	ModulesByIDs(ctx context.Context, ids []uuid.UUID) ([]ModulesByIDsRow, error)
+	// The work list as a number: "37 modules still have no subject group".
+	//
+	// Retired modules do not count. A module the examination office stopped publishing is not work
+	// anybody has to finish, and counting it would make the list unfinishable.
+	ModulesWithoutSubjectGroup(ctx context.Context) (int32, error)
 	// Where a newly added part goes: after the last one.
 	//
 	// COALESCE with the cast outside, for the same reason as above — MAX over no rows is NULL, and
@@ -473,14 +496,20 @@ type Querier interface {
 	// case-insensitive without a lower() that would defeat the unique index.
 	//
 	// role_scopes carries the grants that name a thing as well as an action — leading *one* study
-	// programme rather than leading in general. A correlated subquery rather than a second LEFT
-	// JOIN, because joining two one-to-many tables in one SELECT multiplies their rows and the
-	// roles array would repeat every role once per scope.
+	// programme, or *one* subject group, rather than leading in general. A correlated subquery
+	// rather than a second LEFT JOIN, because joining two one-to-many tables in one SELECT
+	// multiplies their rows and the roles array would repeat every role once per scope.
 	//
-	// It applies the same expiry filter as the roles above, for the same reason: a grant the
-	// database considers over must not still take effect, and a scope belonging to an expired grant
-	// is exactly that. The composite foreign key means a scope cannot outlive a *revoked* grant;
-	// this covers the one that merely ran out.
+	// It reads person_role_scope, the view that unions the two scope tables and applies the expiry
+	// filter. That filter is the same rule as the one on the roles above and for the same reason —
+	// a grant the database considers over must not still take effect — and it lives in the view
+	// because this subquery appears three times in this file and once in token.sql. The composite
+	// foreign keys mean a scope cannot outlive a *revoked* grant; the view covers the one that
+	// merely ran out.
+	//
+	// The nil uuid stands for "this scope names no thing of that kind", which is exactly how
+	// principal.RoleScope reads it. Coalescing here rather than emitting JSON null keeps the
+	// decoding free of a subtlety about how null unmarshals into a non-pointer.
 	PersonByMail(ctx context.Context, mail string) (PersonByMailRow, error)
 	// The semester the faculty is planning, or no row while nobody has said.
 	//
@@ -620,6 +649,9 @@ type Querier interface {
 	RecordCatalogueProjectionNote(ctx context.Context, arg RecordCatalogueProjectionNoteParams) error
 	RecordZPAChange(ctx context.Context, arg RecordZPAChangeParams) error
 	RecordZPASyncRunKind(ctx context.Context, arg RecordZPASyncRunKindParams) error
+	// The name only. The code is the address — it is in URLs and in colleagues' scripts — and
+	// changing it is not a rename but a different group.
+	RenameSubjectGroup(ctx context.Context, arg RenameSubjectGroupParams) (RenameSubjectGroupRow, error)
 	// Clear a module's split, so the caller can write the new one in the same transaction.
 	//
 	// Delete-then-insert rather than a diff, because the entries only mean anything together: what
@@ -689,6 +721,12 @@ type Querier interface {
 	// code is what they mean. Returns no row for a code that names no programme, which the service
 	// turns into the ordinary "no such programme".
 	SetProgrammePlanningStatus(ctx context.Context, arg SetProgrammePlanningStatusParams) (SetProgrammePlanningStatusRow, error)
+	// Retiring, and the way back. There is no delete: a group that was split still has to render in
+	// the planning it was part of, and its module assignments are weeks of somebody's judgement.
+	//
+	// updated_at stays put when nothing changed, so retiring a group that is already retired does not
+	// make the row look edited.
+	SetSubjectGroupActive(ctx context.Context, arg SetSubjectGroupActiveParams) (SetSubjectGroupActiveRow, error)
 	// The other parallel cohorts of one instance's module, in the same semester and programme.
 	SiblingInstanceIDs(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error)
 	// The projection's own bookkeeping
@@ -700,6 +738,46 @@ type Querier interface {
 	// RUNNING row somebody can see, rather than no row at all — which is indistinguishable from a
 	// job that was never scheduled, and is how "the import stopped three weeks ago" happens.
 	StartZPASyncRun(ctx context.Context, arg StartZPASyncRunParams) (ZpaSyncRun, error)
+	SubjectGroupByID(ctx context.Context, id uuid.UUID) (SubjectGroupByIDRow, error)
+	// Who leads each of these groups.
+	//
+	// The expiry filter is the same rule person_role_scope applies, applied again because this reads
+	// the scope table directly for its people rather than the view for its ids. A lead whose grant
+	// ran out is not a lead, and a screen that still showed them would be showing a permission that
+	// no longer exists.
+	SubjectGroupLeadsFor(ctx context.Context, groupIds []uuid.UUID) ([]SubjectGroupLeadsForRow, error)
+	// Who is in each of these groups.
+	//
+	// No expiry filter, and the asymmetry with the query above is the point: membership is not a
+	// grant. It says which subjects a colleague works in, it grants nothing, and it does not run out.
+	SubjectGroupMembersFor(ctx context.Context, groupIds []uuid.UUID) ([]SubjectGroupMembersForRow, error)
+	// Subject groups: the faculty's own grouping of modules and people.
+	//
+	// No semester anywhere in this file, and that is the shape of the thing rather than an omission.
+	// A subject group is a statement about a subject; what is planned is derived through the module.
+	// The list, newest decisions and all. Ordered by code, which is what a picker and a slide both
+	// want and is stable between calls.
+	//
+	// The module count is a correlated subquery rather than a join with a GROUP BY, because the
+	// other two things a group carries — its leads and its members — are read for a set of groups in
+	// one statement each below. Three round trips for the whole screen, none of them per row.
+	//
+	// Counting modules is safe in a way counting anything over wishes never is: a module assignment
+	// is catalogue data, and nobody is protected from it being known.
+	SubjectGroups(ctx context.Context, includeInactive bool) ([]SubjectGroupsRow, error)
+	// One person's memberships. What the wish screen offers first.
+	//
+	// Inactive groups are left out: a retired group is not a subject somebody is currently working
+	// in, and offering it first would put a wound-up group at the top of the screen it exists to
+	// shorten. The membership row survives, so bringing the group back brings the person back with
+	// it.
+	SubjectGroupsOfPerson(ctx context.Context, personID uuid.UUID) ([]SubjectGroupsOfPersonRow, error)
+	// "Keine Fachgruppe ohne Person, die sich ihrer annimmt", as a number rather than as a NOT NULL.
+	//
+	// A constraint would mean a group could not be created before its lead was decided, and that a
+	// lead could not be revoked without destroying the group. A count is the same requirement in the
+	// form the beta testers can actually finish.
+	SubjectGroupsWithoutLead(ctx context.Context) (int32, error)
 	// One teacher and their account, by teacher id.
 	//
 	// No retired filter, unlike the list above. The id always comes from that list, so the only way

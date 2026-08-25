@@ -8,6 +8,29 @@
 # what the wish phase is about, and a lecturer who cannot see which instances exist has nothing
 # to register interest in. What is scoped is writing it, and only to the study programme somebody
 # actually leads.
+#
+# EVERY MUTATION HERE IS @interactiveOnly, AND THAT IS ABOUT THE WISHES
+#
+# The reads stay open through both doors. The writes do not, and the reason is not that declaring
+# demand is dangerous — it is that `INSTANCE_IN_USE` is an answer about wishes.
+#
+# Once the wish table points at instance parts, a withdrawal that is refused says "somebody wants
+# this". Interactively that reveals nothing: whoever may write a programme's demand may already
+# read its unpublished wishes, and the two sets are the same by construction — see
+# TestInstanceInUseTellsNobodySomethingNew. Through a Personal Access Token they are *not* the
+# same: the wish rule collapses to own-only there, deliberately, so that a long-lived credential
+# in a script cannot make a silent bulk export. `planDemand(dryRun: true)` would have handed
+# exactly that back — the whole programme's "which instances are wished for", in one call, with
+# no side effect and no login event.
+#
+# So the annotation goes on the whole file rather than on the four mutations that can raise
+# INSTANCE_IN_USE. A rule that applies to four gets forgotten on the fifth, and the fifth is the
+# one nobody reviewed. `publishWishes` in semester.graphqls is the precedent and takes the same
+# shape of argument.
+#
+# What this costs: a colleague cannot declare demand from a script. The API is a product here,
+# but the product is *evaluations* — reading — and declaring demand is a planning act by somebody
+# holding a scoped role, not an evaluation.
 
 """
 One module, offered in one semester, for one study programme, to one parallel cohort.
@@ -384,6 +407,11 @@ extend type Mutation {
   Runs the same reconciliation and rolls it back, so the report is what a save would do rather
   than a second computation that might disagree. It also records nothing about the semester: the
   row that says a decision was taken comes into being with the decision, not with the preview.
+
+  It is the reason every mutation in this file is `@interactiveOnly`. A dry run is free, leaves no
+  trace and reports `INSTANCE_IN_USE` per cohort — which through a Personal Access Token would be
+  "which of this programme's instances are wished for", in one call, with no login event. See the
+  note at the top of this file.
   """
   planDemand(
     "Four digits, a hyphen and SS or WS, for example `2027-SS`."
@@ -394,7 +422,7 @@ extend type Mutation {
     entries: [DemandEntryInput!]!
     "Report what would happen and write nothing."
     dryRun: Boolean! = false
-  ): DemandPlanReport! @scope(area: PLANNING, verb: WRITE)
+  ): DemandPlanReport! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Declare that a study programme needs this module in this semester, for this cohort.
@@ -410,7 +438,7 @@ extend type Mutation {
   Declaring the same cohort twice is `TRACK_TAKEN`.
   """
   declareCourseInstance(input: DeclareCourseInstanceInput!): CourseInstance!
-    @scope(area: PLANNING, verb: WRITE)
+    @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Copy an instance to a second parallel cohort — IF1 becomes IF1A and IF1B.
@@ -428,7 +456,7 @@ extend type Mutation {
     track: String!
     "What the source cohort should be called from now on. Omit to leave it as it is."
     sourceTrack: String
-  ): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Change the two editable things about an instance: its cohort and its cohort year.
@@ -438,19 +466,23 @@ extend type Mutation {
   to the one that was declared.
   """
   changeCourseInstance(id: ID!, track: String!, programmeSemester: Int): CourseInstance!
-    @scope(area: PLANNING, verb: WRITE)
+    @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Withdraw an instance that is not needed after all. Its parts go with it.
 
   Refused with `INSTANCE_IN_USE` once anything hangs off it. That refusal deliberately says
-  nothing about *what* — no count, no kind of thing named. The first table to point at an
-  instance part will be the wish table, and "this instance has three wishes" is the confidential
-  fact with the names taken out.
+  nothing about *what* — no count, no kind of thing named. The wish table is what points at an
+  instance part, and "this instance has three wishes" is the confidential fact with the names
+  taken out.
+
+  Only in a signed-in browser session: through a Personal Access Token this fails with
+  `INTERACTIVE_ONLY`. The refusal above is an answer about wishes, and through a token the wish
+  rule reaches only your own — see the note at the top of this file.
 
   Returns the id of the withdrawn instance, so that a list can drop it without asking again.
   """
-  withdrawCourseInstance(id: ID!): ID! @scope(area: PLANNING, verb: WRITE)
+  withdrawCourseInstance(id: ID!): ID! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Add a part to an instance — the second laboratory group, the tutorial nobody planned for.
@@ -463,18 +495,18 @@ extend type Mutation {
     kind: InstancePartKind!
     "What a lecturer is credited with. Omit while it is not settled."
     teachingHours: Float
-  ): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Correct a part's kind or hours.
   """
   changeInstancePart(id: ID!, kind: InstancePartKind!, teachingHours: Float): CourseInstance!
-    @scope(area: PLANNING, verb: WRITE)
+    @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Remove a part. Refused with `INSTANCE_IN_USE` once anything hangs off it.
   """
-  removeInstancePart(id: ID!): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+  removeInstancePart(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Hold this part once for all the parallel cohorts of its module.
@@ -486,7 +518,7 @@ extend type Mutation {
   Refused with `NO_SIBLING_TRACKS` where there is no second cohort to share with, and with
   `INSTANCE_IN_USE` if one of the parts that would go is already spoken for.
   """
-  shareInstancePartAcrossTracks(id: ID!): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+  shareInstancePartAcrossTracks(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Undo that: every cohort holds its own again, with the same hours.
@@ -495,7 +527,7 @@ extend type Mutation {
   who was going to give both lectures is on sabbatical. A cohort that already has a part of that
   kind is left alone rather than given a second one.
   """
-  splitInstancePartAcrossTracks(id: ID!): CourseInstance! @scope(area: PLANNING, verb: WRITE)
+  splitInstancePartAcrossTracks(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Declare in one semester what the same programme declared in another.
@@ -517,5 +549,5 @@ extend type Mutation {
     to: String!
     "The study programme, by its short code."
     programme: String!
-  ): CopyDemandReport! @scope(area: PLANNING, verb: WRITE)
+  ): CopyDemandReport! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 }

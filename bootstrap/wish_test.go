@@ -2,6 +2,7 @@ package bootstrap_test
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -514,5 +515,138 @@ func TestAWishCarriesItsInstance(t *testing.T) {
 	if out.SetWish.Part.Kind == "" || out.SetWish.Instance.Module.Name == "" ||
 		out.SetWish.Instance.Programme.Code == "" {
 		t.Errorf("the wish does not carry enough to render a row: %+v", out.SetWish)
+	}
+}
+
+// The oracle this migration would have opened, closed and pinned.
+//
+// `planDemand(dryRun: true)` is free, leaves no trace and reports INSTANCE_IN_USE per cohort. Once
+// the wish table points at instance parts, that report is "which of this programme's instances are
+// wished for" — the has-wishes flag the interface may never render, obtained in one call with no
+// login event. Interactively it reveals nothing (see the test below); through a token it would
+// have, because there the wish rule deliberately collapses to own-only.
+func TestATokenCannotProbeWhichInstancesAreWishedFor(t *testing.T) {
+	t.Parallel()
+
+	f := wishHandler(t,
+		grants{testdata.Eins, []string{"LECTURER"}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+	)
+	f.register(t, testdata.Eins)
+	f.leadProgramme(t, testdata.Vier, f.programme)
+
+	var instanceID string
+	if err := f.schema.Pool.QueryRow(t.Context(),
+		`SELECT course_instance_id::text FROM instance_part WHERE id = $1`, f.lecture).
+		Scan(&instanceID); err != nil {
+		t.Fatalf("cannot find the instance: %v", err)
+	}
+
+	c := graphqltest.New(f.handler).WithToken(testdata.Vier.Token)
+
+	for _, probe := range []struct {
+		name      string
+		query     string
+		variables map[string]any
+	}{
+		{"a dry-run plan", `mutation($s: String!, $p: String!) {
+			planDemand(semester: $s, programme: $p, entries: [], dryRun: true) {
+				refused { code }
+			}
+		}`, map[string]any{"s": f.semester, "p": f.programme}},
+		{"a withdrawal", `mutation($id: ID!) { withdrawCourseInstance(id: $id) }`,
+			map[string]any{"id": instanceID}},
+		{"removing a part", `mutation($id: ID!) { removeInstancePart(id: $id) { id } }`,
+			map[string]any{"id": f.lecture}},
+	} {
+		t.Run(probe.name, func(t *testing.T) {
+			messages := c.MustFail(t, probe.query, probe.variables)
+			if len(messages) == 0 {
+				t.Fatalf("%s answered through a token — it is an oracle for which instances are "+
+					"wished for", probe.name)
+			}
+			// And the refusal is about the door rather than about the instance, so it says
+			// nothing either way.
+			graphqltest.AssertNoLeak(t, messages[0],
+				append(graphqltest.DatabaseNoise(),
+					testdata.Mails(testdata.Others(testdata.Vier))...)...)
+		})
+	}
+
+	// The instance is still there: a probe that half-succeeded would be worse than one that
+	// answered, because it would leave the demand changed.
+	var parts int
+	if err := f.schema.Pool.QueryRow(t.Context(),
+		`SELECT count(*) FROM instance_part WHERE course_instance_id = $1::uuid`, instanceID).
+		Scan(&parts); err != nil {
+		t.Fatalf("cannot count the parts: %v", err)
+	}
+	if parts != 2 {
+		t.Errorf("the instance has %d parts after the probes, want 2", parts)
+	}
+}
+
+// The invariant that makes INSTANCE_IN_USE harmless in the browser, asserted rather than argued:
+// anybody who can make it fire may already read the wishes on that instance.
+//
+// It holds because the two sets are the same by construction — MayWriteDemand intersects the
+// phase matrix with PlanningScope, and UnpublishedWishScope returns that same PlanningScope. If
+// somebody ever breaks them apart, this test goes red instead of the rule going quiet.
+func TestInstanceInUseTellsNobodySomethingNew(t *testing.T) {
+	t.Parallel()
+
+	f := wishHandler(t,
+		grants{testdata.Eins, []string{"LECTURER"}},
+		grants{testdata.Zwei, []string{"LECTURER"}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		grants{testdata.Fuenf, []string{"LECTURER", "DEANS_OFFICE"}},
+	)
+	f.register(t, testdata.Eins)
+	f.leadProgramme(t, testdata.Vier, f.programme)
+
+	var instanceID string
+	if err := f.schema.Pool.QueryRow(t.Context(),
+		`SELECT course_instance_id::text FROM instance_part WHERE id = $1`, f.lecture).
+		Scan(&instanceID); err != nil {
+		t.Fatalf("cannot find the instance: %v", err)
+	}
+
+	// Counted, because a loop in which nobody can trigger the refusal would pass while proving
+	// nothing — the same trap TestGuardAndFilterAgree guards against with its own counter.
+	triggers := 0
+
+	for _, who := range []testdata.Persona{
+		testdata.Eins, testdata.Zwei, testdata.Vier, testdata.Fuenf,
+	} {
+		t.Run(who.Name, func(t *testing.T) {
+			c := graphqltest.New(f.handler).AsUser(who.Mail)
+
+			// Can this person make the refusal fire at all? A withdrawal that is refused for the
+			// programme scope rather than for the instance being in use tells them nothing.
+			messages := c.MustFail(t,
+				`mutation($id: ID!) { withdrawCourseInstance(id: $id) }`,
+				map[string]any{"id": instanceID})
+			if len(messages) == 0 {
+				t.Fatal("the instance was withdrawn although somebody wants it")
+			}
+			triggered := strings.Contains(messages[0], "hängt bereits etwas daran")
+			if triggered {
+				triggers++
+			}
+
+			// What can they read of the wishes on it?
+			reads := len(seen(t, c, f.semester)) > 0
+
+			if triggered && !reads {
+				t.Errorf("%s can make INSTANCE_IN_USE fire and cannot read the wishes on the "+
+					"instance. The refusal is then a has-wishes flag for somebody the rule is "+
+					"supposed to withhold it from.", who.Name)
+			}
+		})
+	}
+
+	if triggers == 0 {
+		t.Fatal("nobody in this cast could make INSTANCE_IN_USE fire, so the invariant was " +
+			"never exercised — the refusal has to be reachable for the test to mean anything")
 	}
 }

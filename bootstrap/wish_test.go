@@ -406,28 +406,64 @@ func TestNoFieldCountsWishes(t *testing.T) {
 	}
 }
 
-// A wish may be registered only in the wish phase, which is the first closed cell the write
-// matrix has ever had — so this is also the first time PhaseClosedReason's counterpart is reached.
-func TestWishesAreWrittenOnlyInTheWishPhase(t *testing.T) {
+// A wish may be entered and changed for as long as the semester is not finished.
+//
+// The faculty asked for this rather than for the tidier rule the table carried first — open in
+// the wish phase alone — and the argument is the demand's own: a correction the tool refuses
+// happens in a mail instead, and then the list the tool holds is the wrong one. Somebody saying
+// in March that they would take the second laboratory group after all is a correction.
+//
+// FINAL is the one closed cell in the whole write matrix, so this is also the only place either
+// phase refusal is reachable at all.
+func TestWishesAreWrittenUntilTheSemesterIsFinished(t *testing.T) {
 	t.Parallel()
 
 	f := wishHandler(t, grants{testdata.Eins, []string{"LECTURER"}})
 
-	for _, phase := range []string{"DEMAND_PLANNING", "ASSIGNMENT", "FINAL"} {
+	set := func(t *testing.T, phase string) {
+		t.Helper()
 		if _, err := f.schema.Pool.Exec(t.Context(),
 			`UPDATE semester SET phase = $1 WHERE code = $2`, phase, f.semester); err != nil {
 			t.Fatalf("cannot switch to %s: %v", phase, err)
 		}
+	}
+
+	for _, phase := range []string{"DEMAND_PLANNING", "WISHES", "ASSIGNMENT"} {
+		t.Run(phase, func(t *testing.T) {
+			set(t, phase)
+
+			var out struct {
+				SetWish struct{ ID string }
+			}
+			graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t, setWishMutation,
+				map[string]any{"p": f.lecture, "prio": "HAPPY_TO", "note": nil}, &out)
+
+			if out.SetWish.ID == "" {
+				t.Errorf("a wish could not be registered in %s", phase)
+			}
+		})
+	}
+
+	t.Run("FINAL", func(t *testing.T) {
+		set(t, "FINAL")
 
 		messages := graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustFail(t,
 			setWishMutation,
-			map[string]any{"p": f.lecture, "prio": "HAPPY_TO", "note": nil})
+			map[string]any{"p": f.lecture, "prio": "FIRST_CHOICE", "note": nil})
 		if len(messages) == 0 {
-			t.Errorf("a wish was registered in %s", phase)
-			continue
+			t.Fatal("a wish was changed in a finished semester")
 		}
 		graphqltest.AssertNoLeak(t, messages[0], graphqltest.DatabaseNoise()...)
-	}
+
+		// Withdrawing is bound by the same cell. A list that may be added to but not corrected is
+		// worse than a closed one, so both directions are the same decision.
+		withdrawals := graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustFail(t,
+			`mutation($id: ID!) { withdrawWish(id: $id) }`,
+			map[string]any{"id": f.wishOf(t, testdata.Eins)})
+		if len(withdrawals) == 0 {
+			t.Error("a wish was withdrawn from a finished semester")
+		}
+	})
 }
 
 // Registering twice is a correction, and it is sayable in plain words — which is a consequence of
@@ -649,4 +685,21 @@ func TestInstanceInUseTellsNobodySomethingNew(t *testing.T) {
 		t.Fatal("nobody in this cast could make INSTANCE_IN_USE fire, so the invariant was " +
 			"never exercised — the refusal has to be reachable for the test to mean anything")
 	}
+}
+
+// wishOf is the id of somebody's wish on the lecture, read straight from the database.
+//
+// Not through the API: the tests that use it are about a phase in which the API refuses to write,
+// and reading the id through a query that the same phase might one day close would make the
+// fixture depend on the rule under test.
+func (f wishFixture) wishOf(t *testing.T, who testdata.Persona) string {
+	t.Helper()
+
+	var id string
+	if err := f.schema.Pool.QueryRow(t.Context(),
+		`SELECT w.id::text FROM wish w WHERE w.instance_part_id = $1::uuid AND w.person_id = $2`,
+		f.lecture, who.ID()).Scan(&id); err != nil {
+		t.Fatalf("cannot find %s's wish: %v", who.Name, err)
+	}
+	return id
 }

@@ -297,17 +297,24 @@ planning matrix, and the two are intersected. Both have to say yes.
 The one that surprises people
 -----------------------------
 
-**The demand may be changed in every phase, FINAL included.** That is a decision and not an
-oversight.
+**Almost nothing closes.** The demand may be changed in every phase, FINAL included; wishes may
+be entered and changed in every phase except FINAL. Both are decisions and neither is an
+oversight, and they rest on the same argument.
 
 A course instance declared during the assignment is a correction: somebody falls ill, a cohort
-turns out larger than the numbers said, a module was forgotten. Corrections happen, and a tool
-that refuses one does not prevent it — it moves it into a spreadsheet passed around by mail,
-which is the thing this system replaces. Its own figures then become the wrong ones.
+turns out larger than the numbers said, a module was forgotten. So is somebody saying in March
+that they would take the second laboratory group after all. Corrections happen, and a tool that
+refuses one does not prevent it — it moves it into a spreadsheet or a mail passed around
+outside, which is the thing this system replaces. Its own figures then become the wrong ones.
 
 What protects a plan already being worked on is therefore not a closed phase. It is the refusal
 to withdraw an instance that something already hangs off, which is enforced on the row itself and
-says nothing about what that something is.
+says nothing about what that something is — and, for the assignment, the assignment itself, which
+is a decision somebody takes rather than a consequence of what is on the wish list.
+
+The one cell that does close is wishes in FINAL. A finished semester is the record of what the
+faculty did, and a wish registered afterwards would change that record without changing anything
+about the teaching.
 
 Notes
 -----
@@ -319,8 +326,12 @@ Notes
     this binary cannot read into one it writes to.
   · ADMIN writes nothing here, the same decision the other two tables make: running the system
     is a different job from planning with it.
-  · Doors are not a dimension of this rule. Demand is neither confidential nor personnel data,
-    so a Personal Access Token reaches exactly as far as a browser session does.
+  · Doors are not a dimension of *this* rule — but they are a dimension of the demand, and the
+    two are easy to confuse. Every mutation that writes the demand is @interactiveOnly, so a
+    Personal Access Token cannot perform one at all. That is not about the demand being
+    confidential (it is not): a withdrawal refused with INSTANCE_IN_USE is an answer about who
+    wants an instance, and through a token the wish rule reaches only your own. Registering your
+    own wish stays open through both doors, because that is your own data.
 
 `
 

@@ -106,6 +106,14 @@ type CourseInstance struct {
 	BorrowedParts []BorrowedPart
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+
+	// HoursFromQuery is the sum over the parts, computed by a query that did not load them.
+	//
+	// nil means "the parts are the source", which is the ordinary case. A value means this
+	// instance was read by a projection that carries the figure instead of the rows behind it —
+	// see TeachingHours below, and do not set it beside a loaded Parts slice: two sources for one
+	// number is the thing the rest of this file is arranged to avoid.
+	HoursFromQuery *float64
 }
 
 // TeachingHours is what this instance costs the faculty: the sum over the parts it holds.
@@ -118,7 +126,21 @@ type CourseInstance struct {
 // A part whose hours nobody has stated yet contributes nothing rather than blocking the sum: an
 // instance can be declared before the detail is settled, which is what the demand deadline
 // coming before the detail requires.
+//
+// # Two ways to the same number
+//
+// Where the parts are loaded — every demand screen — this sums them. Where they are not, the query
+// computed the same sum in SQL and put it in HoursFromQuery; the wish list is that case, because
+// a wish renders "Analysis, IF1B, 4 SWS" and joining out the parts would multiply its rows to
+// carry a single figure.
+//
+// The two are one formula in two places, like the visibility rule's guard and filter, and they
+// are kept honest the same way: store.TestTheTwoWaysToInstanceHoursAgree compares them.
 func (i CourseInstance) TeachingHours() float64 {
+	if i.HoursFromQuery != nil {
+		return *i.HoursFromQuery
+	}
+
 	var total float64
 	for _, p := range i.Parts {
 		if p.TeachingHours != nil {

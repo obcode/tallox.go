@@ -705,3 +705,63 @@ func TestOwnWishesAcrossSemesters(t *testing.T) {
 			"in its order", own[0].Instance.SemesterCode, own[1].Instance.SemesterCode)
 	}
 }
+
+// The two ways to an instance's hours agree.
+//
+// domain.CourseInstance.TeachingHours sums the parts where a query loaded them, and returns what
+// the query computed where it did not. The wish list is the second case: it renders one row per
+// wish, and joining out the parts would turn each of those into one row per part to carry a single
+// figure.
+//
+// One formula in two places is the arrangement this package already lives with for the visibility
+// rule — a guard and a WHERE clause — and it is kept honest the same way: by comparing them rather
+// than by asserting in a comment that they match.
+func TestTheTwoWaysToInstanceHoursAgree(t *testing.T) {
+	t.Parallel()
+
+	f := newWishFixture(t)
+	ctx := t.Context()
+
+	// The fixture's instance is a lecture and a laboratory of two hours each. Made lopsided here,
+	// so that a sum which quietly counted parts rather than hours would still be wrong.
+	if _, err := f.schema.Pool.Exec(ctx,
+		`UPDATE instance_part SET teaching_hours = 3 WHERE id = $1`, f.lecture); err != nil {
+		t.Fatalf("cannot change the lecture's hours: %v", err)
+	}
+
+	loaded, err := store.NewDemand(f.schema.Pool, store.NewModules(f.schema.Pool)).
+		CourseInstanceByID(ctx, f.instance)
+	if err != nil {
+		t.Fatalf("cannot read the instance with its parts: %v", err)
+	}
+	if loaded == nil {
+		t.Fatal("the fixture's instance is not there")
+	}
+	if loaded.HoursFromQuery != nil {
+		t.Error("an instance read with its parts carries a query total as well — that is two " +
+			"sources for one number, which is what the field's comment forbids")
+	}
+
+	f.register(t, testdata.Eins)
+	wishes, err := f.wishes.Wishes(ctx,
+		domain.WishQuery{SemesterCode: f.semester.Code},
+		policy.WishFilter{Scope: policy.WishScopeAll})
+	if err != nil {
+		t.Fatalf("cannot read the wishes: %v", err)
+	}
+	if len(wishes) != 1 {
+		t.Fatalf("got %d wishes, want one", len(wishes))
+	}
+
+	fromQuery := wishes[0].Instance.TeachingHours()
+	fromParts := loaded.TeachingHours()
+
+	if fromQuery != fromParts {
+		t.Errorf("the wish says %v SWS and the loaded instance %v — the two ways to this number "+
+			"have come apart", fromQuery, fromParts)
+	}
+	if fromParts != 5 {
+		t.Errorf("the instance is %v SWS, want 5 — the fixture is not what this test assumes",
+			fromParts)
+	}
+}

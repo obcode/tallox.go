@@ -915,7 +915,14 @@ type Querier interface {
 	//
 	// store.TestEveryWishQueryIsFiltered reads this file and requires the predicate in every SELECT,
 	// so a new query cannot quietly be written without it.
-	// The wishes of one semester, filtered, with everything a screen needs to render a row.
+	// The wishes of one semester — or of every semester — filtered, with everything a screen needs to
+	// render a row.
+	//
+	// The semester is optional, and there is exactly one caller allowed to leave it out: "my own
+	// entries, everywhere". That question does not depend on the confidentiality rule at all, so it
+	// needs no semester to read a publication date from. Every other caller passes one, because the
+	// rule *is* per semester — one may be published and the next not — and a filter built without
+	// knowing which would be a filter for the wrong one.
 	//
 	// One query for the wish screen and for the planning screens both, because they differ only in
 	// what the filter lets through — which is the property the whole design rests on. A second query
@@ -924,7 +931,9 @@ type Querier interface {
 	// The joins carry the two things the rule is scoped by — the programme of the instance and the
 	// subject group of its module. module_subject_group is a LEFT JOIN and has to be: a module nobody has sorted into a subject group yet is the ordinary state until the
 	// faculty has worked through its catalogue, and its wishes still belong to somebody.
-	WishesInSemester(ctx context.Context, arg WishesInSemesterParams) ([]WishesInSemesterRow, error)
+	// The semester first, because the list across all of them is grouped by it — and because the
+	// code sorts chronologically as text, which is what its format is for.
+	WishesOfSemester(ctx context.Context, arg WishesOfSemesterParams) ([]WishesOfSemesterRow, error)
 	ZPAChangesByRun(ctx context.Context, runID uuid.UUID) ([]ZPAChangesByRunRow, error)
 	ZPAObjectPayload(ctx context.Context, arg ZPAObjectPayloadParams) (ZPAObjectPayloadRow, error)
 	// What is currently held for one kind: enough to decide the diff without reading the payloads.

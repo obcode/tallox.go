@@ -311,7 +311,7 @@ type ComplexityRoot struct {
 		ModulesWithoutSubjectGroup func(childComplexity int) int
 		MySubjectGroups            func(childComplexity int) int
 		MyTokens                   func(childComplexity int) int
-		MyWishes                   func(childComplexity int, semester string) int
+		MyWishes                   func(childComplexity int, semester *string) int
 		People                     func(childComplexity int, search *string, includeInactive *bool) int
 		Person                     func(childComplexity int, id string) int
 		PlanningSemester           func(childComplexity int) int
@@ -1951,7 +1951,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.MyWishes(childComplexity, args["semester"].(string)), true
+		return e.ComplexityRoot.Query.MyWishes(childComplexity, args["semester"].(*string)), true
 	case "Query.people":
 		if e.ComplexityRoot.Query.People == nil {
 			break
@@ -5846,15 +5846,21 @@ type Wish {
 
 extend type Query {
   """
-  Your own wishes in a semester.
+  Your own wishes — in one semester, or in every semester you have entered anything for.
 
   The one question whose answer never depends on the confidentiality rule, through either door:
   they are your entries. A script that keeps your wishes in step with your calendar is a use this
   API exists for.
+
+  ` + "`" + `semester` + "`" + ` is optional here and required on the field below, and that asymmetry is the rule
+  rather than convenience. The confidentiality filter is built from *one* semester's publication
+  date, so a query spanning all of them would have to pick one date and apply it to the rest. Own
+  entries have no such state to get wrong: they are visible to their owner in every semester and
+  in every phase.
   """
   myWishes(
-    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
-    semester: String!
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `. Omit it for every semester."
+    semester: String
   ): [Wish!]! @scope(area: WISHES, verb: READ)
 
   """

@@ -46,7 +46,7 @@ type QueryResolver interface {
 	ModulesWithoutSubjectGroup(ctx context.Context) (int, error)
 	SubjectGroupsWithoutLead(ctx context.Context) (int, error)
 	MyTokens(ctx context.Context) ([]*model.PersonalAccessToken, error)
-	MyWishes(ctx context.Context, semester string) ([]*model.Wish, error)
+	MyWishes(ctx context.Context, semester *string) ([]*model.Wish, error)
 	Wishes(ctx context.Context, semester string, programme *string, module *string, instance *string, person *string) ([]*model.Wish, error)
 	ZpaSyncRuns(ctx context.Context, limit *int) ([]*model.ZpaSyncRun, error)
 	ZpaSyncRun(ctx context.Context, id string) (*model.ZpaSyncRun, error)
@@ -214,8 +214,8 @@ func (ec *executionContext) field_Query_myWishes_args(ctx context.Context, rawAr
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "semester",
-		func(ctx context.Context, v any) (string, error) {
-			return ec.unmarshalNString2string(ctx, v)
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -1661,7 +1661,7 @@ func (ec *executionContext) _Query_myWishes(ctx context.Context, field graphql.C
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().MyWishes(ctx, fc.Args["semester"].(string))
+			return ec.Resolvers.Query().MyWishes(ctx, fc.Args["semester"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.Wish) graphql.Marshaler {

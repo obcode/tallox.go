@@ -26,8 +26,15 @@
 -- store.TestEveryWishQueryIsFiltered reads this file and requires the predicate in every SELECT,
 -- so a new query cannot quietly be written without it.
 
--- name: WishesInSemester :many
--- The wishes of one semester, filtered, with everything a screen needs to render a row.
+-- name: WishesOfSemester :many
+-- The wishes of one semester — or of every semester — filtered, with everything a screen needs to
+-- render a row.
+--
+-- The semester is optional, and there is exactly one caller allowed to leave it out: "my own
+-- entries, everywhere". That question does not depend on the confidentiality rule at all, so it
+-- needs no semester to read a publication date from. Every other caller passes one, because the
+-- rule *is* per semester — one may be published and the next not — and a filter built without
+-- knowing which would be a filter for the wrong one.
 --
 -- One query for the wish screen and for the planning screens both, because they differ only in
 -- what the filter lets through — which is the property the whole design rests on. A second query
@@ -39,18 +46,21 @@
 SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
     ci.track, ci.programme_semester,
+    sem.code AS semester_code, sem.phase AS semester_phase,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name
 FROM wish w
 JOIN course_instance ci ON ci.id = w.course_instance_id
+JOIN semester sem ON sem.id = ci.semester_id
 JOIN programme prog ON prog.id = ci.programme_id
 JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id
 JOIN person ON person.id = w.person_id
 LEFT JOIN teacher t ON t.mail = person.mail
-WHERE ci.semester_id = sqlc.arg(semester_id)::uuid
+WHERE (sqlc.narg('semester_id')::uuid IS NULL
+       OR ci.semester_id = sqlc.narg('semester_id')::uuid)
   AND (sqlc.narg('programme')::text IS NULL OR prog.code = sqlc.narg('programme')::text)
   AND (sqlc.narg('module')::uuid IS NULL OR m.id = sqlc.narg('module')::uuid)
   AND (sqlc.narg('instance')::uuid IS NULL OR ci.id = sqlc.narg('instance')::uuid)
@@ -64,7 +74,9 @@ WHERE ci.semester_id = sqlc.arg(semester_id)::uuid
                OR prog.id = ANY (sqlc.arg(programme_ids)::uuid[])
                OR msg.subject_group_id = ANY (sqlc.arg(subject_group_ids)::uuid[])))
   )
-ORDER BY m.name, ci.track, w.priority,
+-- The semester first, because the list across all of them is grouped by it — and because the
+-- code sorts chronologically as text, which is what its format is for.
+ORDER BY sem.code, m.name, ci.track, w.priority,
          COALESCE(NULLIF(t.short_name, ''), person.name), w.id;
 
 -- name: WishByID :one
@@ -74,12 +86,14 @@ ORDER BY m.name, ci.track, w.priority,
 SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
     ci.track, ci.programme_semester,
+    sem.code AS semester_code, sem.phase AS semester_phase,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name
 FROM wish w
 JOIN course_instance ci ON ci.id = w.course_instance_id
+JOIN semester sem ON sem.id = ci.semester_id
 JOIN programme prog ON prog.id = ci.programme_id
 JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id

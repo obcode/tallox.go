@@ -696,3 +696,81 @@ func (f wishFixture) wishOf(t *testing.T, who testdata.Persona) string {
 	}
 	return id
 }
+
+// `myWishes` without a semester is every semester, and it is still own-only.
+//
+// The asymmetry with `wishes(semester:)` is a rule and not convenience: the confidentiality filter
+// is built from *one* semester's publication date, so a query spanning all of them would have to
+// pick one date and apply it to the rest. Own entries have no such state to get wrong — which is
+// the half this test has to hold on to, through both doors, because "spans everything" and
+// "shows everybody" are one careless line apart.
+func TestMyWishesWithoutASemesterStaysOwnOnly(t *testing.T) {
+	t.Parallel()
+
+	f := wishHandler(t,
+		grants{testdata.Eins, []string{"LECTURER"}},
+		grants{testdata.Zwei, []string{"LECTURER"}},
+		grants{testdata.Fuenf, []string{"LECTURER", "DEANS_OFFICE"}},
+	)
+	f.register(t, testdata.Eins)
+	f.register(t, testdata.Zwei)
+
+	const everywhere = `query { myWishes { person { mail } instance { semester } } }`
+
+	// Even the dean's office, who may read every wish there is: `myWishes` answers about the
+	// caller and not about the faculty, whatever else they are allowed to see.
+	for _, who := range []testdata.Persona{testdata.Eins, testdata.Fuenf} {
+		graphqltest.EachDoor(t, f.handler, who.Mail, who.Token,
+			func(t *testing.T, c *graphqltest.Client) {
+				var out struct {
+					MyWishes []struct {
+						Person   struct{ Mail string }
+						Instance struct{ Semester string }
+					}
+				}
+				c.MustQuery(t, everywhere, nil, &out)
+
+				for _, wish := range out.MyWishes {
+					if wish.Person.Mail != who.Mail {
+						t.Errorf("%s reads %s's wish through myWishes", who.Name, wish.Person.Mail)
+					}
+					// Each row says which semester it is in, because the screen groups by it.
+					if wish.Instance.Semester == "" {
+						t.Error("a wish read across semesters does not name its semester")
+					}
+				}
+			})
+	}
+
+	// Eins has one and sees it; Fuenf has none and sees none, which is what makes the loop above
+	// mean something rather than passing on an empty list twice.
+	var out struct {
+		MyWishes []struct{ ID string }
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t, everywhere, nil, &out)
+	if len(out.MyWishes) != 1 {
+		t.Errorf("Eins reads %d of their own wishes, want one", len(out.MyWishes))
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Fuenf.Mail).MustQuery(t, everywhere, nil, &out)
+	if len(out.MyWishes) != 0 {
+		t.Errorf("Fuenf has registered nothing and reads %d wishes", len(out.MyWishes))
+	}
+}
+
+// The other half of the same rule: everybody else's wishes cannot be asked for without a semester.
+//
+// Enforced by the schema — the argument is not nullable — so this is a validation error rather
+// than a refusal, and that is the right place for it: a query the server never has to interpret
+// cannot be interpreted wrongly.
+func TestWishesStillNeedsASemester(t *testing.T) {
+	t.Parallel()
+
+	f := wishHandler(t, grants{testdata.Fuenf, []string{"LECTURER", "DEANS_OFFICE"}})
+
+	messages := graphqltest.New(f.handler).AsUser(testdata.Fuenf.Mail).
+		MustFail(t, `query { wishes { id } }`, nil)
+	if len(messages) == 0 {
+		t.Fatal("`wishes` answered without a semester — the confidentiality filter is built from " +
+			"one semester's publication date, so there is no such question to answer")
+	}
+}

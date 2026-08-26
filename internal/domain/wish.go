@@ -12,7 +12,7 @@ import (
 	"github.com/obcode/tallox.go/internal/principal"
 )
 
-// Wishes: one person's interest in one instance part.
+// Wishes: one person's interest in one course instance.
 //
 // The area the confidentiality rule was written for. Nothing in this file decides who may see
 // what — internal/policy does, and internal/store applies its filter inside the query — and that
@@ -47,7 +47,7 @@ var (
 // rather than a constraint violation.
 const MaxWishNote = 500
 
-// WishPriority is how much somebody wants a part.
+// WishPriority is how much somebody wants an instance.
 //
 // Three fixed levels rather than a rank per person and semester. A rank is more expressive and
 // costs a reordering dance on every insert in the middle, a uniqueness constraint whose violation
@@ -56,7 +56,7 @@ const MaxWishNote = 500
 type WishPriority string
 
 const (
-	// WishFirstChoice is "unbedingt" — the parts somebody is actually asking for.
+	// WishFirstChoice is "unbedingt" — what somebody is actually asking for.
 	WishFirstChoice WishPriority = "FIRST_CHOICE"
 	// WishHappyTo is "gerne". The default, because it is the honest answer to a form somebody is
 	// filling in for the first time.
@@ -99,17 +99,20 @@ func WishPriorityFromLevel(level int16) WishPriority {
 	return WishHappyTo
 }
 
-// Wish is one person's interest in one instance part.
+// Wish is one person's interest in one course instance.
 type Wish struct {
 	ID uuid.UUID
 	// Person is who registered it. Always the person who made the call — there is no way to
 	// register interest on somebody's behalf, and no column that would record one.
 	Person Person
-	// Part is the assignable unit wanted.
-	Part InstancePart
-	// Instance is the cohort that part belongs to, with its module and its programme. Carried
-	// because a wish is unreadable without it: "Analysis, IF1B, laboratory" is the row somebody
-	// recognises, and "part 3f2a…" is not.
+	// Instance is what is wanted: one module, in one study programme, for one cohort — with the
+	// module and the programme carried, because a wish is unreadable without them. "Analysis,
+	// IF1B" is the row somebody recognises, and an id is not.
+	//
+	// The instance and not one of its parts. Which part somebody ends up holding is settled in the
+	// assignment, where it is a decision between people rather than something one of them states
+	// alone; until then "ich mache die Vorlesung, das Praktikum jemand anderes" is what Note is
+	// for. See migration 16.
 	Instance CourseInstance
 	// Priority is how much.
 	Priority WishPriority
@@ -131,9 +134,10 @@ type WishQuery struct {
 	SemesterCode string
 	// Programme narrows to one study programme's instances, by code. Empty means every one.
 	Programme string
-	// Module, Part narrow further. uuid.Nil means no narrowing.
-	Module uuid.UUID
-	Part   uuid.UUID
+	// Module narrows to one module across its cohorts, Instance to a single cohort of it.
+	// uuid.Nil means no narrowing.
+	Module   uuid.UUID
+	Instance uuid.UUID
 	// Person narrows to one person's entries. uuid.Nil means everybody the filter allows.
 	//
 	// Note what this is not: a way around the rule. Asking for somebody else's wishes narrows the
@@ -154,13 +158,13 @@ type WishStore interface {
 	// are deliberately the same answer.
 	WishByID(ctx context.Context, id uuid.UUID, filter policy.WishFilter) (*Wish, error)
 	// SetWish registers or updates the actor's own interest and returns the row.
-	SetWish(ctx context.Context, partID, personID uuid.UUID, priority WishPriority,
+	SetWish(ctx context.Context, instanceID, personID uuid.UUID, priority WishPriority,
 		note string) (*Wish, error)
 	// WithdrawWish removes the actor's own. Returns ErrWishNotFound for anything else.
 	WithdrawWish(ctx context.Context, id, personID uuid.UUID) error
-	// SemesterOfPart is which semester a part belongs to, for the phase rule. (nil, nil) when the
-	// part is not there.
-	SemesterOfPart(ctx context.Context, partID uuid.UUID) (*Semester, error)
+	// SemesterOfInstance is which semester an instance belongs to, for the phase rule.
+	// (nil, nil) when the instance is not there.
+	SemesterOfInstance(ctx context.Context, instanceID uuid.UUID) (*Semester, error)
 }
 
 // SemesterReader is the part of the semester service the wish service needs: turning a code into
@@ -220,12 +224,12 @@ func (s *WishService) Mine(ctx context.Context, actor principal.Actor,
 	return s.List(ctx, actor, WishQuery{SemesterCode: semesterCode, Person: actor.ID})
 }
 
-// Set registers the actor's own interest in a part, or changes it.
+// Set registers the actor's own interest in an instance, or changes it.
 //
 // Only ever their own: there is no argument for whose it is. A wish registered on somebody's
 // behalf is not an expression of interest but somebody else's opinion about them, and the process
 // has a place for that — the assignment.
-func (s *WishService) Set(ctx context.Context, actor principal.Actor, partID uuid.UUID,
+func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID uuid.UUID,
 	priority WishPriority, note string) (*Wish, error) {
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
@@ -239,18 +243,18 @@ func (s *WishService) Set(ctx context.Context, actor principal.Actor, partID uui
 		return nil, ErrWishNoteTooLong
 	}
 
-	semester, err := s.store.SemesterOfPart(ctx, partID)
+	semester, err := s.store.SemesterOfInstance(ctx, instanceID)
 	if err != nil {
 		return nil, err
 	}
 	if semester == nil {
-		return nil, ErrPartNotFound
+		return nil, ErrInstanceNotFound
 	}
 	if !policy.MayWriteInPhase(policy.WriteAreaWishes, semester.Phase, actor) {
 		return nil, ErrWishPhaseClosed
 	}
 
-	return s.store.SetWish(ctx, partID, actor.ID, priority, note)
+	return s.store.SetWish(ctx, instanceID, actor.ID, priority, note)
 }
 
 // Withdraw removes the actor's own wish.
@@ -277,7 +281,7 @@ func (s *WishService) Withdraw(ctx context.Context, actor principal.Actor, id uu
 		return ErrWishNotFound
 	}
 
-	semester, err := s.store.SemesterOfPart(ctx, existing.Part.ID)
+	semester, err := s.store.SemesterOfInstance(ctx, existing.Instance.ID)
 	if err != nil {
 		return err
 	}

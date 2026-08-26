@@ -892,11 +892,12 @@ type TeacherAccount struct {
 	Account *Person `json:"account,omitempty"`
 }
 
-// One person's interest in one instance part.
+// One person's interest in one course instance.
 //
-// Points at a **part** and never at an instance: the faculty's own sentence is "one holds the
-// lecture, another the laboratory", so the assignable unit is the part and so is the unit of
-// interest.
+// Points at an **instance** and never at one of its parts. "One holds the lecture, another the
+// laboratory" is true and stays true — it is what the *assignment* decides, one step later. A wish
+// is somebody offering to teach a subject for a cohort, and the part-level detail they have in mind
+// belongs in `note` until there is somebody to agree it with.
 type Wish struct {
 	ID string `json:"id"`
 	// Who registered it.
@@ -905,16 +906,19 @@ type Wish struct {
 	// and no column that would record one: a wish entered by somebody else is not an expression of
 	// interest but their opinion about you, and the process has a place for that — the assignment.
 	Person *Person `json:"person"`
-	// The assignable unit wanted.
-	Part *InstancePart `json:"part"`
-	// The cohort that part belongs to, with its module and its programme.
+	// What is wanted: one module, in one study programme, for one cohort.
 	//
-	// Carried because a wish is unreadable without it: "Analysis, IF1B, Praktikum" is the row somebody
-	// recognises, and a part id is not.
+	// Carried whole because a wish is unreadable without it — "Analysis, IF1B" is the row somebody
+	// recognises, and an id is not. Its `parts` are reachable from here for a screen that wants to
+	// show what the instance consists of; no wish points at one of them.
 	Instance *CourseInstance `json:"instance"`
 	// How much.
 	Priority domain.WishPriority `json:"priority"`
-	// The owner's own words: „lieber die Dienstagsgruppe“, „nur wenn es sonst niemand macht“.
+	// The owner's own words: „nur die Vorlesung“, „lieber Zug B“, „nur wenn es sonst niemand macht“.
+	//
+	// This is where the part-level detail lives during the wish phase, and deliberately as prose
+	// rather than as structure: „ich mache die Vorlesung, das Praktikum jemand anderes“ is a proposal
+	// about two people, and turning it into a field would ask one of them to decide it alone.
 	//
 	// Read by whoever may read the wish — the same rule as the row, because it is part of the row.
 	Note string `json:"note"`

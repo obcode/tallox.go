@@ -22,7 +22,7 @@ Subject groups have no semester
 A subject group is a statement about a subject, not about a plan: mathematics, software,
 technical computer science. It is not copied between semesters and it survives every change of
 examination regulations. So the subject group of anything planned is derived through the
-module — instance part → course instance → module → subject group — and never stored beside
+module — course instance → module → subject group — and never stored beside
 it.
 
 That has a consequence worth stating before somebody meets it: re-cutting a group, which the

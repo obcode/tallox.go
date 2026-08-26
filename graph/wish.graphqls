@@ -1,4 +1,4 @@
-# Wishes: one person's interest in one instance part.
+# Wishes: one person's interest in one course instance.
 #
 # The area the confidentiality rule was written for, and the reason the rule lives in
 # internal/policy rather than in a resolver. What is visible here is decided by a WHERE clause,
@@ -12,26 +12,34 @@
 # instance is, or the subject group its module belongs to, or you are the dean's office — and
 # then only in a signed-in browser session, never through a Personal Access Token.
 #
+# WHAT A WISH POINTS AT
+#
+# The instance: one module, in one study programme, for one cohort. Not one of its parts, which is
+# what migration 15 shipped and migration 16 corrected. The faculty plans at the granularity of
+# "IF2A / Softwareentwicklung II", and that is the granularity people think in; which part
+# somebody ends up holding is settled in the assignment, between the people concerned. Until then
+# "ich mache die Vorlesung, das Praktikum jemand anderes" is what `note` is for.
+#
 # Read the whole thing in `internal/policy/testdata/visibility_matrix.golden`, which is generated
 # from the code that enforces it.
 #
 # WHAT IS DELIBERATELY MISSING
 #
-# There is no count. No `wishCount`, no `hasWishes`, no "how many people want this part" anywhere
+# There is no count. No `wishCount`, no `hasWishes`, no "how many people want this" anywhere
 # in this schema — not even a filtered one. "3 Kolleg:innen haben bereits Interesse" is the
 # confidential fact with the names taken out, and a field that answers 0 or 1 before publication
 # is a field somebody renders as a badge. Anybody who wants a number counts the rows they were
 # allowed to read.
 
 """
-How much somebody wants a part.
+How much somebody wants an instance.
 
 Three fixed levels rather than a rank. A rank is more expressive and costs a reordering dance on
 every insert in the middle, and a number nobody can read off a list without a legend. Ties are the
 common case: somebody wants four things equally and would rather say so than invent an order.
 """
 enum WishPriority {
-  "Unbedingt — the parts somebody is actually asking for."
+  "Unbedingt — what somebody is actually asking for."
   FIRST_CHOICE
   "Gerne. The default, because it is the honest answer to a form being filled in for the first time."
   HAPPY_TO
@@ -40,11 +48,12 @@ enum WishPriority {
 }
 
 """
-One person's interest in one instance part.
+One person's interest in one course instance.
 
-Points at a **part** and never at an instance: the faculty's own sentence is "one holds the
-lecture, another the laboratory", so the assignable unit is the part and so is the unit of
-interest.
+Points at an **instance** and never at one of its parts. "One holds the lecture, another the
+laboratory" is true and stays true — it is what the *assignment* decides, one step later. A wish
+is somebody offering to teach a subject for a cohort, and the part-level detail they have in mind
+belongs in `note` until there is somebody to agree it with.
 """
 type Wish {
   id: ID!
@@ -56,19 +65,22 @@ type Wish {
   interest but their opinion about you, and the process has a place for that — the assignment.
   """
   person: Person!
-  "The assignable unit wanted."
-  part: InstancePart!
   """
-  The cohort that part belongs to, with its module and its programme.
+  What is wanted: one module, in one study programme, for one cohort.
 
-  Carried because a wish is unreadable without it: "Analysis, IF1B, Praktikum" is the row somebody
-  recognises, and a part id is not.
+  Carried whole because a wish is unreadable without it — "Analysis, IF1B" is the row somebody
+  recognises, and an id is not. Its `parts` are reachable from here for a screen that wants to
+  show what the instance consists of; no wish points at one of them.
   """
   instance: CourseInstance!
   "How much."
   priority: WishPriority!
   """
-  The owner's own words: „lieber die Dienstagsgruppe“, „nur wenn es sonst niemand macht“.
+  The owner's own words: „nur die Vorlesung“, „lieber Zug B“, „nur wenn es sonst niemand macht“.
+
+  This is where the part-level detail lives during the wish phase, and deliberately as prose
+  rather than as structure: „ich mache die Vorlesung, das Praktikum jemand anderes“ is a proposal
+  about two people, and turning it into a field would ask one of them to decide it alone.
 
   Read by whoever may read the wish — the same rule as the row, because it is part of the row.
   """
@@ -111,8 +123,8 @@ extend type Query {
     programme: String
     "One module, across its cohorts."
     module: ID
-    "One instance part."
-    part: ID
+    "One cohort of one module."
+    instance: ID
     "One person's entries, by id."
     person: ID
   ): [Wish!]! @scope(area: WISHES, verb: READ)
@@ -120,10 +132,10 @@ extend type Query {
 
 extend type Mutation {
   """
-  Register your interest in a part, or change it.
+  Register your interest in an instance, or change it.
 
-  Yours only: there is no argument for whose it is. Registering twice for the same part is not a
-  second wish and not an error — it is a correction, and it keeps the original `createdAt`.
+  Yours only: there is no argument for whose it is. Registering twice for the same instance is not
+  a second wish and not an error — it is a correction, and it keeps the original `createdAt`.
 
   Only in the wish phase. `WISH_PHASE_CLOSED` otherwise, in either direction: a list that may be
   added to but not corrected is worse than a closed one, so both are the same decision about when
@@ -132,8 +144,8 @@ extend type Mutation {
   Reachable through both doors, unlike the demand: this is your own data.
   """
   setWish(
-    "The part you are interested in."
-    instancePartId: ID!
+    "The instance you are interested in."
+    courseInstanceId: ID!
     priority: WishPriority! = HAPPY_TO
     "Up to 500 characters, or nothing at all."
     note: String

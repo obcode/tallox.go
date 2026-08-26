@@ -716,12 +716,13 @@ type Querier interface {
 	// as an interface, and MIN over no rows is NULL, which is exactly the case this seeds for.
 	SeedProgrammeSemester(ctx context.Context, arg SeedProgrammeSemesterParams) (int32, error)
 	SemesterByCode(ctx context.Context, code string) (Semester, error)
-	// Which semester a part belongs to, and whether its instance is still there.
+	// Which semester an instance belongs to, and whether it is still there.
 	//
 	// Needed before a write: the phase that decides whether wishes may be entered is the *semester's*
-	// phase, and the part is all the caller names. One statement rather than three round trips
-	// through the instance.
-	SemesterOfInstancePart(ctx context.Context, id uuid.UUID) (SemesterOfInstancePartRow, error)
+	// phase, and the instance is all the caller names. One statement rather than two round trips, and
+	// an empty result is the answer to both questions at once — an instance that has been withdrawn
+	// has no semester to ask about.
+	SemesterOfCourseInstance(ctx context.Context, id uuid.UUID) (SemesterOfCourseInstanceRow, error)
 	// The recorded ones — the semesters somebody has decided something about. The ones nobody has
 	// touched are not here to be listed, and the domain adds them from the calendar.
 	//
@@ -858,13 +859,13 @@ type Querier interface {
 	UpdateLocalModule(ctx context.Context, arg UpdateLocalModuleParams) (UpdateLocalModuleRow, error)
 	// Register interest, or change your mind about something you already registered.
 	//
-	// An upsert rather than an insert that can fail: registering twice for the same part is not a
+	// An upsert rather than an insert that can fail: registering twice for the same instance is not a
 	// second wish and not an error, it is a correction. The unique constraint still exists — it is
-	// what makes this one row per person per part — but the ordinary path never trips it.
+	// what makes this one row per person per instance — but the ordinary path never trips it.
 	//
 	// Only ever the caller's own row. person_id comes from the actor and never from the request; see
 	// the header of migration 15.
-	UpsertWish(ctx context.Context, arg UpsertWishParams) (Wish, error)
+	UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertWishRow, error)
 	// The cache of the examination office's module master data, its runs and its changes.
 	//
 	// The theme of this file is that a sync never deletes and never overwrites blindly. Every
@@ -887,7 +888,7 @@ type Querier interface {
 	// does not have — and the realistic shape of that mistake is somebody adding a by-id lookup
 	// because "it is only one row".
 	WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow, error)
-	// Wishes: one person's interest in one instance part.
+	// Wishes: one person's interest in one course instance.
 	//
 	// THE RULE THIS FILE IS MADE OF
 	//
@@ -920,8 +921,8 @@ type Querier interface {
 	// what the filter lets through — which is the property the whole design rests on. A second query
 	// "for planners" would be a second place for the rule to be forgotten.
 	//
-	// The joins carry the two things the rule is scoped by. module_subject_group is a LEFT JOIN and
-	// has to be: a module nobody has sorted into a subject group yet is the ordinary state until the
+	// The joins carry the two things the rule is scoped by — the programme of the instance and the
+	// subject group of its module. module_subject_group is a LEFT JOIN and has to be: a module nobody has sorted into a subject group yet is the ordinary state until the
 	// faculty has worked through its catalogue, and its wishes still belong to somebody.
 	WishesInSemester(ctx context.Context, arg WishesInSemesterParams) ([]WishesInSemesterRow, error)
 	ZPAChangesByRun(ctx context.Context, runID uuid.UUID) ([]ZPAChangesByRunRow, error)

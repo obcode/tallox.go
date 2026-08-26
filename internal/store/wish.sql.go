@@ -37,29 +37,29 @@ func (q *Queries) DeleteOwnWish(ctx context.Context, arg DeleteOwnWishParams) (i
 	return result.RowsAffected(), nil
 }
 
-const semesterOfInstancePart = `-- name: SemesterOfInstancePart :one
+const semesterOfCourseInstance = `-- name: SemesterOfCourseInstance :one
 SELECT s.id, s.code, s.phase, s.wishes_published_at
-FROM instance_part p
-JOIN course_instance ci ON ci.id = p.course_instance_id
+FROM course_instance ci
 JOIN semester s ON s.id = ci.semester_id
-WHERE p.id = $1
+WHERE ci.id = $1
 `
 
-type SemesterOfInstancePartRow struct {
+type SemesterOfCourseInstanceRow struct {
 	ID                uuid.UUID
 	Code              string
 	Phase             string
 	WishesPublishedAt pgtype.Timestamptz
 }
 
-// Which semester a part belongs to, and whether its instance is still there.
+// Which semester an instance belongs to, and whether it is still there.
 //
 // Needed before a write: the phase that decides whether wishes may be entered is the *semester's*
-// phase, and the part is all the caller names. One statement rather than three round trips
-// through the instance.
-func (q *Queries) SemesterOfInstancePart(ctx context.Context, id uuid.UUID) (SemesterOfInstancePartRow, error) {
-	row := q.db.QueryRow(ctx, semesterOfInstancePart, id)
-	var i SemesterOfInstancePartRow
+// phase, and the instance is all the caller names. One statement rather than two round trips, and
+// an empty result is the answer to both questions at once — an instance that has been withdrawn
+// has no semester to ask about.
+func (q *Queries) SemesterOfCourseInstance(ctx context.Context, id uuid.UUID) (SemesterOfCourseInstanceRow, error) {
+	row := q.db.QueryRow(ctx, semesterOfCourseInstance, id)
+	var i SemesterOfCourseInstanceRow
 	err := row.Scan(
 		&i.ID,
 		&i.Code,
@@ -70,41 +70,51 @@ func (q *Queries) SemesterOfInstancePart(ctx context.Context, id uuid.UUID) (Sem
 }
 
 const upsertWish = `-- name: UpsertWish :one
-INSERT INTO wish (instance_part_id, person_id, priority, note)
+INSERT INTO wish (course_instance_id, person_id, priority, note)
 VALUES ($1, $2, $3, $4)
-ON CONFLICT (instance_part_id, person_id) DO UPDATE
+ON CONFLICT (course_instance_id, person_id) DO UPDATE
 SET priority = EXCLUDED.priority,
     note = EXCLUDED.note,
     updated_at = now()
-RETURNING id, instance_part_id, person_id, priority, note, created_at, updated_at
+RETURNING id, course_instance_id, person_id, priority, note, created_at, updated_at
 `
 
 type UpsertWishParams struct {
-	InstancePartID uuid.UUID
-	PersonID       uuid.UUID
-	Priority       int16
-	Note           string
+	CourseInstanceID uuid.UUID
+	PersonID         uuid.UUID
+	Priority         int16
+	Note             string
+}
+
+type UpsertWishRow struct {
+	ID               uuid.UUID
+	CourseInstanceID uuid.UUID
+	PersonID         uuid.UUID
+	Priority         int16
+	Note             string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // Register interest, or change your mind about something you already registered.
 //
-// An upsert rather than an insert that can fail: registering twice for the same part is not a
+// An upsert rather than an insert that can fail: registering twice for the same instance is not a
 // second wish and not an error, it is a correction. The unique constraint still exists — it is
-// what makes this one row per person per part — but the ordinary path never trips it.
+// what makes this one row per person per instance — but the ordinary path never trips it.
 //
 // Only ever the caller's own row. person_id comes from the actor and never from the request; see
 // the header of migration 15.
-func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (Wish, error) {
+func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertWishRow, error) {
 	row := q.db.QueryRow(ctx, upsertWish,
-		arg.InstancePartID,
+		arg.CourseInstanceID,
 		arg.PersonID,
 		arg.Priority,
 		arg.Note,
 	)
-	var i Wish
+	var i UpsertWishRow
 	err := row.Scan(
 		&i.ID,
-		&i.InstancePartID,
+		&i.CourseInstanceID,
 		&i.PersonID,
 		&i.Priority,
 		&i.Note,
@@ -116,17 +126,14 @@ func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (Wish, e
 
 const wishByID = `-- name: WishByID :one
 SELECT
-    w.id, w.instance_part_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
-    p.kind AS part_kind, p.position AS part_position, p.teaching_hours,
-    p.serves_sibling_tracks,
-    ci.id AS course_instance_id, ci.track, ci.programme_semester,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
+    ci.track, ci.programme_semester,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name
 FROM wish w
-JOIN instance_part p ON p.id = w.instance_part_id
-JOIN course_instance ci ON ci.id = p.course_instance_id
+JOIN course_instance ci ON ci.id = w.course_instance_id
 JOIN programme prog ON prog.id = ci.programme_id
 JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id
@@ -153,28 +160,23 @@ type WishByIDParams struct {
 }
 
 type WishByIDRow struct {
-	ID                  uuid.UUID
-	InstancePartID      uuid.UUID
-	PersonID            uuid.UUID
-	Priority            int16
-	Note                string
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	PartKind            string
-	PartPosition        int32
-	TeachingHours       pgtype.Numeric
-	ServesSiblingTracks bool
-	CourseInstanceID    uuid.UUID
-	Track               string
-	ProgrammeSemester   *int32
-	ProgrammeID         uuid.UUID
-	ProgrammeCode       string
-	ProgrammeTitle      string
-	ModuleID            uuid.UUID
-	ModuleName          string
-	PersonMail          string
-	PersonName          string
-	PersonSortName      string
+	ID                uuid.UUID
+	CourseInstanceID  uuid.UUID
+	PersonID          uuid.UUID
+	Priority          int16
+	Note              string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	Track             string
+	ProgrammeSemester *int32
+	ProgrammeID       uuid.UUID
+	ProgrammeCode     string
+	ProgrammeTitle    string
+	ModuleID          uuid.UUID
+	ModuleName        string
+	PersonMail        string
+	PersonName        string
+	PersonSortName    string
 }
 
 // One wish, through the same filter. A detail view that skipped it would be the hole the list
@@ -191,17 +193,12 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 	var i WishByIDRow
 	err := row.Scan(
 		&i.ID,
-		&i.InstancePartID,
+		&i.CourseInstanceID,
 		&i.PersonID,
 		&i.Priority,
 		&i.Note,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.PartKind,
-		&i.PartPosition,
-		&i.TeachingHours,
-		&i.ServesSiblingTracks,
-		&i.CourseInstanceID,
 		&i.Track,
 		&i.ProgrammeSemester,
 		&i.ProgrammeID,
@@ -219,17 +216,14 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 const wishesInSemester = `-- name: WishesInSemester :many
 
 SELECT
-    w.id, w.instance_part_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
-    p.kind AS part_kind, p.position AS part_position, p.teaching_hours,
-    p.serves_sibling_tracks,
-    ci.id AS course_instance_id, ci.track, ci.programme_semester,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
+    ci.track, ci.programme_semester,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name
 FROM wish w
-JOIN instance_part p ON p.id = w.instance_part_id
-JOIN course_instance ci ON ci.id = p.course_instance_id
+JOIN course_instance ci ON ci.id = w.course_instance_id
 JOIN programme prog ON prog.id = ci.programme_id
 JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id
@@ -238,7 +232,7 @@ LEFT JOIN teacher t ON t.mail = person.mail
 WHERE ci.semester_id = $1::uuid
   AND ($2::text IS NULL OR prog.code = $2::text)
   AND ($3::uuid IS NULL OR m.id = $3::uuid)
-  AND ($4::uuid IS NULL OR p.id = $4::uuid)
+  AND ($4::uuid IS NULL OR ci.id = $4::uuid)
   AND ($5::uuid IS NULL OR w.person_id = $5::uuid)
   AND (
       $6::text = 'all'
@@ -249,7 +243,7 @@ WHERE ci.semester_id = $1::uuid
                OR prog.id = ANY ($8::uuid[])
                OR msg.subject_group_id = ANY ($9::uuid[])))
   )
-ORDER BY m.name, ci.track, p.position, w.priority,
+ORDER BY m.name, ci.track, w.priority,
          COALESCE(NULLIF(t.short_name, ''), person.name), w.id
 `
 
@@ -257,7 +251,7 @@ type WishesInSemesterParams struct {
 	SemesterID      uuid.UUID
 	Programme       *string
 	Module          uuid.NullUUID
-	Part            uuid.NullUUID
+	Instance        uuid.NullUUID
 	Person          uuid.NullUUID
 	Scope           string
 	OwnerID         uuid.UUID
@@ -266,31 +260,26 @@ type WishesInSemesterParams struct {
 }
 
 type WishesInSemesterRow struct {
-	ID                  uuid.UUID
-	InstancePartID      uuid.UUID
-	PersonID            uuid.UUID
-	Priority            int16
-	Note                string
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	PartKind            string
-	PartPosition        int32
-	TeachingHours       pgtype.Numeric
-	ServesSiblingTracks bool
-	CourseInstanceID    uuid.UUID
-	Track               string
-	ProgrammeSemester   *int32
-	ProgrammeID         uuid.UUID
-	ProgrammeCode       string
-	ProgrammeTitle      string
-	ModuleID            uuid.UUID
-	ModuleName          string
-	PersonMail          string
-	PersonName          string
-	PersonSortName      string
+	ID                uuid.UUID
+	CourseInstanceID  uuid.UUID
+	PersonID          uuid.UUID
+	Priority          int16
+	Note              string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	Track             string
+	ProgrammeSemester *int32
+	ProgrammeID       uuid.UUID
+	ProgrammeCode     string
+	ProgrammeTitle    string
+	ModuleID          uuid.UUID
+	ModuleName        string
+	PersonMail        string
+	PersonName        string
+	PersonSortName    string
 }
 
-// Wishes: one person's interest in one instance part.
+// Wishes: one person's interest in one course instance.
 //
 // # THE RULE THIS FILE IS MADE OF
 //
@@ -323,15 +312,15 @@ type WishesInSemesterRow struct {
 // what the filter lets through — which is the property the whole design rests on. A second query
 // "for planners" would be a second place for the rule to be forgotten.
 //
-// The joins carry the two things the rule is scoped by. module_subject_group is a LEFT JOIN and
-// has to be: a module nobody has sorted into a subject group yet is the ordinary state until the
+// The joins carry the two things the rule is scoped by — the programme of the instance and the
+// subject group of its module. module_subject_group is a LEFT JOIN and has to be: a module nobody has sorted into a subject group yet is the ordinary state until the
 // faculty has worked through its catalogue, and its wishes still belong to somebody.
 func (q *Queries) WishesInSemester(ctx context.Context, arg WishesInSemesterParams) ([]WishesInSemesterRow, error) {
 	rows, err := q.db.Query(ctx, wishesInSemester,
 		arg.SemesterID,
 		arg.Programme,
 		arg.Module,
-		arg.Part,
+		arg.Instance,
 		arg.Person,
 		arg.Scope,
 		arg.OwnerID,
@@ -347,17 +336,12 @@ func (q *Queries) WishesInSemester(ctx context.Context, arg WishesInSemesterPara
 		var i WishesInSemesterRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.InstancePartID,
+			&i.CourseInstanceID,
 			&i.PersonID,
 			&i.Priority,
 			&i.Note,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.PartKind,
-			&i.PartPosition,
-			&i.TeachingHours,
-			&i.ServesSiblingTracks,
-			&i.CourseInstanceID,
 			&i.Track,
 			&i.ProgrammeSemester,
 			&i.ProgrammeID,

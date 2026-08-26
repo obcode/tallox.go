@@ -1,4 +1,4 @@
--- Wishes: one person's interest in one instance part.
+-- Wishes: one person's interest in one course instance.
 --
 -- THE RULE THIS FILE IS MADE OF
 --
@@ -33,21 +33,18 @@
 -- what the filter lets through — which is the property the whole design rests on. A second query
 -- "for planners" would be a second place for the rule to be forgotten.
 --
--- The joins carry the two things the rule is scoped by. module_subject_group is a LEFT JOIN and
--- has to be: a module nobody has sorted into a subject group yet is the ordinary state until the
+-- The joins carry the two things the rule is scoped by — the programme of the instance and the
+-- subject group of its module. module_subject_group is a LEFT JOIN and has to be: a module nobody has sorted into a subject group yet is the ordinary state until the
 -- faculty has worked through its catalogue, and its wishes still belong to somebody.
 SELECT
-    w.id, w.instance_part_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
-    p.kind AS part_kind, p.position AS part_position, p.teaching_hours,
-    p.serves_sibling_tracks,
-    ci.id AS course_instance_id, ci.track, ci.programme_semester,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
+    ci.track, ci.programme_semester,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name
 FROM wish w
-JOIN instance_part p ON p.id = w.instance_part_id
-JOIN course_instance ci ON ci.id = p.course_instance_id
+JOIN course_instance ci ON ci.id = w.course_instance_id
 JOIN programme prog ON prog.id = ci.programme_id
 JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id
@@ -56,7 +53,7 @@ LEFT JOIN teacher t ON t.mail = person.mail
 WHERE ci.semester_id = sqlc.arg(semester_id)::uuid
   AND (sqlc.narg('programme')::text IS NULL OR prog.code = sqlc.narg('programme')::text)
   AND (sqlc.narg('module')::uuid IS NULL OR m.id = sqlc.narg('module')::uuid)
-  AND (sqlc.narg('part')::uuid IS NULL OR p.id = sqlc.narg('part')::uuid)
+  AND (sqlc.narg('instance')::uuid IS NULL OR ci.id = sqlc.narg('instance')::uuid)
   AND (sqlc.narg('person')::uuid IS NULL OR w.person_id = sqlc.narg('person')::uuid)
   AND (
       sqlc.arg('scope')::text = 'all'
@@ -67,7 +64,7 @@ WHERE ci.semester_id = sqlc.arg(semester_id)::uuid
                OR prog.id = ANY (sqlc.arg(programme_ids)::uuid[])
                OR msg.subject_group_id = ANY (sqlc.arg(subject_group_ids)::uuid[])))
   )
-ORDER BY m.name, ci.track, p.position, w.priority,
+ORDER BY m.name, ci.track, w.priority,
          COALESCE(NULLIF(t.short_name, ''), person.name), w.id;
 
 -- name: WishByID :one
@@ -75,17 +72,14 @@ ORDER BY m.name, ci.track, p.position, w.priority,
 -- does not have — and the realistic shape of that mistake is somebody adding a by-id lookup
 -- because "it is only one row".
 SELECT
-    w.id, w.instance_part_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
-    p.kind AS part_kind, p.position AS part_position, p.teaching_hours,
-    p.serves_sibling_tracks,
-    ci.id AS course_instance_id, ci.track, ci.programme_semester,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
+    ci.track, ci.programme_semester,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name
 FROM wish w
-JOIN instance_part p ON p.id = w.instance_part_id
-JOIN course_instance ci ON ci.id = p.course_instance_id
+JOIN course_instance ci ON ci.id = w.course_instance_id
 JOIN programme prog ON prog.id = ci.programme_id
 JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id
@@ -105,19 +99,19 @@ WHERE w.id = sqlc.arg(id)::uuid
 -- name: UpsertWish :one
 -- Register interest, or change your mind about something you already registered.
 --
--- An upsert rather than an insert that can fail: registering twice for the same part is not a
+-- An upsert rather than an insert that can fail: registering twice for the same instance is not a
 -- second wish and not an error, it is a correction. The unique constraint still exists — it is
--- what makes this one row per person per part — but the ordinary path never trips it.
+-- what makes this one row per person per instance — but the ordinary path never trips it.
 --
 -- Only ever the caller's own row. person_id comes from the actor and never from the request; see
 -- the header of migration 15.
-INSERT INTO wish (instance_part_id, person_id, priority, note)
+INSERT INTO wish (course_instance_id, person_id, priority, note)
 VALUES ($1, $2, $3, $4)
-ON CONFLICT (instance_part_id, person_id) DO UPDATE
+ON CONFLICT (course_instance_id, person_id) DO UPDATE
 SET priority = EXCLUDED.priority,
     note = EXCLUDED.note,
     updated_at = now()
-RETURNING id, instance_part_id, person_id, priority, note, created_at, updated_at;
+RETURNING id, course_instance_id, person_id, priority, note, created_at, updated_at;
 
 -- name: DeleteOwnWish :execrows
 -- Withdraw one's own wish.
@@ -129,14 +123,14 @@ RETURNING id, instance_part_id, person_id, priority, note, created_at, updated_a
 -- confirmed to exist before the write is refused.
 DELETE FROM wish WHERE id = $1 AND person_id = $2;
 
--- name: SemesterOfInstancePart :one
--- Which semester a part belongs to, and whether its instance is still there.
+-- name: SemesterOfCourseInstance :one
+-- Which semester an instance belongs to, and whether it is still there.
 --
 -- Needed before a write: the phase that decides whether wishes may be entered is the *semester's*
--- phase, and the part is all the caller names. One statement rather than three round trips
--- through the instance.
+-- phase, and the instance is all the caller names. One statement rather than two round trips, and
+-- an empty result is the answer to both questions at once — an instance that has been withdrawn
+-- has no semester to ask about.
 SELECT s.id, s.code, s.phase, s.wishes_published_at
-FROM instance_part p
-JOIN course_instance ci ON ci.id = p.course_instance_id
+FROM course_instance ci
 JOIN semester s ON s.id = ci.semester_id
-WHERE p.id = $1;
+WHERE ci.id = $1;

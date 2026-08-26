@@ -51,7 +51,7 @@ const (
 	// changing and withdrawing instances and their parts.
 	WriteAreaDemand WriteArea = "DEMAND"
 
-	// WriteAreaWishes is registering interest in an instance part: creating, changing and
+	// WriteAreaWishes is registering interest in a course instance: creating, changing and
 	// withdrawing one's own wishes.
 	WriteAreaWishes WriteArea = "WISHES"
 )
@@ -103,14 +103,14 @@ var writeMatrix = map[WriteArea]map[Phase][]Role{
 	// It is the same argument the demand row makes one line up, and it is worth reading twice
 	// because both times it beats the tidier rule. A colleague falls ill, a cohort turns out
 	// larger than the numbers said, somebody is asked in the corridor whether they would take the
-	// second laboratory group. Refusing to record that does not stop it happening — it moves it
+	// second cohort after all. Refusing to record that does not stop it happening — it moves it
 	// into a mail to the subject group lead, and then the tool's list is the wrong one. What
 	// protects the assignment is not a closed phase but the assignment itself, which is a
 	// decision somebody takes and not a consequence of what is on the wish list.
 	//
 	// DEMAND_PLANNING is open for the less obvious half of the same reason: the demand of the
 	// *next* semester is often visible long before the wish phase opens, and somebody who knows
-	// now that they want the Tuesday laboratory should be able to say so now.
+	// now which subject they want should be able to say so now.
 	//
 	// FINAL is closed, and it is the only closed cell in this table. A finished semester is a
 	// record of what the faculty did; a wish registered afterwards would change that record

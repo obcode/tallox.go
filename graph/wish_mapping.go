@@ -21,7 +21,6 @@ func wishModel(w domain.Wish) *model.Wish {
 	return &model.Wish{
 		ID:        w.ID.String(),
 		Person:    personModel(w.Person),
-		Part:      instancePartModel(w.Part),
 		Instance:  courseInstanceModel(w.Instance),
 		Priority:  w.Priority,
 		Note:      w.Note,
@@ -66,8 +65,11 @@ func wishError(err error) error {
 		return refusal("WISH_NOTE_TOO_LONG", err.Error())
 	case errors.Is(err, domain.ErrWishPriorityInvalid):
 		return refusal("WISH_PRIORITY_INVALID", err.Error())
-	case errors.Is(err, domain.ErrPartNotFound):
-		return refusal("PART_NOT_FOUND", err.Error())
+	case errors.Is(err, domain.ErrInstanceNotFound):
+		// Withdrawn between the screen being rendered and the form being sent, which is the
+		// ordinary race here — the same code the demand area uses for it, because it is the same
+		// fact about the same row.
+		return refusal("INSTANCE_NOT_FOUND", err.Error())
 	case semesterRefusal(err) != nil:
 		// Shared with the semester workflow and the demand: one meaning per code, and a German
 		// sentence rather than the English one domain.Err… carries for the log.

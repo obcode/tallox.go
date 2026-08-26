@@ -47,7 +47,7 @@ type QueryResolver interface {
 	SubjectGroupsWithoutLead(ctx context.Context) (int, error)
 	MyTokens(ctx context.Context) ([]*model.PersonalAccessToken, error)
 	MyWishes(ctx context.Context, semester string) ([]*model.Wish, error)
-	Wishes(ctx context.Context, semester string, programme *string, module *string, part *string, person *string) ([]*model.Wish, error)
+	Wishes(ctx context.Context, semester string, programme *string, module *string, instance *string, person *string) ([]*model.Wish, error)
 	ZpaSyncRuns(ctx context.Context, limit *int) ([]*model.ZpaSyncRun, error)
 	ZpaSyncRun(ctx context.Context, id string) (*model.ZpaSyncRun, error)
 	ZpaChanges(ctx context.Context, runID string) ([]*model.ZpaChange, error)
@@ -393,14 +393,14 @@ func (ec *executionContext) field_Query_wishes_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["module"] = arg2
-	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "part",
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "instance",
 		func(ctx context.Context, v any) (*string, error) {
 			return ec.unmarshalOID2ᚖstring(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["part"] = arg3
+	args["instance"] = arg3
 	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "person",
 		func(ctx context.Context, v any) (*string, error) {
 			return ec.unmarshalOID2ᚖstring(ctx, v)
@@ -1705,7 +1705,7 @@ func (ec *executionContext) _Query_wishes(ctx context.Context, field graphql.Col
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().Wishes(ctx, fc.Args["semester"].(string), fc.Args["programme"].(*string), fc.Args["module"].(*string), fc.Args["part"].(*string), fc.Args["person"].(*string))
+			return ec.Resolvers.Query().Wishes(ctx, fc.Args["semester"].(string), fc.Args["programme"].(*string), fc.Args["module"].(*string), fc.Args["instance"].(*string), fc.Args["person"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.Wish) graphql.Marshaler {

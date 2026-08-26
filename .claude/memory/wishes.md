@@ -1,6 +1,6 @@
 ---
 name: wishes
-description: Die Wunschtabelle — nur selbst, kein COUNT, die zwei Geltungsbereiche, und das Orakel, das dabei aufging
+description: Die Wunschtabelle — worauf ein Wunsch zeigt (und warum das einen Tag später anders war), nur selbst, kein COUNT, die zwei Geltungsbereiche, das Orakel
 metadata:
   type: project
 ---
@@ -8,8 +8,43 @@ metadata:
 Migration 15 (`db/migrations/20260825110000_wishes.sql`), 2026-08-25. Die Regel stand seit dem
 31.07. in `internal/policy`; das hier ist das Erste, worauf sie zeigt.
 
-Ein Wunsch ist das Interesse **einer** Person an **einem** `instance_part` — nicht an der Instanz:
-„eine hält die Vorlesung, eine andere das Praktikum".
+## Worauf ein Wunsch zeigt: auf die **Instanz**
+
+Migration 15 hat es einen Tag lang andersherum gehabt, mit dem Argument „eine hält die Vorlesung,
+eine andere das Praktikum" — also sei der Instanz-**Teil** die zuweisbare Einheit und damit auch
+die Einheit des Interesses. Die erste Hälfte stimmt weiter, die zweite nicht. Migration 16
+(`20260826100000_wish_on_instance.sql`, 2026-08-26) korrigiert das.
+
+Ausgelöst hat es die Confluence-Tabelle, in der die Fakultät bis jetzt geplant hat: eine Zeile je
+Modul und Studiengang, eine Spalte je Zug, eine Spalte „Besetzungsmöglichkeiten". Das ist die
+Granularität, in der Leute denken — „ich würde Softwareentwicklung II machen", nicht „ich würde
+die zweite Praktikumsgruppe von IF2B machen". Auf Teil-Ebene ist dieselbe Tabelle acht Zeilen und
+acht Formulare je Modul.
+
+    Wunsch    → die Instanz. Was jemand anbietet zu halten.
+    Zuteilung → der Teil.    Wer die Vorlesung hält und wer das Praktikum.
+
+Der Sonderfall, für den die alte Lesart gebaut war, verschwindet nicht — er wandert in die
+`note` und dann in die Zuteilung, wo er eine Absprache zwischen mehreren ist statt einer Angabe,
+die eine Person allein macht.
+
+**Zwei Folgen im Schema, die man sonst als Fehler liest:**
+
+- `INSTANCE_IN_USE` hängt jetzt am eigenen Fremdschlüssel des Wunsches — ein Schritt statt zwei.
+- Einen **Teil** einer bewünschten Instanz zu entfernen ist wieder erlaubt. Teile sind das
+  Neu-Zerschneiden einer Instanz (dritte Praktikumsgruppe, geteilte Vorlesung), und niemand hat
+  sich auf einen Teil eingetragen. Die Instanz selbst zurückzuziehen bleibt verweigert.
+
+**Migration 16 bricht bewusst die Rollback-Regel.** Das vorige Image liest `wish.instance_part_id`
+und kann ohne einen Teil keinen Wunsch schreiben — ein Wunsch auf eine Instanz ist für es nicht
+darstellbar, auch nicht mit einer nullable gelassenen Spalte. Vertretbar genau hier: die Tabelle
+war einen Tag alt, enthielt Probeeinträge, kein Semester hatte `DEMAND_PLANNING` verlassen. Down
+ist geschrieben und getestet, ein Fehldeploy geht also runter-migrieren und *dann* Tag zurück.
+
+`TestMigrationSixteenMovesWishesOntoTheirInstance` fährt den Backfill gegen Zeilen in der alten
+Form: `MigrateDownTo` auf 15, Zeilen schreiben, hoch. Die stärkste Priorität überlebt, und die
+Notizen der eingesammelten Zeilen wandern in die verbleibende — ein Schemawechsel, der still
+löscht, was jemand getippt hat, fällt Monaten später auf, und zwar dieser Person.
 
 ## Nur selbst — und was daran hängt
 
@@ -30,7 +65,7 @@ Fremdeintrag je, muss die Meldung im selben Commit generisch werden.
 
 `db/queries/wish.sql` enthält keins, und `store.TestEveryWishQueryIsFiltered` liest die Datei und
 besteht darauf. Wer eine Zahl will, zählt die Zeilen, die er sehen durfte. Im Schema ebenso: kein
-`wishCount`, kein `hasWishes`, kein Weg von `InstancePart` zu seinen Wünschen —
+`wishCount`, kein `hasWishes`, kein Weg von `CourseInstance` zu seinen Wünschen —
 `TestNoFieldCountsWishes` prüft das per Introspection.
 
 ## Zwei Geltungsbereiche, orthogonal
@@ -50,6 +85,8 @@ konnte es niemand wissen: `ON DELETE RESTRICT` wirft **SQLSTATE 23001**, nicht d
 `isForeignKeyViolation` prüfte — und RESTRICT ist genau das, was die Wunschtabelle benutzt. Der
 Fehler war kein verpasster Refusal, sondern ein Leck: die Treibermeldung nennt den Constraint
 `wish_instance_part_id_fkey`. (NO ACTION prüft am Statement-Ende → 23503, RESTRICT sofort → 23001.)
+Der Constraint heißt seit Migration 16 anders und hängt an der Instanz; die Prüfung auf beide
+SQLSTATEs bleibt.
 
 **Das dryRun-Orakel.** `planDemand(dryRun: true)` ist folgenlos und meldet `INSTANCE_IN_USE` je
 Zug — über ein PAT also „welche Instanzen sind bewünscht" in einem Aufruf, ohne Login-Ereignis.
@@ -70,8 +107,8 @@ einen Tag lang trug** („nur in der Wunschphase"). Gewünscht ist: solange das 
 abgeschlossen ist, also solange die Zuteilung nicht erfolgt ist — das sind
 `DEMAND_PLANNING`, `WISHES` und `ASSIGNMENT`.
 
-Dasselbe Argument wie beim Bedarf eine Zeile darüber: wer im März sagt, er nähme doch die zweite
-Praktikumsgruppe, korrigiert etwas — und eine Korrektur, die das Werkzeug verweigert, passiert
+Dasselbe Argument wie beim Bedarf eine Zeile darüber: wer im März sagt, er nähme doch den zweiten
+Zug, korrigiert etwas — und eine Korrektur, die das Werkzeug verweigert, passiert
 trotzdem, nur per Mail. Danach ist die Liste im Werkzeug die falsche. Was die Zuteilung schützt,
 ist die Zuteilung selbst und nicht eine geschlossene Phase.
 

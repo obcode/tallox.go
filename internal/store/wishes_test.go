@@ -23,7 +23,7 @@ import (
 // db/queries/wish.sql, and the refusal to withdraw an instance somebody wants is a foreign key.
 // A fake store passes all three while the shipped statements do something else.
 
-// wishFixture is a semester with one instance of two parts, and three people.
+// wishFixture is a semester with one instance of two parts, and four people.
 type wishFixture struct {
 	schema   *storetest.Schema
 	wishes   *store.Wishes
@@ -36,7 +36,10 @@ type wishFixture struct {
 	group      uuid.UUID
 	otherGroup uuid.UUID
 	module     uuid.UUID
-	// lecture is the part everybody in these tests registers interest in.
+	// instance is what everybody in these tests registers interest in.
+	instance uuid.UUID
+	// lecture and lab are its parts. Nothing points at them any more — they are here so that
+	// "re-cutting an instance somebody wants" stays a case with rows behind it.
 	lecture uuid.UUID
 	lab     uuid.UUID
 }
@@ -93,6 +96,7 @@ func newWishFixture(t *testing.T) wishFixture {
 	if len(instance.Parts) < 2 {
 		t.Fatalf("the instance has %d parts, want two", len(instance.Parts))
 	}
+	f.instance = instance.ID
 	f.lecture, f.lab = instance.Parts[0].ID, instance.Parts[1].ID
 
 	for _, p := range []testdata.Persona{testdata.Eins, testdata.Zwei, testdata.Drei, testdata.Vier} {
@@ -101,11 +105,11 @@ func newWishFixture(t *testing.T) wishFixture {
 	return f
 }
 
-// register puts one person's interest in on the lecture.
+// register puts one person's interest in on the instance.
 func (f wishFixture) register(t *testing.T, who testdata.Persona) *domain.Wish {
 	t.Helper()
 
-	wish, err := f.wishes.SetWish(t.Context(), f.lecture, who.ID(), domain.WishHappyTo, "")
+	wish, err := f.wishes.SetWish(t.Context(), f.instance, who.ID(), domain.WishHappyTo, "")
 	if err != nil {
 		t.Fatalf("cannot register %s's interest: %v", who.Name, err)
 	}
@@ -171,8 +175,9 @@ func TestEveryWishQueryIsFiltered(t *testing.T) {
 		}
 		body := sql[block[0]:end]
 
-		// Only the queries that read the wish table itself. SemesterOfInstancePart reads the
-		// semester through a part and carries no wish, which is why it is named for what it does.
+		// Only the queries that read the wish table itself. SemesterOfCourseInstance reads the
+		// semester through an instance and carries no wish, which is why it is named for what it
+		// does.
 		if !strings.Contains(body, "FROM wish w") {
 			continue
 		}
@@ -349,12 +354,12 @@ func TestRegisteringTwiceIsACorrection(t *testing.T) {
 	f := newWishFixture(t)
 	ctx := t.Context()
 
-	first, err := f.wishes.SetWish(ctx, f.lecture, testdata.Eins.ID(), domain.WishIfNeeded, "erst mal")
+	first, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishIfNeeded, "erst mal")
 	if err != nil {
 		t.Fatalf("cannot register: %v", err)
 	}
 
-	second, err := f.wishes.SetWish(ctx, f.lecture, testdata.Eins.ID(), domain.WishFirstChoice, "doch")
+	second, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishFirstChoice, "doch")
 	if err != nil {
 		t.Fatalf("cannot change the wish: %v", err)
 	}
@@ -396,9 +401,15 @@ func TestOnlyYourOwnWishCanBeWithdrawn(t *testing.T) {
 	}
 }
 
-// The branch that has been unreachable since it was written: an instance somebody wants cannot be
-// withdrawn. The path is two steps — the cascade to the parts meets the restriction from the
-// wishes — which is why it is worth a test rather than a reading of the schema.
+// The branch that was unreachable until the wish table existed: an instance somebody wants cannot
+// be withdrawn. One step now rather than two — the RESTRICT is on the wish's own foreign key —
+// which is why the other half of this test matters as much as the first.
+//
+// **Removing a part of a wanted instance is allowed**, and that is a decision rather than an
+// oversight. Parts are the faculty's own re-cutting of an instance: a third laboratory group, a
+// lecture shared across cohorts, a split entered a week late. Interest in the subject must not
+// freeze that, because nobody wished for a part in the first place. What may not happen is the
+// *instance* disappearing under somebody who asked for it.
 func TestAnInstanceSomebodyWantsCannotBeWithdrawn(t *testing.T) {
 	t.Parallel()
 
@@ -406,25 +417,26 @@ func TestAnInstanceSomebodyWantsCannotBeWithdrawn(t *testing.T) {
 	ctx := t.Context()
 	demand := store.NewDemand(f.schema.Pool, store.NewModules(f.schema.Pool))
 
-	var instanceID uuid.UUID
-	if err := f.schema.Pool.QueryRow(ctx,
-		`SELECT course_instance_id FROM instance_part WHERE id = $1`, f.lecture).
-		Scan(&instanceID); err != nil {
-		t.Fatalf("cannot find the instance: %v", err)
-	}
-
-	// Before anybody wants it, removing a part is ordinary planning.
-	if _, err := demand.DeleteInstancePart(ctx, f.lab); err != nil {
-		t.Fatalf("a part nobody wants cannot be removed: %v", err)
-	}
-
 	f.register(t, testdata.Eins)
 
-	if _, err := demand.DeleteInstancePart(ctx, f.lecture); !errors.Is(err, domain.ErrInstanceInUse) {
-		t.Errorf("removing a wanted part = %v, want ErrInstanceInUse", err)
+	// Re-cutting stays open.
+	if _, err := demand.DeleteInstancePart(ctx, f.lab); err != nil {
+		t.Errorf("removing a part of a wanted instance = %v, want it to be allowed: parts are "+
+			"how the faculty re-cuts an instance, and nobody wished for one", err)
 	}
-	if err := demand.DeleteCourseInstance(ctx, instanceID); !errors.Is(err, domain.ErrInstanceInUse) {
+
+	if err := demand.DeleteCourseInstance(ctx, f.instance); !errors.Is(err, domain.ErrInstanceInUse) {
 		t.Errorf("withdrawing an instance somebody wants = %v, want ErrInstanceInUse", err)
+	}
+
+	// And once the wish is gone, so is the refusal — the restriction is about the row and not
+	// about the instance having ever been wanted.
+	wish := f.register(t, testdata.Eins)
+	if err := f.wishes.WithdrawWish(ctx, wish.ID, testdata.Eins.ID()); err != nil {
+		t.Fatalf("cannot withdraw the wish: %v", err)
+	}
+	if err := demand.DeleteCourseInstance(ctx, f.instance); err != nil {
+		t.Errorf("withdrawing an instance nobody wants any more = %v, want it to be allowed", err)
 	}
 
 	// And the refusal says nothing about what is using it — no count, no kind of thing named.
@@ -452,8 +464,8 @@ func TestPublicationLetsEverybodyRead(t *testing.T) {
 	}
 }
 
-// The list carries what a screen needs to render a row: the module, the cohort, the part and the
-// person. A wish rendered as "part 3f2a…" is one nobody recognises.
+// The list carries what a screen needs to render a row: the module, the cohort and the person. A
+// wish rendered as "instance 3f2a…" is one nobody recognises.
 func TestAWishCarriesWhatARowNeeds(t *testing.T) {
 	t.Parallel()
 
@@ -477,8 +489,8 @@ func TestAWishCarriesWhatARowNeeds(t *testing.T) {
 	if w.Instance.Programme.Code == "" {
 		t.Error("the wish carries no programme")
 	}
-	if w.Part.Kind == "" {
-		t.Error("the wish carries no part kind")
+	if w.Instance.ID != f.instance {
+		t.Errorf("the wish names instance %s, want %s", w.Instance.ID, f.instance)
 	}
 	if w.Person.Mail != testdata.Eins.Mail {
 		t.Errorf("the wish names %q, want %q", w.Person.Mail, testdata.Eins.Mail)
@@ -501,9 +513,9 @@ func TestDatabaseAndDomainAgreeOnWishPriorities(t *testing.T) {
 			t.Fatalf("%s has no stored level", priority)
 		}
 		if _, err := f.schema.Pool.Exec(ctx,
-			`INSERT INTO wish (instance_part_id, person_id, priority) VALUES ($1, $2, $3)
-			 ON CONFLICT (instance_part_id, person_id) DO UPDATE SET priority = EXCLUDED.priority`,
-			f.lecture, testdata.Eins.ID(), level); err != nil {
+			`INSERT INTO wish (course_instance_id, person_id, priority) VALUES ($1, $2, $3)
+			 ON CONFLICT (course_instance_id, person_id) DO UPDATE SET priority = EXCLUDED.priority`,
+			f.instance, testdata.Eins.ID(), level); err != nil {
 			t.Errorf("the database refuses the level of %s: %v", priority, err)
 		}
 		if back := domain.WishPriorityFromLevel(level); back != priority {
@@ -513,8 +525,105 @@ func TestDatabaseAndDomainAgreeOnWishPriorities(t *testing.T) {
 
 	// And one the domain does not know: the constraint is what stops it, not the Go code.
 	if _, err := f.schema.Pool.Exec(ctx,
-		`INSERT INTO wish (instance_part_id, person_id, priority) VALUES ($1, $2, 4)`,
-		f.lab, testdata.Zwei.ID()); err == nil {
+		`INSERT INTO wish (course_instance_id, person_id, priority) VALUES ($1, $2, 4)`,
+		f.instance, testdata.Zwei.ID()); err == nil {
 		t.Error("the database accepted a priority outside the three levels")
+	}
+}
+
+// The backfill in migration 16, run against rows in the old shape.
+//
+// The interesting half of that migration is not the ALTER TABLE — it is the three statements in
+// the middle, which move every wish from a part onto its instance and then collapse the several
+// wishes one person may have had on several parts of the same instance into one. Reversibility
+// does not exercise them: an empty table migrates in both directions no matter what those
+// statements say.
+//
+// What is asserted here is what the migration's header promises. The strongest priority survives,
+// because a wish is a statement about a subject and "unbedingt für die Vorlesung, notfalls fürs
+// Praktikum" means the person wants the subject. And nobody's own words are dropped: the notes of
+// the collapsed rows are carried into the survivor, because a schema change that quietly deletes
+// what somebody typed is the kind of thing found months later, by them.
+func TestMigrationSixteenMovesWishesOntoTheirInstance(t *testing.T) {
+	t.Parallel()
+
+	f := newWishFixture(t)
+	ctx := t.Context()
+
+	// Back to the shape migration 15 left: wish.instance_part_id, no course_instance_id.
+	if err := store.MigrateDownTo(ctx, f.schema.DB, 20260825110000); err != nil {
+		t.Fatalf("cannot roll back to the old wish shape: %v", err)
+	}
+
+	// Eins wants both parts and says something different about each; Zwei wants only the lab.
+	for _, row := range []struct {
+		part     uuid.UUID
+		person   uuid.UUID
+		priority int16
+		note     string
+	}{
+		{f.lecture, testdata.Eins.ID(), 3, "notfalls die Vorlesung"},
+		{f.lab, testdata.Eins.ID(), 1, "unbedingt das Praktikum"},
+		{f.lab, testdata.Zwei.ID(), 2, ""},
+	} {
+		if _, err := f.schema.Pool.Exec(ctx,
+			`INSERT INTO wish (instance_part_id, person_id, priority, note)
+			 VALUES ($1, $2, $3, $4)`,
+			row.part, row.person, row.priority, row.note); err != nil {
+			t.Fatalf("cannot write a wish in the old shape: %v", err)
+		}
+	}
+
+	if _, err := store.Migrate(ctx, f.schema.DB); err != nil {
+		t.Fatalf("cannot migrate up again: %v", err)
+	}
+
+	type wishRow struct {
+		person   uuid.UUID
+		instance uuid.UUID
+		priority int16
+		note     string
+	}
+	rows, err := f.schema.Pool.Query(ctx,
+		`SELECT person_id, course_instance_id, priority, note FROM wish ORDER BY priority`)
+	if err != nil {
+		t.Fatalf("cannot read the migrated wishes: %v", err)
+	}
+	defer rows.Close()
+
+	var got []wishRow
+	for rows.Next() {
+		var w wishRow
+		if err := rows.Scan(&w.person, &w.instance, &w.priority, &w.note); err != nil {
+			t.Fatalf("cannot read a migrated wish: %v", err)
+		}
+		got = append(got, w)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatalf("cannot read the migrated wishes: %v", err)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("after the migration there are %d wishes, want two: Eins's two entries on one "+
+			"instance are one wish, Zwei's is another", len(got))
+	}
+	for _, w := range got {
+		if w.instance != f.instance {
+			t.Errorf("a wish points at %s, want the instance %s", w.instance, f.instance)
+		}
+	}
+
+	mine := got[0]
+	if mine.person != testdata.Eins.ID() {
+		t.Fatalf("the strongest wish is %s's, want Eins's", mine.person)
+	}
+	if mine.priority != 1 {
+		t.Errorf("the collapsed wish has priority %d, want 1 — the strongest of the two survives",
+			mine.priority)
+	}
+	for _, word := range []string{"Vorlesung", "Praktikum"} {
+		if !strings.Contains(mine.note, word) {
+			t.Errorf("the collapsed note %q lost what was said about the %s", mine.note, word)
+		}
 	}
 }

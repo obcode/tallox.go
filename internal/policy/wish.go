@@ -34,7 +34,7 @@ func (s SemesterState) WishesPublished() bool { return !s.WishesPublishedAt.IsZe
 // Wish is the minimum of a wish that the visibility rule needs.
 //
 // Three fields, and they are exactly the three the rule asks about: who entered it, and the two
-// things a planning role can be responsible for. Not the instance part, not the priority, not the
+// things a planning role can be responsible for. Not the instance itself, not the priority, not the
 // hours. Keeping it minimal is what lets internal/store apply the rule to a row it has not fully
 // loaded, and what keeps this package from acquiring a second copy of the domain model.
 //

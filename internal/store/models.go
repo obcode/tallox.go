@@ -230,13 +230,13 @@ type Teacher struct {
 }
 
 type Wish struct {
-	ID             uuid.UUID
-	InstancePartID uuid.UUID
-	PersonID       uuid.UUID
-	Priority       int16
-	Note           string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	ID               uuid.UUID
+	PersonID         uuid.UUID
+	Priority         int16
+	Note             string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+	CourseInstanceID uuid.UUID
 }
 
 type ZpaBasketV struct {

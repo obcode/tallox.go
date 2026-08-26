@@ -173,6 +173,24 @@ func MigrateDown(ctx context.Context, sqlDB *sql.DB) error {
 	return nil
 }
 
+// MigrateDownTo rolls back until the given version is the newest applied one.
+//
+// The same "exists for tests" reading as MigrateDown, and for a case that one cannot cover: a
+// migration that *moves data* has an Up path with rows in it, and the only way to run that path
+// is to be one version below it with the old shape populated. Reversibility says the pair is
+// symmetric; this says the backfill in the middle does what its comment claims.
+func MigrateDownTo(ctx context.Context, sqlDB *sql.DB, version int64) error {
+	provider, err := newProvider(sqlDB)
+	if err != nil {
+		return err
+	}
+
+	if _, err := provider.DownTo(ctx, version); err != nil {
+		return fmt.Errorf("cannot roll back migrations to %d: %w", version, err)
+	}
+	return nil
+}
+
 // MigrationStatus is what the database has, and what the binary is carrying that it does not.
 //
 // Both halves, not just the pending ones, because the two questions asked in front of a

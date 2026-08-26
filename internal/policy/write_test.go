@@ -303,7 +303,7 @@ oversight, and they rest on the same argument.
 
 A course instance declared during the assignment is a correction: somebody falls ill, a cohort
 turns out larger than the numbers said, a module was forgotten. So is somebody saying in March
-that they would take the second laboratory group after all. Corrections happen, and a tool that
+that they would take the second cohort after all. Corrections happen, and a tool that
 refuses one does not prevent it — it moves it into a spreadsheet or a mail passed around
 outside, which is the thing this system replaces. Its own figures then become the wrong ones.
 

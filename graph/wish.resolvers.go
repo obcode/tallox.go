@@ -15,8 +15,8 @@ import (
 )
 
 // SetWish is the resolver for the setWish field.
-func (r *mutationResolver) SetWish(ctx context.Context, instancePartID string, priority domain.WishPriority, note *string) (*model.Wish, error) {
-	partID, err := parseID(instancePartID)
+func (r *mutationResolver) SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string) (*model.Wish, error) {
+	instanceID, err := parseID(courseInstanceID)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +28,7 @@ func (r *mutationResolver) SetWish(ctx context.Context, instancePartID string, p
 
 	// The owner is the actor and comes from nowhere else. There is no argument for whose wish
 	// this is, and adding one would be the whole decision reversed.
-	wish, err := r.Wishes.Set(ctx, principal.From(ctx), partID, priority, text)
+	wish, err := r.Wishes.Set(ctx, principal.From(ctx), instanceID, priority, text)
 	if err != nil {
 		return nil, wishError(err)
 	}
@@ -57,7 +57,7 @@ func (r *queryResolver) MyWishes(ctx context.Context, semester string) ([]*model
 }
 
 // Wishes is the resolver for the wishes field.
-func (r *queryResolver) Wishes(ctx context.Context, semester string, programme *string, module *string, part *string, person *string) ([]*model.Wish, error) {
+func (r *queryResolver) Wishes(ctx context.Context, semester string, programme *string, module *string, instance *string, person *string) ([]*model.Wish, error) {
 	query := domain.WishQuery{SemesterCode: semester}
 	if programme != nil {
 		query.Programme = *programme
@@ -68,7 +68,7 @@ func (r *queryResolver) Wishes(ctx context.Context, semester string, programme *
 		into *uuid.UUID
 	}{
 		{module, &query.Module},
-		{part, &query.Part},
+		{instance, &query.Instance},
 		{person, &query.Person},
 	} {
 		if arg.raw == nil {

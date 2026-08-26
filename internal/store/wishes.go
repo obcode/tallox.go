@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/obcode/tallox.go/internal/domain"
@@ -96,8 +95,8 @@ func (w *Wishes) Wishes(ctx context.Context, q domain.WishQuery,
 	if q.Module != uuid.Nil {
 		params.Module = uuid.NullUUID{UUID: q.Module, Valid: true}
 	}
-	if q.Part != uuid.Nil {
-		params.Part = uuid.NullUUID{UUID: q.Part, Valid: true}
+	if q.Instance != uuid.Nil {
+		params.Instance = uuid.NullUUID{UUID: q.Instance, Valid: true}
 	}
 	if q.Person != uuid.Nil {
 		params.Person = uuid.NullUUID{UUID: q.Person, Valid: true}
@@ -145,7 +144,7 @@ func (w *Wishes) WishByID(ctx context.Context, id uuid.UUID,
 }
 
 // SetWish registers or updates one person's own interest.
-func (w *Wishes) SetWish(ctx context.Context, partID, personID uuid.UUID,
+func (w *Wishes) SetWish(ctx context.Context, instanceID, personID uuid.UUID,
 	priority domain.WishPriority, note string) (*domain.Wish, error) {
 	level, ok := priority.Level()
 	if !ok {
@@ -153,14 +152,14 @@ func (w *Wishes) SetWish(ctx context.Context, partID, personID uuid.UUID,
 	}
 
 	written, err := New(w.pool).UpsertWish(ctx, UpsertWishParams{
-		InstancePartID: partID,
-		PersonID:       personID,
-		Priority:       level,
-		Note:           note,
+		CourseInstanceID: instanceID,
+		PersonID:         personID,
+		Priority:         level,
+		Note:             note,
 	})
-	// The part may have been withdrawn between the phase check and the write.
+	// The instance may have been withdrawn between the phase check and the write.
 	if isForeignKeyViolation(err) {
-		return nil, domain.ErrPartNotFound
+		return nil, domain.ErrInstanceNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot register the wish: %w", err)
@@ -196,14 +195,15 @@ func (w *Wishes) WithdrawWish(ctx context.Context, id, personID uuid.UUID) error
 	return nil
 }
 
-// SemesterOfPart is which semester a part belongs to, for the phase rule.
-func (w *Wishes) SemesterOfPart(ctx context.Context, partID uuid.UUID) (*domain.Semester, error) {
-	row, err := New(w.pool).SemesterOfInstancePart(ctx, partID)
+// SemesterOfInstance is which semester an instance belongs to, for the phase rule.
+func (w *Wishes) SemesterOfInstance(ctx context.Context,
+	instanceID uuid.UUID) (*domain.Semester, error) {
+	row, err := New(w.pool).SemesterOfCourseInstance(ctx, instanceID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("cannot read the semester of the part: %w", err)
+		return nil, fmt.Errorf("cannot read the semester of the instance: %w", err)
 	}
 
 	semester := domain.Semester{
@@ -224,28 +224,23 @@ func (w *Wishes) SemesterOfPart(ctx context.Context, partID uuid.UUID) (*domain.
 // arrangement teacherRow makes, and the same reason: two queries whose projections drift apart
 // would be two shapes of the same record.
 type wishRow struct {
-	ID                  uuid.UUID
-	InstancePartID      uuid.UUID
-	PersonID            uuid.UUID
-	Priority            int16
-	Note                string
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	PartKind            string
-	PartPosition        int32
-	TeachingHours       pgtype.Numeric
-	ServesSiblingTracks bool
-	CourseInstanceID    uuid.UUID
-	Track               string
-	ProgrammeSemester   *int32
-	ProgrammeID         uuid.UUID
-	ProgrammeCode       string
-	ProgrammeTitle      string
-	ModuleID            uuid.UUID
-	ModuleName          string
-	PersonMail          string
-	PersonName          string
-	PersonSortName      string
+	ID                uuid.UUID
+	CourseInstanceID  uuid.UUID
+	PersonID          uuid.UUID
+	Priority          int16
+	Note              string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	Track             string
+	ProgrammeSemester *int32
+	ProgrammeID       uuid.UUID
+	ProgrammeCode     string
+	ProgrammeTitle    string
+	ModuleID          uuid.UUID
+	ModuleName        string
+	PersonMail        string
+	PersonName        string
+	PersonSortName    string
 }
 
 func wishFrom(row wishRow, semesterCode string, phase policy.Phase) domain.Wish {
@@ -257,13 +252,6 @@ func wishFrom(row wishRow, semesterCode string, phase policy.Phase) domain.Wish 
 			Name:     row.PersonName,
 			SortName: row.PersonSortName,
 			Active:   true,
-		},
-		Part: domain.InstancePart{
-			ID:                 row.InstancePartID,
-			Kind:               domain.InstancePartKind(row.PartKind),
-			Position:           int(row.PartPosition),
-			TeachingHours:      numericFloatOrNil(row.TeachingHours),
-			SharedAcrossTracks: row.ServesSiblingTracks,
 		},
 		Instance: domain.CourseInstance{
 			ID:                row.CourseInstanceID,

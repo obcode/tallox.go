@@ -46,7 +46,7 @@ const (
 	// becomes a sentence somebody would want to say.
 	ScopeAreaPlanning ScopeArea = "PLANNING"
 
-	// ScopeAreaWishes is registering interest in instance parts, and reading what may be read of
+	// ScopeAreaWishes is registering interest in course instances, and reading what may be read of
 	// other people's.
 	//
 	// Its own area rather than part of PLANNING, because it is the one part of the planning a

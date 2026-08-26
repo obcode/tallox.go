@@ -81,38 +81,6 @@ func (ec *executionContext) fieldContext_Wish_person(_ context.Context, field gr
 	return fc, nil
 }
 
-func (ec *executionContext) _Wish_part(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
-	return graphql.ResolveField(
-		ctx,
-		ec.OperationContext,
-		field,
-		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_Wish_part(ctx, field)
-		},
-		func(ctx context.Context) (any, error) {
-			return obj.Part, nil
-		},
-		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.InstancePart) graphql.Marshaler {
-			return ec.marshalNInstancePart2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstancePart(ctx, selections, v)
-		},
-		true,
-		true,
-	)
-}
-func (ec *executionContext) fieldContext_Wish_part(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Wish",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_InstancePart(ctx, field)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Wish_instance(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -268,11 +236,6 @@ func (ec *executionContext) _Wish(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "person":
 			out.Values[i] = ec._Wish_person(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "part":
-			out.Values[i] = ec._Wish_part(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

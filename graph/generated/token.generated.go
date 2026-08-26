@@ -53,7 +53,7 @@ type MutationResolver interface {
 	SetSubjectGroupMembers(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error)
 	SetMySubjectGroups(ctx context.Context, subjectGroupIds []string) ([]*model.SubjectGroup, error)
 	SetSubjectGroupLeads(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error)
-	SetWish(ctx context.Context, instancePartID string, priority domain.WishPriority, note *string) (*model.Wish, error)
+	SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string) (*model.Wish, error)
 	WithdrawWish(ctx context.Context, id string) (string, error)
 	SyncZpaNow(ctx context.Context) (*model.ZpaSyncRun, error)
 	ProjectZpaCatalogue(ctx context.Context) (*model.ZpaCatalogueProjection, error)
@@ -742,14 +742,14 @@ func (ec *executionContext) field_Mutation_setTeacherAdmitted_args(ctx context.C
 func (ec *executionContext) field_Mutation_setWish_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "instancePartId",
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "courseInstanceId",
 		func(ctx context.Context, v any) (string, error) {
 			return ec.unmarshalNID2string(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["instancePartId"] = arg0
+	args["courseInstanceId"] = arg0
 	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "priority",
 		func(ctx context.Context, v any) (domain.WishPriority, error) {
 			return ec.unmarshalNWishPriority2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐWishPriority(ctx, v)
@@ -2684,7 +2684,7 @@ func (ec *executionContext) _Mutation_setWish(ctx context.Context, field graphql
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().SetWish(ctx, fc.Args["instancePartId"].(string), fc.Args["priority"].(domain.WishPriority), fc.Args["note"].(*string))
+			return ec.Resolvers.Mutation().SetWish(ctx, fc.Args["courseInstanceId"].(string), fc.Args["priority"].(domain.WishPriority), fc.Args["note"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Wish) graphql.Marshaler {

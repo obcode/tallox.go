@@ -26,7 +26,10 @@ import (
 type wishFixture struct {
 	handler http.Handler
 	schema  *storetest.Schema
-	// lecture is the part everybody registers interest in.
+	// instance is what everybody registers interest in.
+	instance string
+	// lecture is one of its parts. Nothing points at it any more; it is here so that "removing a
+	// part" stays a probe with a real row behind it.
 	lecture string
 	// semester is the one the instance is in, already switched into the wish phase.
 	semester string
@@ -103,6 +106,7 @@ func wishHandler(t *testing.T, people ...grants) wishFixture {
 	if err != nil {
 		t.Fatalf("cannot declare the instance: %v", err)
 	}
+	f.instance = instance.ID.String()
 	f.lecture = instance.Parts[0].ID.String()
 
 	// The wish phase is the only one wishes may be written in, so the fixture starts there.
@@ -195,10 +199,9 @@ func (f wishFixture) publish(t *testing.T) {
 }
 
 const setWishMutation = `mutation($p: ID!, $prio: WishPriority!, $note: String) {
-	setWish(instancePartId: $p, priority: $prio, note: $note) {
+	setWish(courseInstanceId: $p, priority: $prio, note: $note) {
 		id priority note
 		person { mail }
-		part { kind }
 		instance { track programme { code } module { name } }
 	}
 }`
@@ -215,7 +218,7 @@ func (f wishFixture) register(t *testing.T, who testdata.Persona) string {
 		SetWish struct{ ID string }
 	}
 	graphqltest.New(f.handler).AsUser(who.Mail).MustQuery(t, setWishMutation,
-		map[string]any{"p": f.lecture, "prio": "HAPPY_TO", "note": nil}, &out)
+		map[string]any{"p": f.instance, "prio": "HAPPY_TO", "note": nil}, &out)
 	return out.SetWish.ID
 }
 
@@ -436,7 +439,7 @@ func TestWishesAreWrittenUntilTheSemesterIsFinished(t *testing.T) {
 				SetWish struct{ ID string }
 			}
 			graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t, setWishMutation,
-				map[string]any{"p": f.lecture, "prio": "HAPPY_TO", "note": nil}, &out)
+				map[string]any{"p": f.instance, "prio": "HAPPY_TO", "note": nil}, &out)
 
 			if out.SetWish.ID == "" {
 				t.Errorf("a wish could not be registered in %s", phase)
@@ -449,7 +452,7 @@ func TestWishesAreWrittenUntilTheSemesterIsFinished(t *testing.T) {
 
 		messages := graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustFail(t,
 			setWishMutation,
-			map[string]any{"p": f.lecture, "prio": "FIRST_CHOICE", "note": nil})
+			map[string]any{"p": f.instance, "prio": "FIRST_CHOICE", "note": nil})
 		if len(messages) == 0 {
 			t.Fatal("a wish was changed in a finished semester")
 		}
@@ -484,7 +487,7 @@ func TestRegisteringTwiceIsACorrectionThroughTheAPI(t *testing.T) {
 		}
 	}
 	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t, setWishMutation,
-		map[string]any{"p": f.lecture, "prio": "FIRST_CHOICE", "note": "doch lieber"}, &out)
+		map[string]any{"p": f.instance, "prio": "FIRST_CHOICE", "note": "doch lieber"}, &out)
 
 	if out.SetWish.ID != first {
 		t.Error("registering twice produced a second wish rather than changing the first")
@@ -525,8 +528,8 @@ func TestWithdrawingSomebodyElsesWishSaysNothingAboutIt(t *testing.T) {
 		append(graphqltest.DatabaseNoise(), testdata.Mails(testdata.Others(testdata.Zwei))...)...)
 }
 
-// A wish carries what a row needs. "Analysis, Vorlesung" is what somebody recognises; a part id
-// is not, and a screen that had to ask again for every row would ask five hundred times.
+// A wish carries what a row needs. "Analysis, IF1B" is what somebody recognises; an id is not,
+// and a screen that had to ask again for every row would ask five hundred times.
 func TestAWishCarriesItsInstance(t *testing.T) {
 	t.Parallel()
 
@@ -535,7 +538,6 @@ func TestAWishCarriesItsInstance(t *testing.T) {
 	var out struct {
 		SetWish struct {
 			Person   struct{ Mail string }
-			Part     struct{ Kind string }
 			Instance struct {
 				Programme struct{ Code string }
 				Module    struct{ Name string }
@@ -543,13 +545,12 @@ func TestAWishCarriesItsInstance(t *testing.T) {
 		}
 	}
 	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t, setWishMutation,
-		map[string]any{"p": f.lecture, "prio": "HAPPY_TO", "note": nil}, &out)
+		map[string]any{"p": f.instance, "prio": "HAPPY_TO", "note": nil}, &out)
 
 	if out.SetWish.Person.Mail != testdata.Eins.Mail {
 		t.Errorf("the wish names %q", out.SetWish.Person.Mail)
 	}
-	if out.SetWish.Part.Kind == "" || out.SetWish.Instance.Module.Name == "" ||
-		out.SetWish.Instance.Programme.Code == "" {
+	if out.SetWish.Instance.Module.Name == "" || out.SetWish.Instance.Programme.Code == "" {
 		t.Errorf("the wish does not carry enough to render a row: %+v", out.SetWish)
 	}
 }
@@ -557,10 +558,16 @@ func TestAWishCarriesItsInstance(t *testing.T) {
 // The oracle this migration would have opened, closed and pinned.
 //
 // `planDemand(dryRun: true)` is free, leaves no trace and reports INSTANCE_IN_USE per cohort. Once
-// the wish table points at instance parts, that report is "which of this programme's instances are
+// anything points at a course instance, that report is "which of this programme's instances are
 // wished for" — the has-wishes flag the interface may never render, obtained in one call with no
 // login event. Interactively it reveals nothing (see the test below); through a token it would
 // have, because there the wish rule deliberately collapses to own-only.
+//
+// Removing a part is in the list although it can no longer fire INSTANCE_IN_USE — a wish points at
+// the instance, so re-cutting it is allowed. It stays because the assertion is about the *door*:
+// every mutation in the demand area is @interactiveOnly, dateiweise and not "the ones that can
+// leak today", because a rule that holds for three of eleven is one somebody forgets on the
+// twelfth.
 func TestATokenCannotProbeWhichInstancesAreWishedFor(t *testing.T) {
 	t.Parallel()
 
@@ -570,13 +577,6 @@ func TestATokenCannotProbeWhichInstancesAreWishedFor(t *testing.T) {
 	)
 	f.register(t, testdata.Eins)
 	f.leadProgramme(t, testdata.Vier, f.programme)
-
-	var instanceID string
-	if err := f.schema.Pool.QueryRow(t.Context(),
-		`SELECT course_instance_id::text FROM instance_part WHERE id = $1`, f.lecture).
-		Scan(&instanceID); err != nil {
-		t.Fatalf("cannot find the instance: %v", err)
-	}
 
 	c := graphqltest.New(f.handler).WithToken(testdata.Vier.Token)
 
@@ -591,7 +591,7 @@ func TestATokenCannotProbeWhichInstancesAreWishedFor(t *testing.T) {
 			}
 		}`, map[string]any{"s": f.semester, "p": f.programme}},
 		{"a withdrawal", `mutation($id: ID!) { withdrawCourseInstance(id: $id) }`,
-			map[string]any{"id": instanceID}},
+			map[string]any{"id": f.instance}},
 		{"removing a part", `mutation($id: ID!) { removeInstancePart(id: $id) { id } }`,
 			map[string]any{"id": f.lecture}},
 	} {
@@ -613,7 +613,7 @@ func TestATokenCannotProbeWhichInstancesAreWishedFor(t *testing.T) {
 	// answered, because it would leave the demand changed.
 	var parts int
 	if err := f.schema.Pool.QueryRow(t.Context(),
-		`SELECT count(*) FROM instance_part WHERE course_instance_id = $1::uuid`, instanceID).
+		`SELECT count(*) FROM instance_part WHERE course_instance_id = $1::uuid`, f.instance).
 		Scan(&parts); err != nil {
 		t.Fatalf("cannot count the parts: %v", err)
 	}
@@ -640,13 +640,6 @@ func TestInstanceInUseTellsNobodySomethingNew(t *testing.T) {
 	f.register(t, testdata.Eins)
 	f.leadProgramme(t, testdata.Vier, f.programme)
 
-	var instanceID string
-	if err := f.schema.Pool.QueryRow(t.Context(),
-		`SELECT course_instance_id::text FROM instance_part WHERE id = $1`, f.lecture).
-		Scan(&instanceID); err != nil {
-		t.Fatalf("cannot find the instance: %v", err)
-	}
-
 	// Counted, because a loop in which nobody can trigger the refusal would pass while proving
 	// nothing — the same trap TestGuardAndFilterAgree guards against with its own counter.
 	triggers := 0
@@ -661,7 +654,7 @@ func TestInstanceInUseTellsNobodySomethingNew(t *testing.T) {
 			// programme scope rather than for the instance being in use tells them nothing.
 			messages := c.MustFail(t,
 				`mutation($id: ID!) { withdrawCourseInstance(id: $id) }`,
-				map[string]any{"id": instanceID})
+				map[string]any{"id": f.instance})
 			if len(messages) == 0 {
 				t.Fatal("the instance was withdrawn although somebody wants it")
 			}
@@ -687,7 +680,7 @@ func TestInstanceInUseTellsNobodySomethingNew(t *testing.T) {
 	}
 }
 
-// wishOf is the id of somebody's wish on the lecture, read straight from the database.
+// wishOf is the id of somebody's wish on the instance, read straight from the database.
 //
 // Not through the API: the tests that use it are about a phase in which the API refuses to write,
 // and reading the id through a query that the same phase might one day close would make the
@@ -697,8 +690,8 @@ func (f wishFixture) wishOf(t *testing.T, who testdata.Persona) string {
 
 	var id string
 	if err := f.schema.Pool.QueryRow(t.Context(),
-		`SELECT w.id::text FROM wish w WHERE w.instance_part_id = $1::uuid AND w.person_id = $2`,
-		f.lecture, who.ID()).Scan(&id); err != nil {
+		`SELECT w.id::text FROM wish w WHERE w.course_instance_id = $1::uuid AND w.person_id = $2`,
+		f.instance, who.ID()).Scan(&id); err != nil {
 		t.Fatalf("cannot find %s's wish: %v", who.Name, err)
 	}
 	return id

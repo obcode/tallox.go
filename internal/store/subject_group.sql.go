@@ -113,6 +113,20 @@ func (q *Queries) ClearSubjectGroupMembers(ctx context.Context, subjectGroupID u
 	return err
 }
 
+const clearSubjectGroupsOfPerson = `-- name: ClearSubjectGroupsOfPerson :exec
+DELETE FROM person_subject_group WHERE person_id = $1
+`
+
+// The person side of the membership table.
+//
+// Its own statement rather than a filter on the group side, because the two are different acts:
+// an administrator sets up a group, and a colleague says which subjects they work in. Both write
+// this table and neither may quietly rewrite the other's rows.
+func (q *Queries) ClearSubjectGroupsOfPerson(ctx context.Context, personID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, clearSubjectGroupsOfPerson, personID)
+	return err
+}
+
 const createSubjectGroup = `-- name: CreateSubjectGroup :one
 INSERT INTO subject_group (code, name)
 VALUES ($1, $2)
@@ -147,6 +161,48 @@ func (q *Queries) CreateSubjectGroup(ctx context.Context, arg CreateSubjectGroup
 		&i.ModuleCount,
 	)
 	return i, err
+}
+
+const modulesOfSubjectGroup = `-- name: ModulesOfSubjectGroup :many
+SELECT m.id, m.name, p.code AS home_programme_code
+FROM module_subject_group g
+JOIN module m ON m.id = g.module_id
+JOIN programme p ON p.id = m.home_programme_id
+WHERE g.subject_group_id = $1
+  AND m.retired_at IS NULL
+  AND m.active
+ORDER BY (m.name = ''), m.name, m.id
+`
+
+type ModulesOfSubjectGroupRow struct {
+	ID                uuid.UUID
+	Name              string
+	HomeProgrammeCode string
+}
+
+// Which modules a subject group holds, for the screen that shows somebody what a group is about.
+//
+// The names and their home programme, and nothing else: this answers "is this my subject", not
+// "what does this module cost". Retired modules are left out — a group is described by what it
+// currently covers.
+func (q *Queries) ModulesOfSubjectGroup(ctx context.Context, subjectGroupID uuid.UUID) ([]ModulesOfSubjectGroupRow, error) {
+	rows, err := q.db.Query(ctx, modulesOfSubjectGroup, subjectGroupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ModulesOfSubjectGroupRow{}
+	for rows.Next() {
+		var i ModulesOfSubjectGroupRow
+		if err := rows.Scan(&i.ID, &i.Name, &i.HomeProgrammeCode); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const modulesWithoutSubjectGroup = `-- name: ModulesWithoutSubjectGroup :one

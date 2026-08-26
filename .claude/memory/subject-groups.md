@@ -72,6 +72,23 @@ falschem Rollenstring sonst nicht mehr als fehlgeformt erkennbar wäre, sondern 
 jeweils anderen Art lesbar. `policy.TestTheTwoScopesDoNotReadEachOther` und
 `store.TestRoleScopesNameExactlyOneThing` nageln es fest.
 
+## Mitgliedschaft trägt man selbst ein (2026-08-26)
+
+`setMySubjectGroups` ist **keine Verwaltung**: Mitgliedschaft berechtigt zu nichts, also ist die
+Aussage „in diesen Fächern arbeite ich" die der Person selbst. Wäre dafür eine Administration
+nötig, würde aus der Vorauswahl auf der Wunschseite etwas, das man erst beantragen muss — und
+damit eine Schranke.
+
+Die **Leitung** bleibt bei der Verwaltung. Sie ist ein Grant, sie entscheidet, wer vor der
+Veröffentlichung Wünsche liest, und `TestSettingYourOwnGroupsDoesNotMakeYouTheirLead` behauptet,
+dass der Selbstbedienungs-Pfad die Scope-Tabelle nicht erreicht.
+
+`SubjectGroup.modules` ist ein **Feld-Resolver** und kein gebundenes Feld: an das Modell
+gebunden würde die Modulliste bei jedem `mySubjectGroups` mitgeladen, und das holt die Wunschseite
+bei jedem Aufruf. Eine Abfrage je Gruppe bei einer Handvoll Gruppen ist der Handel, den dieses
+Repo an der Stelle ausdrücklich macht — 506 Module sind der Grund, warum der Katalog gebatcht
+wird, zehn Gruppen sind es nicht.
+
 ## Gerendert wird es in `assignment_matrix.golden`
 
 Vor der Zuteilungsphase, aus demselben Grund, aus dem die Wunschmatrix in Woche 1 entstand: der

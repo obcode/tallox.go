@@ -109,3 +109,16 @@ func subjectGroupRefModel(ref *domain.SubjectGroupRef) *model.SubjectGroupRef {
 		Active: ref.Active,
 	}
 }
+
+// moduleRefModels reshapes what a subject group holds.
+func moduleRefModels(modules []domain.ModuleRef) []*model.ModuleRef {
+	out := make([]*model.ModuleRef, 0, len(modules))
+	for _, m := range modules {
+		out = append(out, &model.ModuleRef{
+			ID:                m.ID.String(),
+			Name:              m.Name,
+			HomeProgrammeCode: m.HomeProgrammeCode,
+		})
+	}
+	return out
+}

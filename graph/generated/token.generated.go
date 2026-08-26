@@ -51,6 +51,7 @@ type MutationResolver interface {
 	SetSubjectGroupActive(ctx context.Context, id string, active bool) (*model.SubjectGroup, error)
 	SetModulesSubjectGroup(ctx context.Context, moduleIds []string, subjectGroup *string) (*model.SubjectGroupAssignmentReport, error)
 	SetSubjectGroupMembers(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error)
+	SetMySubjectGroups(ctx context.Context, subjectGroupIds []string) ([]*model.SubjectGroup, error)
 	SetSubjectGroupLeads(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error)
 	SetWish(ctx context.Context, instancePartID string, priority domain.WishPriority, note *string) (*model.Wish, error)
 	WithdrawWish(ctx context.Context, id string) (string, error)
@@ -523,6 +524,20 @@ func (ec *executionContext) field_Mutation_setModulesSubjectGroup_args(ctx conte
 		return nil, err
 	}
 	args["subjectGroup"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setMySubjectGroups_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "subjectGroupIds",
+		func(ctx context.Context, v any) ([]string, error) {
+			return ec.unmarshalNID2ᚕstringᚄ(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["subjectGroupIds"] = arg0
 	return args, nil
 }
 
@@ -2558,6 +2573,50 @@ func (ec *executionContext) fieldContext_Mutation_setSubjectGroupMembers(ctx con
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_setMySubjectGroups(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setMySubjectGroups(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetMySubjectGroups(ctx, fc.Args["subjectGroupIds"].([]string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.SubjectGroup) graphql.Marshaler {
+			return ec.marshalNSubjectGroup2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setMySubjectGroups(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SubjectGroup(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setMySubjectGroups_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_setSubjectGroupLeads(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3242,6 +3301,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setSubjectGroupMembers":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setSubjectGroupMembers(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setMySubjectGroups":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setMySubjectGroups(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

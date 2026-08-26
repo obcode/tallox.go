@@ -118,7 +118,7 @@ enum ScopeArea {
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
   `copyDemandFromSemester`, `planDemand`,
   `subjectGroups`, `subjectGroup`, `mySubjectGroups`, `modulesWithoutSubjectGroup`,
-  `subjectGroupsWithoutLead`.
+  `subjectGroupsWithoutLead`, `setMySubjectGroups`.
   """
   PLANNING
 

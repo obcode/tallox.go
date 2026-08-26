@@ -77,6 +77,20 @@ type SubjectGroup struct {
 	UpdatedAt time.Time
 }
 
+// ModuleRef is a module as a subject group refers to it: enough to recognise, and no more.
+//
+// The counterpart of SubjectGroupRef in module.go, and it exists for the same reason: a full
+// Module carries its split, its offerings and its regulations, and a screen that asks "what is in
+// this group" wants a list of names. Naming the reference is what stops a half-populated Module
+// being passed around as if it were a whole one.
+type ModuleRef struct {
+	ID   uuid.UUID
+	Name string
+	// HomeProgrammeCode is the programme that plans it — IF, IG. Carried because a subject group
+	// reaches across programmes, so the code is what tells two similarly named modules apart.
+	HomeProgrammeCode string
+}
+
 // SubjectGroupStore is what the service needs from persistence.
 type SubjectGroupStore interface {
 	// SubjectGroups lists them, with their leads, members and module counts.
@@ -101,6 +115,11 @@ type SubjectGroupStore interface {
 		grantedBy uuid.UUID) error
 	// SubjectGroupsOfPerson is one person's memberships, for their own session.
 	SubjectGroupsOfPerson(ctx context.Context, personID uuid.UUID) ([]SubjectGroup, error)
+	// SetSubjectGroupsOfPerson replaces one person's memberships.
+	SetSubjectGroupsOfPerson(ctx context.Context, personID uuid.UUID, groups []uuid.UUID,
+		grantedBy uuid.UUID) error
+	// ModulesOfSubjectGroup is what a group holds, for the screen that describes it.
+	ModulesOfSubjectGroup(ctx context.Context, groupID uuid.UUID) ([]ModuleRef, error)
 	// ModulesWithoutSubjectGroup counts the active modules nobody has assigned yet.
 	ModulesWithoutSubjectGroup(ctx context.Context) (int, error)
 	// SubjectGroupsWithoutLead counts the active groups nobody leads.
@@ -321,4 +340,40 @@ func (s *SubjectGroupService) SubjectGroupsWithoutLead(ctx context.Context,
 		return 0, ErrNotAuthenticated
 	}
 	return s.store.SubjectGroupsWithoutLead(ctx)
+}
+
+// SetMine replaces the caller's own subject group memberships.
+//
+// **Not administration, and that is the decision in this method.** Membership grants nothing —
+// policy.AssignmentScope deliberately does not read it — so what somebody is changing here is a
+// statement about which subjects they work in, and that is theirs to make. Requiring an
+// administrator for it would make the wish screen's preselection something a colleague has to ask
+// for, which is how a preselection turns into a barrier.
+//
+// The whole set at once, like every other membership write: the page is a list of ticks with one
+// button, and a per-group mutation would let the two halves of a swap be separated.
+//
+// What this deliberately does not touch is who *leads* a group. That one is a grant, it is what
+// decides who reads unpublished wishes, and it stays with the administration.
+func (s *SubjectGroupService) SetMine(ctx context.Context, actor principal.Actor,
+	groups []uuid.UUID) ([]SubjectGroup, error) {
+	if !actor.Authenticated() {
+		return nil, ErrNotAuthenticated
+	}
+	if err := s.store.SetSubjectGroupsOfPerson(ctx, actor.ID, dedupe(groups), actor.ID); err != nil {
+		return nil, err
+	}
+	return s.store.SubjectGroupsOfPerson(ctx, actor.ID)
+}
+
+// Modules is what a subject group holds.
+//
+// Readable by anybody with an account: which modules belong to mathematics is catalogue data, and
+// somebody deciding whether a group is theirs has to be able to see what is in it.
+func (s *SubjectGroupService) Modules(ctx context.Context, actor principal.Actor,
+	groupID uuid.UUID) ([]ModuleRef, error) {
+	if !actor.Authenticated() {
+		return nil, ErrNotAuthenticated
+	}
+	return s.store.ModulesOfSubjectGroup(ctx, groupID)
 }

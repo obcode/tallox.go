@@ -103,6 +103,12 @@ type Querier interface {
 	ClearPlanningSemester(ctx context.Context, id uuid.UUID) error
 	ClearSubjectGroupLeads(ctx context.Context, subjectGroupID uuid.UUID) error
 	ClearSubjectGroupMembers(ctx context.Context, subjectGroupID uuid.UUID) error
+	// The person side of the membership table.
+	//
+	// Its own statement rather than a filter on the group side, because the two are different acts:
+	// an administrator sets up a group, and a colleague says which subjects they work in. Both write
+	// this table and neither may quietly rewrite the other's rows.
+	ClearSubjectGroupsOfPerson(ctx context.Context, personID uuid.UUID) error
 	// Not projected, and the largest of the nine: 665 real rows over 12 sets of regulations the
 	// endpoint stopped returning — the historical ones and a placeholder dated 2099.
 	//
@@ -486,6 +492,12 @@ type Querier interface {
 	// with a filter would read the whole table to answer a question about twenty rows. Same ordering
 	// as the list, so that a screen sorted by module reads the same way in both places.
 	ModulesByIDs(ctx context.Context, ids []uuid.UUID) ([]ModulesByIDsRow, error)
+	// Which modules a subject group holds, for the screen that shows somebody what a group is about.
+	//
+	// The names and their home programme, and nothing else: this answers "is this my subject", not
+	// "what does this module cost". Retired modules are left out — a group is described by what it
+	// currently covers.
+	ModulesOfSubjectGroup(ctx context.Context, subjectGroupID uuid.UUID) ([]ModulesOfSubjectGroupRow, error)
 	// The work list as a number: "37 modules still have no subject group".
 	//
 	// Retired modules do not count. A module the examination office stopped publishing is not work

@@ -71,6 +71,36 @@ type SubjectGroup {
   is protected from it being known.
   """
   moduleCount: Int!
+  """
+  Which modules the group holds, by name.
+
+  Loaded only when asked for — one statement per group, and there are a handful of groups. That is
+  the trade this repository makes explicitly rather than reaching for a loader: 506 modules is why
+  the catalogue is batched, and ten groups is not.
+
+  Retired modules are left out. A group is described by what it currently covers.
+  """
+  modules: [ModuleRef!]!
+}
+
+"""
+A module as a subject group refers to it: enough to recognise, and no more.
+
+The counterpart of `SubjectGroupRef`, and it exists for the same reason: a full `Module` carries
+its split, its offerings and its regulations, and a screen asking "what is in this group" wants a
+list of names.
+"""
+type ModuleRef {
+  id: ID!
+  "The name, which is empty for a handful of modules the examination office publishes no name for."
+  name: String!
+  """
+  The programme that plans it — IF, IG.
+
+  Carried because a subject group reaches across programmes, so the code is what tells two
+  similarly named modules apart.
+  """
+  homeProgrammeCode: String!
 }
 
 """
@@ -227,6 +257,24 @@ extend type Mutation {
   """
   setSubjectGroupMembers(id: ID!, personIds: [ID!]!): SubjectGroup!
     @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+
+  """
+  Replace the subject groups **you** are in.
+
+  Yours only, and deliberately not administration. Membership grants nothing — it decides what the
+  wish screen offers first and nothing else — so what somebody changes here is a statement about
+  which subjects they work in, and that is theirs to make. Requiring an administrator for it would
+  turn a preselection into something a colleague has to ask for, which is how a preselection
+  becomes a barrier.
+
+  What this does **not** touch is who *leads* a group. That one is a grant, it decides who reads
+  unpublished wishes before publication, and it stays with `setSubjectGroupLeads`.
+
+  The whole set at once, like every other membership write: a per-group mutation would let the two
+  halves of a swap be separated.
+  """
+  setMySubjectGroups(subjectGroupIds: [ID!]!): [SubjectGroup!]!
+    @scope(area: PLANNING, verb: WRITE)
 
   """
   Replace the people who **lead** one subject group.

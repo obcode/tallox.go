@@ -540,6 +540,22 @@ type ModuleFilter struct {
 	SubjectGroup *string `json:"subjectGroup,omitempty"`
 }
 
+// A module as a subject group refers to it: enough to recognise, and no more.
+//
+// The counterpart of `SubjectGroupRef`, and it exists for the same reason: a full `Module` carries
+// its split, its offerings and its regulations, and a screen asking "what is in this group" wants a
+// list of names.
+type ModuleRef struct {
+	ID string `json:"id"`
+	// The name, which is empty for a handful of modules the examination office publishes no name for.
+	Name string `json:"name"`
+	// The programme that plans it — IF, IG.
+	//
+	// Carried because a subject group reaches across programmes, so the code is what tells two
+	// similarly named modules apart.
+	HomeProgrammeCode string `json:"homeProgrammeCode"`
+}
+
 // Everything that changes something.
 //
 // All of it is `@interactiveOnly` for now: writing happens in a signed-in browser session, not
@@ -817,6 +833,14 @@ type SubjectGroup struct {
 	// Safe in a way a count over wishes never is: a module assignment is catalogue data, and nobody
 	// is protected from it being known.
 	ModuleCount int `json:"moduleCount"`
+	// Which modules the group holds, by name.
+	//
+	// Loaded only when asked for — one statement per group, and there are a handful of groups. That is
+	// the trade this repository makes explicitly rather than reaching for a loader: 506 modules is why
+	// the catalogue is batched, and ten groups is not.
+	//
+	// Retired modules are left out. A group is described by what it currently covers.
+	Modules []*ModuleRef `json:"modules"`
 }
 
 // What assigning a batch of modules did.

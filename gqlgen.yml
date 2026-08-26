@@ -110,6 +110,13 @@ models:
   # left, by writing each level and reading it back.
   WishPriority:
     model: github.com/obcode/tallox.go/internal/domain.WishPriority
+  # A field resolver on purpose, so that the modules of a group are read only when a screen asks
+  # for them. Bound to the model they would be loaded for every list — including mySubjectGroups,
+  # which the wish page fetches on every load and does not need them for.
+  SubjectGroup:
+    fields:
+      modules:
+        resolver: true
   ProgrammeStatus:
     model: github.com/obcode/tallox.go/internal/domain.ProgrammeStatus
   ModuleSource:

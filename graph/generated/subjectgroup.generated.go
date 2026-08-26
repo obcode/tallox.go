@@ -16,6 +16,10 @@ import (
 
 // region    ************************** generated!.gotpl **************************
 
+type SubjectGroupResolver interface {
+	Modules(ctx context.Context, obj *model.SubjectGroup) ([]*model.ModuleRef, error)
+}
+
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
@@ -23,6 +27,75 @@ import (
 // endregion ***************************** args.gotpl *****************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _ModuleRef_id(ctx context.Context, field graphql.CollectedField, obj *model.ModuleRef) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleRef_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleRef_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleRef", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _ModuleRef_name(ctx context.Context, field graphql.CollectedField, obj *model.ModuleRef) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleRef_name(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Name, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleRef_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleRef", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ModuleRef_homeProgrammeCode(ctx context.Context, field graphql.CollectedField, obj *model.ModuleRef) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleRef_homeProgrammeCode(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.HomeProgrammeCode, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleRef_homeProgrammeCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleRef", field, false, false, errors.New("field of type String does not have child fields"))
+}
 
 func (ec *executionContext) _SubjectGroup_id(ctx context.Context, field graphql.CollectedField, obj *model.SubjectGroup) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -201,6 +274,38 @@ func (ec *executionContext) _SubjectGroup_moduleCount(ctx context.Context, field
 }
 func (ec *executionContext) fieldContext_SubjectGroup_moduleCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("SubjectGroup", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _SubjectGroup_modules(ctx context.Context, field graphql.CollectedField, obj *model.SubjectGroup) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_SubjectGroup_modules(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.SubjectGroup().Modules(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.ModuleRef) graphql.Marshaler {
+			return ec.marshalNModuleRef2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleRefᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_SubjectGroup_modules(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SubjectGroup",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ModuleRef(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _SubjectGroupAssignmentReport_subjectGroup(ctx context.Context, field graphql.CollectedField, obj *model.SubjectGroupAssignmentReport) (ret graphql.Marshaler) {
@@ -385,6 +490,54 @@ func (ec *executionContext) fieldContext_SubjectGroupRef_active(_ context.Contex
 
 // region    **************************** object.gotpl ****************************
 
+var moduleRefImplementors = []string{"ModuleRef"}
+
+func (ec *executionContext) _ModuleRef(ctx context.Context, sel ast.SelectionSet, obj *model.ModuleRef) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, moduleRefImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ModuleRef")
+		case "id":
+			out.Values[i] = ec._ModuleRef_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "name":
+			out.Values[i] = ec._ModuleRef_name(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "homeProgrammeCode":
+			out.Values[i] = ec._ModuleRef_homeProgrammeCode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var subjectGroupImplementors = []string{"SubjectGroup"}
 
 func (ec *executionContext) _SubjectGroup(ctx context.Context, sel ast.SelectionSet, obj *model.SubjectGroup) graphql.Marshaler {
@@ -400,38 +553,76 @@ func (ec *executionContext) _SubjectGroup(ctx context.Context, sel ast.Selection
 		case "id":
 			out.Values[i] = ec._SubjectGroup_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "code":
 			out.Values[i] = ec._SubjectGroup_code(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "name":
 			out.Values[i] = ec._SubjectGroup_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "active":
 			out.Values[i] = ec._SubjectGroup_active(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "leads":
 			out.Values[i] = ec._SubjectGroup_leads(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "members":
 			out.Values[i] = ec._SubjectGroup_members(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "moduleCount":
 			out.Values[i] = ec._SubjectGroup_moduleCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "modules":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._SubjectGroup_modules(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -557,6 +748,32 @@ func (ec *executionContext) _SubjectGroupRef(ctx context.Context, sel ast.Select
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
+
+func (ec *executionContext) marshalNModuleRef2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleRefᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ModuleRef) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNModuleRef2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleRef(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNModuleRef2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleRef(ctx context.Context, sel ast.SelectionSet, v *model.ModuleRef) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ModuleRef(ctx, sel, v)
+}
 
 func (ec *executionContext) marshalNSubjectGroup2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroup(ctx context.Context, sel ast.SelectionSet, v model.SubjectGroup) graphql.Marshaler {
 	return ec._SubjectGroup(ctx, sel, &v)

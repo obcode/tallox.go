@@ -183,10 +183,8 @@ func demandUserFacing(actor principal.Actor, err error) error {
 	// The semester refusals, which arrive through the same service because every demand names a
 	// semester. Same codes as the semester area uses, so that a client branches on one meaning
 	// per code rather than on one meaning per field.
-	case errors.Is(err, domain.ErrSemesterCodeInvalid):
-		return refusal("SEMESTER_CODE_INVALID", domain.ErrSemesterCodeInvalid.Error())
-	case errors.Is(err, domain.ErrSemesterOutOfRange):
-		return refusal("SEMESTER_OUT_OF_RANGE", domain.ErrSemesterOutOfRange.Error())
+	case semesterRefusal(err) != nil:
+		return semesterRefusal(err)
 
 	default:
 		// Anything else is ours, not the caller's. Generic on purpose: a database error in the

@@ -68,10 +68,10 @@ func wishError(err error) error {
 		return refusal("WISH_PRIORITY_INVALID", err.Error())
 	case errors.Is(err, domain.ErrPartNotFound):
 		return refusal("PART_NOT_FOUND", err.Error())
-	case errors.Is(err, domain.ErrSemesterOutOfRange):
-		return refusal("SEMESTER_OUT_OF_RANGE", err.Error())
-	case errors.Is(err, domain.ErrSemesterCodeInvalid):
-		return refusal("SEMESTER_CODE_INVALID", err.Error())
+	case semesterRefusal(err) != nil:
+		// Shared with the semester workflow and the demand: one meaning per code, and a German
+		// sentence rather than the English one domain.Err… carries for the log.
+		return semesterRefusal(err)
 	}
 	// Anything else keeps its own shape rather than being dressed up with a code that would then
 	// mean nothing. The database noise a driver error carries never reaches here: internal/store

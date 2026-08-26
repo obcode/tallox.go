@@ -60,17 +60,8 @@ func semesterUserFacing(err error) error {
 	switch {
 	case errors.Is(err, domain.ErrForbidden):
 		return refusal("FORBIDDEN", policy.SemesterAdminReason)
-	case errors.Is(err, domain.ErrSemesterCodeInvalid):
-		return refusal("SEMESTER_CODE_INVALID",
-			"Ein Semesterkürzel besteht aus vier Ziffern, einem Bindestrich und SS oder WS, "+
-				"zum Beispiel 2026-WS. Die Jahreszahl ist die des Semesterbeginns.")
-	case errors.Is(err, domain.ErrSemesterOutOfRange):
-		// Not "does not exist" — it does, and saying otherwise would be untrue. What it is is
-		// out of reach: there is no way to undo a decision about a semester, so one recorded
-		// for a mistyped year would stay in the faculty's planning for good.
-		return refusal("SEMESTER_OUT_OF_RANGE",
-			"Dieses Semester liegt mehr als zehn Jahre von heute entfernt — so weit "+
-				"voraus oder zurück lässt sich hier nicht planen.")
+	case semesterRefusal(err) != nil:
+		return semesterRefusal(err)
 	case errors.Is(err, domain.ErrPhaseNotAdjacent):
 		return refusal("PHASE_NOT_ADJACENT",
 			"Ein Semester lässt sich nur schrittweise umschalten — immer nur eine Phase "+
@@ -87,4 +78,33 @@ func semesterUserFacing(err error) error {
 		// them is what the wish workflow will depend on.
 		return refusal("INTERNAL", "Die Aktion konnte nicht ausgeführt werden.")
 	}
+}
+
+// semesterRefusal maps the two refusals about a semester *code* that every area can meet, or
+// returns nil when err is neither.
+//
+// One place, because three areas reach it — the semester workflow, the demand and the wishes,
+// since every one of them names a semester — and two of the three were passing
+// `domain.Err….Error()` straight through. Those strings are English: this repository writes
+// everything in English except what a person reads, so an internal error text reaching a screen
+// is not a wording problem but a category error. It showed up as "this semester is too far away
+// to plan" on a German page.
+//
+// Sharing it also settles the other half: one meaning per code, whichever field produced it,
+// which is what lets the interface branch on the code at all.
+func semesterRefusal(err error) error {
+	switch {
+	case errors.Is(err, domain.ErrSemesterCodeInvalid):
+		return refusal("SEMESTER_CODE_INVALID",
+			"Ein Semesterkürzel besteht aus vier Ziffern, einem Bindestrich und SS oder WS, "+
+				"zum Beispiel 2026-WS. Die Jahreszahl ist die des Semesterbeginns.")
+	case errors.Is(err, domain.ErrSemesterOutOfRange):
+		// Not "does not exist" — it does, and saying otherwise would be untrue. What it is is
+		// out of reach: there is no way to undo a decision about a semester, so one recorded
+		// for a mistyped year would stay in the faculty's planning for good.
+		return refusal("SEMESTER_OUT_OF_RANGE",
+			"Dieses Semester liegt mehr als zehn Jahre von heute entfernt — so weit "+
+				"voraus oder zurück lässt sich hier nicht planen.")
+	}
+	return nil
 }

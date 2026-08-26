@@ -41,6 +41,13 @@ var (
 	ErrWishNoteTooLong = errors.New("die Notiz zu einem Wunsch ist auf 500 Zeichen begrenzt")
 	// ErrWishPriorityInvalid is a priority outside the three levels.
 	ErrWishPriorityInvalid = errors.New("diese Priorität gibt es nicht")
+	// ErrSemesterRequired is asking for other people's wishes without saying which semester.
+	//
+	// Unreachable through the schema, where the argument is not nullable — and here anyway,
+	// because the reason it may not happen is a rule and not a signature: the confidentiality
+	// filter is built from one semester's publication date, so a query across all of them would
+	// apply one semester's answer to the others.
+	ErrSemesterRequired = errors.New("dafür fehlt das Semester")
 )
 
 // MaxWishNote mirrors wish_note_is_short. Checked here as well so that a paste gets a sentence
@@ -129,8 +136,13 @@ type Wish struct {
 // internal/policy and handed to the store separately, so that a caller cannot express a query
 // without one.
 type WishQuery struct {
-	// SemesterCode is required. Without it this would be a question about every semester at
-	// once, which is not a screen anybody wants.
+	// SemesterCode narrows to one semester. Empty means every one — and only Mine may ask that.
+	//
+	// The visibility rule is *per semester*: one may be published and the next not, so a filter
+	// built without knowing which semester is a filter for the wrong one. WishService.List
+	// therefore always sets this. "My own entries, everywhere" is the exception because it does
+	// not consult the rule at all — own rows are visible to their owner in every semester and in
+	// every phase.
 	SemesterCode string
 	// Programme narrows to one study programme's instances, by code. Empty means every one.
 	Programme string
@@ -203,6 +215,12 @@ func (s *WishService) List(ctx context.Context, actor principal.Actor,
 	// A semester nobody has decided anything about answers as the untouched one — demand
 	// planning, wishes unpublished — which is the conservative state and exactly right here: no
 	// row means nothing has been published, so nothing of anybody else's is readable.
+	// Never the every-semester query: the rule this applies belongs to one semester, and reaching
+	// here without a code would silently apply that semester's publication state to all of them.
+	if q.SemesterCode == "" {
+		return nil, ErrSemesterRequired
+	}
+
 	semester, err := s.semesters.ByCode(ctx, actor, q.SemesterCode)
 	if err != nil {
 		return nil, err
@@ -211,17 +229,30 @@ func (s *WishService) List(ctx context.Context, actor principal.Actor,
 	return s.store.Wishes(ctx, q, policy.WishVisibility(actor, semester.State()))
 }
 
-// Mine is the caller's own wishes in a semester.
+// Mine is the caller's own wishes — in one semester, or in every semester when the code is empty.
 //
 // Its own method rather than List with a Person filter, because it is the one question whose
 // answer never depends on the confidentiality rule — and because the wish screen asks it on every
 // load, so it should not read as a special case of the general query.
+//
+// Across every semester it goes straight to the own-only filter rather than through List, and
+// that is the point of the distinction: List resolves the semester because the rule it applies is
+// the semester's — published or not. There is no such state to resolve for "everywhere", and
+// inventing one would mean picking a semester's publication date and applying it to the rest.
+//
+// With a semester it still goes through List, which is what keeps the ±10 year window and the
+// code validation on this path too: a screen asking for `20260-WS` should hear about it.
 func (s *WishService) Mine(ctx context.Context, actor principal.Actor,
 	semesterCode string) ([]Wish, error) {
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
-	return s.List(ctx, actor, WishQuery{SemesterCode: semesterCode, Person: actor.ID})
+	if semesterCode != "" {
+		return s.List(ctx, actor, WishQuery{SemesterCode: semesterCode, Person: actor.ID})
+	}
+	return s.store.Wishes(ctx,
+		WishQuery{Person: actor.ID},
+		policy.WishFilter{Scope: policy.WishScopeOwn, OwnerID: actor.ID})
 }
 
 // Set registers the actor's own interest in an instance, or changes it.

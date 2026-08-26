@@ -67,28 +67,32 @@ func wishFilterParams(f policy.WishFilter) (scope string, owner uuid.UUID,
 	}
 }
 
-// Wishes returns the wishes of a semester that the filter allows.
+// Wishes returns the wishes the filter allows — of one semester, or of every semester when the
+// query names none.
 func (w *Wishes) Wishes(ctx context.Context, q domain.WishQuery,
 	filter policy.WishFilter) ([]domain.Wish, error) {
 	scope, owner, programmes, groups := wishFilterParams(filter)
 
-	semester, err := New(w.pool).SemesterByCode(ctx, q.SemesterCode)
-	if errors.Is(err, pgx.ErrNoRows) {
-		// No row means nobody has decided anything about this semester, so it holds no
-		// instances and therefore no wishes.
-		return []domain.Wish{}, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("cannot read the semester: %w", err)
-	}
-
-	params := WishesInSemesterParams{
-		SemesterID:      semester.ID,
+	params := WishesOfSemesterParams{
 		Scope:           scope,
 		OwnerID:         owner,
 		ProgrammeIds:    programmes,
 		SubjectGroupIds: groups,
 	}
+
+	if q.SemesterCode != "" {
+		semester, err := New(w.pool).SemesterByCode(ctx, q.SemesterCode)
+		if errors.Is(err, pgx.ErrNoRows) {
+			// No row means nobody has decided anything about this semester, so it holds no
+			// instances and therefore no wishes.
+			return []domain.Wish{}, nil
+		}
+		if err != nil {
+			return nil, fmt.Errorf("cannot read the semester: %w", err)
+		}
+		params.SemesterID = uuid.NullUUID{UUID: semester.ID, Valid: true}
+	}
+
 	if q.Programme != "" {
 		params.Programme = &q.Programme
 	}
@@ -102,14 +106,14 @@ func (w *Wishes) Wishes(ctx context.Context, q domain.WishQuery,
 		params.Person = uuid.NullUUID{UUID: q.Person, Valid: true}
 	}
 
-	rows, err := New(w.pool).WishesInSemester(ctx, params)
+	rows, err := New(w.pool).WishesOfSemester(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the wishes: %w", err)
 	}
 
 	out := make([]domain.Wish, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, wishFrom(wishRow(row), semester.Code, policy.Phase(semester.Phase)))
+		out = append(out, wishFrom(wishRow(row)))
 	}
 	return out, nil
 }
@@ -136,10 +140,7 @@ func (w *Wishes) WishByID(ctx context.Context, id uuid.UUID,
 		return nil, fmt.Errorf("cannot read the wish: %w", err)
 	}
 
-	// The semester is not in this query's projection — a by-id lookup does not know it without a
-	// fifth join — and the caller of this method does not render it. Left empty rather than
-	// filled with a guess.
-	wish := wishFrom(wishRow(row), "", "")
+	wish := wishFrom(wishRow(row))
 	return &wish, nil
 }
 
@@ -233,6 +234,8 @@ type wishRow struct {
 	UpdatedAt         time.Time
 	Track             string
 	ProgrammeSemester *int32
+	SemesterCode      string
+	SemesterPhase     string
 	ProgrammeID       uuid.UUID
 	ProgrammeCode     string
 	ProgrammeTitle    string
@@ -243,7 +246,7 @@ type wishRow struct {
 	PersonSortName    string
 }
 
-func wishFrom(row wishRow, semesterCode string, phase policy.Phase) domain.Wish {
+func wishFrom(row wishRow) domain.Wish {
 	return domain.Wish{
 		ID: row.ID,
 		Person: domain.Person{
@@ -255,8 +258,8 @@ func wishFrom(row wishRow, semesterCode string, phase policy.Phase) domain.Wish 
 		},
 		Instance: domain.CourseInstance{
 			ID:                row.CourseInstanceID,
-			SemesterCode:      semesterCode,
-			SemesterPhase:     phase,
+			SemesterCode:      row.SemesterCode,
+			SemesterPhase:     policy.Phase(row.SemesterPhase),
 			Track:             row.Track,
 			ProgrammeSemester: intOrNil(row.ProgrammeSemester),
 			Module:            domain.Module{ID: row.ModuleID, Name: row.ModuleName},

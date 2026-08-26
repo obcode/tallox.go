@@ -128,12 +128,14 @@ const wishByID = `-- name: WishByID :one
 SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
     ci.track, ci.programme_semester,
+    sem.code AS semester_code, sem.phase AS semester_phase,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name
 FROM wish w
 JOIN course_instance ci ON ci.id = w.course_instance_id
+JOIN semester sem ON sem.id = ci.semester_id
 JOIN programme prog ON prog.id = ci.programme_id
 JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id
@@ -169,6 +171,8 @@ type WishByIDRow struct {
 	UpdatedAt         time.Time
 	Track             string
 	ProgrammeSemester *int32
+	SemesterCode      string
+	SemesterPhase     string
 	ProgrammeID       uuid.UUID
 	ProgrammeCode     string
 	ProgrammeTitle    string
@@ -201,6 +205,8 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 		&i.UpdatedAt,
 		&i.Track,
 		&i.ProgrammeSemester,
+		&i.SemesterCode,
+		&i.SemesterPhase,
 		&i.ProgrammeID,
 		&i.ProgrammeCode,
 		&i.ProgrammeTitle,
@@ -213,23 +219,26 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 	return i, err
 }
 
-const wishesInSemester = `-- name: WishesInSemester :many
+const wishesOfSemester = `-- name: WishesOfSemester :many
 
 SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
     ci.track, ci.programme_semester,
+    sem.code AS semester_code, sem.phase AS semester_phase,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name
 FROM wish w
 JOIN course_instance ci ON ci.id = w.course_instance_id
+JOIN semester sem ON sem.id = ci.semester_id
 JOIN programme prog ON prog.id = ci.programme_id
 JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id
 JOIN person ON person.id = w.person_id
 LEFT JOIN teacher t ON t.mail = person.mail
-WHERE ci.semester_id = $1::uuid
+WHERE ($1::uuid IS NULL
+       OR ci.semester_id = $1::uuid)
   AND ($2::text IS NULL OR prog.code = $2::text)
   AND ($3::uuid IS NULL OR m.id = $3::uuid)
   AND ($4::uuid IS NULL OR ci.id = $4::uuid)
@@ -243,12 +252,12 @@ WHERE ci.semester_id = $1::uuid
                OR prog.id = ANY ($8::uuid[])
                OR msg.subject_group_id = ANY ($9::uuid[])))
   )
-ORDER BY m.name, ci.track, w.priority,
+ORDER BY sem.code, m.name, ci.track, w.priority,
          COALESCE(NULLIF(t.short_name, ''), person.name), w.id
 `
 
-type WishesInSemesterParams struct {
-	SemesterID      uuid.UUID
+type WishesOfSemesterParams struct {
+	SemesterID      uuid.NullUUID
 	Programme       *string
 	Module          uuid.NullUUID
 	Instance        uuid.NullUUID
@@ -259,7 +268,7 @@ type WishesInSemesterParams struct {
 	SubjectGroupIds []uuid.UUID
 }
 
-type WishesInSemesterRow struct {
+type WishesOfSemesterRow struct {
 	ID                uuid.UUID
 	CourseInstanceID  uuid.UUID
 	PersonID          uuid.UUID
@@ -269,6 +278,8 @@ type WishesInSemesterRow struct {
 	UpdatedAt         time.Time
 	Track             string
 	ProgrammeSemester *int32
+	SemesterCode      string
+	SemesterPhase     string
 	ProgrammeID       uuid.UUID
 	ProgrammeCode     string
 	ProgrammeTitle    string
@@ -306,7 +317,14 @@ type WishesInSemesterRow struct {
 //
 // store.TestEveryWishQueryIsFiltered reads this file and requires the predicate in every SELECT,
 // so a new query cannot quietly be written without it.
-// The wishes of one semester, filtered, with everything a screen needs to render a row.
+// The wishes of one semester — or of every semester — filtered, with everything a screen needs to
+// render a row.
+//
+// The semester is optional, and there is exactly one caller allowed to leave it out: "my own
+// entries, everywhere". That question does not depend on the confidentiality rule at all, so it
+// needs no semester to read a publication date from. Every other caller passes one, because the
+// rule *is* per semester — one may be published and the next not — and a filter built without
+// knowing which would be a filter for the wrong one.
 //
 // One query for the wish screen and for the planning screens both, because they differ only in
 // what the filter lets through — which is the property the whole design rests on. A second query
@@ -315,8 +333,10 @@ type WishesInSemesterRow struct {
 // The joins carry the two things the rule is scoped by — the programme of the instance and the
 // subject group of its module. module_subject_group is a LEFT JOIN and has to be: a module nobody has sorted into a subject group yet is the ordinary state until the
 // faculty has worked through its catalogue, and its wishes still belong to somebody.
-func (q *Queries) WishesInSemester(ctx context.Context, arg WishesInSemesterParams) ([]WishesInSemesterRow, error) {
-	rows, err := q.db.Query(ctx, wishesInSemester,
+// The semester first, because the list across all of them is grouped by it — and because the
+// code sorts chronologically as text, which is what its format is for.
+func (q *Queries) WishesOfSemester(ctx context.Context, arg WishesOfSemesterParams) ([]WishesOfSemesterRow, error) {
+	rows, err := q.db.Query(ctx, wishesOfSemester,
 		arg.SemesterID,
 		arg.Programme,
 		arg.Module,
@@ -331,9 +351,9 @@ func (q *Queries) WishesInSemester(ctx context.Context, arg WishesInSemesterPara
 		return nil, err
 	}
 	defer rows.Close()
-	items := []WishesInSemesterRow{}
+	items := []WishesOfSemesterRow{}
 	for rows.Next() {
-		var i WishesInSemesterRow
+		var i WishesOfSemesterRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.CourseInstanceID,
@@ -344,6 +364,8 @@ func (q *Queries) WishesInSemester(ctx context.Context, arg WishesInSemesterPara
 			&i.UpdatedAt,
 			&i.Track,
 			&i.ProgrammeSemester,
+			&i.SemesterCode,
+			&i.SemesterPhase,
 			&i.ProgrammeID,
 			&i.ProgrammeCode,
 			&i.ProgrammeTitle,

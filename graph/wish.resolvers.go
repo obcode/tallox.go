@@ -48,8 +48,15 @@ func (r *mutationResolver) WithdrawWish(ctx context.Context, id string) (string,
 }
 
 // MyWishes is the resolver for the myWishes field.
-func (r *queryResolver) MyWishes(ctx context.Context, semester string) ([]*model.Wish, error) {
-	wishes, err := r.Resolver.Wishes.Mine(ctx, principal.From(ctx), semester)
+func (r *queryResolver) MyWishes(ctx context.Context, semester *string) ([]*model.Wish, error) {
+	// A missing semester is every semester, not a refused query: these are the caller's own rows,
+	// and the rule that is per-semester does not apply to them. See the field's own comment.
+	code := ""
+	if semester != nil {
+		code = *semester
+	}
+
+	wishes, err := r.Resolver.Wishes.Mine(ctx, principal.From(ctx), code)
 	if err != nil {
 		return nil, wishError(err)
 	}

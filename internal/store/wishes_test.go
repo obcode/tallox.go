@@ -627,3 +627,81 @@ func TestMigrationSixteenMovesWishesOntoTheirInstance(t *testing.T) {
 		}
 	}
 }
+
+// "My own entries, everywhere" — the one query that may leave the semester out.
+//
+// The reason it may is that it does not consult the confidentiality rule: own rows are visible to
+// their owner in every semester and in every phase, so there is no publication date to pick. Every
+// other caller passes a semester, because one semester may be published and the next not, and a
+// filter built without knowing which would be a filter for the wrong one.
+func TestOwnWishesAcrossSemesters(t *testing.T) {
+	t.Parallel()
+
+	f := newWishFixture(t)
+	ctx := t.Context()
+
+	// A second semester with its own instance of the same module, and a different phase, so the
+	// row's own semester is a fact the query has to carry rather than one the caller supplies.
+	later, err := store.NewSemesters(f.schema.Pool).EnsureSemester(ctx, "2028-SS")
+	if err != nil {
+		t.Fatalf("cannot record the second semester: %v", err)
+	}
+	if _, err := f.schema.Pool.Exec(ctx,
+		`UPDATE semester SET phase = 'ASSIGNMENT' WHERE id = $1`, later.ID); err != nil {
+		t.Fatalf("cannot move the second semester on: %v", err)
+	}
+
+	second, err := store.NewDemand(f.schema.Pool, store.NewModules(f.schema.Pool)).
+		CreateCourseInstance(ctx, domain.NewCourseInstance{
+			SemesterID: later.ID, ModuleID: f.module, ProgrammeID: f.programme,
+		})
+	if err != nil {
+		t.Fatalf("cannot declare the second instance: %v", err)
+	}
+
+	f.register(t, testdata.Eins)
+	if _, err := f.wishes.SetWish(ctx, second.ID, testdata.Eins.ID(),
+		domain.WishFirstChoice, ""); err != nil {
+		t.Fatalf("cannot register in the second semester: %v", err)
+	}
+	// Somebody else's, in the second semester, to make the own-only half of this non-vacuous.
+	if _, err := f.wishes.SetWish(ctx, second.ID, testdata.Zwei.ID(),
+		domain.WishHappyTo, ""); err != nil {
+		t.Fatalf("cannot register Zwei's interest: %v", err)
+	}
+
+	own, err := f.wishes.Wishes(ctx,
+		domain.WishQuery{Person: testdata.Eins.ID()},
+		policy.WishFilter{Scope: policy.WishScopeOwn, OwnerID: testdata.Eins.ID()})
+	if err != nil {
+		t.Fatalf("cannot read the wishes across semesters: %v", err)
+	}
+
+	if len(own) != 2 {
+		t.Fatalf("got %d wishes across semesters, want two", len(own))
+	}
+	for _, w := range own {
+		if w.Person.ID != testdata.Eins.ID() {
+			t.Errorf("the own-only filter let %s through", w.Person.Mail)
+		}
+	}
+
+	// Each row carries *its own* semester and phase. Before this query could span semesters they
+	// came from one lookup outside it, which is exactly the thing that cannot work here.
+	byCode := map[string]policy.Phase{}
+	for _, w := range own {
+		byCode[w.Instance.SemesterCode] = w.Instance.SemesterPhase
+	}
+	if byCode[f.semester.Code] != policy.PhaseDemandPlanning {
+		t.Errorf("%s reads as phase %q, want DEMAND_PLANNING", f.semester.Code, byCode[f.semester.Code])
+	}
+	if byCode["2028-SS"] != policy.PhaseAssignment {
+		t.Errorf("2028-SS reads as phase %q, want ASSIGNMENT", byCode["2028-SS"])
+	}
+
+	// And chronologically, because the screen groups by semester and the code sorts as text.
+	if own[0].Instance.SemesterCode > own[1].Instance.SemesterCode {
+		t.Errorf("the rows come back as %q, %q — the list is grouped by semester and has to be "+
+			"in its order", own[0].Instance.SemesterCode, own[1].Instance.SemesterCode)
+	}
+}

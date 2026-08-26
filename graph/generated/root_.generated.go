@@ -28,6 +28,7 @@ type ResolverRoot interface {
 	Module() ModuleResolver
 	Mutation() MutationResolver
 	Query() QueryResolver
+	SubjectGroup() SubjectGroupResolver
 }
 
 type DirectiveRoot struct {
@@ -217,6 +218,12 @@ type ComplexityRoot struct {
 		Spo                  func(childComplexity int) int
 	}
 
+	ModuleRef struct {
+		HomeProgrammeCode func(childComplexity int) int
+		ID                func(childComplexity int) int
+		Name              func(childComplexity int) int
+	}
+
 	Mutation struct {
 		AddInstancePart               func(childComplexity int, instanceID string, kind domain.InstancePartKind, teachingHours *float64) int
 		AdvanceSemesterPhase          func(childComplexity int, code string, to policy.Phase) int
@@ -239,6 +246,7 @@ type ComplexityRoot struct {
 		RevokePersonalAccessToken     func(childComplexity int, id string) int
 		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
 		SetModulesSubjectGroup        func(childComplexity int, moduleIds []string, subjectGroup *string) int
+		SetMySubjectGroups            func(childComplexity int, subjectGroupIds []string) int
 		SetPersonActive               func(childComplexity int, id string, active bool) int
 		SetPersonProgrammes           func(childComplexity int, id string, programmes []string) int
 		SetPersonRoles                func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
@@ -373,6 +381,7 @@ type ComplexityRoot struct {
 		Leads       func(childComplexity int) int
 		Members     func(childComplexity int) int
 		ModuleCount func(childComplexity int) int
+		Modules     func(childComplexity int) int
 		Name        func(childComplexity int) int
 	}
 
@@ -1272,6 +1281,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ModuleOffering.Spo(childComplexity), true
 
+	case "ModuleRef.homeProgrammeCode":
+		if e.ComplexityRoot.ModuleRef.HomeProgrammeCode == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleRef.HomeProgrammeCode(childComplexity), true
+	case "ModuleRef.id":
+		if e.ComplexityRoot.ModuleRef.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleRef.ID(childComplexity), true
+	case "ModuleRef.name":
+		if e.ComplexityRoot.ModuleRef.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleRef.Name(childComplexity), true
+
 	case "Mutation.addInstancePart":
 		if e.ComplexityRoot.Mutation.AddInstancePart == nil {
 			break
@@ -1498,6 +1526,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetModulesSubjectGroup(childComplexity, args["moduleIds"].([]string), args["subjectGroup"].(*string)), true
+	case "Mutation.setMySubjectGroups":
+		if e.ComplexityRoot.Mutation.SetMySubjectGroups == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setMySubjectGroups_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetMySubjectGroups(childComplexity, args["subjectGroupIds"].([]string)), true
 	case "Mutation.setPersonActive":
 		if e.ComplexityRoot.Mutation.SetPersonActive == nil {
 			break
@@ -2296,6 +2335,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.SubjectGroup.ModuleCount(childComplexity), true
+	case "SubjectGroup.modules":
+		if e.ComplexityRoot.SubjectGroup.Modules == nil {
+			break
+		}
+
+		return e.ComplexityRoot.SubjectGroup.Modules(childComplexity), true
 	case "SubjectGroup.name":
 		if e.ComplexityRoot.SubjectGroup.Name == nil {
 			break
@@ -4804,7 +4849,7 @@ enum ScopeArea {
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
   ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `,
   ` + "`" + `subjectGroups` + "`" + `, ` + "`" + `subjectGroup` + "`" + `, ` + "`" + `mySubjectGroups` + "`" + `, ` + "`" + `modulesWithoutSubjectGroup` + "`" + `,
-  ` + "`" + `subjectGroupsWithoutLead` + "`" + `.
+  ` + "`" + `subjectGroupsWithoutLead` + "`" + `, ` + "`" + `setMySubjectGroups` + "`" + `.
   """
   PLANNING
 
@@ -5369,6 +5414,36 @@ type SubjectGroup {
   is protected from it being known.
   """
   moduleCount: Int!
+  """
+  Which modules the group holds, by name.
+
+  Loaded only when asked for — one statement per group, and there are a handful of groups. That is
+  the trade this repository makes explicitly rather than reaching for a loader: 506 modules is why
+  the catalogue is batched, and ten groups is not.
+
+  Retired modules are left out. A group is described by what it currently covers.
+  """
+  modules: [ModuleRef!]!
+}
+
+"""
+A module as a subject group refers to it: enough to recognise, and no more.
+
+The counterpart of ` + "`" + `SubjectGroupRef` + "`" + `, and it exists for the same reason: a full ` + "`" + `Module` + "`" + ` carries
+its split, its offerings and its regulations, and a screen asking "what is in this group" wants a
+list of names.
+"""
+type ModuleRef {
+  id: ID!
+  "The name, which is empty for a handful of modules the examination office publishes no name for."
+  name: String!
+  """
+  The programme that plans it — IF, IG.
+
+  Carried because a subject group reaches across programmes, so the code is what tells two
+  similarly named modules apart.
+  """
+  homeProgrammeCode: String!
 }
 
 """
@@ -5525,6 +5600,24 @@ extend type Mutation {
   """
   setSubjectGroupMembers(id: ID!, personIds: [ID!]!): SubjectGroup!
     @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+
+  """
+  Replace the subject groups **you** are in.
+
+  Yours only, and deliberately not administration. Membership grants nothing — it decides what the
+  wish screen offers first and nothing else — so what somebody changes here is a statement about
+  which subjects they work in, and that is theirs to make. Requiring an administrator for it would
+  turn a preselection into something a colleague has to ask for, which is how a preselection
+  becomes a barrier.
+
+  What this does **not** touch is who *leads* a group. That one is a grant, it decides who reads
+  unpublished wishes before publication, and it stays with ` + "`" + `setSubjectGroupLeads` + "`" + `.
+
+  The whole set at once, like every other membership write: a per-group mutation would let the two
+  halves of a swap be separated.
+  """
+  setMySubjectGroups(subjectGroupIds: [ID!]!): [SubjectGroup!]!
+    @scope(area: PLANNING, verb: WRITE)
 
   """
   Replace the people who **lead** one subject group.
@@ -6574,6 +6667,18 @@ func (ec *executionContext) childFields_ModuleOffering(ctx context.Context, fiel
 	return nil, fmt.Errorf("no field named %q was found under type ModuleOffering", field.Name)
 }
 
+func (ec *executionContext) childFields_ModuleRef(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_ModuleRef_id(ctx, field)
+	case "name":
+		return ec.fieldContext_ModuleRef_name(ctx, field)
+	case "homeProgrammeCode":
+		return ec.fieldContext_ModuleRef_homeProgrammeCode(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ModuleRef", field.Name)
+}
+
 func (ec *executionContext) childFields_Person(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "id":
@@ -6740,6 +6845,8 @@ func (ec *executionContext) childFields_SubjectGroup(ctx context.Context, field 
 		return ec.fieldContext_SubjectGroup_members(ctx, field)
 	case "moduleCount":
 		return ec.fieldContext_SubjectGroup_moduleCount(ctx, field)
+	case "modules":
+		return ec.fieldContext_SubjectGroup_modules(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type SubjectGroup", field.Name)
 }

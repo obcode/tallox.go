@@ -142,6 +142,29 @@ FROM module m
 LEFT JOIN module_subject_group g ON g.module_id = m.id
 WHERE g.module_id IS NULL AND m.retired_at IS NULL AND m.active;
 
+-- name: ModulesOfSubjectGroup :many
+-- Which modules a subject group holds, for the screen that shows somebody what a group is about.
+--
+-- The names and their home programme, and nothing else: this answers "is this my subject", not
+-- "what does this module cost". Retired modules are left out — a group is described by what it
+-- currently covers.
+SELECT m.id, m.name, p.code AS home_programme_code
+FROM module_subject_group g
+JOIN module m ON m.id = g.module_id
+JOIN programme p ON p.id = m.home_programme_id
+WHERE g.subject_group_id = $1
+  AND m.retired_at IS NULL
+  AND m.active
+ORDER BY (m.name = ''), m.name, m.id;
+
+-- name: ClearSubjectGroupsOfPerson :exec
+-- The person side of the membership table.
+--
+-- Its own statement rather than a filter on the group side, because the two are different acts:
+-- an administrator sets up a group, and a colleague says which subjects they work in. Both write
+-- this table and neither may quietly rewrite the other's rows.
+DELETE FROM person_subject_group WHERE person_id = $1;
+
 -- name: ClearSubjectGroupMembers :exec
 DELETE FROM person_subject_group WHERE subject_group_id = $1;
 

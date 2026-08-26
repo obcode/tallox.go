@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/obcode/tallox.go/graph/generated"
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/principal"
 )
@@ -111,6 +112,22 @@ func (r *mutationResolver) SetSubjectGroupMembers(ctx context.Context, id string
 	return subjectGroupModel(*group), nil
 }
 
+// SetMySubjectGroups is the resolver for the setMySubjectGroups field.
+func (r *mutationResolver) SetMySubjectGroups(ctx context.Context, subjectGroupIds []string) ([]*model.SubjectGroup, error) {
+	groups, err := parseIDs(subjectGroupIds)
+	if err != nil {
+		return nil, err
+	}
+	// The owner is the actor and comes from nowhere else: this mutation has no argument for
+	// whose memberships these are, which is what makes it self-service rather than
+	// administration by another name.
+	mine, err := r.SubjectGroups.SetMine(ctx, principal.From(ctx), groups)
+	if err != nil {
+		return nil, subjectGroupError(err)
+	}
+	return subjectGroupModels(mine), nil
+}
+
 // SetSubjectGroupLeads is the resolver for the setSubjectGroupLeads field.
 func (r *mutationResolver) SetSubjectGroupLeads(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error) {
 	groupID, err := parseID(id)
@@ -183,3 +200,21 @@ func (r *queryResolver) SubjectGroupsWithoutLead(ctx context.Context) (int, erro
 	}
 	return n, nil
 }
+
+// Modules is the resolver for the modules field.
+func (r *subjectGroupResolver) Modules(ctx context.Context, obj *model.SubjectGroup) ([]*model.ModuleRef, error) {
+	groupID, err := parseID(obj.ID)
+	if err != nil {
+		return nil, err
+	}
+	modules, err := r.Resolver.SubjectGroups.Modules(ctx, principal.From(ctx), groupID)
+	if err != nil {
+		return nil, subjectGroupError(err)
+	}
+	return moduleRefModels(modules), nil
+}
+
+// SubjectGroup returns generated.SubjectGroupResolver implementation.
+func (r *Resolver) SubjectGroup() generated.SubjectGroupResolver { return &subjectGroupResolver{r} }
+
+type subjectGroupResolver struct{ *Resolver }

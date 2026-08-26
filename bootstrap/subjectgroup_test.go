@@ -532,3 +532,175 @@ func TestAModuleCarriesItsSubjectGroupAndCanBeMoved(t *testing.T) {
 		t.Error("the module still carries a subject group after being taken out of every group")
 	}
 }
+
+// Membership is the one thing about a subject group somebody sets for themselves.
+//
+// It grants nothing — policy.AssignmentScope deliberately does not read it — so what a colleague
+// changes here is a statement about which subjects they work in. Requiring an administrator for
+// it would turn the wish screen's preselection into something people have to ask for, which is
+// how a preselection becomes a barrier.
+func TestSomebodySetsTheirOwnSubjectGroups(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Eins, []string{"LECTURER"}},
+	)
+	maths := f.create(t, "MATHE", "Mathematik")
+	software := f.create(t, "SWE", "Softwarefächer")
+
+	// A plain lecturer, with no administration rights at all.
+	c := graphqltest.New(f.handler).AsUser(testdata.Eins.Mail)
+
+	set := func(t *testing.T, ids ...string) []string {
+		t.Helper()
+		var out struct {
+			SetMySubjectGroups []struct{ Code string }
+		}
+		// A non-nil slice even when empty: a variadic with no arguments marshals to JSON null,
+		// and [ID!]! refuses null. "I am in no groups" is an empty list, not an absent one.
+		if ids == nil {
+			ids = []string{}
+		}
+		c.MustQuery(t, `mutation($g: [ID!]!) { setMySubjectGroups(subjectGroupIds: $g) { code } }`,
+			map[string]any{"g": ids}, &out)
+
+		codes := make([]string, 0, len(out.SetMySubjectGroups))
+		for _, g := range out.SetMySubjectGroups {
+			codes = append(codes, g.Code)
+		}
+		return codes
+	}
+
+	if got := set(t, maths); len(got) != 1 || got[0] != "MATHE" {
+		t.Fatalf("got %v, want just MATHE", got)
+	}
+
+	// The whole set at once: a swap is one call, so there is no moment in between.
+	if got := set(t, software); len(got) != 1 || got[0] != "SWE" {
+		t.Errorf("got %v, want just SWE — the set was not replaced", got)
+	}
+	if got := set(t); len(got) != 0 {
+		t.Errorf("got %v, want none — an empty list is a real answer", got)
+	}
+
+	// And it is their own: through both doors, and never anybody else's, because there is no
+	// argument for whose memberships these are.
+	set(t, maths, software)
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var mine struct {
+				MySubjectGroups []struct{ Code string }
+			}
+			c.MustQuery(t, `query { mySubjectGroups { code } }`, nil, &mine)
+			if len(mine.MySubjectGroups) != 2 {
+				t.Errorf("got %d of my own groups, want 2", len(mine.MySubjectGroups))
+			}
+		})
+}
+
+// Setting your own memberships must not become a way to lead a group.
+//
+// The two are written into different tables by different mutations, and this is the test that
+// says the self-service one cannot reach the other. Leading is a grant: it decides who fills the
+// group's instances and who reads unpublished wishes before publication.
+func TestSettingYourOwnGroupsDoesNotMakeYouTheirLead(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+	)
+	maths := f.create(t, "MATHE", "Mathematik")
+
+	// Drei holds the role, so if anything could confuse the two it would be here.
+	graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).MustQuery(t,
+		`mutation($g: [ID!]!) { setMySubjectGroups(subjectGroupIds: $g) { code } }`,
+		map[string]any{"g": []string{maths}}, &struct {
+			SetMySubjectGroups []struct{ Code string }
+		}{})
+
+	var out struct {
+		SubjectGroup struct {
+			Leads   []struct{ Mail string }
+			Members []struct{ Mail string }
+		}
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).MustQuery(t,
+		`query($g: ID!) { subjectGroup(id: $g) { leads { mail } members { mail } } }`,
+		map[string]any{"g": maths}, &out)
+
+	if len(out.SubjectGroup.Leads) != 0 {
+		t.Errorf("joining a group made somebody its lead: %+v", out.SubjectGroup.Leads)
+	}
+	if len(out.SubjectGroup.Members) != 1 {
+		t.Errorf("got %d members, want 1", len(out.SubjectGroup.Members))
+	}
+
+	var scoped int
+	if err := f.schema.Pool.QueryRow(t.Context(),
+		`SELECT count(*) FROM person_subject_group_scope WHERE person_id = $1`,
+		testdata.Drei.ID()).Scan(&scoped); err != nil {
+		t.Fatalf("cannot count the scopes: %v", err)
+	}
+	if scoped != 0 {
+		t.Errorf("%d subject group scope(s) were granted by a membership write", scoped)
+	}
+}
+
+// What a group holds, for the screen that has to answer "is this my subject".
+//
+// Loaded only when asked: a field resolver rather than a bound field, so that mySubjectGroups —
+// which the wish page fetches on every load — does not carry the catalogue with it.
+func TestASubjectGroupSaysWhichModulesItHolds(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t, grants{testdata.Sechs, []string{"ADMIN"}})
+	group := f.create(t, "MATHE", "Mathematik")
+
+	c := graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail)
+
+	var waiting struct {
+		Modules []struct {
+			ID   string
+			Name string
+		}
+	}
+	c.MustQuery(t, `query { modules(filter: { withoutSubjectGroup: true }) { id name } }`, nil,
+		&waiting)
+	if len(waiting.Modules) < 2 {
+		t.Fatalf("only %d modules are waiting for a group", len(waiting.Modules))
+	}
+
+	c.MustQuery(t, `mutation($m: [ID!]!, $g: ID) {
+		setModulesSubjectGroup(moduleIds: $m, subjectGroup: $g) { modulesAssigned }
+	}`, map[string]any{
+		"m": []string{waiting.Modules[0].ID, waiting.Modules[1].ID}, "g": group,
+	}, &struct {
+		SetModulesSubjectGroup struct{ ModulesAssigned int }
+	}{})
+
+	var out struct {
+		SubjectGroup struct {
+			ModuleCount int
+			Modules     []struct {
+				Name              string
+				HomeProgrammeCode string
+			}
+		}
+	}
+	c.MustQuery(t, `query($g: ID!) {
+		subjectGroup(id: $g) { moduleCount modules { name homeProgrammeCode } }
+	}`, map[string]any{"g": group}, &out)
+
+	if out.SubjectGroup.ModuleCount != 2 || len(out.SubjectGroup.Modules) != 2 {
+		t.Fatalf("got %d modules and a count of %d, want 2 and 2",
+			len(out.SubjectGroup.Modules), out.SubjectGroup.ModuleCount)
+	}
+	for _, m := range out.SubjectGroup.Modules {
+		if m.HomeProgrammeCode == "" {
+			t.Errorf("the module %q carries no home programme — which is what tells two "+
+				"similarly named ones apart across programmes", m.Name)
+		}
+	}
+}

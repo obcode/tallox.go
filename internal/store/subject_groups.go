@@ -236,6 +236,51 @@ func (s *SubjectGroups) SetSubjectGroupLeads(ctx context.Context, groupID uuid.U
 	})
 }
 
+// SetSubjectGroupsOfPerson replaces one person's memberships.
+//
+// In a transaction, for the reason the group-side write gives: delete-then-insert has a moment in
+// between in which the person is in no group at all, and their own wish screen landing in that
+// moment would be filtered to nothing for a reason that was never true.
+func (s *SubjectGroups) SetSubjectGroupsOfPerson(ctx context.Context, personID uuid.UUID,
+	groups []uuid.UUID, grantedBy uuid.UUID) error {
+	return s.inTx(ctx, func(q *Queries) error {
+		if err := q.ClearSubjectGroupsOfPerson(ctx, personID); err != nil {
+			return fmt.Errorf("cannot clear the memberships: %w", err)
+		}
+		for _, group := range groups {
+			err := q.AddSubjectGroupMembership(ctx, AddSubjectGroupMembershipParams{
+				PersonID:       personID,
+				SubjectGroupID: group,
+				GrantedBy:      nullUUID(nonNilUUID(grantedBy)),
+			})
+			if isForeignKeyViolation(err) {
+				return domain.ErrSubjectGroupNotFound
+			}
+			if err != nil {
+				return fmt.Errorf("cannot add a membership: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+// ModulesOfSubjectGroup is what a group holds.
+func (s *SubjectGroups) ModulesOfSubjectGroup(ctx context.Context,
+	groupID uuid.UUID) ([]domain.ModuleRef, error) {
+	rows, err := New(s.pool).ModulesOfSubjectGroup(ctx, groupID)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the modules of the subject group: %w", err)
+	}
+
+	out := make([]domain.ModuleRef, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, domain.ModuleRef{
+			ID: row.ID, Name: row.Name, HomeProgrammeCode: row.HomeProgrammeCode,
+		})
+	}
+	return out, nil
+}
+
 // ModulesWithoutSubjectGroup is October's work list as a number.
 func (s *SubjectGroups) ModulesWithoutSubjectGroup(ctx context.Context) (int, error) {
 	n, err := New(s.pool).ModulesWithoutSubjectGroup(ctx)

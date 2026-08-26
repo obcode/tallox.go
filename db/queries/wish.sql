@@ -47,6 +47,13 @@ SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
     ci.track, ci.programme_semester,
     sem.code AS semester_code, sem.phase AS semester_phase,
+    -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
+    -- query renders one row per wish, and a join to instance_part would turn each of them into
+    -- one row per part to carry a single figure. Same formula as domain.CourseInstance's sum over
+    -- its Parts — a part belongs to the cohort that holds it, and a shared lecture is counted once
+    -- there, which is why no exclusion is needed here.
+    COALESCE((SELECT SUM(p.teaching_hours) FROM instance_part p
+               WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
     person.mail AS person_mail, person.name AS person_name,
@@ -87,6 +94,13 @@ SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
     ci.track, ci.programme_semester,
     sem.code AS semester_code, sem.phase AS semester_phase,
+    -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
+    -- query renders one row per wish, and a join to instance_part would turn each of them into
+    -- one row per part to carry a single figure. Same formula as domain.CourseInstance's sum over
+    -- its Parts — a part belongs to the cohort that holds it, and a shared lecture is counted once
+    -- there, which is why no exclusion is needed here.
+    COALESCE((SELECT SUM(p.teaching_hours) FROM instance_part p
+               WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
     person.mail AS person_mail, person.name AS person_name,

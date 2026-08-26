@@ -236,6 +236,7 @@ type wishRow struct {
 	ProgrammeSemester *int32
 	SemesterCode      string
 	SemesterPhase     string
+	TeachingHours     float64
 	ProgrammeID       uuid.UUID
 	ProgrammeCode     string
 	ProgrammeTitle    string
@@ -257,7 +258,10 @@ func wishFrom(row wishRow) domain.Wish {
 			Active:   true,
 		},
 		Instance: domain.CourseInstance{
-			ID:                row.CourseInstanceID,
+			ID: row.CourseInstanceID,
+			// The parts are not in this projection, so the sum comes from the query. See the
+			// field's own comment: exactly one of the two is ever the source.
+			HoursFromQuery:    &row.TeachingHours,
 			SemesterCode:      row.SemesterCode,
 			SemesterPhase:     policy.Phase(row.SemesterPhase),
 			Track:             row.Track,

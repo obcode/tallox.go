@@ -12,6 +12,13 @@ import (
 )
 
 type Querier interface {
+	// Agree to hold this event for the other programme too.
+	//
+	// Compare-and-set on the host that was asked, the same shape ReplaceAssignment takes and for the
+	// same reason: the caller is answering the request they were looking at, and if the guest's lead
+	// has since pointed somewhere else, no rows come back and the caller is told rather than silently
+	// agreeing to something else.
+	AcceptInstanceCoverage(ctx context.Context, arg AcceptInstanceCoverageParams) (int64, error)
 	// How much happened under each role, for one window.
 	//
 	// Over the EFFECTIVE roles, so a narrowed session counts under what it was narrowed to. That is
@@ -155,16 +162,32 @@ type Querier interface {
 	// sorts chronologically as text, which is what its format is for. Then the screen's own order:
 	// module, cohort, and the parts of a cohort in the order somebody arranged them.
 	AssignmentsOfSemester(ctx context.Context, arg AssignmentsOfSemesterParams) ([]AssignmentsOfSemesterRow, error)
-	// The parts of *sibling* cohorts that are held for this one as well.
+	// The parts another cohort holds for this one — within the programme, and across programmes.
 	//
-	// The other half of instance_part.serves_sibling_tracks. A lecture given once for IF3A and IF3B
-	// is one row, owned by one of them; the other has to render it, or its screen shows a cohort
-	// with laboratories and no lecture and looks like a planning mistake.
+	// TWO KINDS OF BORROWING, ONE RENDERING
 	//
-	// Siblings are the instances of the same module, in the same semester, for the same programme —
-	// which is the identity minus the parallel cohort, and exactly what course_instance_cohort_idx
-	// covers. Sharing reaches no further than that on purpose: a part shared between two programmes
-	// would belong to both, and the import/export figure would lose its denominator.
+	//   * A sibling cohort's shared lecture. IF3A holds it, IF3B borrows it. Bounded to the cohorts of
+	//     one module in one programme, exactly as it always was: from_programme_code is NULL and the
+	//     sentence the interface says names a cohort.
+	//   * The whole of another programme's instance, where this one's demand is covered by it. The
+	//     guest holds nothing at all and borrows everything, and from_programme_code names who holds
+	//     it.
+	//
+	// Neither kind moves a row. Every instance_part still belongs to exactly one instance and one
+	// programme; what this query answers is "what does this cohort attend", which is a different
+	// question from "what does this cohort cost" — and the second one is still SUM over the rows as
+	// stored. That is the property migration 8 protects, and this query does not touch it.
+	//
+	// WHY THE SECOND BRANCH REACHES ONE STEP FURTHER
+	//
+	// A guest borrows its host's own parts *and* the parts the host itself borrows from its siblings.
+	// Without that, GS covered by DE-B — where DE-A holds the joint lecture — would render
+	// laboratories and no lecture, which is the exact screen this query exists to prevent.
+	//
+	// Only accepted coverage borrows. A request that nobody has answered changes nothing about what
+	// is held, and rendering it as though it had would show teaching that does not exist yet.
+	// The host's own parts.
+	// And what the host in turn borrows from its own sibling cohorts.
 	BorrowedInstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]BorrowedInstancePartsForRow, error)
 	CatalogueProjectionNotes(ctx context.Context, projectionID uuid.UUID) ([]CatalogueProjectionNotesRow, error)
 	// Give a part back. The row count is the answer: nothing cleared means it was not there.
@@ -291,6 +314,35 @@ type Querier interface {
 	// already hold the semester as a row: looking it up again by code inside the transaction would be
 	// a second chance to disagree about which semester is meant.
 	CourseInstancesOfProgramme(ctx context.Context, arg CourseInstancesOfProgrammeParams) ([]CourseInstancesOfProgrammeRow, error)
+	// Everything the two-sided rule needs about one link, in one statement: the guest's programme and
+	// phase, the host's programme, and whether it has been agreed to.
+	//
+	// Deliberately unfiltered and reached by id, like PartWriteContext: it answers "may I act here",
+	// and a caller who may not is told so by the policy rather than by an empty row.
+	CoverageContextByInstanceID(ctx context.Context, id uuid.UUID) (CoverageContextByInstanceIDRow, error)
+	// Where these instances' coverage pointed, described by what identifies an instance rather than by
+	// id: the covering instance's programme and cohort.
+	//
+	// A copy into another semester cannot carry an id — the row it names is in the semester being
+	// copied from. What it can carry is "GS was held by DE's B cohort", which is a sentence that still
+	// means something next year, and which InstanceByIdentity below turns back into an id.
+	CoverageToCarryForward(ctx context.Context, instanceIds []uuid.UUID) ([]CoverageToCarryForwardRow, error)
+	// Whether anything's demand hangs off this instance, so a withdrawal can say so by name.
+	//
+	// Safe to count, unlike everything else that stops a withdrawal. A coverage link is a declaration
+	// of demand and the demand is not confidential — which is why INSTANCE_COVERS_OTHERS may name what
+	// is in the way where INSTANCE_IN_USE deliberately refuses to. The asymmetry is argued here rather
+	// than assumed, because a count in this file is otherwise exactly the thing that should not exist.
+	CoveredInstanceCountFor(ctx context.Context, coveredByInstanceID uuid.NullUUID) (int64, error)
+	// The other programmes' demands these instances meet — the host's side of the link.
+	//
+	// A programme lead who has agreed to hold one event for two programmes has to see the second one
+	// on their own screen, or the agreement exists only in the other programme's table.
+	//
+	// Pending and accepted both, told apart by covered_accepted_at rather than filtered here: this is
+	// the side where a request is answered, so a query that hid the unanswered ones would hide the
+	// only thing that needs doing.
+	CoveringInstancesFor(ctx context.Context, instanceIds []uuid.UUID) ([]CoveringInstancesForRow, error)
 	// People and their role grants.
 	//
 	// Every read that resolves an identity returns the roles with it, in one round trip. Two
@@ -320,6 +372,14 @@ type Querier interface {
 	// the names removed and nothing else.
 	DeleteCourseInstance(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteInstancePart(ctx context.Context, id uuid.UUID) (int64, error)
+	// Everything this cohort holds, because from now on another programme holds it.
+	//
+	// By instance rather than by kind, unlike DeleteInstancePartsOfKind above, and the difference is
+	// the difference between the two mechanisms: sharing a lecture across parallel cohorts is about
+	// one unit, while coverage is of the whole offering. What the covered cohort keeps is nothing.
+	//
+	// A part something already hangs off refuses to go, and the acceptance fails as a whole.
+	DeleteInstancePartsOfInstance(ctx context.Context, courseInstanceID uuid.UUID) (int64, error)
 	// The other half of merging a part across the parallel cohorts: the siblings' own copies of it
 	// go away, because from now on this one is held for them too.
 	//
@@ -415,6 +475,12 @@ type Querier interface {
 	// granted_at is refreshed with it. The row records the grant that is in force, and a
 	// timestamp that pointed at a superseded one would be the wrong answer to the audit question.
 	GrantRole(ctx context.Context, arg GrantRoleParams) error
+	// The instances that could cover this one: same semester, same module, another programme, and not
+	// themselves covered.
+	//
+	// The foreign key's four conditions as a list, so the picker offers exactly what the schema would
+	// accept. Anything else would be a menu with entries that fail on click.
+	HostCandidatesFor(ctx context.Context, id uuid.UUID) ([]HostCandidatesForRow, error)
 	// Declare an instance. The unique key is the identity — semester, module, programme, cohort.
 	//
 	// A conflict is reported rather than absorbed: somebody declaring IF3A twice has made a mistake
@@ -436,6 +502,9 @@ type Querier interface {
 	// office says, and about a local row it says nothing.
 	InsertLocalModule(ctx context.Context, arg InsertLocalModuleParams) (InsertLocalModuleRow, error)
 	InsertModuleComponent(ctx context.Context, arg InsertModuleComponentParams) error
+	// One instance by what identifies it, for a copy that has to find next year's counterpart of a
+	// row it only knows by last year's id.
+	InstanceByIdentity(ctx context.Context, arg InstanceByIdentityParams) (uuid.UUID, error)
 	// The parts of a set of instances, in one statement.
 	InstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]InstancePartsForRow, error)
 	// Whether a cohort already has a part of this kind, so that undoing a merge does not give it two.
@@ -576,6 +645,13 @@ type Querier interface {
 	// which is what lets the integration tests run in parallel, and it needs no magic number that
 	// somebody else could pick again for something unrelated.
 	LockAdminGrants(ctx context.Context) error
+	// Belt to the foreign key's braces. Two leads acting in opposite directions at the same moment is
+	// write skew, both checks individually correct; the key would refuse the result anyway, and this
+	// is what makes the refusal a refusal rather than a serialisation error somebody has to read.
+	//
+	// Callers lock in id order. Locking them in the order the request names them is how two
+	// simultaneous handshakes between the same pair deadlock.
+	LockInstanceForCoverage(ctx context.Context, id uuid.UUID) (LockInstanceForCoverageRow, error)
 	// The codes ProjectProgrammes had to leave out, so the report can name them.
 	MalformedProgrammeCodes(ctx context.Context) ([]string, error)
 	// Make this semester the one being planned.
@@ -813,6 +889,12 @@ type Querier interface {
 	RecordCatalogueProjectionNote(ctx context.Context, arg RecordCatalogueProjectionNoteParams) error
 	RecordZPAChange(ctx context.Context, arg RecordZPAChangeParams) error
 	RecordZPASyncRunKind(ctx context.Context, arg RecordZPASyncRunKindParams) error
+	// End it: a request declined, a request withdrawn, or an agreement revised.
+	//
+	// All seven columns at once, which the all-or-nothing CHECK makes the only way to clear any of
+	// them. One statement for all three cases because they are one state — the demand is simply not
+	// covered — and three statements would be three places to get the permission wrong.
+	ReleaseInstanceCoverage(ctx context.Context, id uuid.UUID) (int64, error)
 	// The name only. The code is the address — it is in URLs and in colleagues' scripts — and
 	// changing it is not a rename but a different group.
 	RenameSubjectGroup(ctx context.Context, arg RenameSubjectGroupParams) (RenameSubjectGroupRow, error)
@@ -831,6 +913,16 @@ type Querier interface {
 	// is being replaced is one statement about a module, not a set of independent rows. Inside a
 	// transaction, so nobody reads the empty moment in between.
 	ReplaceModuleComponents(ctx context.Context, moduleID uuid.UUID) error
+	// Ask that this instance's demand be met by another programme's event.
+	//
+	// Every invariant about the host — same semester, same module, another programme, not itself
+	// covered — is the composite foreign key's answer, so this statement carries none of them and
+	// cannot come to disagree with the schema about any of them. The host's programme is read from
+	// the host rather than passed in, for the same reason.
+	//
+	// Guarded on there being no link yet: changing where a request points is releasing and asking
+	// again, which is two decisions and reads as two.
+	RequestInstanceCoverage(ctx context.Context, arg RequestInstanceCoverageParams) (int64, error)
 	// Mark everything of one kind that a successful fetch did not mention.
 	//
 	// Only ever called after a fetch that succeeded and returned something — the client refuses an

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const deleteOwnWish = `-- name: DeleteOwnWish :execrows
@@ -35,38 +34,6 @@ func (q *Queries) DeleteOwnWish(ctx context.Context, arg DeleteOwnWishParams) (i
 		return 0, err
 	}
 	return result.RowsAffected(), nil
-}
-
-const semesterOfCourseInstance = `-- name: SemesterOfCourseInstance :one
-SELECT s.id, s.code, s.phase, s.wishes_published_at
-FROM course_instance ci
-JOIN semester s ON s.id = ci.semester_id
-WHERE ci.id = $1
-`
-
-type SemesterOfCourseInstanceRow struct {
-	ID                uuid.UUID
-	Code              string
-	Phase             string
-	WishesPublishedAt pgtype.Timestamptz
-}
-
-// Which semester an instance belongs to, and whether it is still there.
-//
-// Needed before a write: the phase that decides whether wishes may be entered is the *semester's*
-// phase, and the instance is all the caller names. One statement rather than two round trips, and
-// an empty result is the answer to both questions at once — an instance that has been withdrawn
-// has no semester to ask about.
-func (q *Queries) SemesterOfCourseInstance(ctx context.Context, id uuid.UUID) (SemesterOfCourseInstanceRow, error) {
-	row := q.db.QueryRow(ctx, semesterOfCourseInstance, id)
-	var i SemesterOfCourseInstanceRow
-	err := row.Scan(
-		&i.ID,
-		&i.Code,
-		&i.Phase,
-		&i.WishesPublishedAt,
-	)
-	return i, err
 }
 
 const upsertWish = `-- name: UpsertWish :one

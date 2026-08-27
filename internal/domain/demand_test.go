@@ -382,7 +382,7 @@ func TestARefusedDeclarationRecordsNothing(t *testing.T) {
 }
 
 // The decision from the faculty, at the level where it is enforced.
-func TestDemandCanBeDeclaredInEveryPhase(t *testing.T) {
+func TestDemandCanBeDeclaredUntilTheSemesterIsFinished(t *testing.T) {
 	t.Parallel()
 
 	for _, phase := range policy.AllPhases() {
@@ -390,9 +390,22 @@ func TestDemandCanBeDeclaredInEveryPhase(t *testing.T) {
 			t.Parallel()
 
 			f := newDemandService(t, phase)
-			if _, err := f.service.Declare(t.Context(),
-				lead(principal.KindInteractive, demandProgramme), declaration()); err != nil {
-				t.Errorf("declaring in %s gave %v — a late instance is a correction", phase, err)
+			_, err := f.service.Declare(t.Context(),
+				lead(principal.KindInteractive, demandProgramme), declaration())
+
+			if phase == policy.PhaseFinal {
+				// Closed since 2026-08-28, and it is the one cell in the whole matrix that is.
+				// A finished semester is the record of what the faculty did; letting the demand
+				// alone survive the close would make FINAL mean two things depending on which
+				// screen somebody is looking at.
+				if !errors.Is(err, domain.ErrPhaseClosed) {
+					t.Errorf("declaring in %s gave %v, want ErrPhaseClosed", phase, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("declaring in %s gave %v — a late instance is a correction, and a "+
+					"refused correction happens outside the tool instead", phase, err)
 			}
 		})
 	}

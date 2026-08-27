@@ -59,6 +59,13 @@ type Querier interface {
 	// would write ASSIGNMENT over the first one's WISHES — a skipped phase, arrived at by nobody's
 	// decision, and invisible afterwards because the row looks like somebody chose it.
 	AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterPhaseParams) (Semester, error)
+	// Announce, or re-announce after adding something.
+	//
+	// ON CONFLICT DO UPDATE and not DO NOTHING: re-announcing is the ordinary act after a late
+	// instance, and what it moves is the timestamp — a reader wants to know how fresh the statement
+	// is, not when it was first made. That is the opposite of the publication marks, which keep their
+	// first timestamp because they record an irreversible event.
+	AnnounceDemandComplete(ctx context.Context, arg AnnounceDemandCompleteParams) (DemandCompletion, error)
 	// A batch, because the task this exists for is assigning 506 modules and a screen that saves one
 	// row per click is a task nobody finishes.
 	//
@@ -335,6 +342,22 @@ type Querier interface {
 	// row and gains retired_at; a programme keeps its row and loses `active`; an offering is a
 	// claim about somebody else's regulations, and when they stop making it the claim goes.
 	DeleteStaleModuleOfferings(ctx context.Context) (int64, error)
+	// What opens and closes the planning, at the grain the planning actually happens in.
+	//
+	// Named marks and not windows, and that is not a matter of taste: sqlc names the generated file
+	// after this one, and Go reads `planning_windows.sql.go` as a file that only builds on Windows —
+	// the GOOS suffix is matched before the `.sql.go` extension is stripped. The package compiled,
+	// the queries were simply absent, and the error pointed at querier.go.
+	//
+	// Two tables, two shapes, and the difference is the point (see migration 18):
+	// demand_completion is an announcement that blocks nothing, wish_window is a door.
+	//
+	// Neither is filtered by a visibility rule. Both are facts about the *process* rather than about
+	// people: which programmes have settled their demand and which subjects are taking entries is
+	// exactly what a colleague needs to know to do their part, and hiding it would produce a tool
+	// that refuses writes without saying why.
+	// Which study programmes have announced their demand as settled, for one semester.
+	DemandCompletionsOfSemester(ctx context.Context, semester string) ([]DemandCompletionsOfSemesterRow, error)
 	// Get this mail address a person row, creating one if there is none.
 	//
 	// The reconciliation of the protected administrators runs through here on every start, so it
@@ -655,6 +678,8 @@ type Querier interface {
 	// question — that is the record of what the faculty did — and the refusal to *write* one belongs
 	// where the write is, with a sentence that says which of the two reasons applies.
 	ProgrammeByCode(ctx context.Context, code string) (ProgrammeByCodeRow, error)
+	// The id behind a code somebody named. For the permission check, which asks about ids.
+	ProgrammeIDByCode(ctx context.Context, code string) (uuid.UUID, error)
 	// Which study programmes a set of people lead.
 	//
 	// For a list of people in one statement rather than one per row, the same shape the catalogue
@@ -844,13 +869,6 @@ type Querier interface {
 	// as an interface, and MIN over no rows is NULL, which is exactly the case this seeds for.
 	SeedProgrammeSemester(ctx context.Context, arg SeedProgrammeSemesterParams) (int32, error)
 	SemesterByCode(ctx context.Context, code string) (Semester, error)
-	// Which semester an instance belongs to, and whether it is still there.
-	//
-	// Needed before a write: the phase that decides whether wishes may be entered is the *semester's*
-	// phase, and the instance is all the caller names. One statement rather than two round trips, and
-	// an empty result is the answer to both questions at once — an instance that has been withdrawn
-	// has no semester to ask about.
-	SemesterOfCourseInstance(ctx context.Context, id uuid.UUID) (SemesterOfCourseInstanceRow, error)
 	// The recorded ones — the semesters somebody has decided something about. The ones nobody has
 	// touched are not here to be listed, and the domain adds them from the calendar.
 	//
@@ -882,6 +900,12 @@ type Querier interface {
 	// updated_at stays put when nothing changed, so retiring a group that is already retired does not
 	// make the row look edited.
 	SetSubjectGroupActive(ctx context.Context, arg SetSubjectGroupActiveParams) (SetSubjectGroupActiveRow, error)
+	// Open or shut one subject group's wish round.
+	//
+	// Upsert, and the row is kept when it is opened again rather than deleted. Unlike the
+	// announcement above, the two states are not the same: a window that was shut and reopened means
+	// somebody took two decisions, and the second one is worth being able to see.
+	SetWishWindow(ctx context.Context, arg SetWishWindowParams) (WishWindow, error)
 	// The other parallel cohorts of one instance's module, in the same semester and programme.
 	SiblingInstanceIDs(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error)
 	// The projection's own bookkeeping
@@ -1016,6 +1040,25 @@ type Querier interface {
 	// does not have — and the realistic shape of that mistake is somebody adding a by-id lookup
 	// because "it is only one row".
 	WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow, error)
+	// The subject groups somebody has decided something about, for one semester.
+	//
+	// Only those: an absent row means open, so this list is the exceptions and not the state of every
+	// group. A caller that wants the state of one group asks for it and reads "open" when it is not
+	// here, which is what domain.WishWindowsBySubjectGroup does.
+	WishWindowsOfSemester(ctx context.Context, semester string) ([]WishWindowsOfSemesterRow, error)
+	// Everything the wish write rule needs about one instance, in one statement.
+	//
+	// The semester decides whether anything may be written at all, and the wish window of the
+	// module's subject group decides whether *this* subject is taking entries. Reading them
+	// separately would be two round trips and two chances to decide against a state that has moved.
+	//
+	// COALESCE(ww.open, true) is the fail-open default written where it is read: a module in no
+	// subject group has no window, and a subject group nobody has decided anything about has no row.
+	// Both are open, which is the rule — closing is the intervention. See migration 18 for why this
+	// one direction is the opposite of every other default in the schema.
+	WishWriteContext(ctx context.Context, instanceID uuid.UUID) (WishWriteContextRow, error)
+	// The same, reached from a wish rather than from an instance. For withdrawing one.
+	WishWriteContextByWishID(ctx context.Context, id uuid.UUID) (WishWriteContextByWishIDRow, error)
 	// Wishes: one person's interest in one course instance.
 	//
 	// THE RULE THIS FILE IS MADE OF
@@ -1062,6 +1105,10 @@ type Querier interface {
 	// The semester first, because the list across all of them is grouped by it — and because the
 	// code sorts chronologically as text, which is what its format is for.
 	WishesOfSemester(ctx context.Context, arg WishesOfSemesterParams) ([]WishesOfSemesterRow, error)
+	// Take the announcement back. Deleting the row rather than a flag: "never announced" and
+	// "announced, then withdrawn" are the same state — the demand is not settled — and a table that
+	// kept the difference would be keeping something nobody reads.
+	WithdrawDemandComplete(ctx context.Context, arg WithdrawDemandCompleteParams) (int64, error)
 	ZPAChangesByRun(ctx context.Context, runID uuid.UUID) ([]ZPAChangesByRunRow, error)
 	ZPAObjectPayload(ctx context.Context, arg ZPAObjectPayloadParams) (ZPAObjectPayloadRow, error)
 	// What is currently held for one kind: enough to decide the diff without reading the payloads.

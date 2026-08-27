@@ -5,6 +5,7 @@ import (
 
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/policy"
 )
 
 // The wish area, on the way out and on the way back.
@@ -59,6 +60,11 @@ func wishError(err error) error {
 		return err
 	case errors.Is(err, domain.ErrWishPhaseClosed):
 		return refusal("WISH_PHASE_CLOSED", err.Error())
+	case errors.Is(err, domain.ErrWishWindowClosed):
+		// Its own code and not WISH_PHASE_CLOSED, because the repair is a different person: a shut
+		// window is one switch held by this subject group's lead, a finished semester is the end
+		// of the process and nobody's to reopen.
+		return refusal("WISH_WINDOW_CLOSED", policy.WishWindowClosedReason)
 	case errors.Is(err, domain.ErrWishNotFound):
 		return refusal("WISH_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrWishNoteTooLong):

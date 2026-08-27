@@ -196,26 +196,24 @@ func (w *Wishes) WithdrawWish(ctx context.Context, id, personID uuid.UUID) error
 	return nil
 }
 
-// SemesterOfInstance is which semester an instance belongs to, for the phase rule.
-func (w *Wishes) SemesterOfInstance(ctx context.Context,
-	instanceID uuid.UUID) (*domain.Semester, error) {
-	row, err := New(w.pool).SemesterOfCourseInstance(ctx, instanceID)
+// WishWriteContext is what the write rule needs about an instance: its semester, and whether the
+// subject group of its module is taking entries.
+//
+// One statement for both halves. They used to be one — the semester alone — and the window arrived
+// on 2026-08-28 as the thing that actually ends a wish round; reading them apart would be two
+// round trips and two chances to decide against a state that has since moved.
+func (w *Wishes) WishWriteContext(ctx context.Context,
+	instanceID uuid.UUID) (domain.WishWriteContext, error) {
+	row, err := New(w.pool).WishWriteContext(ctx, instanceID)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
+		// The zero value answers Found() false. Not an error: an instance withdrawn between two
+		// clicks is ordinary, and the service turns it into a refusal.
+		return domain.WishWriteContext{}, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("cannot read the semester of the instance: %w", err)
+		return domain.WishWriteContext{}, fmt.Errorf("cannot read the instance's context: %w", err)
 	}
-
-	semester := domain.Semester{
-		ID:    row.ID,
-		Code:  row.Code,
-		Phase: policy.Phase(row.Phase),
-	}
-	if row.WishesPublishedAt.Valid {
-		semester.WishesPublishedAt = row.WishesPublishedAt.Time
-	}
-	return &semester, nil
+	return wishWriteContextFrom(row), nil
 }
 
 // wishRow is the shape both wish queries produce.

@@ -241,8 +241,17 @@ type BorrowedPart struct {
 	// The cohort that owns the row — the A in "held together with IF3A".
 	//
 	// Empty is possible and means the sibling has no letter, which happens while somebody is in the
-	// middle of splitting a single cohort into two.
+	// middle of splitting a single cohort into two. Where `fromProgramme` is set, this is that
+	// programme's cohort letter rather than one of this instance's siblings.
 	FromTrack string `json:"fromTrack"`
+	// The study programme that holds it, where that is another one — and `null` where it is this
+	// cohort's own, which is the sibling-cohort case and the ordinary one.
+	//
+	// Set when this instance's demand is covered by another programme's event: the covered cohort
+	// holds nothing at all and attends everything the holding cohort holds. Both kinds are one list
+	// because a cohort attending teaching it does not own is one fact, and a second list would be a
+	// second way to look like a planning mistake.
+	FromProgramme *Programme `json:"fromProgramme,omitempty"`
 }
 
 // One unit of a split nobody has stated yet.
@@ -277,6 +286,18 @@ type CopyDemandReport struct {
 	Skipped int `json:"skipped"`
 	// How many parts came with the new instances.
 	PartsCreated int `json:"partsCreated"`
+	// How many copied cohorts asked again to be covered by another study programme's event.
+	//
+	// Asked, never agreed: the other programme's lead agreed about *that* semester, and an agreement
+	// carried forward automatically would be a decision nobody made. The request is carried because
+	// dropping it would leave a cohort whose teaching silently reappeared.
+	CoverageRequested int `json:"coverageRequested"`
+	// How many copied cohorts were covered in the source semester and found nothing to ask in the
+	// target, because the holding programme has not declared the module there yet.
+	//
+	// They arrive with **no parts at all**, which is why this is counted rather than left silent.
+	// Building parts from the module's split instead would invent teaching at the press of a button.
+	CoverageNotPossible int `json:"coverageNotPossible"`
 	// The demand of the target semester afterwards — the whole list, not only the new rows.
 	//
 	// So that a screen can render the result of the copy from the answer to the copy, rather than
@@ -341,6 +362,9 @@ type CourseInstance struct {
 	// Made from the module's split when the instance is declared — one part per unit — and edited
 	// afterwards. The number of laboratory *groups* is a planning decision and lives here, not in the
 	// module: a two-hour laboratory in the split is one entry however many groups a cohort runs.
+	//
+	// Empty where `coveredBy` is accepted: another programme holds this cohort's teaching, and what it
+	// attends is in `borrowedParts` instead.
 	Parts []*InstancePart `json:"parts"`
 	// Parts of a sibling cohort that are held for this one as well.
 	//
@@ -351,6 +375,18 @@ type CourseInstance struct {
 	// Never counted in `teachingHours`: the point of holding a lecture once is that it costs the
 	// faculty once.
 	BorrowedParts []*BorrowedPart `json:"borrowedParts"`
+	// The other study programme's instance that holds this one's teaching, or `null` — which is the
+	// ordinary case.
+	//
+	// Once `acceptedAt` is set this cohort holds no parts of its own: `parts` is empty, everything it
+	// attends is in `borrowedParts`, and `teachingHours` is `0`. That zero is the point rather than a
+	// gap — the event is held once and costs the faculty once, at the programme that holds it.
+	CoveredBy *InstanceCoverage `json:"coveredBy,omitempty"`
+	// The other study programmes' demands this instance meets, asked and agreed.
+	//
+	// A request nobody has answered appears here with `acceptedAt: null`. This is the side where it is
+	// answered, so leaving it out would hide the only thing that needs doing.
+	Covers []*InstanceCoverage `json:"covers"`
 	// What this instance costs the faculty: the sum over the parts it holds.
 	//
 	// **Not the module's own `contactHoursPerWeek`**, which is what a student attends. A four-hour
@@ -360,6 +396,10 @@ type CourseInstance struct {
 	// A part whose hours nobody has stated yet contributes nothing rather than making the sum
 	// unanswerable: an instance can be declared before the detail is settled, which is what a demand
 	// deadline that comes before the detail requires.
+	//
+	// `0` for a cohort whose demand is covered by another programme, and that is a statement rather
+	// than a gap: it holds no teaching, so it costs nothing, and the event it attends is counted once
+	// at the programme that holds it.
 	TeachingHours float64 `json:"teachingHours"`
 	// When this instance was declared.
 	CreatedAt time.Time `json:"createdAt"`
@@ -501,6 +541,33 @@ type DemandTrackInput struct {
 	// rather than being an error: a screen that sends the same number for every row must not fail on
 	// the one it cannot apply to.
 	Groups int `json:"groups"`
+}
+
+// One study programme's demand met by another study programme's event.
+//
+// The case the faculty describes as "echter Bedarf in DE, und in GS eine Art Import": both
+// programmes need the module and it is held **once**. Both declarations stand — the difference
+// between them is what the import/export figures are about — but only one of them holds the
+// teaching, and only that one has parts.
+//
+// Both sides agree to it. The lead of the programme whose demand is covered asks; the lead of the
+// programme that holds the event accepts. Each half is an ordinary demand write against that lead's
+// own programme, so neither needs anything in the other's — which is what makes it usable between
+// two leads who cannot reach each other's demand at all.
+type InstanceCoverage struct {
+	// The instance on the other side: the one that holds the event, read from the cohort whose demand
+	// it meets — or that cohort, read from the holder.
+	//
+	// One level deep: the instance here carries no coverage of its own, and cannot, because an
+	// instance that is covered may not also cover somebody.
+	Instance *CourseInstance `json:"instance"`
+	// When the covered programme's lead asked.
+	RequestedAt time.Time `json:"requestedAt"`
+	// When the holding programme's lead agreed, or `null` while nobody has.
+	//
+	// Until it is set nothing is borrowed and nothing was removed: asking changes nothing, which is
+	// the whole of the two-sided handshake.
+	AcceptedAt *time.Time `json:"acceptedAt,omitempty"`
 }
 
 // One assignable unit of an instance: a lecture, a laboratory group, a seminar.

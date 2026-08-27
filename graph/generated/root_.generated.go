@@ -114,8 +114,9 @@ type ComplexityRoot struct {
 	}
 
 	BorrowedPart struct {
-		FromTrack func(childComplexity int) int
-		Part      func(childComplexity int) int
+		FromProgramme func(childComplexity int) int
+		FromTrack     func(childComplexity int) int
+		Part          func(childComplexity int) int
 	}
 
 	BuildInfo struct {
@@ -130,17 +131,21 @@ type ComplexityRoot struct {
 	}
 
 	CopyDemandReport struct {
-		Created      func(childComplexity int) int
-		From         func(childComplexity int) int
-		Instances    func(childComplexity int) int
-		PartsCreated func(childComplexity int) int
-		Programme    func(childComplexity int) int
-		Skipped      func(childComplexity int) int
-		To           func(childComplexity int) int
+		CoverageNotPossible func(childComplexity int) int
+		CoverageRequested   func(childComplexity int) int
+		Created             func(childComplexity int) int
+		From                func(childComplexity int) int
+		Instances           func(childComplexity int) int
+		PartsCreated        func(childComplexity int) int
+		Programme           func(childComplexity int) int
+		Skipped             func(childComplexity int) int
+		To                  func(childComplexity int) int
 	}
 
 	CourseInstance struct {
 		BorrowedParts     func(childComplexity int) int
+		CoveredBy         func(childComplexity int) int
+		Covers            func(childComplexity int) int
 		CreatedAt         func(childComplexity int) int
 		ID                func(childComplexity int) int
 		Module            func(childComplexity int) int
@@ -189,6 +194,12 @@ type ComplexityRoot struct {
 		ModuleID   func(childComplexity int) int
 		ModuleName func(childComplexity int) int
 		Track      func(childComplexity int) int
+	}
+
+	InstanceCoverage struct {
+		AcceptedAt  func(childComplexity int) int
+		Instance    func(childComplexity int) int
+		RequestedAt func(childComplexity int) int
 	}
 
 	InstancePart struct {
@@ -249,6 +260,7 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
+		AcceptInstanceCoverage        func(childComplexity int, id string) int
 		AddInstancePart               func(childComplexity int, instanceID string, kind domain.InstancePartKind, teachingHours *float64) int
 		AdvanceSemesterPhase          func(childComplexity int, code string, to policy.Phase) int
 		ChangeCourseInstance          func(childComplexity int, id string, track string, programmeSemester *int) int
@@ -266,9 +278,11 @@ type ComplexityRoot struct {
 		ProjectZpaCatalogue           func(childComplexity int) int
 		PublishAssignments            func(childComplexity int, code string) int
 		PublishWishes                 func(childComplexity int, code string) int
+		ReleaseInstanceCoverage       func(childComplexity int, id string) int
 		RemoveInstancePart            func(childComplexity int, id string) int
 		RenamePerson                  func(childComplexity int, id string, name string) int
 		RenameSubjectGroup            func(childComplexity int, id string, name string) int
+		RequestInstanceCoverage       func(childComplexity int, id string, coveredBy string) int
 		RevokePersonalAccessToken     func(childComplexity int, id string) int
 		SetAssignment                 func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
 		SetDemandComplete             func(childComplexity int, semester string, programme string, complete bool) int
@@ -863,6 +877,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Assignment.UpdatedAt(childComplexity), true
 
+	case "BorrowedPart.fromProgramme":
+		if e.ComplexityRoot.BorrowedPart.FromProgramme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BorrowedPart.FromProgramme(childComplexity), true
 	case "BorrowedPart.fromTrack":
 		if e.ComplexityRoot.BorrowedPart.FromTrack == nil {
 			break
@@ -908,6 +928,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ComponentProposal.TeachingHours(childComplexity), true
 
+	case "CopyDemandReport.coverageNotPossible":
+		if e.ComplexityRoot.CopyDemandReport.CoverageNotPossible == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CopyDemandReport.CoverageNotPossible(childComplexity), true
+	case "CopyDemandReport.coverageRequested":
+		if e.ComplexityRoot.CopyDemandReport.CoverageRequested == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CopyDemandReport.CoverageRequested(childComplexity), true
 	case "CopyDemandReport.created":
 		if e.ComplexityRoot.CopyDemandReport.Created == nil {
 			break
@@ -957,6 +989,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CourseInstance.BorrowedParts(childComplexity), true
+	case "CourseInstance.coveredBy":
+		if e.ComplexityRoot.CourseInstance.CoveredBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.CoveredBy(childComplexity), true
+	case "CourseInstance.covers":
+		if e.ComplexityRoot.CourseInstance.Covers == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.Covers(childComplexity), true
 	case "CourseInstance.createdAt":
 		if e.ComplexityRoot.CourseInstance.CreatedAt == nil {
 			break
@@ -1160,6 +1204,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DemandRefusal.Track(childComplexity), true
+
+	case "InstanceCoverage.acceptedAt":
+		if e.ComplexityRoot.InstanceCoverage.AcceptedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InstanceCoverage.AcceptedAt(childComplexity), true
+	case "InstanceCoverage.instance":
+		if e.ComplexityRoot.InstanceCoverage.Instance == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InstanceCoverage.Instance(childComplexity), true
+	case "InstanceCoverage.requestedAt":
+		if e.ComplexityRoot.InstanceCoverage.RequestedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InstanceCoverage.RequestedAt(childComplexity), true
 
 	case "InstancePart.id":
 		if e.ComplexityRoot.InstancePart.ID == nil {
@@ -1433,6 +1496,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ModuleRef.Name(childComplexity), true
 
+	case "Mutation.acceptInstanceCoverage":
+		if e.ComplexityRoot.Mutation.AcceptInstanceCoverage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_acceptInstanceCoverage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.AcceptInstanceCoverage(childComplexity, args["id"].(string)), true
 	case "Mutation.addInstancePart":
 		if e.ComplexityRoot.Mutation.AddInstancePart == nil {
 			break
@@ -1615,6 +1689,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.PublishWishes(childComplexity, args["code"].(string)), true
+	case "Mutation.releaseInstanceCoverage":
+		if e.ComplexityRoot.Mutation.ReleaseInstanceCoverage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_releaseInstanceCoverage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ReleaseInstanceCoverage(childComplexity, args["id"].(string)), true
 	case "Mutation.removeInstancePart":
 		if e.ComplexityRoot.Mutation.RemoveInstancePart == nil {
 			break
@@ -1648,6 +1733,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RenameSubjectGroup(childComplexity, args["id"].(string), args["name"].(string)), true
+	case "Mutation.requestInstanceCoverage":
+		if e.ComplexityRoot.Mutation.RequestInstanceCoverage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_requestInstanceCoverage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RequestInstanceCoverage(childComplexity, args["id"].(string), args["coveredBy"].(string)), true
 	case "Mutation.revokePersonalAccessToken":
 		if e.ComplexityRoot.Mutation.RevokePersonalAccessToken == nil {
 			break
@@ -4778,6 +4874,9 @@ type CourseInstance {
   Made from the module's split when the instance is declared — one part per unit — and edited
   afterwards. The number of laboratory *groups* is a planning decision and lives here, not in the
   module: a two-hour laboratory in the split is one entry however many groups a cohort runs.
+
+  Empty where ` + "`" + `coveredBy` + "`" + ` is accepted: another programme holds this cohort's teaching, and what it
+  attends is in ` + "`" + `borrowedParts` + "`" + ` instead.
   """
   parts: [InstancePart!]!
   """
@@ -4792,6 +4891,22 @@ type CourseInstance {
   """
   borrowedParts: [BorrowedPart!]!
   """
+  The other study programme's instance that holds this one's teaching, or ` + "`" + `null` + "`" + ` — which is the
+  ordinary case.
+
+  Once ` + "`" + `acceptedAt` + "`" + ` is set this cohort holds no parts of its own: ` + "`" + `parts` + "`" + ` is empty, everything it
+  attends is in ` + "`" + `borrowedParts` + "`" + `, and ` + "`" + `teachingHours` + "`" + ` is ` + "`" + `0` + "`" + `. That zero is the point rather than a
+  gap — the event is held once and costs the faculty once, at the programme that holds it.
+  """
+  coveredBy: InstanceCoverage
+  """
+  The other study programmes' demands this instance meets, asked and agreed.
+
+  A request nobody has answered appears here with ` + "`" + `acceptedAt: null` + "`" + `. This is the side where it is
+  answered, so leaving it out would hide the only thing that needs doing.
+  """
+  covers: [InstanceCoverage!]!
+  """
   What this instance costs the faculty: the sum over the parts it holds.
 
   **Not the module's own ` + "`" + `contactHoursPerWeek` + "`" + `**, which is what a student attends. A four-hour
@@ -4801,6 +4916,10 @@ type CourseInstance {
   A part whose hours nobody has stated yet contributes nothing rather than making the sum
   unanswerable: an instance can be declared before the detail is settled, which is what a demand
   deadline that comes before the detail requires.
+
+  ` + "`" + `0` + "`" + ` for a cohort whose demand is covered by another programme, and that is a statement rather
+  than a gap: it holds no teaching, so it costs nothing, and the event it attends is counted once
+  at the programme that holds it.
   """
   teachingHours: Float!
   "When this instance was declared."
@@ -4849,9 +4968,53 @@ type BorrowedPart {
   The cohort that owns the row — the A in "held together with IF3A".
 
   Empty is possible and means the sibling has no letter, which happens while somebody is in the
-  middle of splitting a single cohort into two.
+  middle of splitting a single cohort into two. Where ` + "`" + `fromProgramme` + "`" + ` is set, this is that
+  programme's cohort letter rather than one of this instance's siblings.
   """
   fromTrack: String!
+  """
+  The study programme that holds it, where that is another one — and ` + "`" + `null` + "`" + ` where it is this
+  cohort's own, which is the sibling-cohort case and the ordinary one.
+
+  Set when this instance's demand is covered by another programme's event: the covered cohort
+  holds nothing at all and attends everything the holding cohort holds. Both kinds are one list
+  because a cohort attending teaching it does not own is one fact, and a second list would be a
+  second way to look like a planning mistake.
+  """
+  fromProgramme: Programme
+}
+
+"""
+One study programme's demand met by another study programme's event.
+
+The case the faculty describes as "echter Bedarf in DE, und in GS eine Art Import": both
+programmes need the module and it is held **once**. Both declarations stand — the difference
+between them is what the import/export figures are about — but only one of them holds the
+teaching, and only that one has parts.
+
+Both sides agree to it. The lead of the programme whose demand is covered asks; the lead of the
+programme that holds the event accepts. Each half is an ordinary demand write against that lead's
+own programme, so neither needs anything in the other's — which is what makes it usable between
+two leads who cannot reach each other's demand at all.
+"""
+type InstanceCoverage {
+  """
+  The instance on the other side: the one that holds the event, read from the cohort whose demand
+  it meets — or that cohort, read from the holder.
+
+  One level deep: the instance here carries no coverage of its own, and cannot, because an
+  instance that is covered may not also cover somebody.
+  """
+  instance: CourseInstance!
+  "When the covered programme's lead asked."
+  requestedAt: Time!
+  """
+  When the holding programme's lead agreed, or ` + "`" + `null` + "`" + ` while nobody has.
+
+  Until it is set nothing is borrowed and nothing was removed: asking changes nothing, which is
+  the whole of the two-sided handshake.
+  """
+  acceptedAt: Time
 }
 
 """
@@ -4879,6 +5042,22 @@ type CopyDemandReport {
   skipped: Int!
   "How many parts came with the new instances."
   partsCreated: Int!
+  """
+  How many copied cohorts asked again to be covered by another study programme's event.
+
+  Asked, never agreed: the other programme's lead agreed about *that* semester, and an agreement
+  carried forward automatically would be a decision nobody made. The request is carried because
+  dropping it would leave a cohort whose teaching silently reappeared.
+  """
+  coverageRequested: Int!
+  """
+  How many copied cohorts were covered in the source semester and found nothing to ask in the
+  target, because the holding programme has not declared the module there yet.
+
+  They arrive with **no parts at all**, which is why this is counted rather than left silent.
+  Building parts from the module's split instead would invent teaching at the press of a button.
+  """
+  coverageNotPossible: Int!
   """
   The demand of the target semester afterwards — the whole list, not only the new rows.
 
@@ -5206,6 +5385,67 @@ extend type Mutation {
   splitInstancePartAcrossTracks(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
+  Ask that this instance's demand be met by another study programme's event.
+
+  The case: two programmes need the same module and hold it **once**, together. Both declarations
+  stay — the difference between them is what the import/export figures are about — but only the
+  holding one has parts, so the event costs the faculty once.
+
+  Nothing happens until the other programme's lead agrees. Asking is a statement about your own
+  declaration and changes nothing about the instance you name, which is why you may name one whose
+  demand you could not write yourself.
+
+  The covering instance must be the same module in the same semester, in another programme, and
+  not itself covered: ` + "`" + `COVERAGE_MODULE_MISMATCH` + "`" + `, ` + "`" + `COVERAGE_SAME_PROGRAMME` + "`" + ` — for which the
+  shared lecture across parallel cohorts is the right tool — and ` + "`" + `COVERAGE_WOULD_CHAIN` + "`" + `. Asking
+  while a link already stands is ` + "`" + `COVERAGE_ALREADY_SET` + "`" + `; pointing a request somewhere else is
+  ending it and asking again, which is two decisions.
+  """
+  requestInstanceCoverage(
+    "Your instance, whose demand is met elsewhere."
+    id: ID!
+    "The other programme's instance that holds the event."
+    coveredBy: ID!
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Agree to hold this event for the asking study programme as well.
+
+  For the lead of the programme that **holds** the event, not the one that asked: agreeing is a
+  statement about your own teaching. The asking cohort's own parts are removed in the same act — a
+  database in which only the agreement was written counts one event twice.
+
+  Refused with ` + "`" + `PART_ASSIGNED` + "`" + ` when one of the parts that would go is already filled, and then
+  nothing at all has happened: the agreement is not written either. Refused with
+  ` + "`" + `COVERAGE_NOT_REQUESTED` + "`" + ` where nobody asked, or where the asking lead has since pointed
+  somewhere else, and with ` + "`" + `COVERAGE_ALREADY_ACCEPTED` + "`" + ` where this is already agreed.
+
+  Wishes registered for the asking cohort are untouched. Somebody's interest in teaching the
+  module for their own programme does not stop being true because the event is now held jointly,
+  and where it is decided — filling the holding cohort's part — is where both programmes' wishes
+  are read together.
+  """
+  acceptInstanceCoverage(
+    "The asking instance — the one whose demand you are agreeing to meet."
+    id: ID!
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  End it: a request withdrawn, a request declined, or an agreement revised.
+
+  Either lead may — the asking programme because it is their demand, the holding one because it is
+  their teaching. One mutation for all three because they are one state: the demand is simply not
+  covered any more.
+
+  Where it had been agreed, the asking cohort gets its teaching back, built from the module's
+  split. What does not come back is the number of laboratory **groups**: the split states one unit
+  per kind, and the multiplicity was a planning decision that went with the parts.
+
+  ` + "`" + `COVERAGE_NOT_REQUESTED` + "`" + ` where there is nothing to end.
+  """
+  releaseInstanceCoverage(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
   Declare in one semester what the same programme declared in another.
 
   What it carries over is the previous semester's *instances and their parts*, not the modules'
@@ -5350,6 +5590,13 @@ enum ScopeArea {
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
+
+  # The coverage handshake is here and is @interactiveOnly for the same reason setAssignment is:
+  # agreeing can answer ` + "`" + `PART_ASSIGNED` + "`" + `, which says a part of the asking cohort is already filled.
+  # Interactively that reveals nothing to somebody who may already read that programme's
+  # assignments; through a token it would.
+
+  ` + "`" + `requestInstanceCoverage` + "`" + `, ` + "`" + `acceptInstanceCoverage` + "`" + `, ` + "`" + `releaseInstanceCoverage` + "`" + `,
   ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `,
   ` + "`" + `demandCompletions` + "`" + `, ` + "`" + `wishWindows` + "`" + `, ` + "`" + `setDemandComplete` + "`" + `, ` + "`" + `setWishWindow` + "`" + `,
   ` + "`" + `subjectGroups` + "`" + `, ` + "`" + `subjectGroup` + "`" + `, ` + "`" + `mySubjectGroups` + "`" + `, ` + "`" + `modulesWithoutSubjectGroup` + "`" + `,
@@ -7149,6 +7396,8 @@ func (ec *executionContext) childFields_BorrowedPart(ctx context.Context, field 
 		return ec.fieldContext_BorrowedPart_part(ctx, field)
 	case "fromTrack":
 		return ec.fieldContext_BorrowedPart_fromTrack(ctx, field)
+	case "fromProgramme":
+		return ec.fieldContext_BorrowedPart_fromProgramme(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type BorrowedPart", field.Name)
 }
@@ -7189,6 +7438,10 @@ func (ec *executionContext) childFields_CopyDemandReport(ctx context.Context, fi
 		return ec.fieldContext_CopyDemandReport_skipped(ctx, field)
 	case "partsCreated":
 		return ec.fieldContext_CopyDemandReport_partsCreated(ctx, field)
+	case "coverageRequested":
+		return ec.fieldContext_CopyDemandReport_coverageRequested(ctx, field)
+	case "coverageNotPossible":
+		return ec.fieldContext_CopyDemandReport_coverageNotPossible(ctx, field)
 	case "instances":
 		return ec.fieldContext_CopyDemandReport_instances(ctx, field)
 	}
@@ -7213,6 +7466,10 @@ func (ec *executionContext) childFields_CourseInstance(ctx context.Context, fiel
 		return ec.fieldContext_CourseInstance_parts(ctx, field)
 	case "borrowedParts":
 		return ec.fieldContext_CourseInstance_borrowedParts(ctx, field)
+	case "coveredBy":
+		return ec.fieldContext_CourseInstance_coveredBy(ctx, field)
+	case "covers":
+		return ec.fieldContext_CourseInstance_covers(ctx, field)
 	case "teachingHours":
 		return ec.fieldContext_CourseInstance_teachingHours(ctx, field)
 	case "createdAt":
@@ -7297,6 +7554,18 @@ func (ec *executionContext) childFields_DemandRefusal(ctx context.Context, field
 		return ec.fieldContext_DemandRefusal_message(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DemandRefusal", field.Name)
+}
+
+func (ec *executionContext) childFields_InstanceCoverage(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "instance":
+		return ec.fieldContext_InstanceCoverage_instance(ctx, field)
+	case "requestedAt":
+		return ec.fieldContext_InstanceCoverage_requestedAt(ctx, field)
+	case "acceptedAt":
+		return ec.fieldContext_InstanceCoverage_acceptedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type InstanceCoverage", field.Name)
 }
 
 func (ec *executionContext) childFields_InstancePart(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

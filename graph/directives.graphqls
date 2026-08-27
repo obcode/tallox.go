@@ -120,6 +120,13 @@ enum ScopeArea {
   `setProgrammePlanningStatus`, `declareCourseInstance`, `duplicateCourseInstance`,
   `changeCourseInstance`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
+
+  # The coverage handshake is here and is @interactiveOnly for the same reason setAssignment is:
+  # agreeing can answer `PART_ASSIGNED`, which says a part of the asking cohort is already filled.
+  # Interactively that reveals nothing to somebody who may already read that programme's
+  # assignments; through a token it would.
+
+  `requestInstanceCoverage`, `acceptInstanceCoverage`, `releaseInstanceCoverage`,
   `copyDemandFromSemester`, `planDemand`,
   `demandCompletions`, `wishWindows`, `setDemandComplete`, `setWishWindow`,
   `subjectGroups`, `subjectGroup`, `mySubjectGroups`, `modulesWithoutSubjectGroup`,

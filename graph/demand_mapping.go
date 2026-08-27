@@ -28,6 +28,8 @@ func courseInstanceModel(i domain.CourseInstance) *model.CourseInstance {
 		TeachingHours: i.TeachingHours(),
 		Parts:         make([]*model.InstancePart, 0, len(i.Parts)),
 		BorrowedParts: make([]*model.BorrowedPart, 0, len(i.BorrowedParts)),
+		CoveredBy:     coverageModel(i.CoveredBy),
+		Covers:        make([]*model.InstanceCoverage, 0, len(i.Covers)),
 		CreatedAt:     i.CreatedAt,
 		UpdatedAt:     i.UpdatedAt,
 	}
@@ -35,12 +37,49 @@ func courseInstanceModel(i domain.CourseInstance) *model.CourseInstance {
 		out.Parts = append(out.Parts, instancePartModel(p))
 	}
 	for _, b := range i.BorrowedParts {
-		out.BorrowedParts = append(out.BorrowedParts, &model.BorrowedPart{
+		borrowed := &model.BorrowedPart{
 			Part:      instancePartModel(b.Part),
 			FromTrack: b.FromTrack,
-		})
+		}
+		if b.FromProgramme != "" {
+			borrowed.FromProgramme = &model.Programme{Code: b.FromProgramme}
+		}
+		out.BorrowedParts = append(out.BorrowedParts, borrowed)
+	}
+	for _, c := range i.Covers {
+		out.Covers = append(out.Covers, coverageModel(&c))
 	}
 	return out
+}
+
+// coverageModel reshapes one side of a coverage link.
+//
+// The instance inside it is built directly rather than through courseInstanceModel, and that is
+// the recursion guard: courseInstanceModel would map its CoveredBy and Covers in turn. Depth is
+// bounded by the schema — an instance that is covered may not also cover — but bounding it here
+// too means the shape does not depend on remembering that.
+func coverageModel(c *domain.InstanceCoverage) *model.InstanceCoverage {
+	if c == nil {
+		return nil
+	}
+	return &model.InstanceCoverage{
+		Instance: &model.CourseInstance{
+			ID:                c.Instance.ID.String(),
+			Semester:          c.Instance.SemesterCode,
+			Programme:         programmeModel(c.Instance.Programme),
+			Module:            moduleModel(c.Instance.Module),
+			Track:             c.Instance.Track,
+			ProgrammeSemester: c.Instance.ProgrammeSemester,
+			TeachingHours:     c.Instance.TeachingHours(),
+			Parts:             make([]*model.InstancePart, 0),
+			BorrowedParts:     make([]*model.BorrowedPart, 0),
+			Covers:            make([]*model.InstanceCoverage, 0),
+			CreatedAt:         c.Instance.CreatedAt,
+			UpdatedAt:         c.Instance.UpdatedAt,
+		},
+		RequestedAt: c.RequestedAt,
+		AcceptedAt:  c.AcceptedAt,
+	}
 }
 
 func instancePartModel(p domain.InstancePart) *model.InstancePart {
@@ -55,13 +94,15 @@ func instancePartModel(p domain.InstancePart) *model.InstancePart {
 
 func copyReportModel(r domain.CopyReport) *model.CopyDemandReport {
 	out := &model.CopyDemandReport{
-		From:         r.From,
-		To:           r.To,
-		Programme:    programmeModel(r.Programme),
-		Created:      r.Counts.Created,
-		Skipped:      r.Counts.Skipped,
-		PartsCreated: r.Counts.PartsCreated,
-		Instances:    make([]*model.CourseInstance, 0, len(r.Instances)),
+		From:                r.From,
+		To:                  r.To,
+		Programme:           programmeModel(r.Programme),
+		Created:             r.Counts.Created,
+		Skipped:             r.Counts.Skipped,
+		PartsCreated:        r.Counts.PartsCreated,
+		CoverageRequested:   r.Counts.CoverageRequested,
+		CoverageNotPossible: r.Counts.CoverageNotPossible,
+		Instances:           make([]*model.CourseInstance, 0, len(r.Instances)),
 	}
 	for _, i := range r.Instances {
 		out.Instances = append(out.Instances, courseInstanceModel(i))
@@ -176,6 +217,31 @@ func demandUserFacing(actor principal.Actor, err error) error {
 		return refusal("NO_SIBLING_TRACKS", err.Error())
 	case errors.Is(err, domain.ErrNotSharedAcrossTracks):
 		return refusal("NOT_SHARED_ACROSS_TRACKS", err.Error())
+
+	// The coverage refusals. Each names its own repair, which is why they are separate codes
+	// rather than one COVERAGE_REFUSED: somebody told "that is not allowed" asks for a permission
+	// they already hold, and the four impossible-target cases have four different fixes.
+	case errors.Is(err, domain.ErrCoverageNotRequested):
+		return refusal("COVERAGE_NOT_REQUESTED", err.Error())
+	case errors.Is(err, domain.ErrCoverageAlreadySet):
+		return refusal("COVERAGE_ALREADY_SET", err.Error())
+	case errors.Is(err, domain.ErrCoverageAlreadyAccepted):
+		return refusal("COVERAGE_ALREADY_ACCEPTED", err.Error())
+	case errors.Is(err, domain.ErrCoverageSameProgramme):
+		return refusal("COVERAGE_SAME_PROGRAMME", err.Error())
+	case errors.Is(err, domain.ErrCoverageModuleMismatch):
+		return refusal("COVERAGE_MODULE_MISMATCH", err.Error())
+	case errors.Is(err, domain.ErrCoverageWouldChain):
+		return refusal("COVERAGE_WOULD_CHAIN", err.Error())
+	case errors.Is(err, domain.ErrCoverageSelf):
+		return refusal("COVERAGE_SELF", err.Error())
+	case errors.Is(err, domain.ErrInstanceCovered):
+		return refusal("INSTANCE_COVERED", err.Error())
+	// Names what is in the way, unlike INSTANCE_IN_USE two dozen lines up, and the asymmetry is
+	// deliberate: a coverage link is a declaration of demand and the demand is not confidential,
+	// while "this instance has 3 wishes" is the confidential fact with the names removed.
+	case errors.Is(err, domain.ErrInstanceCoversOthers):
+		return refusal("INSTANCE_COVERS_OTHERS", err.Error())
 	case errors.Is(err, domain.ErrProgrammeNotFound):
 		return refusal("PROGRAMME_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrProgrammeNotPlanned):

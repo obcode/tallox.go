@@ -102,6 +102,9 @@ type CourseInstance {
   Made from the module's split when the instance is declared — one part per unit — and edited
   afterwards. The number of laboratory *groups* is a planning decision and lives here, not in the
   module: a two-hour laboratory in the split is one entry however many groups a cohort runs.
+
+  Empty where `coveredBy` is accepted: another programme holds this cohort's teaching, and what it
+  attends is in `borrowedParts` instead.
   """
   parts: [InstancePart!]!
   """
@@ -116,6 +119,22 @@ type CourseInstance {
   """
   borrowedParts: [BorrowedPart!]!
   """
+  The other study programme's instance that holds this one's teaching, or `null` — which is the
+  ordinary case.
+
+  Once `acceptedAt` is set this cohort holds no parts of its own: `parts` is empty, everything it
+  attends is in `borrowedParts`, and `teachingHours` is `0`. That zero is the point rather than a
+  gap — the event is held once and costs the faculty once, at the programme that holds it.
+  """
+  coveredBy: InstanceCoverage
+  """
+  The other study programmes' demands this instance meets, asked and agreed.
+
+  A request nobody has answered appears here with `acceptedAt: null`. This is the side where it is
+  answered, so leaving it out would hide the only thing that needs doing.
+  """
+  covers: [InstanceCoverage!]!
+  """
   What this instance costs the faculty: the sum over the parts it holds.
 
   **Not the module's own `contactHoursPerWeek`**, which is what a student attends. A four-hour
@@ -125,6 +144,10 @@ type CourseInstance {
   A part whose hours nobody has stated yet contributes nothing rather than making the sum
   unanswerable: an instance can be declared before the detail is settled, which is what a demand
   deadline that comes before the detail requires.
+
+  `0` for a cohort whose demand is covered by another programme, and that is a statement rather
+  than a gap: it holds no teaching, so it costs nothing, and the event it attends is counted once
+  at the programme that holds it.
   """
   teachingHours: Float!
   "When this instance was declared."
@@ -173,9 +196,53 @@ type BorrowedPart {
   The cohort that owns the row — the A in "held together with IF3A".
 
   Empty is possible and means the sibling has no letter, which happens while somebody is in the
-  middle of splitting a single cohort into two.
+  middle of splitting a single cohort into two. Where `fromProgramme` is set, this is that
+  programme's cohort letter rather than one of this instance's siblings.
   """
   fromTrack: String!
+  """
+  The study programme that holds it, where that is another one — and `null` where it is this
+  cohort's own, which is the sibling-cohort case and the ordinary one.
+
+  Set when this instance's demand is covered by another programme's event: the covered cohort
+  holds nothing at all and attends everything the holding cohort holds. Both kinds are one list
+  because a cohort attending teaching it does not own is one fact, and a second list would be a
+  second way to look like a planning mistake.
+  """
+  fromProgramme: Programme
+}
+
+"""
+One study programme's demand met by another study programme's event.
+
+The case the faculty describes as "echter Bedarf in DE, und in GS eine Art Import": both
+programmes need the module and it is held **once**. Both declarations stand — the difference
+between them is what the import/export figures are about — but only one of them holds the
+teaching, and only that one has parts.
+
+Both sides agree to it. The lead of the programme whose demand is covered asks; the lead of the
+programme that holds the event accepts. Each half is an ordinary demand write against that lead's
+own programme, so neither needs anything in the other's — which is what makes it usable between
+two leads who cannot reach each other's demand at all.
+"""
+type InstanceCoverage {
+  """
+  The instance on the other side: the one that holds the event, read from the cohort whose demand
+  it meets — or that cohort, read from the holder.
+
+  One level deep: the instance here carries no coverage of its own, and cannot, because an
+  instance that is covered may not also cover somebody.
+  """
+  instance: CourseInstance!
+  "When the covered programme's lead asked."
+  requestedAt: Time!
+  """
+  When the holding programme's lead agreed, or `null` while nobody has.
+
+  Until it is set nothing is borrowed and nothing was removed: asking changes nothing, which is
+  the whole of the two-sided handshake.
+  """
+  acceptedAt: Time
 }
 
 """
@@ -203,6 +270,22 @@ type CopyDemandReport {
   skipped: Int!
   "How many parts came with the new instances."
   partsCreated: Int!
+  """
+  How many copied cohorts asked again to be covered by another study programme's event.
+
+  Asked, never agreed: the other programme's lead agreed about *that* semester, and an agreement
+  carried forward automatically would be a decision nobody made. The request is carried because
+  dropping it would leave a cohort whose teaching silently reappeared.
+  """
+  coverageRequested: Int!
+  """
+  How many copied cohorts were covered in the source semester and found nothing to ask in the
+  target, because the holding programme has not declared the module there yet.
+
+  They arrive with **no parts at all**, which is why this is counted rather than left silent.
+  Building parts from the module's split instead would invent teaching at the press of a button.
+  """
+  coverageNotPossible: Int!
   """
   The demand of the target semester afterwards — the whole list, not only the new rows.
 
@@ -528,6 +611,67 @@ extend type Mutation {
   kind is left alone rather than given a second one.
   """
   splitInstancePartAcrossTracks(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Ask that this instance's demand be met by another study programme's event.
+
+  The case: two programmes need the same module and hold it **once**, together. Both declarations
+  stay — the difference between them is what the import/export figures are about — but only the
+  holding one has parts, so the event costs the faculty once.
+
+  Nothing happens until the other programme's lead agrees. Asking is a statement about your own
+  declaration and changes nothing about the instance you name, which is why you may name one whose
+  demand you could not write yourself.
+
+  The covering instance must be the same module in the same semester, in another programme, and
+  not itself covered: `COVERAGE_MODULE_MISMATCH`, `COVERAGE_SAME_PROGRAMME` — for which the
+  shared lecture across parallel cohorts is the right tool — and `COVERAGE_WOULD_CHAIN`. Asking
+  while a link already stands is `COVERAGE_ALREADY_SET`; pointing a request somewhere else is
+  ending it and asking again, which is two decisions.
+  """
+  requestInstanceCoverage(
+    "Your instance, whose demand is met elsewhere."
+    id: ID!
+    "The other programme's instance that holds the event."
+    coveredBy: ID!
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Agree to hold this event for the asking study programme as well.
+
+  For the lead of the programme that **holds** the event, not the one that asked: agreeing is a
+  statement about your own teaching. The asking cohort's own parts are removed in the same act — a
+  database in which only the agreement was written counts one event twice.
+
+  Refused with `PART_ASSIGNED` when one of the parts that would go is already filled, and then
+  nothing at all has happened: the agreement is not written either. Refused with
+  `COVERAGE_NOT_REQUESTED` where nobody asked, or where the asking lead has since pointed
+  somewhere else, and with `COVERAGE_ALREADY_ACCEPTED` where this is already agreed.
+
+  Wishes registered for the asking cohort are untouched. Somebody's interest in teaching the
+  module for their own programme does not stop being true because the event is now held jointly,
+  and where it is decided — filling the holding cohort's part — is where both programmes' wishes
+  are read together.
+  """
+  acceptInstanceCoverage(
+    "The asking instance — the one whose demand you are agreeing to meet."
+    id: ID!
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  End it: a request withdrawn, a request declined, or an agreement revised.
+
+  Either lead may — the asking programme because it is their demand, the holding one because it is
+  their teaching. One mutation for all three because they are one state: the demand is simply not
+  covered any more.
+
+  Where it had been agreed, the asking cohort gets its teaching back, built from the module's
+  split. What does not come back is the number of laboratory **groups**: the split states one unit
+  per kind, and the multiplicity was a planning decision that went with the parts.
+
+  `COVERAGE_NOT_REQUESTED` where there is nothing to end.
+  """
+  releaseInstanceCoverage(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Declare in one semester what the same programme declared in another.

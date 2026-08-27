@@ -81,6 +81,38 @@ func (ec *executionContext) fieldContext_BorrowedPart_fromTrack(_ context.Contex
 	return graphql.NewScalarFieldContext("BorrowedPart", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _BorrowedPart_fromProgramme(ctx context.Context, field graphql.CollectedField, obj *model.BorrowedPart) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BorrowedPart_fromProgramme(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FromProgramme, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Programme) graphql.Marshaler {
+			return ec.marshalOProgramme2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgramme(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_BorrowedPart_fromProgramme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BorrowedPart",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Programme(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _CopyDemandReport_from(ctx context.Context, field graphql.CollectedField, obj *model.CopyDemandReport) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -225,6 +257,52 @@ func (ec *executionContext) _CopyDemandReport_partsCreated(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_CopyDemandReport_partsCreated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CopyDemandReport", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _CopyDemandReport_coverageRequested(ctx context.Context, field graphql.CollectedField, obj *model.CopyDemandReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CopyDemandReport_coverageRequested(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CoverageRequested, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CopyDemandReport_coverageRequested(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CopyDemandReport", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _CopyDemandReport_coverageNotPossible(ctx context.Context, field graphql.CollectedField, obj *model.CopyDemandReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CopyDemandReport_coverageNotPossible(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CoverageNotPossible, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CopyDemandReport_coverageNotPossible(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("CopyDemandReport", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
@@ -475,6 +553,70 @@ func (ec *executionContext) fieldContext_CourseInstance_borrowedParts(_ context.
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_BorrowedPart(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CourseInstance_coveredBy(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CourseInstance_coveredBy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CoveredBy, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.InstanceCoverage) graphql.Marshaler {
+			return ec.marshalOInstanceCoverage2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstanceCoverage(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_CourseInstance_coveredBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CourseInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_InstanceCoverage(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _CourseInstance_covers(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CourseInstance_covers(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Covers, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.InstanceCoverage) graphql.Marshaler {
+			return ec.marshalNInstanceCoverage2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstanceCoverageᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CourseInstance_covers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CourseInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_InstanceCoverage(ctx, field)
 		},
 	}
 	return fc, nil
@@ -1008,6 +1150,84 @@ func (ec *executionContext) fieldContext_DemandRefusal_message(_ context.Context
 	return graphql.NewScalarFieldContext("DemandRefusal", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _InstanceCoverage_instance(ctx context.Context, field graphql.CollectedField, obj *model.InstanceCoverage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InstanceCoverage_instance(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Instance, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CourseInstance) graphql.Marshaler {
+			return ec.marshalNCourseInstance2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCourseInstance(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_InstanceCoverage_instance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "InstanceCoverage",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CourseInstance(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _InstanceCoverage_requestedAt(ctx context.Context, field graphql.CollectedField, obj *model.InstanceCoverage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InstanceCoverage_requestedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RequestedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_InstanceCoverage_requestedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("InstanceCoverage", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _InstanceCoverage_acceptedAt(ctx context.Context, field graphql.CollectedField, obj *model.InstanceCoverage) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InstanceCoverage_acceptedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AcceptedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_InstanceCoverage_acceptedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("InstanceCoverage", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
 func (ec *executionContext) _InstancePart_id(ctx context.Context, field graphql.CollectedField, obj *model.InstancePart) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1311,6 +1531,11 @@ func (ec *executionContext) _BorrowedPart(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "fromProgramme":
+			out.Values[i] = ec._BorrowedPart_fromProgramme(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -1371,6 +1596,16 @@ func (ec *executionContext) _CopyDemandReport(ctx context.Context, sel ast.Selec
 			}
 		case "partsCreated":
 			out.Values[i] = ec._CopyDemandReport_partsCreated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "coverageRequested":
+			out.Values[i] = ec._CopyDemandReport_coverageRequested(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "coverageNotPossible":
+			out.Values[i] = ec._CopyDemandReport_coverageNotPossible(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -1449,6 +1684,16 @@ func (ec *executionContext) _CourseInstance(ctx context.Context, sel ast.Selecti
 			}
 		case "borrowedParts":
 			out.Values[i] = ec._CourseInstance_borrowedParts(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "coveredBy":
+			out.Values[i] = ec._CourseInstance_coveredBy(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "covers":
+			out.Values[i] = ec._CourseInstance_covers(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -1654,6 +1899,54 @@ func (ec *executionContext) _DemandRefusal(ctx context.Context, sel ast.Selectio
 		case "message":
 			out.Values[i] = ec._DemandRefusal_message(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var instanceCoverageImplementors = []string{"InstanceCoverage"}
+
+func (ec *executionContext) _InstanceCoverage(ctx context.Context, sel ast.SelectionSet, obj *model.InstanceCoverage) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, instanceCoverageImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("InstanceCoverage")
+		case "instance":
+			out.Values[i] = ec._InstanceCoverage_instance(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "requestedAt":
+			out.Values[i] = ec._InstanceCoverage_requestedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "acceptedAt":
+			out.Values[i] = ec._InstanceCoverage_acceptedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		default:
@@ -1918,6 +2211,32 @@ func (ec *executionContext) unmarshalNDemandTrackInput2ᚖgithubᚗcomᚋobcode�
 	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) marshalNInstanceCoverage2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstanceCoverageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.InstanceCoverage) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNInstanceCoverage2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstanceCoverage(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNInstanceCoverage2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstanceCoverage(ctx context.Context, sel ast.SelectionSet, v *model.InstanceCoverage) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._InstanceCoverage(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNInstancePart2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstancePartᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.InstancePart) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -1949,6 +2268,13 @@ func (ec *executionContext) marshalOCourseInstance2ᚖgithubᚗcomᚋobcodeᚋta
 		return graphql.Null
 	}
 	return ec._CourseInstance(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOInstanceCoverage2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstanceCoverage(ctx context.Context, sel ast.SelectionSet, v *model.InstanceCoverage) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._InstanceCoverage(ctx, sel, v)
 }
 
 // endregion ***************************** type.gotpl *****************************

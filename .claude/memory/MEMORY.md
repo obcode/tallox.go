@@ -18,6 +18,7 @@ Kolleg:innen — das gehört nach `tallox.dev`.
 - [Wünsche](wishes.md) — nur selbst, kein COUNT, die zwei Geltungsbereiche, und drei Funde beim Bauen
 - [Fachgruppen](subject-groups.md) — semesterunabhängig, die Leitung als Scope-Tabelle, und was Umhängen rückwirkend ändert
 - [Zuteilung](assignments.md) — person oder teacher, zwei Achsen zum Schreiben, Compare-and-Set, und drei Funde beim Bauen
+- [Deckung über Studiengänge](instance-coverage.md) — ein Bedarf, von einem anderen Studiengang gehalten: ein Fremdschlüssel mit vier Invarianten, der Handschlag, und die Pfade, die still Lehre zurückgeben
 - [Planungsmarken](planning-marks.md) — zwei Marken statt einer Phase, und warum fehlende Zeile hier offen heißt
 - [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf, und das Planungssemester
 

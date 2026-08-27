@@ -321,12 +321,12 @@ func TestEveryDemandMutationRefusesAToken(t *testing.T) {
 		}
 	}
 
-	// The demand has eleven mutations today. A floor rather than an exact number, so that adding
+	// The demand has fourteen mutations today. A floor rather than an exact number, so that adding
 	// one fails in the loop above — which is the message that helps — rather than here. What this
 	// catches is the other failure: a walk that stopped matching the file at all and was
 	// defending nothing while passing.
-	if checked < 11 {
-		t.Errorf("found %d mutations declared in demand.graphqls, want at least 11 — this test "+
+	if checked < 14 {
+		t.Errorf("found %d mutations declared in demand.graphqls, want at least 14 — this test "+
 			"is defending less than it claims", checked)
 	}
 }

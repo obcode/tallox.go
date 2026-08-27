@@ -9,6 +9,7 @@ import (
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/store"
 	"github.com/obcode/tallox.go/internal/store/storetest"
+	"github.com/obcode/tallox.go/internal/testdata"
 )
 
 // The demand against a real database.
@@ -1140,5 +1141,474 @@ func TestAModuleOfAnotherProgrammeCanBeDeclared(t *testing.T) {
 	}
 	if !found {
 		t.Error("the foreign module is not in the programme's demand")
+	}
+}
+
+// declareIn declares the fixture's ordinary module for a named programme and cohort.
+//
+// The coverage tests need two programmes' demand for one module, which is the case the whole
+// mechanism is about and the one the plain declare helper cannot express.
+func (f demandFixture) declareIn(t *testing.T, programme, track string) *domain.CourseInstance {
+	t.Helper()
+
+	instance, err := f.demand.CreateCourseInstance(t.Context(), domain.NewCourseInstance{
+		SemesterID:  f.semester.ID,
+		ModuleID:    f.module,
+		ProgrammeID: programmeID(t, f.schema, programme),
+		Track:       track,
+	})
+	if err != nil {
+		t.Fatalf("cannot declare the instance for %s: %v", programme, err)
+	}
+	return instance
+}
+
+// The case the whole mechanism exists for: two programmes need the module and hold it once.
+func TestAcceptingCoverageTakesTheGuestsParts(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+
+	// Both hold their own teaching until somebody says otherwise, which is the safe default:
+	// coverage by accident would make the faculty's hours look smaller than they are.
+	if len(guest.Parts) != 2 {
+		t.Fatalf("the guest was declared with %d parts, want 2", len(guest.Parts))
+	}
+	before := host.TeachingHours() + guest.TeachingHours()
+	if before != 8 {
+		t.Fatalf("two cohorts of a 4-hour module cost %v hours, want 8", before)
+	}
+
+	asked, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot ask to be covered: %v", err)
+	}
+
+	// Asking changes nothing. That is the whole of the two-sided handshake: the other programme
+	// has not agreed, so it still holds only its own event and this one still holds its own.
+	if asked.CoveredBy == nil {
+		t.Fatal("the request was not recorded")
+	}
+	if asked.CoveredBy.Accepted() {
+		t.Error("a request counted as an agreement, which is one side deciding for two")
+	}
+	if len(asked.Parts) != 2 {
+		t.Errorf("asking removed %d of the guest's parts; asking must change nothing",
+			2-len(asked.Parts))
+	}
+
+	agreed, err := f.demand.AcceptInstanceCoverage(ctx, guest.ID, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot agree to cover: %v", err)
+	}
+
+	if !agreed.CoveredBy.Accepted() {
+		t.Error("the agreement was not recorded")
+	}
+	if len(agreed.Parts) != 0 {
+		t.Errorf("the covered cohort still holds %d parts of its own", len(agreed.Parts))
+	}
+	if got := agreed.TeachingHours(); got != 0 {
+		t.Errorf("the covered cohort costs %v hours, want 0 — the event is held once and "+
+			"costs once, at the programme that holds it", got)
+	}
+
+	// It attends the teaching it no longer owns, or its screen would show a cohort with nothing
+	// at all and read as a planning mistake.
+	if len(agreed.BorrowedParts) != 2 {
+		t.Fatalf("the covered cohort borrows %d parts, want 2", len(agreed.BorrowedParts))
+	}
+	for _, b := range agreed.BorrowedParts {
+		if b.FromProgramme != storetest.FixtureProgrammeA {
+			t.Errorf("a borrowed part names programme %q, want %s",
+				b.FromProgramme, storetest.FixtureProgrammeA)
+		}
+	}
+
+	// And the faculty now spends half as much on this module, which is the point.
+	after := 0.0
+	for _, instance := range f.allInstances(t) {
+		after += instance.TeachingHours()
+	}
+	if after != 4 {
+		t.Errorf("one event held for two programmes costs the faculty %v hours, want 4", after)
+	}
+}
+
+// allInstances is every programme's demand in the fixture's semester.
+func (f demandFixture) allInstances(t *testing.T) []domain.CourseInstance {
+	t.Helper()
+
+	instances, err := f.demand.CourseInstances(t.Context(), domain.DemandFilter{
+		SemesterCode: f.semester.Code,
+	})
+	if err != nil {
+		t.Fatalf("cannot read the demand: %v", err)
+	}
+	return instances
+}
+
+// The host's own screen has to show the agreement, or it exists only in the other programme's
+// table and the lead who made it cannot find it again.
+func TestAHostSeesTheDemandsItCovers(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+
+	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot ask to be covered: %v", err)
+	}
+
+	read, err := f.demand.CourseInstanceByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("cannot read the host: %v", err)
+	}
+	if len(read.Covers) != 1 {
+		t.Fatalf("the host shows %d covered demands, want 1 — an unanswered request is "+
+			"exactly what this side needs to see", len(read.Covers))
+	}
+	if read.Covers[0].Accepted() {
+		t.Error("an unanswered request reads as agreed on the host's side")
+	}
+	if got := read.Covers[0].Instance.Programme.Code; got != storetest.FixtureProgrammeB {
+		t.Errorf("the covered demand belongs to %q, want %s", got, storetest.FixtureProgrammeB)
+	}
+
+	if _, err := f.demand.AcceptInstanceCoverage(ctx, guest.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot agree: %v", err)
+	}
+	read, err = f.demand.CourseInstanceByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("cannot re-read the host: %v", err)
+	}
+	if !read.Covers[0].Accepted() {
+		t.Error("the agreement is not visible on the side that made it")
+	}
+
+	// The host keeps its own teaching throughout. Coverage takes parts from the guest, never
+	// from the cohort that holds the event.
+	if len(read.Parts) != 2 {
+		t.Errorf("the host holds %d parts, want 2", len(read.Parts))
+	}
+}
+
+// The transaction assertion, and the one that would pass against a fake.
+//
+// Agreeing removes the guest's parts. A part somebody already holds refuses to go, and then
+// *nothing* happens — not the acceptance either, or the database would say the demand is covered
+// while the cohort still holds its own teaching.
+func TestAcceptingCoverageIsRefusedWhenAGuestPartIsAssigned(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+
+	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot ask to be covered: %v", err)
+	}
+
+	// Somebody is already teaching one of the guest's parts.
+	storetest.SeedPerson(t, f.schema, testdata.Eins, "LECTURER")
+	if _, err := f.schema.Pool.Exec(ctx,
+		`INSERT INTO assignment (instance_part_id, person_id) VALUES ($1, $2)`,
+		guest.Parts[0].ID, testdata.Eins.ID()); err != nil {
+		t.Fatalf("cannot fill a part of the guest: %v", err)
+	}
+
+	_, err := f.demand.AcceptInstanceCoverage(ctx, guest.ID, uuid.Nil)
+	if !errors.Is(err, domain.ErrPartAssigned) {
+		t.Fatalf("agreeing over a staffed part answered %v, want ErrPartAssigned", err)
+	}
+
+	// Nothing moved. Both halves, because a half-written agreement is the state this is a
+	// transaction to prevent.
+	read, err := f.demand.CourseInstanceByID(ctx, guest.ID)
+	if err != nil {
+		t.Fatalf("cannot re-read the guest: %v", err)
+	}
+	if read.CoveredBy.Accepted() {
+		t.Error("the agreement was written even though the parts could not go — the cohort " +
+			"now reads as covered while still holding its own teaching")
+	}
+	if len(read.Parts) != 2 {
+		t.Errorf("the guest holds %d parts after a refused agreement, want 2", len(read.Parts))
+	}
+}
+
+// The inverse has to exist and has to be as easy, because coverage is a judgement that gets
+// revised — the colleague who was going to hold it for both is on sabbatical.
+func TestReleasingCoverageGivesTheGuestItsTeachingBack(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+
+	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot ask: %v", err)
+	}
+	if _, err := f.demand.AcceptInstanceCoverage(ctx, guest.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot agree: %v", err)
+	}
+
+	released, err := f.demand.ReleaseInstanceCoverage(ctx, guest.ID)
+	if err != nil {
+		t.Fatalf("cannot end the coverage: %v", err)
+	}
+	if released.CoveredBy != nil {
+		t.Error("the link survived the release")
+	}
+
+	// One part per unit of the module's split. What does NOT come back is the number of
+	// laboratory groups: the split states one unit per kind, and the multiplicity was a planning
+	// decision that went with the parts. Inventing three groups because there were three before
+	// would be inventing teaching.
+	if got := kinds(released.Parts); len(got) != 2 {
+		t.Fatalf("the cohort got %v back, want a lecture and a laboratory", got)
+	}
+	if got := released.TeachingHours(); got != 4 {
+		t.Errorf("the cohort costs %v hours again, want 4", got)
+	}
+	if len(released.BorrowedParts) != 0 {
+		t.Errorf("it still borrows %d parts after holding its own again",
+			len(released.BorrowedParts))
+	}
+}
+
+// Ending a request nobody answered is the same operation, and it must not hand out teaching the
+// cohort never stopped holding.
+func TestReleasingAnUnansweredRequestChangesNoParts(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+
+	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot ask: %v", err)
+	}
+
+	released, err := f.demand.ReleaseInstanceCoverage(ctx, guest.ID)
+	if err != nil {
+		t.Fatalf("cannot withdraw the request: %v", err)
+	}
+	if released.CoveredBy != nil {
+		t.Error("the request survived being withdrawn")
+	}
+	if len(released.Parts) != 2 {
+		t.Errorf("withdrawing a request left the cohort with %d parts, want the 2 it never "+
+			"stopped holding", len(released.Parts))
+	}
+}
+
+// The refusals, each named so the caller can act on it.
+func TestCoverageRefusalsNameWhatIsWrong(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	sibling := f.declareIn(t, storetest.FixtureProgrammeA, "B")
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+
+	if _, err := f.demand.RequestInstanceCoverage(ctx, host.ID, host.ID, uuid.Nil); !errors.Is(
+		err, domain.ErrCoverageSelf) {
+		t.Errorf("covering itself answered %v, want ErrCoverageSelf", err)
+	}
+
+	// The same programme is what the shared lecture across parallel cohorts is for, and the
+	// refusal says so rather than leaving somebody to guess.
+	if _, err := f.demand.RequestInstanceCoverage(ctx, sibling.ID, host.ID, uuid.Nil); !errors.Is(
+		err, domain.ErrCoverageSameProgramme) {
+		t.Errorf("coverage inside one programme answered %v, want ErrCoverageSameProgramme", err)
+	}
+
+	// Accepting and releasing need a request to act on.
+	if _, err := f.demand.AcceptInstanceCoverage(ctx, guest.ID, uuid.Nil); !errors.Is(
+		err, domain.ErrCoverageNotRequested) {
+		t.Errorf("agreeing with no request answered %v, want ErrCoverageNotRequested", err)
+	}
+	if _, err := f.demand.ReleaseInstanceCoverage(ctx, guest.ID); !errors.Is(
+		err, domain.ErrCoverageNotRequested) {
+		t.Errorf("ending nothing answered %v, want ErrCoverageNotRequested", err)
+	}
+
+	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot ask: %v", err)
+	}
+
+	// Pointing a standing request somewhere else is ending it and asking again, which is two
+	// decisions and reads as two.
+	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, sibling.ID, uuid.Nil); !errors.Is(
+		err, domain.ErrCoverageAlreadySet) {
+		t.Errorf("re-pointing a request answered %v, want ErrCoverageAlreadySet", err)
+	}
+
+	if _, err := f.demand.AcceptInstanceCoverage(ctx, guest.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot agree: %v", err)
+	}
+	if _, err := f.demand.AcceptInstanceCoverage(ctx, guest.ID, uuid.Nil); !errors.Is(
+		err, domain.ErrCoverageAlreadyAccepted) {
+		t.Errorf("agreeing twice answered %v, want ErrCoverageAlreadyAccepted", err)
+	}
+}
+
+// A covered cohort holds no teaching, and every path that could hand it some has to say so rather
+// than quietly obliging. These are the regressions this feature risks.
+func TestNothingGivesACoveredCohortTeachingBack(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+
+	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot ask: %v", err)
+	}
+	if _, err := f.demand.AcceptInstanceCoverage(ctx, guest.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot agree: %v", err)
+	}
+
+	hours := 2.0
+	if _, err := f.demand.AddInstancePart(ctx, guest.ID, domain.PartKindLab, &hours); !errors.Is(
+		err, domain.ErrInstanceCovered) {
+		t.Errorf("adding a part to a covered cohort answered %v, want ErrInstanceCovered", err)
+	}
+
+	// Duplicating would produce a second cohort with no teaching and no explanation — the row
+	// this whole mechanism exists to prevent.
+	if _, err := f.demand.DuplicateCourseInstance(ctx, guest.ID, "B", "", uuid.Nil); !errors.Is(
+		err, domain.ErrInstanceCovered) {
+		t.Errorf("duplicating a covered cohort answered %v, want ErrInstanceCovered", err)
+	}
+
+	// And the host cannot be withdrawn while another programme's demand hangs off it. Named,
+	// unlike the opaque refusal a wish earns: a coverage link is a declaration of demand, and
+	// the demand is not confidential.
+	if err := f.demand.DeleteCourseInstance(ctx, host.ID); !errors.Is(
+		err, domain.ErrInstanceCoversOthers) {
+		t.Errorf("withdrawing a host answered %v, want ErrInstanceCoversOthers", err)
+	}
+}
+
+// The worst of the regressions, because it is silent: planDemand sends a group count for the
+// cohort, the covered cohort holds no practical parts, and the reconciliation would helpfully
+// insert some.
+func TestPlanningDoesNotGiveACoveredCohortItsPartsBack(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+
+	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot ask: %v", err)
+	}
+	if _, err := f.demand.AcceptInstanceCoverage(ctx, guest.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot agree: %v", err)
+	}
+
+	plan, err := f.demand.PlanDemand(ctx, f.semester.Code,
+		programmeID(t, f.schema, storetest.FixtureProgrammeB),
+		[]domain.DemandEntry{planEntry(f.module, track("", 3))}, uuid.Nil, false)
+	if err != nil {
+		t.Fatalf("cannot plan the covered programme's demand: %v", err)
+	}
+
+	read, err := f.demand.CourseInstanceByID(ctx, guest.ID)
+	if err != nil {
+		t.Fatalf("cannot re-read the guest: %v", err)
+	}
+	if len(read.Parts) != 0 {
+		t.Errorf("planning gave the covered cohort %d parts back — the joint event's "+
+			"laboratories now count twice", len(read.Parts))
+	}
+
+	// Reported, not skipped: somebody moved a stepper and is owed an answer.
+	var told bool
+	for _, r := range plan.Refused {
+		if r.Code == "INSTANCE_COVERED" {
+			told = true
+		}
+	}
+	if !told {
+		t.Error("planning silently ignored the group count for a covered cohort; a save that " +
+			"does nothing and says nothing reads as a save that did not stick")
+	}
+}
+
+// A copy carries the request and never the agreement: the other programme's lead agreed about
+// *that* semester, and an agreement carried forward is a decision nobody made.
+func TestCopyingASemesterAsksToBeCoveredAgain(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+
+	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot ask: %v", err)
+	}
+	if _, err := f.demand.AcceptInstanceCoverage(ctx, guest.ID, uuid.Nil); err != nil {
+		t.Fatalf("cannot agree: %v", err)
+	}
+
+	// The holding programme's demand has to exist in the target first, or there is nothing to
+	// point at — which is the other half of this rule and is counted separately.
+	hostCounts, err := f.demand.CopyDemand(ctx, f.semester, f.previous,
+		programmeID(t, f.schema, storetest.FixtureProgrammeA), uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot copy the holding programme's demand: %v", err)
+	}
+	if hostCounts.Created == 0 {
+		t.Fatal("the holding programme's demand was not copied")
+	}
+
+	counts, err := f.demand.CopyDemand(ctx, f.semester, f.previous,
+		programmeID(t, f.schema, storetest.FixtureProgrammeB), uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot copy the covered programme's demand: %v", err)
+	}
+	if counts.CoverageRequested != 1 {
+		t.Errorf("the copy asked to be covered %d times, want 1", counts.CoverageRequested)
+	}
+
+	copied, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+		SemesterCode: f.previous.Code, Programme: storetest.FixtureProgrammeB,
+	})
+	if err != nil {
+		t.Fatalf("cannot read the copied demand: %v", err)
+	}
+	if len(copied) != 1 {
+		t.Fatalf("the copy produced %d instances, want 1", len(copied))
+	}
+	if copied[0].CoveredBy == nil {
+		t.Fatal("the copied cohort asks nobody to cover it, so its teaching silently reappeared")
+	}
+	if copied[0].CoveredBy.Accepted() {
+		t.Error("the copy carried the agreement forward — that is the other programme's " +
+			"decision about a semester nobody has planned yet")
 	}
 }

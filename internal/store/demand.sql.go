@@ -13,9 +13,40 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const acceptInstanceCoverage = `-- name: AcceptInstanceCoverage :execrows
+UPDATE course_instance
+SET covered_accepted_at = now(),
+    covered_accepted_by = $2::uuid,
+    updated_at = now()
+WHERE id = $1
+  AND covered_by_instance_id = $3::uuid
+  AND covered_accepted_at IS NULL
+`
+
+type AcceptInstanceCoverageParams struct {
+	ID         uuid.UUID
+	AcceptedBy uuid.NullUUID
+	HostID     uuid.UUID
+}
+
+// Agree to hold this event for the other programme too.
+//
+// Compare-and-set on the host that was asked, the same shape ReplaceAssignment takes and for the
+// same reason: the caller is answering the request they were looking at, and if the guest's lead
+// has since pointed somewhere else, no rows come back and the caller is told rather than silently
+// agreeing to something else.
+func (q *Queries) AcceptInstanceCoverage(ctx context.Context, arg AcceptInstanceCoverageParams) (int64, error) {
+	result, err := q.db.Exec(ctx, acceptInstanceCoverage, arg.ID, arg.AcceptedBy, arg.HostID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const borrowedInstancePartsFor = `-- name: BorrowedInstancePartsFor :many
 SELECT me.id AS for_instance_id,
        sib.track AS from_track,
+       NULL::text AS from_programme_code,
        p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks
 FROM course_instance me
 JOIN course_instance sib
@@ -25,12 +56,45 @@ JOIN course_instance sib
  AND sib.id <> me.id
 JOIN instance_part p ON p.course_instance_id = sib.id AND p.serves_sibling_tracks
 WHERE me.id = ANY ($1::uuid[])
-ORDER BY me.id, sib.track, p.position, p.id
+
+UNION ALL
+
+SELECT me.id AS for_instance_id,
+       host.track AS from_track,
+       hp.code AS from_programme_code,
+       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks
+FROM course_instance me
+JOIN course_instance host ON host.id = me.covered_by_instance_id
+JOIN programme hp ON hp.id = host.programme_id
+JOIN instance_part p ON p.course_instance_id = host.id
+WHERE me.id = ANY ($1::uuid[])
+  AND me.covered_accepted_at IS NOT NULL
+
+UNION ALL
+
+SELECT me.id AS for_instance_id,
+       hsib.track AS from_track,
+       hp.code AS from_programme_code,
+       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks
+FROM course_instance me
+JOIN course_instance host ON host.id = me.covered_by_instance_id
+JOIN course_instance hsib
+  ON hsib.semester_id = host.semester_id
+ AND hsib.module_id = host.module_id
+ AND hsib.programme_id = host.programme_id
+ AND hsib.id <> host.id
+JOIN programme hp ON hp.id = hsib.programme_id
+JOIN instance_part p ON p.course_instance_id = hsib.id AND p.serves_sibling_tracks
+WHERE me.id = ANY ($1::uuid[])
+  AND me.covered_accepted_at IS NOT NULL
+
+ORDER BY for_instance_id, from_programme_code NULLS FIRST, from_track, position, id
 `
 
 type BorrowedInstancePartsForRow struct {
 	ForInstanceID       uuid.UUID
 	FromTrack           string
+	FromProgrammeCode   *string
 	ID                  uuid.UUID
 	CourseInstanceID    uuid.UUID
 	Kind                string
@@ -39,16 +103,32 @@ type BorrowedInstancePartsForRow struct {
 	ServesSiblingTracks bool
 }
 
-// The parts of *sibling* cohorts that are held for this one as well.
+// The parts another cohort holds for this one — within the programme, and across programmes.
 //
-// The other half of instance_part.serves_sibling_tracks. A lecture given once for IF3A and IF3B
-// is one row, owned by one of them; the other has to render it, or its screen shows a cohort
-// with laboratories and no lecture and looks like a planning mistake.
+// TWO KINDS OF BORROWING, ONE RENDERING
 //
-// Siblings are the instances of the same module, in the same semester, for the same programme —
-// which is the identity minus the parallel cohort, and exactly what course_instance_cohort_idx
-// covers. Sharing reaches no further than that on purpose: a part shared between two programmes
-// would belong to both, and the import/export figure would lose its denominator.
+//   - A sibling cohort's shared lecture. IF3A holds it, IF3B borrows it. Bounded to the cohorts of
+//     one module in one programme, exactly as it always was: from_programme_code is NULL and the
+//     sentence the interface says names a cohort.
+//   - The whole of another programme's instance, where this one's demand is covered by it. The
+//     guest holds nothing at all and borrows everything, and from_programme_code names who holds
+//     it.
+//
+// Neither kind moves a row. Every instance_part still belongs to exactly one instance and one
+// programme; what this query answers is "what does this cohort attend", which is a different
+// question from "what does this cohort cost" — and the second one is still SUM over the rows as
+// stored. That is the property migration 8 protects, and this query does not touch it.
+//
+// # WHY THE SECOND BRANCH REACHES ONE STEP FURTHER
+//
+// A guest borrows its host's own parts *and* the parts the host itself borrows from its siblings.
+// Without that, GS covered by DE-B — where DE-A holds the joint lecture — would render
+// laboratories and no lecture, which is the exact screen this query exists to prevent.
+//
+// Only accepted coverage borrows. A request that nobody has answered changes nothing about what
+// is held, and rendering it as though it had would show teaching that does not exist yet.
+// The host's own parts.
+// And what the host in turn borrows from its own sibling cohorts.
 func (q *Queries) BorrowedInstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]BorrowedInstancePartsForRow, error) {
 	rows, err := q.db.Query(ctx, borrowedInstancePartsFor, instanceIds)
 	if err != nil {
@@ -61,6 +141,7 @@ func (q *Queries) BorrowedInstancePartsFor(ctx context.Context, instanceIds []uu
 		if err := rows.Scan(
 			&i.ForInstanceID,
 			&i.FromTrack,
+			&i.FromProgrammeCode,
 			&i.ID,
 			&i.CourseInstanceID,
 			&i.Kind,
@@ -82,27 +163,39 @@ const courseInstanceByID = `-- name: CourseInstanceByID :one
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
        ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
-       p.code AS programme_code, p.title AS programme_title, p.active AS programme_active
+       p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
+       ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
+       cov.code AS covered_by_programme_code, cov.title AS covered_by_programme_title,
+       host.track AS covered_by_track, host.programme_semester AS covered_by_programme_semester
 FROM course_instance ci
 JOIN semester s ON s.id = ci.semester_id
 JOIN programme p ON p.id = ci.programme_id
+LEFT JOIN course_instance host ON host.id = ci.covered_by_instance_id
+LEFT JOIN programme cov ON cov.id = ci.covered_by_programme_id
 WHERE ci.id = $1
 `
 
 type CourseInstanceByIDRow struct {
-	ID                uuid.UUID
-	SemesterID        uuid.UUID
-	ModuleID          uuid.UUID
-	ProgrammeID       uuid.UUID
-	Track             string
-	ProgrammeSemester *int32
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	SemesterCode      string
-	SemesterPhase     string
-	ProgrammeCode     string
-	ProgrammeTitle    string
-	ProgrammeActive   bool
+	ID                         uuid.UUID
+	SemesterID                 uuid.UUID
+	ModuleID                   uuid.UUID
+	ProgrammeID                uuid.UUID
+	Track                      string
+	ProgrammeSemester          *int32
+	CreatedAt                  time.Time
+	UpdatedAt                  time.Time
+	SemesterCode               string
+	SemesterPhase              string
+	ProgrammeCode              string
+	ProgrammeTitle             string
+	ProgrammeActive            bool
+	CoveredByInstanceID        uuid.NullUUID
+	CoveredRequestedAt         pgtype.Timestamptz
+	CoveredAcceptedAt          pgtype.Timestamptz
+	CoveredByProgrammeCode     *string
+	CoveredByProgrammeTitle    *string
+	CoveredByTrack             *string
+	CoveredByProgrammeSemester *int32
 }
 
 func (q *Queries) CourseInstanceByID(ctx context.Context, id uuid.UUID) (CourseInstanceByIDRow, error) {
@@ -122,6 +215,13 @@ func (q *Queries) CourseInstanceByID(ctx context.Context, id uuid.UUID) (CourseI
 		&i.ProgrammeCode,
 		&i.ProgrammeTitle,
 		&i.ProgrammeActive,
+		&i.CoveredByInstanceID,
+		&i.CoveredRequestedAt,
+		&i.CoveredAcceptedAt,
+		&i.CoveredByProgrammeCode,
+		&i.CoveredByProgrammeTitle,
+		&i.CoveredByTrack,
+		&i.CoveredByProgrammeSemester,
 	)
 	return i, err
 }
@@ -130,28 +230,40 @@ const courseInstanceByPartID = `-- name: CourseInstanceByPartID :one
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
        ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
-       p.code AS programme_code, p.title AS programme_title, p.active AS programme_active
+       p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
+       ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
+       cov.code AS covered_by_programme_code, cov.title AS covered_by_programme_title,
+       host.track AS covered_by_track, host.programme_semester AS covered_by_programme_semester
 FROM instance_part ip
 JOIN course_instance ci ON ci.id = ip.course_instance_id
 JOIN semester s ON s.id = ci.semester_id
 JOIN programme p ON p.id = ci.programme_id
+LEFT JOIN course_instance host ON host.id = ci.covered_by_instance_id
+LEFT JOIN programme cov ON cov.id = ci.covered_by_programme_id
 WHERE ip.id = $1
 `
 
 type CourseInstanceByPartIDRow struct {
-	ID                uuid.UUID
-	SemesterID        uuid.UUID
-	ModuleID          uuid.UUID
-	ProgrammeID       uuid.UUID
-	Track             string
-	ProgrammeSemester *int32
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	SemesterCode      string
-	SemesterPhase     string
-	ProgrammeCode     string
-	ProgrammeTitle    string
-	ProgrammeActive   bool
+	ID                         uuid.UUID
+	SemesterID                 uuid.UUID
+	ModuleID                   uuid.UUID
+	ProgrammeID                uuid.UUID
+	Track                      string
+	ProgrammeSemester          *int32
+	CreatedAt                  time.Time
+	UpdatedAt                  time.Time
+	SemesterCode               string
+	SemesterPhase              string
+	ProgrammeCode              string
+	ProgrammeTitle             string
+	ProgrammeActive            bool
+	CoveredByInstanceID        uuid.NullUUID
+	CoveredRequestedAt         pgtype.Timestamptz
+	CoveredAcceptedAt          pgtype.Timestamptz
+	CoveredByProgrammeCode     *string
+	CoveredByProgrammeTitle    *string
+	CoveredByTrack             *string
+	CoveredByProgrammeSemester *int32
 }
 
 // The instance a part belongs to, for the permission check on a part-level write.
@@ -176,12 +288,20 @@ func (q *Queries) CourseInstanceByPartID(ctx context.Context, id uuid.UUID) (Cou
 		&i.ProgrammeCode,
 		&i.ProgrammeTitle,
 		&i.ProgrammeActive,
+		&i.CoveredByInstanceID,
+		&i.CoveredRequestedAt,
+		&i.CoveredAcceptedAt,
+		&i.CoveredByProgrammeCode,
+		&i.CoveredByProgrammeTitle,
+		&i.CoveredByTrack,
+		&i.CoveredByProgrammeSemester,
 	)
 	return i, err
 }
 
 const courseInstancesOfProgramme = `-- name: CourseInstancesOfProgramme :many
-SELECT ci.id, ci.module_id, ci.track, ci.programme_semester
+SELECT ci.id, ci.module_id, ci.track, ci.programme_semester,
+       (ci.covered_accepted_at IS NOT NULL)::boolean AS is_covered
 FROM course_instance ci
 WHERE ci.semester_id = $1
   AND ci.programme_id = $2
@@ -198,6 +318,7 @@ type CourseInstancesOfProgrammeRow struct {
 	ModuleID          uuid.UUID
 	Track             string
 	ProgrammeSemester *int32
+	IsCovered         bool
 }
 
 // What one programme declared in one semester, by id — the input of a copy and of a plan.
@@ -219,6 +340,186 @@ func (q *Queries) CourseInstancesOfProgramme(ctx context.Context, arg CourseInst
 			&i.ModuleID,
 			&i.Track,
 			&i.ProgrammeSemester,
+			&i.IsCovered,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const coverageContextByInstanceID = `-- name: CoverageContextByInstanceID :one
+SELECT g.id AS guest_id,
+       g.programme_id AS guest_programme_id,
+       g.semester_id, g.module_id, g.track,
+       sem.code AS semester_code, sem.phase AS semester_phase,
+       g.covered_by_instance_id AS host_id,
+       g.covered_by_programme_id AS host_programme_id,
+       g.covered_requested_at, g.covered_accepted_at
+FROM course_instance g
+JOIN semester sem ON sem.id = g.semester_id
+WHERE g.id = $1
+`
+
+type CoverageContextByInstanceIDRow struct {
+	GuestID            uuid.UUID
+	GuestProgrammeID   uuid.UUID
+	SemesterID         uuid.UUID
+	ModuleID           uuid.UUID
+	Track              string
+	SemesterCode       string
+	SemesterPhase      string
+	HostID             uuid.NullUUID
+	HostProgrammeID    uuid.NullUUID
+	CoveredRequestedAt pgtype.Timestamptz
+	CoveredAcceptedAt  pgtype.Timestamptz
+}
+
+// Everything the two-sided rule needs about one link, in one statement: the guest's programme and
+// phase, the host's programme, and whether it has been agreed to.
+//
+// Deliberately unfiltered and reached by id, like PartWriteContext: it answers "may I act here",
+// and a caller who may not is told so by the policy rather than by an empty row.
+func (q *Queries) CoverageContextByInstanceID(ctx context.Context, id uuid.UUID) (CoverageContextByInstanceIDRow, error) {
+	row := q.db.QueryRow(ctx, coverageContextByInstanceID, id)
+	var i CoverageContextByInstanceIDRow
+	err := row.Scan(
+		&i.GuestID,
+		&i.GuestProgrammeID,
+		&i.SemesterID,
+		&i.ModuleID,
+		&i.Track,
+		&i.SemesterCode,
+		&i.SemesterPhase,
+		&i.HostID,
+		&i.HostProgrammeID,
+		&i.CoveredRequestedAt,
+		&i.CoveredAcceptedAt,
+	)
+	return i, err
+}
+
+const coverageToCarryForward = `-- name: CoverageToCarryForward :many
+SELECT g.id AS for_instance_id,
+       host.programme_id AS host_programme_id,
+       host.track AS host_track,
+       g.covered_accepted_at
+FROM course_instance g
+JOIN course_instance host ON host.id = g.covered_by_instance_id
+WHERE g.id = ANY ($1::uuid[])
+`
+
+type CoverageToCarryForwardRow struct {
+	ForInstanceID     uuid.UUID
+	HostProgrammeID   uuid.UUID
+	HostTrack         string
+	CoveredAcceptedAt pgtype.Timestamptz
+}
+
+// Where these instances' coverage pointed, described by what identifies an instance rather than by
+// id: the covering instance's programme and cohort.
+//
+// A copy into another semester cannot carry an id — the row it names is in the semester being
+// copied from. What it can carry is "GS was held by DE's B cohort", which is a sentence that still
+// means something next year, and which InstanceByIdentity below turns back into an id.
+func (q *Queries) CoverageToCarryForward(ctx context.Context, instanceIds []uuid.UUID) ([]CoverageToCarryForwardRow, error) {
+	rows, err := q.db.Query(ctx, coverageToCarryForward, instanceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CoverageToCarryForwardRow{}
+	for rows.Next() {
+		var i CoverageToCarryForwardRow
+		if err := rows.Scan(
+			&i.ForInstanceID,
+			&i.HostProgrammeID,
+			&i.HostTrack,
+			&i.CoveredAcceptedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const coveredInstanceCountFor = `-- name: CoveredInstanceCountFor :one
+SELECT count(*)::bigint AS covered
+FROM course_instance
+WHERE covered_by_instance_id = $1
+`
+
+// Whether anything's demand hangs off this instance, so a withdrawal can say so by name.
+//
+// Safe to count, unlike everything else that stops a withdrawal. A coverage link is a declaration
+// of demand and the demand is not confidential — which is why INSTANCE_COVERS_OTHERS may name what
+// is in the way where INSTANCE_IN_USE deliberately refuses to. The asymmetry is argued here rather
+// than assumed, because a count in this file is otherwise exactly the thing that should not exist.
+func (q *Queries) CoveredInstanceCountFor(ctx context.Context, coveredByInstanceID uuid.NullUUID) (int64, error) {
+	row := q.db.QueryRow(ctx, coveredInstanceCountFor, coveredByInstanceID)
+	var covered int64
+	err := row.Scan(&covered)
+	return covered, err
+}
+
+const coveringInstancesFor = `-- name: CoveringInstancesFor :many
+SELECT g.covered_by_instance_id AS for_instance_id,
+       g.id, g.track, g.programme_semester,
+       g.covered_requested_at, g.covered_accepted_at,
+       p.id AS programme_id, p.code AS programme_code, p.title AS programme_title
+FROM course_instance g
+JOIN programme p ON p.id = g.programme_id
+WHERE g.covered_by_instance_id = ANY ($1::uuid[])
+ORDER BY g.covered_by_instance_id, p.code, g.track, g.id
+`
+
+type CoveringInstancesForRow struct {
+	ForInstanceID      uuid.NullUUID
+	ID                 uuid.UUID
+	Track              string
+	ProgrammeSemester  *int32
+	CoveredRequestedAt pgtype.Timestamptz
+	CoveredAcceptedAt  pgtype.Timestamptz
+	ProgrammeID        uuid.UUID
+	ProgrammeCode      string
+	ProgrammeTitle     string
+}
+
+// The other programmes' demands these instances meet — the host's side of the link.
+//
+// A programme lead who has agreed to hold one event for two programmes has to see the second one
+// on their own screen, or the agreement exists only in the other programme's table.
+//
+// Pending and accepted both, told apart by covered_accepted_at rather than filtered here: this is
+// the side where a request is answered, so a query that hid the unanswered ones would hide the
+// only thing that needs doing.
+func (q *Queries) CoveringInstancesFor(ctx context.Context, instanceIds []uuid.UUID) ([]CoveringInstancesForRow, error) {
+	rows, err := q.db.Query(ctx, coveringInstancesFor, instanceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CoveringInstancesForRow{}
+	for rows.Next() {
+		var i CoveringInstancesForRow
+		if err := rows.Scan(
+			&i.ForInstanceID,
+			&i.ID,
+			&i.Track,
+			&i.ProgrammeSemester,
+			&i.CoveredRequestedAt,
+			&i.CoveredAcceptedAt,
+			&i.ProgrammeID,
+			&i.ProgrammeCode,
+			&i.ProgrammeTitle,
 		); err != nil {
 			return nil, err
 		}
@@ -261,6 +562,25 @@ func (q *Queries) DeleteInstancePart(ctx context.Context, id uuid.UUID) (int64, 
 	return result.RowsAffected(), nil
 }
 
+const deleteInstancePartsOfInstance = `-- name: DeleteInstancePartsOfInstance :execrows
+DELETE FROM instance_part WHERE course_instance_id = $1
+`
+
+// Everything this cohort holds, because from now on another programme holds it.
+//
+// By instance rather than by kind, unlike DeleteInstancePartsOfKind above, and the difference is
+// the difference between the two mechanisms: sharing a lecture across parallel cohorts is about
+// one unit, while coverage is of the whole offering. What the covered cohort keeps is nothing.
+//
+// A part something already hangs off refuses to go, and the acceptance fails as a whole.
+func (q *Queries) DeleteInstancePartsOfInstance(ctx context.Context, courseInstanceID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteInstancePartsOfInstance, courseInstanceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteInstancePartsOfKind = `-- name: DeleteInstancePartsOfKind :execrows
 DELETE FROM instance_part
 WHERE course_instance_id = ANY ($1::uuid[])
@@ -284,6 +604,61 @@ func (q *Queries) DeleteInstancePartsOfKind(ctx context.Context, arg DeleteInsta
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const hostCandidatesFor = `-- name: HostCandidatesFor :many
+SELECT c.id, c.track, c.programme_semester,
+       p.id AS programme_id, p.code AS programme_code, p.title AS programme_title
+FROM course_instance me
+JOIN course_instance c
+  ON c.semester_id = me.semester_id
+ AND c.module_id = me.module_id
+ AND c.programme_id <> me.programme_id
+ AND c.covered_by_instance_id IS NULL
+JOIN programme p ON p.id = c.programme_id
+WHERE me.id = $1
+ORDER BY p.code, c.track, c.id
+`
+
+type HostCandidatesForRow struct {
+	ID                uuid.UUID
+	Track             string
+	ProgrammeSemester *int32
+	ProgrammeID       uuid.UUID
+	ProgrammeCode     string
+	ProgrammeTitle    string
+}
+
+// The instances that could cover this one: same semester, same module, another programme, and not
+// themselves covered.
+//
+// The foreign key's four conditions as a list, so the picker offers exactly what the schema would
+// accept. Anything else would be a menu with entries that fail on click.
+func (q *Queries) HostCandidatesFor(ctx context.Context, id uuid.UUID) ([]HostCandidatesForRow, error) {
+	rows, err := q.db.Query(ctx, hostCandidatesFor, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []HostCandidatesForRow{}
+	for rows.Next() {
+		var i HostCandidatesForRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Track,
+			&i.ProgrammeSemester,
+			&i.ProgrammeID,
+			&i.ProgrammeCode,
+			&i.ProgrammeTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const insertCourseInstance = `-- name: InsertCourseInstance :one
@@ -386,6 +761,33 @@ func (q *Queries) InsertInstancePart(ctx context.Context, arg InsertInstancePart
 	return id, err
 }
 
+const instanceByIdentity = `-- name: InstanceByIdentity :one
+SELECT id
+FROM course_instance
+WHERE semester_id = $1 AND module_id = $2 AND programme_id = $3 AND track = $4
+`
+
+type InstanceByIdentityParams struct {
+	SemesterID  uuid.UUID
+	ModuleID    uuid.UUID
+	ProgrammeID uuid.UUID
+	Track       string
+}
+
+// One instance by what identifies it, for a copy that has to find next year's counterpart of a
+// row it only knows by last year's id.
+func (q *Queries) InstanceByIdentity(ctx context.Context, arg InstanceByIdentityParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, instanceByIdentity,
+		arg.SemesterID,
+		arg.ModuleID,
+		arg.ProgrammeID,
+		arg.Track,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const instancePartsFor = `-- name: InstancePartsFor :many
 SELECT id, course_instance_id, kind, position, teaching_hours, serves_sibling_tracks
 FROM instance_part
@@ -455,10 +857,15 @@ const listCourseInstances = `-- name: ListCourseInstances :many
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
        ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
-       p.code AS programme_code, p.title AS programme_title, p.active AS programme_active
+       p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
+       ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
+       cov.code AS covered_by_programme_code, cov.title AS covered_by_programme_title,
+       host.track AS covered_by_track, host.programme_semester AS covered_by_programme_semester
 FROM course_instance ci
 JOIN semester s ON s.id = ci.semester_id
 JOIN programme p ON p.id = ci.programme_id
+LEFT JOIN course_instance host ON host.id = ci.covered_by_instance_id
+LEFT JOIN programme cov ON cov.id = ci.covered_by_programme_id
 JOIN module m ON m.id = ci.module_id
 WHERE s.code = $1::text
   AND ($2::text IS NULL OR p.code = $2::text)
@@ -473,19 +880,26 @@ type ListCourseInstancesParams struct {
 }
 
 type ListCourseInstancesRow struct {
-	ID                uuid.UUID
-	SemesterID        uuid.UUID
-	ModuleID          uuid.UUID
-	ProgrammeID       uuid.UUID
-	Track             string
-	ProgrammeSemester *int32
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	SemesterCode      string
-	SemesterPhase     string
-	ProgrammeCode     string
-	ProgrammeTitle    string
-	ProgrammeActive   bool
+	ID                         uuid.UUID
+	SemesterID                 uuid.UUID
+	ModuleID                   uuid.UUID
+	ProgrammeID                uuid.UUID
+	Track                      string
+	ProgrammeSemester          *int32
+	CreatedAt                  time.Time
+	UpdatedAt                  time.Time
+	SemesterCode               string
+	SemesterPhase              string
+	ProgrammeCode              string
+	ProgrammeTitle             string
+	ProgrammeActive            bool
+	CoveredByInstanceID        uuid.NullUUID
+	CoveredRequestedAt         pgtype.Timestamptz
+	CoveredAcceptedAt          pgtype.Timestamptz
+	CoveredByProgrammeCode     *string
+	CoveredByProgrammeTitle    *string
+	CoveredByTrack             *string
+	CoveredByProgrammeSemester *int32
 }
 
 // The demand: which course instances a study programme needs in a semester.
@@ -532,6 +946,13 @@ func (q *Queries) ListCourseInstances(ctx context.Context, arg ListCourseInstanc
 			&i.ProgrammeCode,
 			&i.ProgrammeTitle,
 			&i.ProgrammeActive,
+			&i.CoveredByInstanceID,
+			&i.CoveredRequestedAt,
+			&i.CoveredAcceptedAt,
+			&i.CoveredByProgrammeCode,
+			&i.CoveredByProgrammeTitle,
+			&i.CoveredByTrack,
+			&i.CoveredByProgrammeSemester,
 		); err != nil {
 			return nil, err
 		}
@@ -541,6 +962,42 @@ func (q *Queries) ListCourseInstances(ctx context.Context, arg ListCourseInstanc
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockInstanceForCoverage = `-- name: LockInstanceForCoverage :one
+SELECT id, programme_id, semester_id, module_id, covered_by_instance_id, covered_accepted_at
+FROM course_instance
+WHERE id = $1
+FOR UPDATE
+`
+
+type LockInstanceForCoverageRow struct {
+	ID                  uuid.UUID
+	ProgrammeID         uuid.UUID
+	SemesterID          uuid.UUID
+	ModuleID            uuid.UUID
+	CoveredByInstanceID uuid.NullUUID
+	CoveredAcceptedAt   pgtype.Timestamptz
+}
+
+// Belt to the foreign key's braces. Two leads acting in opposite directions at the same moment is
+// write skew, both checks individually correct; the key would refuse the result anyway, and this
+// is what makes the refusal a refusal rather than a serialisation error somebody has to read.
+//
+// Callers lock in id order. Locking them in the order the request names them is how two
+// simultaneous handshakes between the same pair deadlock.
+func (q *Queries) LockInstanceForCoverage(ctx context.Context, id uuid.UUID) (LockInstanceForCoverageRow, error) {
+	row := q.db.QueryRow(ctx, lockInstanceForCoverage, id)
+	var i LockInstanceForCoverageRow
+	err := row.Scan(
+		&i.ID,
+		&i.ProgrammeID,
+		&i.SemesterID,
+		&i.ModuleID,
+		&i.CoveredByInstanceID,
+		&i.CoveredAcceptedAt,
+	)
+	return i, err
 }
 
 const nextInstancePartPosition = `-- name: NextInstancePartPosition :one
@@ -558,6 +1015,71 @@ func (q *Queries) NextInstancePartPosition(ctx context.Context, courseInstanceID
 	var position int32
 	err := row.Scan(&position)
 	return position, err
+}
+
+const releaseInstanceCoverage = `-- name: ReleaseInstanceCoverage :execrows
+UPDATE course_instance
+SET covered_by_instance_id = NULL,
+    covered_by_programme_id = NULL,
+    covered_by_is_covered = NULL,
+    covered_requested_at = NULL,
+    covered_requested_by = NULL,
+    covered_accepted_at = NULL,
+    covered_accepted_by = NULL,
+    updated_at = now()
+WHERE id = $1 AND covered_by_instance_id IS NOT NULL
+`
+
+// End it: a request declined, a request withdrawn, or an agreement revised.
+//
+// All seven columns at once, which the all-or-nothing CHECK makes the only way to clear any of
+// them. One statement for all three cases because they are one state — the demand is simply not
+// covered — and three statements would be three places to get the permission wrong.
+func (q *Queries) ReleaseInstanceCoverage(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, releaseInstanceCoverage, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const requestInstanceCoverage = `-- name: RequestInstanceCoverage :execrows
+UPDATE course_instance g
+SET covered_by_instance_id = h.id,
+    covered_by_programme_id = h.programme_id,
+    covered_by_is_covered = false,
+    covered_requested_at = now(),
+    covered_requested_by = $2::uuid,
+    covered_accepted_at = NULL,
+    covered_accepted_by = NULL,
+    updated_at = now()
+FROM course_instance h
+WHERE g.id = $1
+  AND h.id = $3::uuid
+  AND g.covered_by_instance_id IS NULL
+`
+
+type RequestInstanceCoverageParams struct {
+	ID          uuid.UUID
+	RequestedBy uuid.NullUUID
+	HostID      uuid.UUID
+}
+
+// Ask that this instance's demand be met by another programme's event.
+//
+// Every invariant about the host — same semester, same module, another programme, not itself
+// covered — is the composite foreign key's answer, so this statement carries none of them and
+// cannot come to disagree with the schema about any of them. The host's programme is read from
+// the host rather than passed in, for the same reason.
+//
+// Guarded on there being no link yet: changing where a request points is releasing and asking
+// again, which is two decisions and reads as two.
+func (q *Queries) RequestInstanceCoverage(ctx context.Context, arg RequestInstanceCoverageParams) (int64, error) {
+	result, err := q.db.Exec(ctx, requestInstanceCoverage, arg.ID, arg.RequestedBy, arg.HostID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const seedProgrammeSemester = `-- name: SeedProgrammeSemester :one

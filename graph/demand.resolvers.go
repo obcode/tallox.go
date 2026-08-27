@@ -211,6 +211,58 @@ func (r *mutationResolver) SplitInstancePartAcrossTracks(ctx context.Context, id
 	return courseInstanceModel(*instance), nil
 }
 
+// RequestInstanceCoverage is the resolver for the requestInstanceCoverage field.
+func (r *mutationResolver) RequestInstanceCoverage(ctx context.Context, id string, coveredBy string) (*model.CourseInstance, error) {
+	actor := principal.From(ctx)
+
+	guestID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, badRequest("INSTANCE_NOT_FOUND", domain.ErrInstanceNotFound.Error())
+	}
+	hostID, err := uuid.Parse(coveredBy)
+	if err != nil {
+		return nil, badRequest("INSTANCE_NOT_FOUND", domain.ErrInstanceNotFound.Error())
+	}
+
+	instance, err := r.Demand.RequestCoverage(ctx, actor, guestID, hostID)
+	if err != nil {
+		return nil, demandUserFacing(actor, err)
+	}
+	return courseInstanceModel(*instance), nil
+}
+
+// AcceptInstanceCoverage is the resolver for the acceptInstanceCoverage field.
+func (r *mutationResolver) AcceptInstanceCoverage(ctx context.Context, id string) (*model.CourseInstance, error) {
+	actor := principal.From(ctx)
+
+	guestID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, badRequest("INSTANCE_NOT_FOUND", domain.ErrInstanceNotFound.Error())
+	}
+
+	instance, err := r.Demand.AcceptCoverage(ctx, actor, guestID)
+	if err != nil {
+		return nil, demandUserFacing(actor, err)
+	}
+	return courseInstanceModel(*instance), nil
+}
+
+// ReleaseInstanceCoverage is the resolver for the releaseInstanceCoverage field.
+func (r *mutationResolver) ReleaseInstanceCoverage(ctx context.Context, id string) (*model.CourseInstance, error) {
+	actor := principal.From(ctx)
+
+	guestID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, badRequest("INSTANCE_NOT_FOUND", domain.ErrInstanceNotFound.Error())
+	}
+
+	instance, err := r.Demand.ReleaseCoverage(ctx, actor, guestID)
+	if err != nil {
+		return nil, demandUserFacing(actor, err)
+	}
+	return courseInstanceModel(*instance), nil
+}
+
 // CopyDemandFromSemester is the resolver for the copyDemandFromSemester field.
 func (r *mutationResolver) CopyDemandFromSemester(ctx context.Context, from string, to string, programme string) (*model.CopyDemandReport, error) {
 	actor := principal.From(ctx)

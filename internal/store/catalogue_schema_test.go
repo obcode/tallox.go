@@ -1,10 +1,12 @@
 package store_test
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/obcode/tallox.go/internal/auth"
 	"github.com/obcode/tallox.go/internal/domain"
@@ -657,4 +659,176 @@ func TestDatabaseAndDomainAgreeOnProgrammeStatuses(t *testing.T) {
 	}
 	assertVocabulariesAgree(t, constraintDef(t, s, "programme_planning_status_is_known"), known,
 		func(v string) bool { _, ok := domain.ParseProgrammeStatus(v); return ok })
+}
+
+// The coverage key is one foreign key carrying four invariants, and this is the list of them.
+//
+// Two of the four are about a row the writer is not looking at — the host's programme and whether
+// the host is itself covered — which is exactly why they are in the schema rather than in a Go
+// guard: a check written in Go runs where somebody remembered to call it, and the write that
+// forgets is the one nobody reviewed.
+//
+// Each case asserts the refusal by SQLSTATE class rather than by message. The classes differ and
+// the difference is load-bearing for internal/store: the programme rule raises 23514 while the
+// other three raise 23503, so the Go side cannot tell them apart from the error alone and reads
+// the host first in order to say a sentence. If that ever collapses to one class, the specific
+// refusals become unreachable and this test is where it shows.
+func TestCoverageConstraintsRejectTheThingsTheyName(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	ctx := t.Context()
+
+	de := seedProgramme(t, s, "DE")
+	gs := seedProgramme(t, s, "GS")
+	id := seedProgramme(t, s, "ID")
+	dc := seedProgramme(t, s, "DC")
+	module := seedModule(t, s, dc, "IT-Sicherheit und technischer Datenschutz")
+	other := seedModule(t, s, dc, "Rechnernetze")
+	ws := seedSemester(t, s, "2026-WS")
+	ss := seedSemester(t, s, "2027-SS")
+
+	declare := func(semester, mod, programme uuid.UUID, track string) uuid.UUID {
+		t.Helper()
+		var id uuid.UUID
+		if err := s.Pool.QueryRow(ctx,
+			`INSERT INTO course_instance (semester_id, module_id, programme_id, track)
+			 VALUES ($1, $2, $3, $4) RETURNING id`,
+			semester, mod, programme, track).Scan(&id); err != nil {
+			t.Fatalf("cannot declare an instance: %v", err)
+		}
+		return id
+	}
+
+	// cover points the guest at the host, naming the host's programme the way the writer would.
+	cover := func(guest, host, hostProgramme uuid.UUID) error {
+		_, err := s.Pool.Exec(ctx,
+			`UPDATE course_instance
+			    SET covered_by_instance_id = $2, covered_by_programme_id = $3,
+			        covered_by_is_covered = false, covered_requested_at = now()
+			  WHERE id = $1`, guest, host, hostProgramme)
+		return err
+	}
+
+	sqlState := func(err error) string {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			return pgErr.Code
+		}
+		return ""
+	}
+
+	host := declare(ws, module, de, "A")
+	guest := declare(ws, module, gs, "")
+
+	// The case the whole migration exists for.
+	if err := cover(guest, host, de); err != nil {
+		t.Fatalf("GS could not be covered by DE, which is the case this exists for: %v", err)
+	}
+
+	// Same programme is what serves_sibling_tracks is for. Two mechanisms describing one case is
+	// how one of them stops meaning anything.
+	sibling := declare(ws, module, de, "B")
+	if err := cover(sibling, host, de); err == nil {
+		t.Error("an instance was covered by one of its own programme's instances")
+	} else if got := sqlState(err); got != "23514" {
+		t.Errorf("same-programme coverage raised %s, want 23514 (check_violation) — "+
+			"internal/store tells the two refusals apart by more than the class, "+
+			"but the class is what tells it a constraint spoke at all", got)
+	}
+
+	// The host must be the same offering: same semester, same module.
+	otherSemester := declare(ss, module, id, "")
+	if err := cover(otherSemester, host, de); err == nil {
+		t.Error("an instance was covered by one in another semester")
+	} else if got := sqlState(err); got != "23503" {
+		t.Errorf("cross-semester coverage raised %s, want 23503", got)
+	}
+
+	otherModule := declare(ws, other, id, "")
+	if err := cover(otherModule, host, de); err == nil {
+		t.Error("an instance was covered by one of another module")
+	} else if got := sqlState(err); got != "23503" {
+		t.Errorf("cross-module coverage raised %s, want 23503", got)
+	}
+
+	// No chains. The guest above is covered, so nothing may hang off it.
+	third := declare(ws, module, id, "")
+	if err := cover(third, guest, gs); err == nil {
+		t.Error("a chain was built: an instance was covered by one that is itself covered")
+	} else if got := sqlState(err); got != "23503" {
+		t.Errorf("a chain raised %s, want 23503", got)
+	}
+
+	// Naming a programme the host is not in. Without this the denormalised column would be a
+	// second, editable opinion about which programme holds the teaching.
+	//
+	// The lie names GS rather than ID: naming the guest's *own* programme is refused one
+	// constraint earlier, by the cross-programme CHECK, and would test that rule a second time
+	// instead of this one.
+	if err := cover(third, host, gs); err == nil {
+		t.Error("a guest named a host programme the host is not in")
+	} else if got := sqlState(err); got != "23503" {
+		t.Errorf("a lie about the host's programme raised %s, want 23503", got)
+	}
+}
+
+// The direction a Go guard would miss: not "may this become a guest" but "may this *stop* being a
+// host". Somebody who has agreed to hold an event for another programme cannot quietly become
+// somebody else's guest, and the generated is_covered column is what makes the UPDATE refuse.
+func TestAHostCannotBecomeAGuestWhileItCoversSomebody(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	ctx := t.Context()
+
+	de := seedProgramme(t, s, "DE")
+	gs := seedProgramme(t, s, "GS")
+	id := seedProgramme(t, s, "ID")
+	dc := seedProgramme(t, s, "DC")
+	module := seedModule(t, s, dc, "IT-Sicherheit und technischer Datenschutz")
+	ws := seedSemester(t, s, "2026-WS")
+
+	declare := func(programme uuid.UUID) uuid.UUID {
+		t.Helper()
+		var id uuid.UUID
+		if err := s.Pool.QueryRow(ctx,
+			`INSERT INTO course_instance (semester_id, module_id, programme_id, track)
+			 VALUES ($1, $2, $3, '') RETURNING id`, ws, module, programme).Scan(&id); err != nil {
+			t.Fatalf("cannot declare an instance: %v", err)
+		}
+		return id
+	}
+
+	host := declare(de)
+	guest := declare(gs)
+	third := declare(id)
+
+	if _, err := s.Pool.Exec(ctx,
+		`UPDATE course_instance
+		    SET covered_by_instance_id = $2, covered_by_programme_id = $3,
+		        covered_by_is_covered = false, covered_requested_at = now()
+		  WHERE id = $1`, guest, host, de); err != nil {
+		t.Fatalf("cannot cover GS by DE: %v", err)
+	}
+
+	// DE now holds the event for GS. It may not become ID's guest.
+	if _, err := s.Pool.Exec(ctx,
+		`UPDATE course_instance
+		    SET covered_by_instance_id = $2, covered_by_programme_id = $3,
+		        covered_by_is_covered = false, covered_requested_at = now()
+		  WHERE id = $1`, host, third, id); err == nil {
+		t.Error("a host that covers somebody became a guest itself, which is a chain " +
+			"built from the other end")
+	}
+
+	// And it cannot be withdrawn while somebody's demand hangs off it.
+	if _, err := s.Pool.Exec(ctx, `DELETE FROM course_instance WHERE id = $1`, host); err == nil {
+		t.Error("a host was withdrawn while another programme's demand depended on it")
+	}
+
+	// The guest, on the other hand, is nobody's dependency and goes freely.
+	if _, err := s.Pool.Exec(ctx, `DELETE FROM course_instance WHERE id = $1`, guest); err != nil {
+		t.Errorf("a covered instance could not be withdrawn: %v", err)
+	}
 }

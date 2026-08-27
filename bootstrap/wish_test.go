@@ -775,3 +775,106 @@ func TestWishesStillNeedsASemester(t *testing.T) {
 			"one semester's publication date, so there is no such question to answer")
 	}
 }
+
+// What a covered cohort's wishes are visible to, pinned rather than assumed.
+//
+// Coverage joins two programmes' declarations of one module, and the obvious hope is that the
+// wishes then pool: whoever fills the joint event sees the interest from both sides. They do, but
+// only for the role that actually fills it, and the reason is in the filter rather than in
+// anything this feature added.
+//
+// db/queries/wish.sql scopes `own_or_scoped` two ways, and they reach differently here:
+//
+//	prog.id = ANY(programme_ids)          the programme of the wish's OWN instance
+//	msg.subject_group_id = ANY(...)       the subject group of the MODULE
+//
+// Host and guest are two instances of one module, so the subject group reaches both and the
+// programme reaches only its own. The subject group lead — the role that fills a part — therefore
+// sees both programmes' interest at the event they are filling, and a programme lead who is not
+// also that group's lead sees only their own programme's.
+//
+// That is today's rule and this test is its record, not its endorsement. Widening it is a question
+// for the faculty, and if the answer is yes, this test is what turns red and says where.
+func TestACoveredCohortsWishesReachWhoeverFillsThePart(t *testing.T) {
+	t.Parallel()
+
+	f := wishHandler(t,
+		grants{testdata.Eins, []string{"LECTURER"}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		grants{testdata.Fuenf, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}})
+
+	// Vier leads the holding programme; Fünf leads the subject group the module is in.
+	f.leadProgramme(t, testdata.Vier, f.programme)
+	f.leadGroup(t, testdata.Fuenf, f.group)
+
+	// A second programme declares the same module and has its demand covered by the first.
+	guestID := f.declareCoveredCohort(t)
+
+	// Somebody registers interest in the *covered* cohort — "I would teach this for my
+	// programme", which stays true after the event is held jointly.
+	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t, setWishMutation,
+		map[string]any{"p": guestID, "prio": "HAPPY_TO", "note": nil}, &struct {
+			SetWish struct{ ID string }
+		}{})
+
+	// The subject group lead fills the part, and sees the interest that hangs off both cohorts.
+	group := graphqltest.New(f.handler).AsUser(testdata.Fuenf.Mail).On(graphqltest.Browser)
+	if got := seen(t, group, f.semester); len(got) != 1 || got[0] != testdata.Eins.Mail {
+		t.Errorf("the subject group lead sees %v, want the interest in the covered cohort — "+
+			"they are the role that decides who holds the joint event", got)
+	}
+
+	// The holding programme's lead is not that group's lead here, and the covered cohort belongs
+	// to a programme they do not lead. They see nothing, and that is the unpublished-wish rule
+	// doing exactly what it says.
+	programme := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+	got := seen(t, programme, f.semester)
+	if len(got) != 0 {
+		t.Errorf("a programme lead who does not lead the module's subject group sees %v from "+
+			"another programme's cohort; before publication that is the leak the filter exists "+
+			"to prevent", got)
+	}
+
+	// Publication is what changes it, as everywhere else.
+	f.publish(t)
+	if got := seen(t, programme, f.semester); len(got) != 1 {
+		t.Errorf("after publication the programme lead sees %v, want the one wish", got)
+	}
+}
+
+// declareCoveredCohort gives a second programme the same module and has its demand covered by the
+// fixture's instance, through the API and as somebody who may write both.
+func (f wishFixture) declareCoveredCohort(t *testing.T) string {
+	t.Helper()
+
+	// The dean's office holds both halves of the handshake, which is what it is for — and keeps
+	// this helper from being a test of the permission rule it is not about.
+	storetest.SeedPerson(t, f.schema, testdata.Drei, "DEANS_OFFICE")
+	dean := graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).On(graphqltest.Browser)
+
+	moduleID := moduleIDOf(t, f.schema, storetest.FixtureModuleOrdinary)
+
+	var declared struct {
+		DeclareCourseInstance struct{ ID string }
+	}
+	dean.MustQuery(t, `mutation($in: DeclareCourseInstanceInput!) {
+		declareCourseInstance(input: $in) { id }
+	}`, map[string]any{"in": map[string]any{
+		"semester":  f.semester,
+		"programme": f.otherProgramme,
+		"moduleId":  moduleID.String(),
+	}}, &declared)
+
+	guestID := declared.DeclareCourseInstance.ID
+	dean.MustQuery(t, `mutation($id: ID!, $by: ID!) {
+		requestInstanceCoverage(id: $id, coveredBy: $by) { id }
+	}`, map[string]any{"id": guestID, "by": f.instance}, &struct {
+		RequestInstanceCoverage struct{ ID string }
+	}{})
+	dean.MustQuery(t, `mutation($id: ID!) { acceptInstanceCoverage(id: $id) { id } }`,
+		map[string]any{"id": guestID}, &struct {
+			AcceptInstanceCoverage struct{ ID string }
+		}{})
+
+	return guestID
+}

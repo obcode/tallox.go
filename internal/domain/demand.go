@@ -65,6 +65,46 @@ var (
 	ErrNoSiblingTracks = errors.New("für dieses Modul gibt es in diesem Semester nur einen Zug")
 	// ErrSameSemester is copying a semester's demand into itself.
 	ErrSameSemester = errors.New("das Quell- und das Zielsemester sind dasselbe")
+
+	// The coverage refusals. Each one names the repair rather than the rule it broke: somebody
+	// who reads "das geht nicht" asks for a permission they already hold.
+	//
+	// ErrCoverageNotRequested is accepting or ending a coverage that is not there.
+	ErrCoverageNotRequested = errors.New("für diese Instanz liegt keine Deckungsanfrage vor")
+	// ErrCoverageAlreadySet is asking a second time while a link already stands. Pointing a
+	// request somewhere else is ending the first and asking again, which is two decisions.
+	ErrCoverageAlreadySet = errors.New(
+		"der Bedarf dieser Instanz wird bereits von einer anderen gedeckt — " +
+			"bitte zuerst lösen")
+	// ErrCoverageAlreadyAccepted is agreeing to something that is already agreed.
+	ErrCoverageAlreadyAccepted = errors.New("diese Deckung ist bereits bestätigt")
+	// ErrCoverageSameProgramme is pointing at an instance of one's own programme, which is the
+	// case the shared lecture across parallel cohorts already covers.
+	ErrCoverageSameProgramme = errors.New(
+		"beide Instanzen gehören demselben Studiengang — dafür gibt es die " +
+			"zugübergreifende Vorlesung")
+	// ErrCoverageModuleMismatch is pointing at a different module or a different semester.
+	ErrCoverageModuleMismatch = errors.New(
+		"gedeckt werden kann nur durch dasselbe Modul im selben Semester")
+	// ErrCoverageWouldChain is pointing at an instance whose own demand is covered by a third.
+	// A chain has no holder of the teaching anybody can name in one step.
+	ErrCoverageWouldChain = errors.New(
+		"diese Instanz wird selbst von einer anderen gedeckt und kann deshalb " +
+			"keine weitere decken")
+	// ErrCoverageSelf is pointing an instance at itself.
+	ErrCoverageSelf = errors.New("eine Instanz kann ihren eigenen Bedarf nicht decken")
+	// ErrInstanceCovered is editing the teaching of an instance that holds none: its parts are
+	// held by another programme.
+	ErrInstanceCovered = errors.New(
+		"diese Instanz wird von einem anderen Studiengang gehalten und hat deshalb " +
+			"keine eigenen Teile")
+	// ErrInstanceCoversOthers is withdrawing an instance another programme's demand depends on.
+	//
+	// This one names what is in the way, where ErrInstanceInUse deliberately does not. A
+	// coverage link is a declaration of demand and the demand is not confidential; a wish is.
+	ErrInstanceCoversOthers = errors.New(
+		"diese Instanz deckt den Bedarf eines anderen Studiengangs — " +
+			"bitte dort zuerst lösen")
 )
 
 // MaxPartsPerInstance bounds one instance.
@@ -104,8 +144,20 @@ type CourseInstance struct {
 	// is that it happens once and counts once. They are here because a screen that showed this
 	// cohort with laboratories and no lecture would look like a planning mistake.
 	BorrowedParts []BorrowedPart
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	// CoveredBy is the other programme's instance that holds this one's teaching, or nil — which
+	// is the ordinary case.
+	//
+	// Once it is accepted this cohort holds no parts at all: Parts is empty, everything it
+	// attends is in BorrowedParts, and TeachingHours is zero. That zero is the point rather than
+	// a gap — the event is held once and costs the faculty once, at the programme that holds it.
+	CoveredBy *InstanceCoverage
+	// Covers are the other programmes' demands this instance meets, asked and agreed.
+	//
+	// A request nobody has answered is in here with AcceptedAt nil: this is the side where it is
+	// answered, so leaving it out would hide the only thing that needs doing.
+	Covers    []InstanceCoverage
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
 	// HoursFromQuery is the sum over the parts, computed by a query that did not load them.
 	//
@@ -164,13 +216,47 @@ type InstancePart struct {
 	SharedAcrossTracks bool
 }
 
-// BorrowedPart is a sibling cohort's shared part, seen from the cohort it is held for.
+// BorrowedPart is a part held by another cohort, seen from the cohort it is held for.
 type BorrowedPart struct {
 	Part InstancePart
 	// FromTrack is the cohort that owns the row. Empty is possible and means the sibling has no
 	// letter, which happens while somebody is in the middle of splitting a single cohort in two.
 	FromTrack string
+	// FromProgramme is the programme that holds it, where that is another one — and empty where
+	// it is this cohort's own, which is the sibling-cohort case and the ordinary one.
+	//
+	// The two cases render as one list on purpose: a cohort attending teaching it does not own is
+	// one fact, and a second list would be a second way to look like a planning mistake.
+	FromProgramme string
 }
+
+// InstanceCoverage is one programme's demand being met by another programme's event.
+//
+// The case the faculty describes as "echter Bedarf in DE und eine Art Import in GS": both
+// programmes need the module and it is held once. Both declarations stand — the difference
+// between them is what the import/export figures are about — but only one of them holds the
+// teaching, and only that one has parts.
+//
+// Both sides agree to it. The lead of the programme whose demand is covered asks; the lead of the
+// programme holding the event accepts. Each half is an ordinary demand write against that lead's
+// own programme, so neither needs anything in the other's.
+type InstanceCoverage struct {
+	// Instance is the other side of the link: the host read from the guest, the guest read from
+	// the host.
+	//
+	// One level deep and without its own coverage. Chains are refused by the schema, so there is
+	// never a second level to load.
+	Instance CourseInstance
+	// RequestedAt is when the guest's lead asked.
+	RequestedAt time.Time
+	// AcceptedAt is when the holding programme agreed, or nil while nobody has. Nil is the whole
+	// of "pending": a status beside these two timestamps would be something they could
+	// contradict, and then the question would be which to believe.
+	AcceptedAt *time.Time
+}
+
+// Accepted reports whether the holding programme has agreed. Until it has, nothing is borrowed.
+func (c InstanceCoverage) Accepted() bool { return c.AcceptedAt != nil }
 
 // DemandFilter narrows the demand of a semester.
 //
@@ -212,6 +298,19 @@ type CopyCounts struct {
 	Skipped int
 	// PartsCreated is how many parts came with them.
 	PartsCreated int
+	// CoverageRequested is how many copied cohorts asked again to be covered by another
+	// programme's instance.
+	//
+	// Asked, never agreed: the other programme's lead agreed about *that* semester, and an
+	// agreement carried forward automatically would be a decision nobody made. The request is
+	// carried because dropping it would leave a cohort whose teaching silently reappeared.
+	CoverageRequested int
+	// CoverageNotPossible is how many copied cohorts were covered in the source semester and
+	// found no counterpart in the target.
+	//
+	// They arrive with no parts at all, which needs saying: the alternative — building parts from
+	// the module's split — would invent teaching at the press of a button.
+	CoverageNotPossible int
 }
 
 // CopyReport is what copying a semester's demand did.
@@ -368,6 +467,18 @@ type DemandStore interface {
 	// SplitInstancePartAcrossTracks undoes that: the part stops being shared and every sibling
 	// cohort that now has none of that kind gets its own, with the same hours.
 	SplitInstancePartAcrossTracks(ctx context.Context, partID uuid.UUID) (*CourseInstance, error)
+	// RequestInstanceCoverage asks that this instance's demand be met by another programme's
+	// event. Changes nothing about the instance it points at until that programme agrees.
+	RequestInstanceCoverage(ctx context.Context, guestID, hostID, by uuid.UUID) (*CourseInstance, error)
+	// AcceptInstanceCoverage agrees to hold the event for the asking programme as well, and
+	// takes the asking cohort's own parts in the same transaction. Returns ErrPartAssigned when
+	// one of them is already staffed, and then nothing at all has happened.
+	AcceptInstanceCoverage(ctx context.Context, guestID, by uuid.UUID) (*CourseInstance, error)
+	// ReleaseInstanceCoverage ends it — withdrawn, declined or revised — and gives an accepted
+	// guest its teaching back from the module's split.
+	ReleaseInstanceCoverage(ctx context.Context, guestID uuid.UUID) (*CourseInstance, error)
+	// HostCandidates lists the instances that could cover this one.
+	HostCandidates(ctx context.Context, guestID uuid.UUID) ([]CourseInstance, error)
 	// CopyDemand declares in `to` what `from` holds for one programme, in one transaction.
 	// Instances already declared in the target are left untouched and counted as skipped.
 	CopyDemand(ctx context.Context, from, to Semester, programmeID, by uuid.UUID) (CopyCounts, error)

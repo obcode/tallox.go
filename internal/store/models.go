@@ -42,15 +42,23 @@ type Assignment struct {
 }
 
 type CourseInstance struct {
-	ID                uuid.UUID
-	SemesterID        uuid.UUID
-	ModuleID          uuid.UUID
-	ProgrammeID       uuid.UUID
-	Track             string
-	ProgrammeSemester *int32
-	CreatedBy         uuid.NullUUID
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	ID                   uuid.UUID
+	SemesterID           uuid.UUID
+	ModuleID             uuid.UUID
+	ProgrammeID          uuid.UUID
+	Track                string
+	ProgrammeSemester    *int32
+	CreatedBy            uuid.NullUUID
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+	CoveredByInstanceID  uuid.NullUUID
+	CoveredByProgrammeID uuid.NullUUID
+	CoveredByIsCovered   *bool
+	CoveredRequestedAt   pgtype.Timestamptz
+	CoveredAcceptedAt    pgtype.Timestamptz
+	CoveredRequestedBy   uuid.NullUUID
+	CoveredAcceptedBy    uuid.NullUUID
+	IsCovered            *bool
 }
 
 type DemandCompletion struct {

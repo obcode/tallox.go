@@ -48,7 +48,7 @@ func NewDemand(pool *pgxpool.Pool, modules *Modules) *Demand {
 
 var _ domain.DemandStore = (*Demand)(nil)
 
-// instanceRow is the shape all four instance queries produce.
+// instanceRow is the shape all three instance queries produce.
 //
 // sqlc emits one type per query and they are structurally identical because the SELECT lists
 // are. Converting rather than copying field by field makes that a compile-time claim: adding a
@@ -68,6 +68,16 @@ type instanceRow struct {
 	ProgrammeCode     string
 	ProgrammeTitle    string
 	ProgrammeActive   bool
+
+	// The coverage link, read from the guest's side. All of these are null on an ordinary
+	// instance, which is almost every row.
+	CoveredByInstanceID        uuid.NullUUID
+	CoveredRequestedAt         pgtype.Timestamptz
+	CoveredAcceptedAt          pgtype.Timestamptz
+	CoveredByProgrammeCode     *string
+	CoveredByProgrammeTitle    *string
+	CoveredByTrack             *string
+	CoveredByProgrammeSemester *int32
 }
 
 func instanceFrom(row instanceRow) domain.CourseInstance {
@@ -82,9 +92,41 @@ func instanceFrom(row instanceRow) domain.CourseInstance {
 		Track:     row.Track,
 
 		ProgrammeSemester: intOrNil(row.ProgrammeSemester),
+		CoveredBy:         coverageFrom(row),
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,
 	}
+}
+
+// coverageFrom builds the guest's side of the link out of the columns the instance queries carry.
+//
+// The host is filled in as far as one row reaches — its programme, its cohort — and no further.
+// Loading the host properly would be a second query per instance for a fact the screen renders as
+// one sentence, and the parts it holds already arrive through BorrowedInstancePartsFor.
+func coverageFrom(row instanceRow) *domain.InstanceCoverage {
+	if !row.CoveredByInstanceID.Valid || !row.CoveredRequestedAt.Valid {
+		return nil
+	}
+
+	host := domain.CourseInstance{
+		ID:                row.CoveredByInstanceID.UUID,
+		Track:             stringOrEmpty(row.CoveredByTrack),
+		ProgrammeSemester: intOrNil(row.CoveredByProgrammeSemester),
+		Programme: domain.Programme{
+			Code:  stringOrEmpty(row.CoveredByProgrammeCode),
+			Title: stringOrEmpty(row.CoveredByProgrammeTitle),
+		},
+	}
+
+	coverage := &domain.InstanceCoverage{
+		Instance:    host,
+		RequestedAt: row.CoveredRequestedAt.Time,
+	}
+	if row.CoveredAcceptedAt.Valid {
+		accepted := row.CoveredAcceptedAt.Time
+		coverage.AcceptedAt = &accepted
+	}
+	return coverage
 }
 
 func partFrom(id uuid.UUID, kind string, position int32, hours pgtype.Numeric, shared bool) domain.InstancePart {
@@ -166,9 +208,10 @@ func (d *Demand) one(ctx context.Context, q *Queries, row instanceRow) (*domain.
 	return &instances[0], nil
 }
 
-// attach fills in the parts, the borrowed parts and the catalogue entry of a set of instances.
+// attach fills in the parts, the borrowed parts, the covered demands and the catalogue entry of a
+// set of instances.
 //
-// Three statements plus the catalogue's own, regardless of how many instances there are.
+// Four statements plus the catalogue's own, regardless of how many instances there are.
 func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.CourseInstance, ids []uuid.UUID) error {
 	parts, err := q.InstancePartsFor(ctx, ids)
 	if err != nil {
@@ -182,13 +225,45 @@ func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.Cour
 
 	borrowed, err := q.BorrowedInstancePartsFor(ctx, ids)
 	if err != nil {
-		return fmt.Errorf("cannot read the shared parts of the sibling cohorts: %w", err)
+		return fmt.Errorf("cannot read the parts held for these cohorts: %w", err)
 	}
 	borrowedByInstance := make(map[uuid.UUID][]domain.BorrowedPart, len(ids))
 	for _, b := range borrowed {
 		part := partFrom(b.ID, b.Kind, b.Position, b.TeachingHours, b.ServesSiblingTracks)
 		borrowedByInstance[b.ForInstanceID] = append(borrowedByInstance[b.ForInstanceID],
-			domain.BorrowedPart{Part: part, FromTrack: b.FromTrack})
+			domain.BorrowedPart{
+				Part:          part,
+				FromTrack:     b.FromTrack,
+				FromProgramme: stringOrEmpty(b.FromProgrammeCode),
+			})
+	}
+
+	// The host's side of the coverage link. Unconditional, like the parts: a host read without
+	// its guests renders as an ordinary cohort, and the whole point is that it is not one.
+	covering, err := q.CoveringInstancesFor(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("cannot read the demands these cohorts cover: %w", err)
+	}
+	coversByInstance := make(map[uuid.UUID][]domain.InstanceCoverage, len(ids))
+	for _, c := range covering {
+		coverage := domain.InstanceCoverage{
+			Instance: domain.CourseInstance{
+				ID:                c.ID,
+				Track:             c.Track,
+				ProgrammeSemester: intOrNil(c.ProgrammeSemester),
+				Programme: domain.Programme{
+					ID:    c.ProgrammeID,
+					Code:  c.ProgrammeCode,
+					Title: c.ProgrammeTitle,
+				},
+			},
+			RequestedAt: c.CoveredRequestedAt.Time,
+		}
+		if c.CoveredAcceptedAt.Valid {
+			accepted := c.CoveredAcceptedAt.Time
+			coverage.AcceptedAt = &accepted
+		}
+		coversByInstance[c.ForInstanceID.UUID] = append(coversByInstance[c.ForInstanceID.UUID], coverage)
 	}
 
 	moduleIDs := make([]uuid.UUID, 0, len(instances))
@@ -209,6 +284,7 @@ func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.Cour
 	for i := range instances {
 		instances[i].Parts = partsByInstance[instances[i].ID]
 		instances[i].BorrowedParts = borrowedByInstance[instances[i].ID]
+		instances[i].Covers = coversByInstance[instances[i].ID]
 		// A module that vanished between the two statements is not a state the schema allows —
 		// course_instance references it ON DELETE RESTRICT and modules are never deleted — so
 		// the zero Module here would be a bug rather than a case, and it keeps its id so that
@@ -384,6 +460,15 @@ func (d *Demand) DuplicateCourseInstance(ctx context.Context, id uuid.UUID, trac
 		return nil, fmt.Errorf("cannot read the instance: %w", err)
 	}
 
+	// A covered cohort has no parts to copy and its coverage is not copied either: whether a
+	// second cohort of this programme is also held by the other one is that programme's decision,
+	// not a side effect of pressing "duplicate". Copying it as it stands would produce a cohort
+	// with no teaching and no explanation, which is the row this whole mechanism exists to
+	// prevent.
+	if source.CoveredAcceptedAt.Valid {
+		return nil, domain.ErrInstanceCovered
+	}
+
 	parts, err := q.InstancePartsFor(ctx, []uuid.UUID{id})
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the instance parts: %w", err)
@@ -476,7 +561,24 @@ func (d *Demand) UpdateCourseInstance(ctx context.Context, id uuid.UUID, track s
 // A part has exactly one kind of thing pointing at it, so DeleteInstancePart can afford to name
 // it. The asymmetry is deliberate and each half is argued where it is.
 func (d *Demand) DeleteCourseInstance(ctx context.Context, id uuid.UUID) error {
-	rows, err := New(d.pool).DeleteCourseInstance(ctx, id)
+	q := New(d.pool)
+
+	// Asked before the delete rather than decoded from its refusal, because the refusal cannot
+	// tell the two cases apart: a wish, an assignment and another programme's coverage all arrive
+	// as the same foreign key violation, and only one of them may be named.
+	//
+	// Named, because a coverage link is a declaration of demand and the demand is not
+	// confidential. ErrInstanceInUse stays opaque for the other two: "this instance has 3 wishes"
+	// is the confidential fact with the names removed.
+	covered, err := q.CoveredInstanceCountFor(ctx, uuid.NullUUID{UUID: id, Valid: true})
+	if err != nil {
+		return fmt.Errorf("cannot check whether this instance covers another: %w", err)
+	}
+	if covered > 0 {
+		return domain.ErrInstanceCoversOthers
+	}
+
+	rows, err := q.DeleteCourseInstance(ctx, id)
 	if isForeignKeyViolation(err) {
 		return domain.ErrInstanceInUse
 	}
@@ -500,6 +602,13 @@ func (d *Demand) AddInstancePart(ctx context.Context, instanceID uuid.UUID,
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	q := New(tx)
+
+	// A covered cohort holds no teaching of its own; another programme holds it. Adding a part
+	// here would be the joint event counted a second time, in the programme that does not hold
+	// it, and it would look exactly like ordinary demand.
+	if err := refuseIfCovered(ctx, q, instanceID); err != nil {
+		return nil, err
+	}
 
 	position, err := q.NextInstancePartPosition(ctx, instanceID)
 	if err != nil {
@@ -711,6 +820,289 @@ func (d *Demand) SplitInstancePartAcrossTracks(ctx context.Context, partID uuid.
 	return d.CourseInstanceByID(ctx, instanceID)
 }
 
+// Coverage: one programme's demand met by another programme's event.
+//
+// Three writes, and the shape is the one ShareInstancePartAcrossTracks already has one level
+// down — ask, agree, undo — because it is the same problem at the next grain up. What differs is
+// that the two sides are two *programmes*, so the agreement is a decision by somebody the asking
+// lead has no permission over, and it is therefore a stored fact rather than an argument.
+
+// lockCoveragePair takes both rows in id order.
+//
+// Id order rather than guest-then-host: two simultaneous handshakes between the same pair, each
+// locking the row it was asked about first, is the textbook deadlock. The foreign key would
+// refuse the impossible outcome anyway; the lock is what makes the refusal a refusal instead of a
+// serialisation error somebody has to interpret.
+func lockCoveragePair(ctx context.Context, q *Queries, a, b uuid.UUID) error {
+	first, second := a, b
+	if first.String() > second.String() {
+		first, second = second, first
+	}
+	for _, id := range []uuid.UUID{first, second} {
+		if _, err := q.LockInstanceForCoverage(ctx, id); errors.Is(err, pgx.ErrNoRows) {
+			return domain.ErrInstanceNotFound
+		} else if err != nil {
+			return fmt.Errorf("cannot lock an instance: %w", err)
+		}
+	}
+	return nil
+}
+
+// refuseIfCovered stops a write that would give a covered cohort teaching of its own.
+//
+// Accepted coverage only. A cohort whose request nobody has answered still holds its own parts and
+// is still an ordinary instance in every way — the whole point of the two-sided handshake is that
+// asking changes nothing until somebody agrees.
+func refuseIfCovered(ctx context.Context, q *Queries, instanceID uuid.UUID) error {
+	ctx1, err := q.CoverageContextByInstanceID(ctx, instanceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ErrInstanceNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("cannot read the instance: %w", err)
+	}
+	if ctx1.CoveredAcceptedAt.Valid {
+		return domain.ErrInstanceCovered
+	}
+	return nil
+}
+
+// RequestInstanceCoverage asks that this instance's demand be met by another programme's event.
+//
+// Written by the guest's lead, and it changes nothing about the instance it points at — which is
+// what keeps the write inside the writer's own programme. The host's lead answers with
+// AcceptInstanceCoverage, and until they do, nothing is borrowed and nothing is deleted.
+//
+// The schema decides whether the host is a legitimate target: same semester, same module, another
+// programme, not itself covered, all four in one composite foreign key. The checks below exist to
+// turn its refusal into a sentence that names the repair — the key is what makes them true, and
+// they cannot come to disagree with it because they are read from the same row it points at.
+func (d *Demand) RequestInstanceCoverage(ctx context.Context, guestID, hostID, by uuid.UUID) (
+	*domain.CourseInstance, error,
+) {
+	if guestID == hostID {
+		return nil, domain.ErrCoverageSelf
+	}
+
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	if err := lockCoveragePair(ctx, q, guestID, hostID); err != nil {
+		return nil, err
+	}
+
+	guest, err := q.CoverageContextByInstanceID(ctx, guestID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrInstanceNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("cannot read the instance: %w", err)
+	}
+	if guest.HostID.Valid {
+		return nil, domain.ErrCoverageAlreadySet
+	}
+
+	host, err := q.CoverageContextByInstanceID(ctx, hostID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrInstanceNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("cannot read the covering instance: %w", err)
+	}
+	switch {
+	case host.SemesterID != guest.SemesterID || host.ModuleID != guest.ModuleID:
+		return nil, domain.ErrCoverageModuleMismatch
+	case host.GuestProgrammeID == guest.GuestProgrammeID:
+		return nil, domain.ErrCoverageSameProgramme
+	case host.HostID.Valid:
+		return nil, domain.ErrCoverageWouldChain
+	}
+
+	rows, err := q.RequestInstanceCoverage(ctx, RequestInstanceCoverageParams{
+		ID:          guestID,
+		HostID:      hostID,
+		RequestedBy: nullUUID(nonNilUUID(by)),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot record the request: %w", err)
+	}
+	if rows == 0 {
+		return nil, domain.ErrCoverageAlreadySet
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+	return d.CourseInstanceByID(ctx, guestID)
+}
+
+// AcceptInstanceCoverage agrees to hold this event for the asking programme as well.
+//
+// The exact counterpart of ShareInstancePartAcrossTracks, and the argument is the same sentence
+// one level up: it is two facts — this demand is covered, and the asking cohort no longer holds
+// its own teaching — and a database in which only the first is written counts one lecture twice.
+//
+// The guest's parts go by instance rather than by kind, because coverage is of the whole
+// offering: what the guest keeps is nothing. A part that is already staffed refuses to go, and
+// then nothing happens at all — assignment references instance_part ON DELETE RESTRICT, which is
+// the same refusal removing a part directly meets.
+//
+// Wishes on the guest are untouched, and that is not an oversight. A wish points at the instance,
+// the instance survives, and somebody's registered interest in teaching this module for their own
+// programme does not stop being true because the event is now held jointly. Where it is decided
+// — the assignment of the host's part — is where the two programmes' wishes are read together.
+func (d *Demand) AcceptInstanceCoverage(ctx context.Context, guestID, by uuid.UUID) (
+	*domain.CourseInstance, error,
+) {
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	guest, err := q.CoverageContextByInstanceID(ctx, guestID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrInstanceNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("cannot read the instance: %w", err)
+	}
+	if !guest.HostID.Valid {
+		return nil, domain.ErrCoverageNotRequested
+	}
+	if guest.CoveredAcceptedAt.Valid {
+		return nil, domain.ErrCoverageAlreadyAccepted
+	}
+
+	if err := lockCoveragePair(ctx, q, guestID, guest.HostID.UUID); err != nil {
+		return nil, err
+	}
+
+	rows, err := q.AcceptInstanceCoverage(ctx, AcceptInstanceCoverageParams{
+		ID:         guestID,
+		HostID:     guest.HostID.UUID,
+		AcceptedBy: nullUUID(nonNilUUID(by)),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot record the agreement: %w", err)
+	}
+	if rows == 0 {
+		// The guest's lead pointed somewhere else, or somebody else agreed, between the read
+		// above and here. Answering the request that is there now would be agreeing to something
+		// this caller never saw.
+		return nil, domain.ErrCoverageNotRequested
+	}
+
+	if _, err := q.DeleteInstancePartsOfInstance(ctx, guestID); isForeignKeyViolation(err) {
+		return nil, domain.ErrPartAssigned
+	} else if err != nil {
+		return nil, fmt.Errorf("cannot remove the covered cohort's own parts: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+	return d.CourseInstanceByID(ctx, guestID)
+}
+
+// ReleaseInstanceCoverage ends it: a request withdrawn, a request declined, or an agreement
+// revised.
+//
+// One operation for all three because they are one state — the demand is simply not covered — and
+// three would be three places to get the permission wrong. Which side may call it is the service's
+// question, not this one's.
+//
+// Where the coverage had been accepted the guest gets its teaching back, built from the module's
+// split the same way declaring an instance builds it. The inverse has to be as easy as the
+// agreement, for the reason SplitInstancePartAcrossTracks gives: sharing is a judgement that gets
+// revised, and the person who was going to hold both is on sabbatical.
+//
+// What does not come back is the number of laboratory *groups*. The split states one unit per
+// kind, and the multiplicity was a planning decision that went with the parts. Inventing three
+// groups because there were three before would be inventing teaching; the lead adds them back, and
+// the interface says so.
+func (d *Demand) ReleaseInstanceCoverage(ctx context.Context, guestID uuid.UUID) (
+	*domain.CourseInstance, error,
+) {
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	guest, err := q.CoverageContextByInstanceID(ctx, guestID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrInstanceNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("cannot read the instance: %w", err)
+	}
+	if !guest.HostID.Valid {
+		return nil, domain.ErrCoverageNotRequested
+	}
+	wasAccepted := guest.CoveredAcceptedAt.Valid
+
+	if _, err := q.ReleaseInstanceCoverage(ctx, guestID); err != nil {
+		return nil, fmt.Errorf("cannot end the coverage: %w", err)
+	}
+
+	if wasAccepted {
+		components, err := effectiveComponents(ctx, q, guest.ModuleID)
+		if err != nil {
+			return nil, err
+		}
+		for i, c := range components {
+			hours, err := numericFrom(c.TeachingHours)
+			if err != nil {
+				return nil, err
+			}
+			if _, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
+				CourseInstanceID:    guestID,
+				Kind:                string(c.Kind),
+				Position:            int32(i),
+				TeachingHours:       hours,
+				ServesSiblingTracks: false,
+			}); err != nil {
+				return nil, fmt.Errorf("cannot give the cohort its teaching back: %w", err)
+			}
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+	return d.CourseInstanceByID(ctx, guestID)
+}
+
+// HostCandidates lists the instances that could cover this one.
+//
+// The foreign key's four conditions as a list, so a picker offers exactly what the schema would
+// accept rather than a menu with entries that fail on click.
+func (d *Demand) HostCandidates(ctx context.Context, guestID uuid.UUID) ([]domain.CourseInstance, error) {
+	rows, err := New(d.pool).HostCandidatesFor(ctx, guestID)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the possible covering instances: %w", err)
+	}
+
+	out := make([]domain.CourseInstance, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, domain.CourseInstance{
+			ID:                r.ID,
+			Track:             r.Track,
+			ProgrammeSemester: intOrNil(r.ProgrammeSemester),
+			Programme: domain.Programme{
+				ID: r.ProgrammeID, Code: r.ProgrammeCode, Title: r.ProgrammeTitle,
+			},
+		})
+	}
+	return out, nil
+}
+
 // partContext reads the one part a part-level operation is about.
 //
 // Through the parts of its instance rather than by id, because the instance is what the caller
@@ -787,6 +1179,27 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 		partsByInstance[p.CourseInstanceID] = append(partsByInstance[p.CourseInstanceID], p)
 	}
 
+	// Where a source cohort's demand was covered, remembered by the covering cohort's *identity*
+	// rather than its id: the id belongs to the semester being copied from.
+	carry, err := q.CoverageToCarryForward(ctx, sourceIDs)
+	if err != nil {
+		return counts, fmt.Errorf("cannot read the coverage to carry forward: %w", err)
+	}
+	carryBySource := make(map[uuid.UUID]CoverageToCarryForwardRow, len(carry))
+	for _, c := range carry {
+		carryBySource[c.ForInstanceID] = c
+	}
+
+	// The copies that want covering, resolved after every instance exists: the covering cohort may
+	// itself be created by this same copy, and asking before it is there would find nothing.
+	type pendingCoverage struct {
+		guestID    uuid.UUID
+		hostModule uuid.UUID
+		hostProgID uuid.UUID
+		hostTrack  string
+	}
+	var pending []pendingCoverage
+
 	for _, source := range sources {
 		newID, err := q.InsertCourseInstanceIfAbsent(ctx, InsertCourseInstanceIfAbsentParams{
 			SemesterID:        to.ID,
@@ -807,6 +1220,15 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 		}
 		counts.Created++
 
+		if c, ok := carryBySource[source.ID]; ok {
+			pending = append(pending, pendingCoverage{
+				guestID:    newID,
+				hostModule: source.ModuleID,
+				hostProgID: c.HostProgrammeID,
+				hostTrack:  c.HostTrack,
+			})
+		}
+
 		for _, p := range partsByInstance[source.ID] {
 			if _, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
 				CourseInstanceID: newID,
@@ -822,6 +1244,43 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 				return counts, fmt.Errorf("cannot copy a part: %w", err)
 			}
 			counts.PartsCreated++
+		}
+	}
+
+	// Ask again, never agree again.
+	//
+	// The other programme's lead agreed to hold the event in *that* semester. Carrying the
+	// agreement forward would be a decision nobody made, in a programme this caller may not even
+	// write. Carrying the request forward is what keeps the copied cohort from silently growing
+	// its own teaching back.
+	for _, p := range pending {
+		hostID, err := q.InstanceByIdentity(ctx, InstanceByIdentityParams{
+			SemesterID:  to.ID,
+			ModuleID:    p.hostModule,
+			ProgrammeID: p.hostProgID,
+			Track:       p.hostTrack,
+		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			// The other programme has not declared this module in the target semester yet. The
+			// copied cohort arrives with no parts, and the count is what says so — building parts
+			// from the module's split instead would invent teaching at the press of a button.
+			counts.CoverageNotPossible++
+			continue
+		}
+		if err != nil {
+			return counts, fmt.Errorf("cannot find the covering instance in %s: %w", to.Code, err)
+		}
+
+		rows, err := q.RequestInstanceCoverage(ctx, RequestInstanceCoverageParams{
+			ID:          p.guestID,
+			HostID:      hostID,
+			RequestedBy: nullUUID(nonNilUUID(by)),
+		})
+		if err != nil {
+			return counts, fmt.Errorf("cannot carry the coverage forward: %w", err)
+		}
+		if rows > 0 {
+			counts.CoverageRequested++
 		}
 	}
 
@@ -996,6 +1455,10 @@ type heldInstance struct {
 	track             string
 	programmeSemester *int32
 	parts             []InstancePartsForRow
+	// covered is accepted coverage: another programme holds this cohort's teaching, so it has no
+	// parts and must not be given any. Planning reports it rather than skipping it silently —
+	// somebody moved a stepper and is owed an answer.
+	covered bool
 }
 
 // heldInstances reads the demand of one programme in one semester, with the parts.
@@ -1021,6 +1484,7 @@ func heldInstances(ctx context.Context, q *Queries, semesterID, programmeID uuid
 			moduleID:          row.ModuleID,
 			track:             row.Track,
 			programmeSemester: row.ProgrammeSemester,
+			covered:           row.IsCovered,
 		}
 		ids = append(ids, row.ID)
 		byID[row.ID] = instance
@@ -1139,6 +1603,11 @@ func (d *Demand) planModule(ctx context.Context, tx pgx.Tx, plan *domain.DemandP
 func sharedKindsOf(held []*heldInstance) map[string]bool {
 	kinds := map[string]bool{}
 	for _, instance := range held {
+		// A covered cohort holds nothing of its own, so it shares nothing with anybody. Reading
+		// its (empty) parts would be harmless today and wrong the moment anything else changes.
+		if instance.covered {
+			continue
+		}
 		for _, p := range instance.parts {
 			if p.ServesSiblingTracks {
 				kinds[p.Kind] = true
@@ -1350,6 +1819,22 @@ func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.Deman
 	instance *heldInstance, want int, justCreated bool,
 ) error {
 	q := New(tx)
+
+	// A covered cohort holds no teaching: another programme does. Its group count is that
+	// programme's to set, and inserting groups here would be the joint event's laboratories
+	// counted twice — the plausible-looking wrong number this model is arranged to prevent.
+	//
+	// Reported rather than skipped. Somebody moved a stepper and is owed an answer; a silent
+	// no-op reads as a save that did not stick.
+	if instance.covered {
+		plan.Refused = append(plan.Refused, domain.DemandRefusal{
+			ModuleID: instance.moduleID,
+			Track:    instance.track,
+			Code:     "INSTANCE_COVERED",
+			Reason:   domain.ErrInstanceCovered.Error(),
+		})
+		return nil
+	}
 
 	components, err := effectiveComponents(ctx, q, instance.moduleID)
 	if err != nil {

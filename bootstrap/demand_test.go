@@ -1024,3 +1024,263 @@ func inTheBrowser(t *testing.T, h http.Handler, user string,
 		fn(t, graphqltest.New(h).AsUser(user).On(graphqltest.Browser))
 	})
 }
+
+// coverageQuery is what a demand screen asks for once coverage exists.
+const coverageQuery = `query($s: String!, $p: String) {
+	courseInstances(semester: $s, programme: $p) {
+		id track teachingHours
+		programme { code }
+		parts { kind }
+		borrowedParts { fromTrack fromProgramme { code } part { kind teachingHours } }
+		coveredBy { requestedAt acceptedAt instance { id programme { code } track } }
+		covers { requestedAt acceptedAt instance { id programme { code } track } }
+	}
+}`
+
+// The whole handshake, and the point of it: two leads who each write one programme.
+//
+// Read as a sequence rather than as four tests, because the state each step needs is the previous
+// step's result and the interesting refusals are the ones in the middle of it.
+func TestTheCoverageHandshakeNeedsBothSides(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{
+			testdata.Vier.Mail: {storetest.FixtureProgrammeA},
+			testdata.Eins.Mail: {storetest.FixtureProgrammeB},
+		},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		grants{testdata.Eins, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		grants{testdata.Zwei, []string{"LECTURER"}})
+
+	hostLead := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+	guestLead := graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).On(graphqltest.Browser)
+
+	var host, guest struct {
+		DeclareCourseInstance struct{ ID string }
+	}
+	hostLead.MustQuery(t, declareMutation,
+		declareInput(f, storetest.FixtureProgrammeA, "2027-SS", ""), &host)
+	guestLead.MustQuery(t, declareMutation,
+		declareInput(f, storetest.FixtureProgrammeB, "2027-SS", ""), &guest)
+
+	hostID := host.DeclareCourseInstance.ID
+	guestID := guest.DeclareCourseInstance.ID
+
+	const request = `mutation($id: ID!, $by: ID!) {
+		requestInstanceCoverage(id: $id, coveredBy: $by) {
+			teachingHours parts { kind }
+			coveredBy { acceptedAt instance { programme { code } } }
+		}
+	}`
+	const accept = `mutation($id: ID!) {
+		acceptInstanceCoverage(id: $id) {
+			teachingHours parts { kind }
+			borrowedParts { fromProgramme { code } part { kind } }
+			coveredBy { acceptedAt }
+		}
+	}`
+
+	// The holding programme's lead may not ask in the other's name.
+	if got := errorCode(t, hostLead.Do(t, request,
+		map[string]any{"id": guestID, "by": hostID})); got != "NOT_YOUR_PROGRAMME" {
+		t.Errorf("the holding lead asking on the other's behalf answered %s, "+
+			"want NOT_YOUR_PROGRAMME", got)
+	}
+
+	// The asking lead may — and may name an instance of a programme they cannot write.
+	var asked struct {
+		RequestInstanceCoverage struct {
+			TeachingHours float64
+			Parts         []struct{ Kind string }
+			CoveredBy     struct {
+				AcceptedAt *string
+				Instance   struct{ Programme struct{ Code string } }
+			}
+		}
+	}
+	guestLead.MustQuery(t, request, map[string]any{"id": guestID, "by": hostID}, &asked)
+
+	if asked.RequestInstanceCoverage.CoveredBy.AcceptedAt != nil {
+		t.Error("asking counted as agreeing, which is one programme deciding for two")
+	}
+	if len(asked.RequestInstanceCoverage.Parts) != 2 {
+		t.Errorf("asking removed the asking cohort's parts (%d left, want 2) — nothing may "+
+			"change until the other side agrees", len(asked.RequestInstanceCoverage.Parts))
+	}
+	if got := asked.RequestInstanceCoverage.CoveredBy.Instance.Programme.Code; got != storetest.FixtureProgrammeA {
+		t.Errorf("the request names programme %s, want %s", got, storetest.FixtureProgrammeA)
+	}
+
+	// The asking lead may not answer their own request.
+	if got := errorCode(t, guestLead.Do(t, accept,
+		map[string]any{"id": guestID})); got != "NOT_YOUR_PROGRAMME" {
+		t.Errorf("the asking lead agreed on the holder's behalf, answering %s, "+
+			"want NOT_YOUR_PROGRAMME", got)
+	}
+
+	// The holding lead does, and that is when anything changes.
+	var agreed struct {
+		AcceptInstanceCoverage struct {
+			TeachingHours float64
+			Parts         []struct{ Kind string }
+			BorrowedParts []struct {
+				FromProgramme *struct{ Code string }
+				Part          struct{ Kind string }
+			}
+			CoveredBy struct{ AcceptedAt *string }
+		}
+	}
+	hostLead.MustQuery(t, accept, map[string]any{"id": guestID}, &agreed)
+
+	got := agreed.AcceptInstanceCoverage
+	if got.CoveredBy.AcceptedAt == nil {
+		t.Error("the agreement was not recorded")
+	}
+	if len(got.Parts) != 0 {
+		t.Errorf("the covered cohort still holds %d parts of its own", len(got.Parts))
+	}
+	if got.TeachingHours != 0 {
+		t.Errorf("the covered cohort costs %v hours, want 0 — the event is held once and "+
+			"costs once, at the programme that holds it", got.TeachingHours)
+	}
+	if len(got.BorrowedParts) != 2 {
+		t.Fatalf("the covered cohort attends %d parts, want 2 — a cohort with nothing at all "+
+			"reads as a planning mistake", len(got.BorrowedParts))
+	}
+	for _, b := range got.BorrowedParts {
+		if b.FromProgramme == nil || b.FromProgramme.Code != storetest.FixtureProgrammeA {
+			t.Errorf("a borrowed part does not name the holding programme: %+v", b.FromProgramme)
+		}
+	}
+
+	// Ending it works from either side. The holding lead does it here, which is the half that
+	// would be missing if the mutation had been written as "withdraw your own request".
+	const release = `mutation($id: ID!) { releaseInstanceCoverage(id: $id) {
+		teachingHours parts { kind } coveredBy { acceptedAt }
+	} }`
+	var released struct {
+		ReleaseInstanceCoverage struct {
+			TeachingHours float64
+			Parts         []struct{ Kind string }
+			CoveredBy     *struct{ AcceptedAt *string }
+		}
+	}
+	hostLead.MustQuery(t, release, map[string]any{"id": guestID}, &released)
+
+	if released.ReleaseInstanceCoverage.CoveredBy != nil {
+		t.Error("the link survived being ended")
+	}
+	if len(released.ReleaseInstanceCoverage.Parts) != 2 {
+		t.Errorf("the cohort got %d parts back, want the two of the module's split",
+			len(released.ReleaseInstanceCoverage.Parts))
+	}
+
+	// A lecturer with no programme at all touches none of it.
+	lecturer := graphqltest.New(f.handler).AsUser(testdata.Zwei.Mail).On(graphqltest.Browser)
+	if got := errorCode(t, lecturer.Do(t, request,
+		map[string]any{"id": guestID, "by": hostID})); got != "NOT_YOUR_PROGRAMME" {
+		t.Errorf("a lecturer asking answered %s, want NOT_YOUR_PROGRAMME", got)
+	}
+}
+
+// The reads answer the same through both doors.
+//
+// The realistic failure is not a wrong answer but a rule somebody adds for the browser and forgets
+// on the token path — and coverage adds three new fields at once, which is exactly the shape of
+// thing that gets wired in one place.
+func TestCoverageIsReadableThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{
+			testdata.Vier.Mail: {storetest.FixtureProgrammeA, storetest.FixtureProgrammeB},
+		},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		grants{testdata.Eins, []string{"LECTURER"}})
+
+	lead := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+
+	var host, guest struct {
+		DeclareCourseInstance struct{ ID string }
+	}
+	lead.MustQuery(t, declareMutation,
+		declareInput(f, storetest.FixtureProgrammeA, "2027-SS", ""), &host)
+	lead.MustQuery(t, declareMutation,
+		declareInput(f, storetest.FixtureProgrammeB, "2027-SS", ""), &guest)
+
+	lead.MustQuery(t, `mutation($id: ID!, $by: ID!) {
+		requestInstanceCoverage(id: $id, coveredBy: $by) { id }
+	}`, map[string]any{
+		"id": guest.DeclareCourseInstance.ID, "by": host.DeclareCourseInstance.ID,
+	}, &struct {
+		RequestInstanceCoverage struct{ ID string }
+	}{})
+	lead.MustQuery(t, `mutation($id: ID!) { acceptInstanceCoverage(id: $id) { id } }`,
+		map[string]any{"id": guest.DeclareCourseInstance.ID}, &struct {
+			AcceptInstanceCoverage struct{ ID string }
+		}{})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct {
+				CourseInstances []struct {
+					ID            string
+					TeachingHours float64
+					Programme     struct{ Code string }
+					Parts         []struct{ Kind string }
+					BorrowedParts []struct {
+						FromProgramme *struct{ Code string }
+					}
+					CoveredBy *struct {
+						AcceptedAt *string
+						Instance   struct{ Programme struct{ Code string } }
+					}
+					Covers []struct {
+						AcceptedAt *string
+						Instance   struct{ Programme struct{ Code string } }
+					}
+				}
+			}
+			c.MustQuery(t, coverageQuery, map[string]any{"s": "2027-SS"}, &out)
+
+			if len(out.CourseInstances) != 2 {
+				t.Fatalf("the semester holds %d instances, want 2", len(out.CourseInstances))
+			}
+
+			var total float64
+			for _, i := range out.CourseInstances {
+				total += i.TeachingHours
+
+				switch i.Programme.Code {
+				case storetest.FixtureProgrammeB:
+					if i.CoveredBy == nil || i.CoveredBy.AcceptedAt == nil {
+						t.Error("the covered cohort does not report who holds its teaching")
+					} else if got := i.CoveredBy.Instance.Programme.Code; got != storetest.FixtureProgrammeA {
+						t.Errorf("it names %s as the holder, want %s",
+							got, storetest.FixtureProgrammeA)
+					}
+					if len(i.Parts) != 0 {
+						t.Errorf("the covered cohort reports %d parts of its own", len(i.Parts))
+					}
+					if len(i.BorrowedParts) != 2 {
+						t.Errorf("it attends %d parts, want 2", len(i.BorrowedParts))
+					}
+				case storetest.FixtureProgrammeA:
+					if len(i.Covers) != 1 {
+						t.Fatalf("the holding cohort reports %d covered demands, want 1",
+							len(i.Covers))
+					}
+					if i.Covers[0].AcceptedAt == nil {
+						t.Error("the agreement is not visible from the side that made it")
+					}
+				}
+			}
+
+			// The number the whole feature is about, asserted through both doors: one event held
+			// for two programmes costs the faculty once.
+			if total != 4 {
+				t.Errorf("the two cohorts cost %v hours together, want 4", total)
+			}
+		})
+}

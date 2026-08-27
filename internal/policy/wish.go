@@ -26,10 +26,21 @@ type SemesterState struct {
 	// call site could dereference by accident, and there is no meaningful difference here
 	// between "never published" and "no value".
 	WishesPublishedAt time.Time
+	// AssignmentsPublishedAt is the moment the assignments of this semester became public, or the
+	// zero time if that has not happened. Mirrors semester.assignments_published_at.
+	//
+	// A second mark rather than a second reading of the first, and the two are independent in both
+	// directions: the wishes can be published while the assignment is still being worked on, which
+	// is the ordinary case, and — less obviously — a finished plan can be published to a faculty
+	// whose wishes were never made public at all.
+	AssignmentsPublishedAt time.Time
 }
 
-// WishesPublished reports whether the confidentiality window has closed.
+// WishesPublished reports whether the confidentiality window over the wishes has closed.
 func (s SemesterState) WishesPublished() bool { return !s.WishesPublishedAt.IsZero() }
+
+// AssignmentsPublished reports whether the confidentiality window over the assignments has closed.
+func (s SemesterState) AssignmentsPublished() bool { return !s.AssignmentsPublishedAt.IsZero() }
 
 // Wish is the minimum of a wish that the visibility rule needs.
 //

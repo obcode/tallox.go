@@ -32,6 +32,15 @@ type Resolver struct {
 	// method and say `r.Wishes` — which is why the two halves of wish.resolvers.go do not match,
 	// and why that is not a slip.
 	Wishes *domain.WishService
+	// Staffing is the assignment phase: who holds which part of which instance.
+	//
+	// Named for what it does rather than for its type, for the reason Planning and Catalogue are —
+	// and here the collision it avoids is certain rather than likely: `Assignments` is also the
+	// generated queryResolver method for the `assignments` field, so a field of that name would
+	// have to be reached as `r.Resolver.Assignments` inside every query resolver and as
+	// `r.Assignments` inside every mutation resolver. Wishes lives with exactly that and the
+	// comment above it exists to explain why its two halves do not match; once was enough.
+	Staffing *domain.AssignmentService
 	// SubjectGroups is the faculty's own grouping of modules and people: who works on what,
 	// who leads which group, and which modules belong to it.
 	//

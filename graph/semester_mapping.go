@@ -41,6 +41,10 @@ func semesterModel(s domain.Semester) *model.Semester {
 		published := s.WishesPublishedAt
 		out.WishesPublishedAt = &published
 	}
+	if !s.AssignmentsPublishedAt.IsZero() {
+		published := s.AssignmentsPublishedAt
+		out.AssignmentsPublishedAt = &published
+	}
 	if out.ReachablePhases == nil {
 		// A phase the policy does not know has no neighbours, and the schema types this list
 		// as non-null. An empty list is the honest answer — nothing can be reached from a

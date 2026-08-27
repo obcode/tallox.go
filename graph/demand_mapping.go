@@ -123,8 +123,12 @@ func demandChanges(changes []domain.DemandChange) []*model.DemandChange {
 //     programme, and a closed phase needs the phase moved. A single FORBIDDEN would send all
 //     three to ask the wrong person.
 //   - INSTANCE_IN_USE says nothing about what is using the instance. No count, no kind of thing
-//     named. The first table to point at a part will be the wish table, and a helpful message
-//     here would be the confidential fact with the names taken out.
+//     named. Two things can hang off one now — a wish on the instance, an assignment on one of
+//     its parts — and a helpful message would be the confidential fact with the names taken out.
+//   - PART_ASSIGNED does name what hangs off a *part*, because only one thing ever does. It is
+//     reachable only by somebody who may write this programme's demand, and they may read its
+//     assignments; bootstrap.TestPartAssignedTellsNobodySomethingNew asserts that rather than
+//     assuming it.
 func demandUserFacing(actor principal.Actor, err error) error {
 	switch {
 	case err == nil:
@@ -148,6 +152,8 @@ func demandUserFacing(actor principal.Actor, err error) error {
 		return refusal("TRACK_TAKEN", err.Error())
 	case errors.Is(err, domain.ErrInstanceInUse):
 		return refusal("INSTANCE_IN_USE", err.Error())
+	case errors.Is(err, domain.ErrPartAssigned):
+		return refusal("PART_ASSIGNED", err.Error())
 	case errors.Is(err, domain.ErrInstanceNotFound):
 		return refusal("INSTANCE_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrPartNotFound):

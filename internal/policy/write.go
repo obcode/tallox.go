@@ -54,6 +54,10 @@ const (
 	// WriteAreaWishes is registering interest in a course instance: creating, changing and
 	// withdrawing one's own wishes.
 	WriteAreaWishes WriteArea = "WISHES"
+
+	// WriteAreaAssignment is filling the parts of a course instance: who holds the lecture, who
+	// holds each laboratory group.
+	WriteAreaAssignment WriteArea = "ASSIGNMENT"
 )
 
 // AllWriteAreas returns every area, in the order of the planning process.
@@ -62,7 +66,7 @@ const (
 // the assignments — rather than being declared in advance, for the same reason ScopeArea gives:
 // an area with nothing behind it is a promise that somebody can read and nobody keeps.
 func AllWriteAreas() []WriteArea {
-	return []WriteArea{WriteAreaDemand, WriteAreaWishes}
+	return []WriteArea{WriteAreaDemand, WriteAreaWishes, WriteAreaAssignment}
 }
 
 // Valid reports whether a is an area this package knows.
@@ -120,6 +124,43 @@ var writeMatrix = map[WriteArea]map[Phase][]Role{
 		PhaseWishes:         {RoleLecturer},
 		PhaseAssignment:     {RoleLecturer},
 		PhaseFinal:          nil,
+	},
+	// The row that closes early rather than late, and it is the only one in this table that does.
+	//
+	// # Why the two early cells are shut
+	//
+	// Decided 2026-08-27. Every other closed cell in this table is closed because the record is
+	// finished; these two are closed because of what filling a part early would do to the step
+	// before it. A colleague deciding whether to register interest, who finds the instance already
+	// filled, is in exactly the first-come-first-served race the confidentiality rule exists to
+	// end — and this time the tool would have staged it. Publishing the wishes and closing the
+	// wish phase are separate acts precisely so that the assignment can start from a complete
+	// picture; starting it earlier makes the wish phase decorative.
+	//
+	// It is worth being explicit that this is not an argument about who is trusted. A subject
+	// group lead who already knows in June who will hold the lecture can say so in June — in a
+	// mail, in a corridor, in the subject group's own minutes. What the closed cell refuses is
+	// making that provisional decision look, to the person reading the wish screen, like the
+	// finished one.
+	//
+	// # Why FINAL is open
+	//
+	// The same argument the demand row makes, and it beats the tidier rule here too. Somebody
+	// falls ill in November, a lecturer on contract cancels, a laboratory group is handed over.
+	// Refusing to record that does not prevent it — it moves it into a mail, and then the tool's
+	// list is the wrong one, which is the failure mode this system exists to remove. What protects
+	// a finished plan is not a closed phase but the fact that changing it is a decision somebody
+	// takes and signs their name to: assigned_by is on every row.
+	//
+	// Note the asymmetry with the wish row directly above, which *is* shut in FINAL. A wish
+	// registered after the semester is settled would change the record of what the faculty
+	// considered without changing anything about the teaching. A reassignment changes the
+	// teaching, which is why it is the one that stays open.
+	WriteAreaAssignment: {
+		PhaseDemandPlanning: nil,
+		PhaseWishes:         nil,
+		PhaseAssignment:     {RoleSubjectGroupLead, RoleProgrammeLead, RoleDeansOffice},
+		PhaseFinal:          {RoleSubjectGroupLead, RoleProgrammeLead, RoleDeansOffice},
 	},
 }
 
@@ -197,4 +238,65 @@ func DemandRefusal(a principal.Actor, programmeID uuid.UUID, phase Phase) string
 		return PlanningRefusal(a)
 	}
 	return PhaseClosedReason
+}
+
+// AssignmentPhaseClosedReason is what somebody is told when the phase is what refuses the write.
+//
+// Its own sentence rather than PhaseClosedReason, which says "der Bedarf" in plain words. It also
+// has to say something that one does not: the assignment is refused *before* its phase and not
+// after it, so "die Phase ist vorbei" would be the wrong half of the truth in the case that
+// actually occurs. Somebody meeting this refusal is early, and the repair is to advance the phase.
+const AssignmentPhaseClosedReason = "Zugeteilt wird ab der Zuteilungsphase. Solange die " +
+	"Wunschphase läuft, sollen die Instanzen offen bleiben."
+
+// MayWriteAssignment is the whole rule for filling a part: the right role, in a phase that is
+// open, for an instance this actor is responsible for.
+//
+// Responsibility is a union of the two orthogonal reaches, not an intersection, and that is the
+// one thing about this rule that has to be read carefully. A subject group lead reaches the
+// modules of their subject across every study programme; a study programme lead reaches the
+// instances of their programme across every subject. Either is enough.
+//
+// # Why the programme lead is here
+//
+// Decided 2026-08-27, and it replaces the reading the subject group matrix carried before: "a
+// programme lead declares instances and does not fill them". The faculty asked for both, and the
+// argument that settled it is the module that belongs to no subject group — with subject groups
+// alone, filling it would be the dean's office or nobody, and the catalogue has plenty of those
+// while it is being sorted.
+//
+// The consequence, which is real and is handled rather than avoided: two roles may now write the
+// same row. What decides a race is therefore not this function but the write itself —
+// internal/store replaces an assignment only when the caller names the one they are replacing, so
+// an unconditional write can only ever fill a part that is free. Compare AdvanceSemesterPhase,
+// which took the same shape for the same reason.
+func MayWriteAssignment(a principal.Actor, subjectGroupID, programmeID uuid.UUID, phase Phase) bool {
+	if !MayWriteInPhase(WriteAreaAssignment, phase, a) {
+		return false
+	}
+	return MayActInSubjectGroup(a, subjectGroupID) || MayPlanProgramme(a, programmeID)
+}
+
+// AssignmentWriteRefusal picks the sentence for a refused assignment, out of the four that can be
+// true.
+//
+// Four, because the repair differs every time, and the ordering matters: the phase is checked
+// last, so that somebody who is not responsible for this instance is not told to go and ask for
+// the phase to be advanced.
+//
+// The two "scope missing" sentences are the reason this is not one generic refusal. A subject
+// group lead nobody has given a subject to, and a programme lead nobody has given a programme to,
+// both need an administrator — and both would otherwise read "you may not do this" and go asking
+// for a role they already hold.
+func AssignmentWriteRefusal(a principal.Actor, subjectGroupID, programmeID uuid.UUID, phase Phase) string {
+	if MayActInSubjectGroup(a, subjectGroupID) || MayPlanProgramme(a, programmeID) {
+		return AssignmentPhaseClosedReason
+	}
+	if HoldsSubjectGroupLeadWithoutScope(a) {
+		return SubjectGroupScopeMissingReason
+	}
+	if HoldsProgrammeLeadWithoutScope(a) {
+		return ProgrammeScopeMissingReason
+	}
+	return AssignmentReason
 }

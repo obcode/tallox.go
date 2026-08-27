@@ -77,7 +77,11 @@ Notes
 
   · ADMIN acts in no group, the same decision the wish rule and the planning rule both make:
     running the system is a different job from planning with it.
-  · A programme lead declares instances and does not fill them, so it acts in no group here.
+  · A programme lead acts in no group here, and that is not the same as "a programme lead does
+    not fill instances". It does, since 2026-08-27 — through the *other* axis, over the study
+    programme of the instance rather than the subject of the module. This table is one of the two
+    inputs to that rule; the write matrix shows how they combine. Read alone it answers only
+    "whose subject is this", which is why a programme lead answers no to it and still writes.
   · Combinations of roles are not listed. Somebody holding several gets the union — checked
     over the complete cartesian product in TestAssignmentGuardAndScopeAgree.
   · Both doors reach equally far. What a subject group lead may *see* through a token is a

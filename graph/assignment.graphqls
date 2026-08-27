@@ -1,0 +1,241 @@
+# Assignments: who holds each part of a course instance.
+#
+# The third step of the process. The demand says what has to be offered, the wishes say who would
+# like to teach it, and this says who does.
+#
+# THE RULE, ONCE
+#
+# An assignment is visible if and only if you hold it yourself, or the assignments of that
+# semester have been published, or you are responsible for it — you lead the study programme whose
+# demand the instance is, or the subject group its module belongs to, or you are the dean's office
+# — and then only in a signed-in browser session, never through a Personal Access Token.
+#
+# Word for word the wish rule with one noun changed, and deliberately so. What differs is why it
+# exists: the wish window ends a first-come-first-served race, the assignment window keeps a
+# half-made plan from being asked about before anybody has decided it. Read the whole thing in
+# `internal/policy/testdata/assignment_visibility_matrix.golden`, generated from the code that
+# enforces it.
+#
+# WHAT AN ASSIGNMENT POINTS AT
+#
+# The part: the lecture, the second laboratory group. One level below what a wish points at, and
+# that asymmetry is the design. The faculty registers interest in "IF2A / Softwareentwicklung II";
+# who holds the lecture and who each laboratory is an arrangement between the people concerned,
+# which is what makes it an assignment rather than a wish.
+#
+# WHO MAY FILL ONE
+#
+# The lead of the module's subject group, the lead of the instance's study programme, or the
+# dean's office — a union of the two axes, not an intersection. Only from the assignment phase
+# onwards: filling an instance while the wish phase runs is the race the confidentiality rule
+# exists to end. `internal/policy/testdata/write_matrix.golden` has the phases.
+#
+# WRITING IS BROWSER-ONLY
+#
+# Both mutations here are `@interactiveOnly`, and the reason is not that filling a part is
+# privileged — it is the same role either way — but that their refusals are answers about who
+# holds what.
+#
+# `PART_ALREADY_ASSIGNED` tells a caller that a part is taken. Through a token the read rule
+# collapses to "your own", so a script could name one part after another and learn the staffing of
+# a whole semester from the refusals, without a login event and without reading a single row. That
+# is the shape of leak `planDemand(dryRun:)` had before the demand mutations were closed, and it
+# is closed here before it exists rather than after.
+#
+# Reading stays open through both doors, narrowed by the policy rather than by the door: what one
+# holds oneself is one's own timetable.
+#
+# WHAT IS DELIBERATELY MISSING
+#
+# There is no count. No `assignmentCount`, no `isAssigned` on a part, no "how much of this cohort
+# is filled" anywhere in this schema. "Zwei der drei Praktika sind vergeben" is the confidential
+# fact with the names taken out, and a field that answers it before publication is a field
+# somebody renders as a progress bar. Anybody who wants a number counts the rows they may read.
+
+"""
+Whoever holds a part: a colleague with a Tallox account, or somebody from the examination
+office's list who has none.
+
+Exactly one of `person` and `teacher` is set, and `name` is filled from whichever it is — so a
+screen rendering a row does not have to know which. That is a fact about accounts, not about
+teaching.
+
+**Somebody without an account is not a lesser assignee.** Lecturers on contract and colleagues
+from other institutions are planned here like anybody else; six of the teachers the examination
+office knows carry addresses this faculty's identity provider will never assert. What follows from
+having no account is only that such a row is nobody's "own" for the visibility rule.
+"""
+type Assignee {
+  """
+  The Tallox account holding this part, or `null` when it is held by somebody who has none.
+
+  When a teacher who does hold an account is assigned, this is what gets stored — the assignment
+  is canonicalised on the way in, so that the same colleague is never two identities in this table
+  and `myAssignments` cannot find half of what they teach.
+  """
+  personId: ID
+  """
+  The examination office's record, or `null` when the assignment names an account directly.
+  Resolve it through `teachers` when a screen needs more than the name.
+  """
+  teacherId: ID
+  "What to show. From whichever of the two is set."
+  name: String!
+  """
+  The address, or `null` for the few teachers who carry none.
+
+  The same address that makes a `Teacher` and a `Person` one human being.
+  """
+  mail: String
+}
+
+# Ids and a name rather than an embedded `Person` and `Teacher`, which is what this type carried
+# for about an hour.
+#
+# Two reasons, and the second is the one that matters. The first is honesty: this row is rendered
+# by one query per assignment, which knows the name and the address and nothing else — an embedded
+# Person would arrive with an empty role list and `active: false`, which does not read as "not
+# loaded", it reads as a claim.
+#
+# The second is that `Person` carries roles and study programme scopes, and `Teacher` carries an
+# employment profile. Neither belongs in a teaching plan. Hanging them off an assignment would
+# make the assignment list a traversal path to them for everybody who may read one — which is the
+# opposite of keeping personnel data in root fields of its own so that no such path exists.
+
+"""
+One person holding one part of one course instance.
+"""
+type Assignment {
+  id: ID!
+  """
+  The part that is held: which kind, which of several laboratory groups, and what it is worth in
+  teaching hours.
+
+  `part.teachingHours` is what **one lecturer** is credited with — not what a student attends
+  (`Module.contactHoursPerWeek`) and not the canonical split (`ModuleComponent.teachingHours`).
+  Three quantities that could all be called SWS, which is why they are named differently.
+  """
+  part: InstancePart!
+  """
+  The instance the part belongs to: one module, in one study programme, for one cohort.
+
+  Carried in full because an assignment is unreadable without it. "Analysis, IF1B, Praktikum 2" is
+  the row somebody recognises; an id is not. Its `parts` are not populated here — this is one row
+  per assignment, and loading them would be one row per part to carry a figure that is already on
+  `part`.
+  """
+  instance: CourseInstance!
+  "Who holds it."
+  assignee: Assignee!
+  """
+  What the deciding person wanted recorded: "vertretungsweise", "nur im ersten Halbsemester".
+
+  Read by whoever may read the assignment, which is the same rule as the row.
+  """
+  note: String!
+  """
+  Who decided, or `null` once that person's row is gone.
+
+  The field a wish deliberately does not have. An assignment is always somebody's decision about
+  somebody else — that is what distinguishes the two — so its provenance belongs on the row.
+
+  An id for the reason `Assignee` carries ids: this is provenance, and it should not be the route
+  by which a screen learns what roles somebody holds.
+  """
+  assignedById: ID
+  "When the part was first filled."
+  createdAt: Time!
+  """
+  When it last changed. Handing the part to somebody else moves this and keeps `createdAt`: the
+  part has been staffed since then, and by whom is what changed.
+  """
+  updatedAt: Time!
+}
+
+extend type Query {
+  """
+  What the caller has been given to teach — in one semester, or in every semester.
+
+  The semester is optional here and required on `assignments`, the same asymmetry `myWishes` has
+  and for the same reason: this is the one question whose answer never depends on the
+  confidentiality rule. One's own assignments are visible to oneself in every semester and every
+  phase, so there is no publication date to resolve — and inventing one would mean applying a
+  single semester's state to all of them.
+
+  Reachable through both doors. This is your own timetable, and building a calendar from it is the
+  first script a colleague will write.
+  """
+  myAssignments(
+    "Four digits, a hyphen and SS or WS. Omit for every semester."
+    semester: String
+  ): [Assignment!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  The assignments of one semester that the caller may see.
+
+  The semester is required, because the rule *is* per semester: one may be published and the next
+  not, so a filter built without knowing which would be a filter for the wrong one.
+
+  Asking for somebody else's assignments is not refused — it narrows the same filtered set and
+  answers with what was visible anyway. A refusal here would turn the filter into an oracle, since
+  the difference between "refused" and "empty" is the fact being protected.
+  """
+  assignments(
+    "Four digits, a hyphen and SS or WS, for example `2027-SS`."
+    semester: String!
+    "Narrow to one study programme's instances, by code."
+    programme: String
+    "Narrow to one module across its cohorts."
+    module: ID
+    "Narrow to a single cohort of one module."
+    instance: ID
+    "Narrow to one person's assignments. Matches an account, not a teacher without one."
+    person: ID
+  ): [Assignment!]! @scope(area: PLANNING, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Put somebody on a part of an instance.
+
+  Pass exactly one of `personId` and `teacherId`. A teacher who holds an account is stored as the
+  account.
+
+  **`replacing` is what makes this safe when two people decide at once.** It is the id of the
+  assignment you were looking at; omit it to say "I believe this part is free". A call that names
+  nothing can only ever fill a part nobody holds, so somebody who has not seen the current state
+  cannot take a decision away from somebody who has. Since the lead of the module's subject group
+  and the lead of the instance's study programme may both write this row, that is not a formality.
+
+  Refusals: `ASSIGNMENT_PHASE_CLOSED` before the assignment phase, `NOT_YOUR_SUBJECT` when you are
+  responsible for neither the subject nor the programme, `PART_ALREADY_ASSIGNED` when you believed
+  a part was free and it is not, `ASSIGNMENT_MOVED_ON` when the assignment you named is no longer
+  the one there, `ASSIGNEE_INVALID` for neither or both ids, `ASSIGNEE_NOT_FOUND` for one that
+  does not resolve.
+  """
+  setAssignment(
+    "The part to fill."
+    instancePartId: ID!
+    "The account to put on it. Mutually exclusive with `teacherId`."
+    personId: ID
+    "The examination office's record to put on it. Mutually exclusive with `personId`."
+    teacherId: ID
+    "What to record about the decision. At most 500 characters."
+    note: String
+    """
+    The assignment being replaced, or omitted when the part is believed to be free.
+    """
+    replacing: ID
+  ): Assignment! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Give a part back: remove an assignment.
+
+  Bound by the same phase and the same responsibility as making one. A list that may be added to
+  but not corrected is worse than a closed one.
+
+  Returns the id of what was removed. `ASSIGNMENT_NOT_FOUND` covers both "there is no such
+  assignment" and "that one is not yours" — deliberately the same answer.
+  """
+  clearAssignment(id: ID!): ID! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+}

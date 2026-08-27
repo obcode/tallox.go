@@ -35,13 +35,14 @@ var _ domain.SemesterStore = (*Semesters)(nil)
 // would land on DEMAND_PLANNING, which is the most permissive phase for writes.
 func semesterFrom(row Semester) domain.Semester {
 	return domain.Semester{
-		ID:                row.ID,
-		Code:              row.Code,
-		Phase:             policy.Phase(row.Phase),
-		IsPlanning:        row.IsPlanningSemester,
-		WishesPublishedAt: nullableTime(row.WishesPublishedAt),
-		CreatedAt:         row.CreatedAt,
-		UpdatedAt:         row.UpdatedAt,
+		ID:                     row.ID,
+		Code:                   row.Code,
+		Phase:                  policy.Phase(row.Phase),
+		IsPlanning:             row.IsPlanningSemester,
+		WishesPublishedAt:      nullableTime(row.WishesPublishedAt),
+		AssignmentsPublishedAt: nullableTime(row.AssignmentsPublishedAt),
+		CreatedAt:              row.CreatedAt,
+		UpdatedAt:              row.UpdatedAt,
 	}
 }
 
@@ -126,6 +127,17 @@ func (s *Semesters) PublishSemesterWishes(ctx context.Context, id uuid.UUID,
 	row, err := s.q.PublishSemesterWishes(ctx, id)
 	if err != nil {
 		return domain.Semester{}, fmt.Errorf("cannot publish wishes: %w", err)
+	}
+	return semesterFrom(row), nil
+}
+
+// PublishSemesterAssignments makes who holds what visible to everybody. Idempotent — see the
+// query.
+func (s *Semesters) PublishSemesterAssignments(ctx context.Context, id uuid.UUID,
+) (domain.Semester, error) {
+	row, err := s.q.PublishSemesterAssignments(ctx, id)
+	if err != nil {
+		return domain.Semester{}, fmt.Errorf("cannot publish assignments: %w", err)
 	}
 	return semesterFrom(row), nil
 }

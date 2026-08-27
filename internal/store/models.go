@@ -30,6 +30,17 @@ type AccessLog struct {
 	SourceIp     *netip.Addr
 }
 
+type Assignment struct {
+	ID             uuid.UUID
+	InstancePartID uuid.UUID
+	PersonID       uuid.NullUUID
+	TeacherID      uuid.NullUUID
+	Note           string
+	AssignedBy     uuid.NullUUID
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type CourseInstance struct {
 	ID                uuid.UUID
 	SemesterID        uuid.UUID
@@ -180,15 +191,16 @@ type Programme struct {
 }
 
 type Semester struct {
-	ID                 uuid.UUID
-	Code               string
-	Phase              string
-	WishesPublishedAt  pgtype.Timestamptz
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-	IsPlanningSemester bool
-	PlanningSetAt      pgtype.Timestamptz
-	PlanningSetBy      uuid.NullUUID
+	ID                     uuid.UUID
+	Code                   string
+	Phase                  string
+	WishesPublishedAt      pgtype.Timestamptz
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	IsPlanningSemester     bool
+	PlanningSetAt          pgtype.Timestamptz
+	PlanningSetBy          uuid.NullUUID
+	AssignmentsPublishedAt pgtype.Timestamptz
 }
 
 type Spo struct {

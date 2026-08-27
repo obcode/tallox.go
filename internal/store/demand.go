@@ -467,12 +467,14 @@ func (d *Demand) UpdateCourseInstance(ctx context.Context, id uuid.UUID, track s
 
 // DeleteCourseInstance withdraws an instance, unless something hangs off it.
 //
-// The refusal is a foreign key, mapped here without being read. Nothing points at a course
-// instance or its parts today, so this is the branch that is not yet reachable — and it is
-// written now rather than when wishes arrive, because the shape of the answer is the decision:
-// one opaque sentence, no count, no kind of thing named. "This instance has three wishes" is the
-// confidential fact with the names taken out, and it would be the first place in the system to
-// leak it.
+// The refusal is a foreign key, mapped here without being read, and it stays opaque where
+// removing a part does not. Two different things can hang off an instance now — a wish on the
+// instance itself, an assignment on one of its parts — and telling the caller which would be
+// telling them something they may not be entitled to. "This instance has three wishes" is the
+// confidential fact with the names taken out, and this is where it would leak.
+//
+// A part has exactly one kind of thing pointing at it, so DeleteInstancePart can afford to name
+// it. The asymmetry is deliberate and each half is argued where it is.
 func (d *Demand) DeleteCourseInstance(ctx context.Context, id uuid.UUID) error {
 	rows, err := New(d.pool).DeleteCourseInstance(ctx, id)
 	if isForeignKeyViolation(err) {
@@ -568,7 +570,12 @@ func (d *Demand) DeleteInstancePart(ctx context.Context, partID uuid.UUID) (*dom
 
 	rows, err := New(d.pool).DeleteInstancePart(ctx, partID)
 	if isForeignKeyViolation(err) {
-		return nil, domain.ErrInstanceInUse
+		// A part is pointed at by exactly one thing — an assignment — so unlike the instance
+		// above, this refusal can name what hangs off it without choosing between candidates.
+		// That is not a leak: only somebody who may write the demand of this programme reaches
+		// here, and they may read its assignments. bootstrap.TestPartAssignedTellsNobody-
+		// SomethingNew asserts it, and turns red the day either half of that changes.
+		return nil, domain.ErrPartAssigned
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot remove the part: %w", err)
@@ -622,7 +629,9 @@ func (d *Demand) ShareInstancePartAcrossTracks(ctx context.Context, partID uuid.
 		InstanceIds: siblings,
 		Kind:        kind,
 	}); isForeignKeyViolation(err) {
-		return nil, domain.ErrInstanceInUse
+		// Merging two cohorts' lectures into one removes the sibling's part, and a sibling part
+		// that is staffed is somebody's teaching. Same refusal as removing one directly.
+		return nil, domain.ErrPartAssigned
 	} else if err != nil {
 		return nil, fmt.Errorf("cannot remove the siblings' own parts: %w", err)
 	}
@@ -1398,8 +1407,12 @@ func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.Deman
 	for len(groups) > want {
 		last := groups[len(groups)-1]
 
-		// Savepoint again, and for the same reason: a group somebody has already registered
-		// interest in costs that group and not the screen.
+		// Savepoint again, and for the same reason: a group somebody is already assigned to costs
+		// that group and not the screen.
+		//
+		// It used to say "somebody has already registered interest in", which stopped being true
+		// with migration 16 — a wish points at the instance, so nothing pointed at a part at all
+		// and this branch was unreachable. Migration 17 makes it live again, for assignments.
 		sub, err := tx.Begin(ctx)
 		if err != nil {
 			return fmt.Errorf("cannot open a savepoint: %w", err)
@@ -1411,8 +1424,8 @@ func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.Deman
 				plan.Refused = append(plan.Refused, domain.DemandRefusal{
 					ModuleID: instance.moduleID,
 					Track:    instance.track,
-					Code:     "INSTANCE_IN_USE",
-					Reason:   domain.ErrInstanceInUse.Error(),
+					Code:     "PART_ASSIGNED",
+					Reason:   domain.ErrPartAssigned.Error(),
 				})
 				break
 			}

@@ -23,11 +23,11 @@ INSERT INTO semester (code)
 VALUES ($1)
 ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by;
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at;
 
 -- name: SemesterByCode :one
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
 FROM semester
 WHERE code = $1;
 
@@ -39,7 +39,7 @@ WHERE code = $1;
 -- WS within a year, in the order the terms actually happen. Ordering by created_at instead
 -- would list them by when somebody got round to entering them.
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
 FROM semester
 ORDER BY code DESC;
 
@@ -57,7 +57,7 @@ SET phase = $2,
 WHERE id = $1
   AND phase = $3
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by;
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at;
 
 -- name: PublishSemesterWishes :one
 -- Idempotent, and it keeps the *first* timestamp.
@@ -74,7 +74,21 @@ SET wishes_published_at = COALESCE(wishes_published_at, now()),
     updated_at = CASE WHEN wishes_published_at IS NULL THEN now() ELSE updated_at END
 WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by;
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at;
+
+-- name: PublishSemesterAssignments :one
+-- Idempotent, and it keeps the *first* timestamp. Same shape as PublishSemesterWishes, and the
+-- same argument: publishing twice is not an error, but the moment it happened is a fact about the
+-- process that a second call must not overwrite.
+--
+-- A separate statement rather than a parameterised one over a column name, because the two marks
+-- are two decisions and a caller should not be able to reach the wrong one by passing a string.
+UPDATE semester
+SET assignments_published_at = COALESCE(assignments_published_at, now()),
+    updated_at = CASE WHEN assignments_published_at IS NULL THEN now() ELSE updated_at END
+WHERE id = $1
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at;
 
 -- name: PlanningSemester :one
 -- The semester the faculty is planning, or no row while nobody has said.
@@ -83,7 +97,7 @@ RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
 -- of this statement, and a LIMIT here would quietly return one of several if that ever stopped
 -- being true.
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
 FROM semester
 WHERE is_planning_semester;
 
@@ -124,4 +138,4 @@ SET is_planning_semester = true,
     updated_at = now()
 WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by;
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at;

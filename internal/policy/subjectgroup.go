@@ -49,8 +49,12 @@ const SubjectGroupScopeMissingReason = "Ihre Fachgruppenleitung ist noch keiner 
 	"zugeordnet. Bitte in der Verwaltung eintragen lassen."
 
 // AssignmentReason is what everybody else is told.
-const AssignmentReason = "Nur die Leitung dieser Fachgruppe und das Dekanat können die " +
-	"Instanzen dieser Fachgruppe besetzen."
+//
+// Names all three ways to be responsible, and it grew the middle one on 2026-08-27 when the
+// faculty decided that a study programme lead fills instances too. A refusal that listed only the
+// subject group would send somebody who leads the programme to ask for a role they hold.
+const AssignmentReason = "Diese Instanz kann nur die Leitung ihrer Fachgruppe, die Leitung " +
+	"ihres Studiengangs oder das Dekanat besetzen."
 
 // SubjectGroupScope is the set of subject groups an actor may act in.
 //
@@ -112,8 +116,10 @@ func AssignmentScope(a principal.Actor) SubjectGroupScope {
 // of them ends up in a WHERE clause and the other in a check on a row already in hand, and they
 // have to agree. TestAssignmentGuardAndScopeAgree asserts it over the full cartesian product.
 //
-// Named for acting rather than for assigning, because the assignment phase does not exist yet
-// and this already decides something real: which unpublished wishes a subject group lead reads.
+// Named for acting rather than for assigning, and the name has outlived its first reason. It was
+// written before the assignment existed, when what it already decided was which unpublished wishes
+// a subject group lead reads. It stays because it is still the wider statement: this is one of the
+// two axes MayWriteAssignment takes the union of, and it answers the wish rule as well.
 func MayActInSubjectGroup(a principal.Actor, subjectGroupID uuid.UUID) bool {
 	return AssignmentScope(a).Allows(subjectGroupID)
 }

@@ -17,6 +17,7 @@ Kolleg:innen — das gehört nach `tallox.dev`.
 - [Zugriffslog](access-log.md) — was es festhält, was es bewusst nicht kann, und warum die Reihenfolge der Middlewares tragend ist
 - [Wünsche](wishes.md) — nur selbst, kein COUNT, die zwei Geltungsbereiche, und drei Funde beim Bauen
 - [Fachgruppen](subject-groups.md) — semesterunabhängig, die Leitung als Scope-Tabelle, und was Umhängen rückwirkend ändert
+- [Zuteilung](assignments.md) — person oder teacher, zwei Achsen zum Schreiben, Compare-and-Set, und drei Funde beim Bauen
 - [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf, und das Planungssemester
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:

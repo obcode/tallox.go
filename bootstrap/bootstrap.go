@@ -97,6 +97,9 @@ type Options struct {
 	SubjectGroups *domain.SubjectGroupService
 	// Wishes is the wish phase, on the same terms.
 	Wishes *domain.WishService
+	// Staffing is the assignment phase, on the same terms. Named as it is in graph.Resolver, for
+	// the collision explained there.
+	Staffing *domain.AssignmentService
 	// Access is the access log. Nil is legitimate and means the installation does not record
 	// accesses — which is what every test that does not care about the log runs as, and what
 	// keeps a missing log from being a missing server.
@@ -312,6 +315,7 @@ func Serve(build buildinfo.Info) {
 	demand := domain.NewDemandService(store.NewDemand(pool, modules), modules, planning)
 	subjectGroups := domain.NewSubjectGroupService(store.NewSubjectGroups(pool))
 	wishes := domain.NewWishService(store.NewWishes(pool), planning)
+	staffing := domain.NewAssignmentService(store.NewAssignments(pool), planning)
 	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool), catalogueProjection)
 	access := domain.NewAccessService(store.NewAccess(pool))
 
@@ -344,6 +348,7 @@ func Serve(build buildinfo.Info) {
 			Demand:        demand,
 			SubjectGroups: subjectGroups,
 			Wishes:        wishes,
+			Staffing:      staffing,
 			Access:        access,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
@@ -597,6 +602,7 @@ func graphqlHandler(opts Options) http.Handler {
 			Demand:        opts.Demand,
 			SubjectGroups: opts.SubjectGroups,
 			Wishes:        opts.Wishes,
+			Staffing:      opts.Staffing,
 			Access:        opts.Access,
 		},
 		// The generated code fails closed on a directive with no implementation — the field

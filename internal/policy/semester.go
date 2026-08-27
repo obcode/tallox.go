@@ -41,6 +41,20 @@ func MayAdministerSemesters(a principal.Actor) bool {
 	return a.Authenticated() && RolesOf(a).Has(RoleDeansOffice)
 }
 
+// MayPublishAssignments reports whether an actor may make the assignments of a semester visible
+// to everybody.
+//
+// The same people and the same door as MayPublishWishes, and a function of its own for the reason
+// UnpublishedAssignmentScope is one: the two are the same rule today and are not the same
+// decision. Publishing the wishes says the registration window is over; publishing the
+// assignments says the plan is settled enough to be read as one. The day the faculty wants those
+// to be different acts by different people, this is where that happens.
+//
+// Interactive only, for the reason below: it cannot be undone.
+func MayPublishAssignments(a principal.Actor) bool {
+	return MayAdministerSemesters(a) && a.Interactive()
+}
+
 // MayPublishWishes reports whether an actor may end the confidentiality window of a semester.
 //
 // MayAdministerSemesters *and* an interactive session. This is the one semester operation that
@@ -82,6 +96,13 @@ const PlanningSemesterReason = "Nur das Dekanat darf festlegen, welches Semester
 // them only "the dean's office may do this" would send them to ask for a grant they already
 // hold.
 const PublishWishesReason = "Nur das Dekanat darf Wünsche veröffentlichen. " +
+	"Das geht ausschließlich im Browser, nicht über ein Personal Access Token."
+
+// PublishAssignmentsReason is what a caller who failed MayPublishAssignments is told.
+//
+// Two sentences for the reason PublishWishesReason gives: the caller who hits this is most often
+// somebody who holds the role and is using a token.
+const PublishAssignmentsReason = "Nur das Dekanat darf Zuteilungen veröffentlichen. " +
 	"Das geht ausschließlich im Browser, nicht über ein Personal Access Token."
 
 // PhaseTransitionReason is what a caller attempting an illegal phase change is told.

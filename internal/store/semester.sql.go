@@ -18,7 +18,7 @@ SET phase = $2,
 WHERE id = $1
   AND phase = $3
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
 `
 
 type AdvanceSemesterPhaseParams struct {
@@ -47,6 +47,7 @@ func (q *Queries) AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterP
 		&i.IsPlanningSemester,
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
+		&i.AssignmentsPublishedAt,
 	)
 	return i, err
 }
@@ -61,11 +62,17 @@ WHERE is_planning_semester
 
 // Take the mark off whichever semester carries it, except the one about to receive it.
 //
-// Runs first in the transaction that moves the mark, and that order is what makes concurrency
-// boring: this UPDATE takes a row lock on the current planning semester, so two people setting
-// different semesters at the same moment serialise here instead of colliding on the unique
-// index afterwards. The second one wins, which is the right outcome for a decision somebody is
-// taking on purpose.
+// Runs first in the transaction that moves the mark, and that order is most of what makes
+// concurrency boring: this UPDATE takes a row lock on the current planning semester, so two
+// people setting different semesters at the same moment serialise here instead of colliding on
+// the unique index afterwards. The second one wins, which is the right outcome for a decision
+// somebody is taking on purpose.
+//
+// It is most of it and not all of it, and the gap is not visible from this statement. Under READ
+// COMMITTED the caller that waited here re-evaluates the row it locked and does not rescan for
+// rows that became eligible while it waited — so it can miss the mark the other transaction just
+// set, and hit the unique index anyway. store.SetPlanningSemester retries once for that; the
+// whole sequence is written out there.
 //
 // The exception for the target is not decoration: without it, setting the semester that is
 // already set would clear the mark and then set it again, moving planning_set_at and making a
@@ -81,7 +88,7 @@ INSERT INTO semester (code)
 VALUES ($1)
 ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
 `
 
 // Semesters and the phase each one is in.
@@ -116,6 +123,7 @@ func (q *Queries) EnsureSemester(ctx context.Context, code string) (Semester, er
 		&i.IsPlanningSemester,
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
+		&i.AssignmentsPublishedAt,
 	)
 	return i, err
 }
@@ -128,7 +136,7 @@ SET is_planning_semester = true,
     updated_at = now()
 WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
 `
 
 type MarkPlanningSemesterParams struct {
@@ -154,13 +162,14 @@ func (q *Queries) MarkPlanningSemester(ctx context.Context, arg MarkPlanningSeme
 		&i.IsPlanningSemester,
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
+		&i.AssignmentsPublishedAt,
 	)
 	return i, err
 }
 
 const planningSemester = `-- name: PlanningSemester :one
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
 FROM semester
 WHERE is_planning_semester
 `
@@ -183,6 +192,40 @@ func (q *Queries) PlanningSemester(ctx context.Context) (Semester, error) {
 		&i.IsPlanningSemester,
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
+		&i.AssignmentsPublishedAt,
+	)
+	return i, err
+}
+
+const publishSemesterAssignments = `-- name: PublishSemesterAssignments :one
+UPDATE semester
+SET assignments_published_at = COALESCE(assignments_published_at, now()),
+    updated_at = CASE WHEN assignments_published_at IS NULL THEN now() ELSE updated_at END
+WHERE id = $1
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+`
+
+// Idempotent, and it keeps the *first* timestamp. Same shape as PublishSemesterWishes, and the
+// same argument: publishing twice is not an error, but the moment it happened is a fact about the
+// process that a second call must not overwrite.
+//
+// A separate statement rather than a parameterised one over a column name, because the two marks
+// are two decisions and a caller should not be able to reach the wrong one by passing a string.
+func (q *Queries) PublishSemesterAssignments(ctx context.Context, id uuid.UUID) (Semester, error) {
+	row := q.db.QueryRow(ctx, publishSemesterAssignments, id)
+	var i Semester
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Phase,
+		&i.WishesPublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsPlanningSemester,
+		&i.PlanningSetAt,
+		&i.PlanningSetBy,
+		&i.AssignmentsPublishedAt,
 	)
 	return i, err
 }
@@ -193,7 +236,7 @@ SET wishes_published_at = COALESCE(wishes_published_at, now()),
     updated_at = CASE WHEN wishes_published_at IS NULL THEN now() ELSE updated_at END
 WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
 `
 
 // Idempotent, and it keeps the *first* timestamp.
@@ -218,13 +261,14 @@ func (q *Queries) PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Seme
 		&i.IsPlanningSemester,
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
+		&i.AssignmentsPublishedAt,
 	)
 	return i, err
 }
 
 const semesterByCode = `-- name: SemesterByCode :one
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
 FROM semester
 WHERE code = $1
 `
@@ -242,13 +286,14 @@ func (q *Queries) SemesterByCode(ctx context.Context, code string) (Semester, er
 		&i.IsPlanningSemester,
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
+		&i.AssignmentsPublishedAt,
 	)
 	return i, err
 }
 
 const semesters = `-- name: Semesters :many
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
 FROM semester
 ORDER BY code DESC
 `
@@ -278,6 +323,7 @@ func (q *Queries) Semesters(ctx context.Context) ([]Semester, error) {
 			&i.IsPlanningSemester,
 			&i.PlanningSetAt,
 			&i.PlanningSetBy,
+			&i.AssignmentsPublishedAt,
 		); err != nil {
 			return nil, err
 		}

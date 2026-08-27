@@ -74,6 +74,80 @@ type Querier interface {
 	// assignment to somebody who does not hold the role — the check is the schema's, not a race
 	// somebody has to remember here.
 	AssignProgramme(ctx context.Context, arg AssignProgrammeParams) error
+	// Whether this account may be given teaching.
+	//
+	// active is part of the question and not a detail: person.active is how somebody is removed from
+	// this system, so an inactive row must not become the answer to "who holds this next semester".
+	// It is asked on the way in only — an assignment already on the books survives its holder being
+	// deactivated, which is what the RESTRICT on this column is for.
+	AssignablePersonExists(ctx context.Context, id uuid.UUID) (bool, error)
+	// Whether this catalogue entry may be given teaching.
+	//
+	// retired_at rather than active. The two mean different things: active is the examination
+	// office's own flag and is routinely stale, retired_at is this system noticing that the source
+	// stopped mentioning somebody. The faculty knows better than the flag who is teaching next
+	// semester, and refusing on it would refuse exactly the lecturers on contract this column pair
+	// exists to make assignable.
+	AssignableTeacherExists(ctx context.Context, id uuid.UUID) (bool, error)
+	// One assignment, through the same filter. A detail view that skipped it would be the hole the
+	// list does not have — and the realistic shape of that mistake is somebody adding a by-id lookup
+	// because "it is only one row".
+	AssignmentByID(ctx context.Context, arg AssignmentByIDParams) (AssignmentByIDRow, error)
+	// The same context, reached from an assignment rather than from a part. For clearing one.
+	AssignmentWriteContextByID(ctx context.Context, id uuid.UUID) (AssignmentWriteContextByIDRow, error)
+	// Assignments: who holds each part of a course instance.
+	//
+	// THE RULE THIS FILE IS MADE OF
+	//
+	// The same rule wish.sql is made of, and the same file-level contract. Every SELECT here carries
+	// the same four filter parameters and they are not optional. The visibility rule is a WHERE
+	// clause — internal/policy decides it, this is where it runs — and a query written without it is
+	// not a slow query, it is a leak.
+	//
+	//     @scope = 'all'            no restriction
+	//     @scope = 'own'            what the caller holds themselves
+	//     @scope = 'own_or_scoped'  their own, plus the programmes and subject groups they lead
+	//     anything else             nothing at all
+	//
+	// The unknown value matching no branch is deliberate and mirrors AssignmentFilter.Matches, whose
+	// default arm returns false: the safe reading of "I do not know how much you may see" is nothing.
+	//
+	// WHAT IS NOT IN THIS FILE
+	//
+	// **There is no COUNT.** "Zwei der drei Praktika sind schon vergeben" is the confidential fact
+	// with the names taken out, and an aggregate that skips the filter is the same failure as a list
+	// that skips it, only harder to notice. Whoever wants a number counts the rows they were allowed
+	// to read. store.TestEveryAssignmentQueryIsFiltered reads this file and requires the predicate in
+	// every SELECT, and refuses a COUNT anywhere in it.
+	//
+	// THE ASSIGNEE IS TWO COLUMNS AND ONE PERSON
+	//
+	// Exactly one of person_id and teacher_id is set. The name and the address are read from whichever
+	// it is, so every projection here coalesces the pair rather than making its caller branch. The
+	// filter, though, compares person_id alone: somebody with no account holds no row "of their own",
+	// which is the rule and not an oversight.
+	// The assignments of one semester — or of every semester — filtered, with everything a screen
+	// needs to render a row.
+	//
+	// The semester is optional, and there is exactly one caller allowed to leave it out: "what am I
+	// teaching, everywhere". That question does not depend on the confidentiality rule at all, so it
+	// needs no semester to read a publication date from. Every other caller passes one, because the
+	// rule *is* per semester.
+	//
+	// One query for the assignment screen and for a lecturer's own timetable both, because they
+	// differ only in what the filter lets through. A second query "for planners" would be a second
+	// place for the rule to be forgotten.
+	//
+	// The joins carry the two things the rule is scoped by — the programme of the instance and the
+	// subject group of its module. module_subject_group is a LEFT JOIN and has to be: a module nobody
+	// has sorted yet is the ordinary state, and its parts are still held by somebody.
+	// The examination office's short name for an assignee who does have an account, so that a list
+	// sorts the same way whether or not somebody happens to be in the catalogue. Same join wish.sql
+	// makes, and on the same key: the address is what makes the two rows one person.
+	// The semester first, because the list across all of them is grouped by it — and because the code
+	// sorts chronologically as text, which is what its format is for. Then the screen's own order:
+	// module, cohort, and the parts of a cohort in the order somebody arranged them.
+	AssignmentsOfSemester(ctx context.Context, arg AssignmentsOfSemesterParams) ([]AssignmentsOfSemesterRow, error)
 	// The parts of *sibling* cohorts that are held for this one as well.
 	//
 	// The other half of instance_part.serves_sibling_tracks. A lecture given once for IF3A and IF3B
@@ -86,16 +160,24 @@ type Querier interface {
 	// would belong to both, and the import/export figure would lose its denominator.
 	BorrowedInstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]BorrowedInstancePartsForRow, error)
 	CatalogueProjectionNotes(ctx context.Context, projectionID uuid.UUID) ([]CatalogueProjectionNotesRow, error)
+	// Give a part back. The row count is the answer: nothing cleared means it was not there.
+	ClearAssignment(ctx context.Context, id uuid.UUID) (int64, error)
 	// Taking modules out of every group, which is the same screen's other button. A module with no
 	// group is a normal state and the whole of October's work list.
 	ClearModulesSubjectGroup(ctx context.Context, moduleIds []uuid.UUID) (int64, error)
 	// Take the mark off whichever semester carries it, except the one about to receive it.
 	//
-	// Runs first in the transaction that moves the mark, and that order is what makes concurrency
-	// boring: this UPDATE takes a row lock on the current planning semester, so two people setting
-	// different semesters at the same moment serialise here instead of colliding on the unique
-	// index afterwards. The second one wins, which is the right outcome for a decision somebody is
-	// taking on purpose.
+	// Runs first in the transaction that moves the mark, and that order is most of what makes
+	// concurrency boring: this UPDATE takes a row lock on the current planning semester, so two
+	// people setting different semesters at the same moment serialise here instead of colliding on
+	// the unique index afterwards. The second one wins, which is the right outcome for a decision
+	// somebody is taking on purpose.
+	//
+	// It is most of it and not all of it, and the gap is not visible from this statement. Under READ
+	// COMMITTED the caller that waited here re-evaluates the row it locked and does not rescan for
+	// rows that became eligible while it waited — so it can miss the mark the other transaction just
+	// set, and hit the unique index anyway. store.SetPlanningSemester retries once for that; the
+	// whole sequence is written out there.
 	//
 	// The exception for the target is not decoration: without it, setting the semester that is
 	// already set would clear the mark and then set it again, moving planning_set_at and making a
@@ -291,6 +373,16 @@ type Querier interface {
 	// the interface would show a run in progress that nothing is progressing. The cutoff is passed
 	// in rather than hard-coded here so the caller's reasoning about it stays in Go.
 	FailAbandonedZPASyncRuns(ctx context.Context, olderThan time.Time) ([]uuid.UUID, error)
+	// Fill a part that nobody holds. Returns no row if somebody already does.
+	//
+	// ON CONFLICT DO NOTHING rather than an upsert, and that is the compare-and-set half of this
+	// file. A caller who names no assignment to replace is saying "I believe this part is free", so
+	// the write has to be conditional on that belief still being true — otherwise the second of two
+	// people filling the same part at the same moment would silently overwrite the first, and both
+	// would leave believing they had decided it.
+	//
+	// Two roles may write this row since 2026-08-27, so this is not a theoretical case.
+	FillInstancePart(ctx context.Context, arg FillInstancePartParams) (uuid.UUID, error)
 	FinishCatalogueProjection(ctx context.Context, arg FinishCatalogueProjectionParams) (FinishCatalogueProjectionRow, error)
 	FinishZPASyncRun(ctx context.Context, arg FinishZPASyncRunParams) (ZpaSyncRun, error)
 	// Idempotent in the sense that matters: granting a role somebody already holds updates its
@@ -508,6 +600,18 @@ type Querier interface {
 	// COALESCE with the cast outside, for the same reason as above — MAX over no rows is NULL, and
 	// an instance with no parts yet is the ordinary state of one whose module has an empty split.
 	NextInstancePartPosition(ctx context.Context, courseInstanceID uuid.UUID) (int32, error)
+	// Everything the write rule needs about one part, in one statement.
+	//
+	// Both halves of MayWriteAssignment hang off the instance the part belongs to — the phase from its
+	// semester, the two responsibility axes from its programme and its module's subject group — so
+	// reading them one at a time would be three round trips and three chances to decide against a
+	// state that has since moved. Same reasoning as CourseInstanceByPartID in demand.sql, which this
+	// extends rather than reuses because that one predates the subject group.
+	//
+	// Deliberately not filtered: this answers "may I write here", and a caller who may not is told so
+	// by the policy rather than by an empty row. What it exposes is the phase and two ids of a part
+	// whose id the caller already had.
+	PartWriteContext(ctx context.Context, instancePartID uuid.UUID) (PartWriteContextRow, error)
 	// Joined to the teacher list like ListPeople, so that one person and the list agree about the
 	// name a list is sorted by. Not so for PersonByMail above: that one authenticates every request
 	// on the browser door, and a join it has no use for does not belong on that path.
@@ -531,6 +635,14 @@ type Querier interface {
 	// principal.RoleScope reads it. Coalescing here rather than emitting JSON null keeps the
 	// decoding free of a subtlety about how null unmarshals into a non-pointer.
 	PersonByMail(ctx context.Context, mail string) (PersonByMailRow, error)
+	// The account belonging to a teacher, if there is one.
+	//
+	// The canonicalisation lookup: assigning a teacher who holds an account writes the account, so
+	// that the same colleague does not sit in this table under two identities and "my assignments"
+	// does not find half of them. The address is the link, the same one Teacher.isUser is answered
+	// from — citext on both sides, and never a stored column, because a stored one is only as fresh
+	// as the last projection.
+	PersonIDByTeacherID(ctx context.Context, teacherID uuid.UUID) (uuid.UUID, error)
 	// The semester the faculty is planning, or no row while nobody has said.
 	//
 	// No LIMIT: the partial unique index makes "at most one" a property of the table rather than
@@ -642,6 +754,13 @@ type Querier interface {
 	// silently stopped working shows up as a number that stops moving rather than as a table that
 	// quietly grows for a year.
 	PruneAccessLog(ctx context.Context, cutoff time.Time) (int64, error)
+	// Idempotent, and it keeps the *first* timestamp. Same shape as PublishSemesterWishes, and the
+	// same argument: publishing twice is not an error, but the moment it happened is a fact about the
+	// process that a second call must not overwrite.
+	//
+	// A separate statement rather than a parameterised one over a column name, because the two marks
+	// are two decisions and a caller should not be able to reach the wrong one by passing a string.
+	PublishSemesterAssignments(ctx context.Context, id uuid.UUID) (Semester, error)
 	// Idempotent, and it keeps the *first* timestamp.
 	//
 	// Publishing twice is not an error — the second caller wanted the wishes published and they
@@ -672,6 +791,15 @@ type Querier interface {
 	// The name only. The code is the address — it is in URLs and in colleagues' scripts — and
 	// changing it is not a rename but a different group.
 	RenameSubjectGroup(ctx context.Context, arg RenameSubjectGroupParams) (RenameSubjectGroupRow, error)
+	// Hand a part to somebody else. Returns no row if the assignment being replaced is gone.
+	//
+	// Compare-and-set, the same shape AdvanceSemesterPhase takes and for the same reason: @replacing
+	// is the assignment the caller was looking at. If somebody else has since cleared or changed it,
+	// no rows come back and the caller is told rather than overwriting a decision they never saw.
+	//
+	// Read-then-write in Go would pass its unit test and race here, which is precisely the situation
+	// two write-eligible roles produce.
+	ReplaceAssignment(ctx context.Context, arg ReplaceAssignmentParams) (uuid.UUID, error)
 	// Clear a module's split, so the caller can write the new one in the same transaction.
 	//
 	// Delete-then-insert rather than a diff, because the entries only mean anything together: what

@@ -167,6 +167,73 @@ type AccessSummary struct {
 	Mutations []*AccessMutationCount `json:"mutations"`
 }
 
+// Whoever holds a part: a colleague with a Tallox account, or somebody from the examination
+// office's list who has none.
+//
+// Exactly one of `person` and `teacher` is set, and `name` is filled from whichever it is — so a
+// screen rendering a row does not have to know which. That is a fact about accounts, not about
+// teaching.
+//
+// **Somebody without an account is not a lesser assignee.** Lecturers on contract and colleagues
+// from other institutions are planned here like anybody else; six of the teachers the examination
+// office knows carry addresses this faculty's identity provider will never assert. What follows from
+// having no account is only that such a row is nobody's "own" for the visibility rule.
+type Assignee struct {
+	// The Tallox account holding this part, or `null` when it is held by somebody who has none.
+	//
+	// When a teacher who does hold an account is assigned, this is what gets stored — the assignment
+	// is canonicalised on the way in, so that the same colleague is never two identities in this table
+	// and `myAssignments` cannot find half of what they teach.
+	PersonID *string `json:"personId,omitempty"`
+	// The examination office's record, or `null` when the assignment names an account directly.
+	// Resolve it through `teachers` when a screen needs more than the name.
+	TeacherID *string `json:"teacherId,omitempty"`
+	// What to show. From whichever of the two is set.
+	Name string `json:"name"`
+	// The address, or `null` for the few teachers who carry none.
+	//
+	// The same address that makes a `Teacher` and a `Person` one human being.
+	Mail *string `json:"mail,omitempty"`
+}
+
+// One person holding one part of one course instance.
+type Assignment struct {
+	ID string `json:"id"`
+	// The part that is held: which kind, which of several laboratory groups, and what it is worth in
+	// teaching hours.
+	//
+	// `part.teachingHours` is what **one lecturer** is credited with — not what a student attends
+	// (`Module.contactHoursPerWeek`) and not the canonical split (`ModuleComponent.teachingHours`).
+	// Three quantities that could all be called SWS, which is why they are named differently.
+	Part *InstancePart `json:"part"`
+	// The instance the part belongs to: one module, in one study programme, for one cohort.
+	//
+	// Carried in full because an assignment is unreadable without it. "Analysis, IF1B, Praktikum 2" is
+	// the row somebody recognises; an id is not. Its `parts` are not populated here — this is one row
+	// per assignment, and loading them would be one row per part to carry a figure that is already on
+	// `part`.
+	Instance *CourseInstance `json:"instance"`
+	// Who holds it.
+	Assignee *Assignee `json:"assignee"`
+	// What the deciding person wanted recorded: "vertretungsweise", "nur im ersten Halbsemester".
+	//
+	// Read by whoever may read the assignment, which is the same rule as the row.
+	Note string `json:"note"`
+	// Who decided, or `null` once that person's row is gone.
+	//
+	// The field a wish deliberately does not have. An assignment is always somebody's decision about
+	// somebody else — that is what distinguishes the two — so its provenance belongs on the row.
+	//
+	// An id for the reason `Assignee` carries ids: this is provenance, and it should not be the route
+	// by which a screen learns what roles somebody holds.
+	AssignedByID *string `json:"assignedById,omitempty"`
+	// When the part was first filled.
+	CreatedAt time.Time `json:"createdAt"`
+	// When it last changed. Handing the part to somebody else moves this and keeps `createdAt`: the
+	// part has been staffed since then, and by whom is what changed.
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // A sibling cohort's shared part, seen from the cohort it is held for.
 type BorrowedPart struct {
 	// The part itself, as its owning cohort holds it.
@@ -746,6 +813,16 @@ type Semester struct {
 	// There is no un-publishing. Once colleagues have seen each other's entries, clearing this
 	// would only be a lie about it.
 	WishesPublishedAt *time.Time `json:"wishesPublishedAt,omitempty"`
+	// When the assignments of this semester became visible to everybody, or `null` while they are
+	// still confidential.
+	//
+	// Its own mark, independent of the one above in both directions. The ordinary case is wishes
+	// published while the assignment is still being made — that is what lets it be made from a
+	// complete picture. The reverse is unusual and legitimate: a finished plan may be published to a
+	// faculty whose wishes were never made public at all.
+	//
+	// There is no un-publishing here either.
+	AssignmentsPublishedAt *time.Time `json:"assignmentsPublishedAt,omitempty"`
 	// When the last decision about this semester was recorded, or `null` while none has been.
 	//
 	// Not "when the semester was created" — nothing creates one. It is the phase switch or the

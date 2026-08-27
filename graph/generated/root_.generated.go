@@ -95,6 +95,24 @@ type ComplexityRoot struct {
 		Until     func(childComplexity int) int
 	}
 
+	Assignee struct {
+		Mail      func(childComplexity int) int
+		Name      func(childComplexity int) int
+		PersonID  func(childComplexity int) int
+		TeacherID func(childComplexity int) int
+	}
+
+	Assignment struct {
+		AssignedByID func(childComplexity int) int
+		Assignee     func(childComplexity int) int
+		CreatedAt    func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Instance     func(childComplexity int) int
+		Note         func(childComplexity int) int
+		Part         func(childComplexity int) int
+		UpdatedAt    func(childComplexity int) int
+	}
+
 	BorrowedPart struct {
 		FromTrack func(childComplexity int) int
 		Part      func(childComplexity int) int
@@ -230,6 +248,7 @@ type ComplexityRoot struct {
 		ChangeCourseInstance          func(childComplexity int, id string, track string, programmeSemester *int) int
 		ChangeInstancePart            func(childComplexity int, id string, kind domain.InstancePartKind, teachingHours *float64) int
 		ChangeLocalModule             func(childComplexity int, id string, input model.LocalModuleInput) int
+		ClearAssignment               func(childComplexity int, id string) int
 		CopyDemandFromSemester        func(childComplexity int, from string, to string, programme string) int
 		CreateLocalModule             func(childComplexity int, input model.LocalModuleInput) int
 		CreatePerson                  func(childComplexity int, mail string, name *string) int
@@ -239,11 +258,13 @@ type ComplexityRoot struct {
 		DuplicateCourseInstance       func(childComplexity int, id string, track string, sourceTrack *string) int
 		PlanDemand                    func(childComplexity int, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) int
 		ProjectZpaCatalogue           func(childComplexity int) int
+		PublishAssignments            func(childComplexity int, code string) int
 		PublishWishes                 func(childComplexity int, code string) int
 		RemoveInstancePart            func(childComplexity int, id string) int
 		RenamePerson                  func(childComplexity int, id string, name string) int
 		RenameSubjectGroup            func(childComplexity int, id string, name string) int
 		RevokePersonalAccessToken     func(childComplexity int, id string) int
+		SetAssignment                 func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
 		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
 		SetModulesSubjectGroup        func(childComplexity int, moduleIds []string, subjectGroup *string) int
 		SetMySubjectGroups            func(childComplexity int, subjectGroupIds []string) int
@@ -301,6 +322,7 @@ type ComplexityRoot struct {
 	Query struct {
 		AccessLog                  func(childComplexity int, filter *model.AccessLogFilter, limit *int, before *string) int
 		AccessSummary              func(childComplexity int, from time.Time, until time.Time) int
+		Assignments                func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
 		BuildInfo                  func(childComplexity int) int
 		CourseInstance             func(childComplexity int, id string) int
 		CourseInstances            func(childComplexity int, semester string, programme *string, module *string) int
@@ -309,6 +331,7 @@ type ComplexityRoot struct {
 		Module                     func(childComplexity int, id string) int
 		Modules                    func(childComplexity int, filter *model.ModuleFilter) int
 		ModulesWithoutSubjectGroup func(childComplexity int) int
+		MyAssignments              func(childComplexity int, semester *string) int
 		MySubjectGroups            func(childComplexity int) int
 		MyTokens                   func(childComplexity int) int
 		MyWishes                   func(childComplexity int, semester *string) int
@@ -350,12 +373,13 @@ type ComplexityRoot struct {
 	}
 
 	Semester struct {
-		Code               func(childComplexity int) int
-		DecidedAt          func(childComplexity int) int
-		IsPlanningSemester func(childComplexity int) int
-		Phase              func(childComplexity int) int
-		ReachablePhases    func(childComplexity int) int
-		WishesPublishedAt  func(childComplexity int) int
+		AssignmentsPublishedAt func(childComplexity int) int
+		Code                   func(childComplexity int) int
+		DecidedAt              func(childComplexity int) int
+		IsPlanningSemester     func(childComplexity int) int
+		Phase                  func(childComplexity int) int
+		ReachablePhases        func(childComplexity int) int
+		WishesPublishedAt      func(childComplexity int) int
 	}
 
 	Session struct {
@@ -747,6 +771,80 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AccessSummary.Until(childComplexity), true
+
+	case "Assignee.mail":
+		if e.ComplexityRoot.Assignee.Mail == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignee.Mail(childComplexity), true
+	case "Assignee.name":
+		if e.ComplexityRoot.Assignee.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignee.Name(childComplexity), true
+	case "Assignee.personId":
+		if e.ComplexityRoot.Assignee.PersonID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignee.PersonID(childComplexity), true
+	case "Assignee.teacherId":
+		if e.ComplexityRoot.Assignee.TeacherID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignee.TeacherID(childComplexity), true
+
+	case "Assignment.assignedById":
+		if e.ComplexityRoot.Assignment.AssignedByID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignment.AssignedByID(childComplexity), true
+	case "Assignment.assignee":
+		if e.ComplexityRoot.Assignment.Assignee == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignment.Assignee(childComplexity), true
+	case "Assignment.createdAt":
+		if e.ComplexityRoot.Assignment.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignment.CreatedAt(childComplexity), true
+	case "Assignment.id":
+		if e.ComplexityRoot.Assignment.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignment.ID(childComplexity), true
+	case "Assignment.instance":
+		if e.ComplexityRoot.Assignment.Instance == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignment.Instance(childComplexity), true
+	case "Assignment.note":
+		if e.ComplexityRoot.Assignment.Note == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignment.Note(childComplexity), true
+	case "Assignment.part":
+		if e.ComplexityRoot.Assignment.Part == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignment.Part(childComplexity), true
+	case "Assignment.updatedAt":
+		if e.ComplexityRoot.Assignment.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Assignment.UpdatedAt(childComplexity), true
 
 	case "BorrowedPart.fromTrack":
 		if e.ComplexityRoot.BorrowedPart.FromTrack == nil {
@@ -1354,6 +1452,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ChangeLocalModule(childComplexity, args["id"].(string), args["input"].(model.LocalModuleInput)), true
+	case "Mutation.clearAssignment":
+		if e.ComplexityRoot.Mutation.ClearAssignment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_clearAssignment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ClearAssignment(childComplexity, args["id"].(string)), true
 	case "Mutation.copyDemandFromSemester":
 		if e.ComplexityRoot.Mutation.CopyDemandFromSemester == nil {
 			break
@@ -1448,6 +1557,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ProjectZpaCatalogue(childComplexity), true
+	case "Mutation.publishAssignments":
+		if e.ComplexityRoot.Mutation.PublishAssignments == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_publishAssignments_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.PublishAssignments(childComplexity, args["code"].(string)), true
 	case "Mutation.publishWishes":
 		if e.ComplexityRoot.Mutation.PublishWishes == nil {
 			break
@@ -1503,6 +1623,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RevokePersonalAccessToken(childComplexity, args["id"].(string)), true
+	case "Mutation.setAssignment":
+		if e.ComplexityRoot.Mutation.SetAssignment == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setAssignment_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetAssignment(childComplexity, args["instancePartId"].(string), args["personId"].(*string), args["teacherId"].(*string), args["note"].(*string), args["replacing"].(*string)), true
 	case "Mutation.setModuleComponents":
 		if e.ComplexityRoot.Mutation.SetModuleComponents == nil {
 			break
@@ -1855,6 +1986,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.AccessSummary(childComplexity, args["from"].(time.Time), args["until"].(time.Time)), true
+	case "Query.assignments":
+		if e.ComplexityRoot.Query.Assignments == nil {
+			break
+		}
+
+		args, err := ec.field_Query_assignments_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Assignments(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string), args["instance"].(*string), args["person"].(*string)), true
 	case "Query.buildInfo":
 		if e.ComplexityRoot.Query.BuildInfo == nil {
 			break
@@ -1929,6 +2071,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.ModulesWithoutSubjectGroup(childComplexity), true
+	case "Query.myAssignments":
+		if e.ComplexityRoot.Query.MyAssignments == nil {
+			break
+		}
+
+		args, err := ec.field_Query_myAssignments_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.MyAssignments(childComplexity, args["semester"].(*string)), true
 	case "Query.mySubjectGroups":
 		if e.ComplexityRoot.Query.MySubjectGroups == nil {
 			break
@@ -2199,6 +2352,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.RoleGrant.Role(childComplexity), true
 
+	case "Semester.assignmentsPublishedAt":
+		if e.ComplexityRoot.Semester.AssignmentsPublishedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Semester.AssignmentsPublishedAt(childComplexity), true
 	case "Semester.code":
 		if e.ComplexityRoot.Semester.Code == nil {
 			break
@@ -3356,6 +3515,248 @@ extend type Mutation {
     "True admits, false withdraws."
     admitted: Boolean!
   ): TeacherAccount! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+}
+`, BuiltIn: false},
+	{Name: "../assignment.graphqls", Input: `# Assignments: who holds each part of a course instance.
+#
+# The third step of the process. The demand says what has to be offered, the wishes say who would
+# like to teach it, and this says who does.
+#
+# THE RULE, ONCE
+#
+# An assignment is visible if and only if you hold it yourself, or the assignments of that
+# semester have been published, or you are responsible for it — you lead the study programme whose
+# demand the instance is, or the subject group its module belongs to, or you are the dean's office
+# — and then only in a signed-in browser session, never through a Personal Access Token.
+#
+# Word for word the wish rule with one noun changed, and deliberately so. What differs is why it
+# exists: the wish window ends a first-come-first-served race, the assignment window keeps a
+# half-made plan from being asked about before anybody has decided it. Read the whole thing in
+# ` + "`" + `internal/policy/testdata/assignment_visibility_matrix.golden` + "`" + `, generated from the code that
+# enforces it.
+#
+# WHAT AN ASSIGNMENT POINTS AT
+#
+# The part: the lecture, the second laboratory group. One level below what a wish points at, and
+# that asymmetry is the design. The faculty registers interest in "IF2A / Softwareentwicklung II";
+# who holds the lecture and who each laboratory is an arrangement between the people concerned,
+# which is what makes it an assignment rather than a wish.
+#
+# WHO MAY FILL ONE
+#
+# The lead of the module's subject group, the lead of the instance's study programme, or the
+# dean's office — a union of the two axes, not an intersection. Only from the assignment phase
+# onwards: filling an instance while the wish phase runs is the race the confidentiality rule
+# exists to end. ` + "`" + `internal/policy/testdata/write_matrix.golden` + "`" + ` has the phases.
+#
+# WRITING IS BROWSER-ONLY
+#
+# Both mutations here are ` + "`" + `@interactiveOnly` + "`" + `, and the reason is not that filling a part is
+# privileged — it is the same role either way — but that their refusals are answers about who
+# holds what.
+#
+# ` + "`" + `PART_ALREADY_ASSIGNED` + "`" + ` tells a caller that a part is taken. Through a token the read rule
+# collapses to "your own", so a script could name one part after another and learn the staffing of
+# a whole semester from the refusals, without a login event and without reading a single row. That
+# is the shape of leak ` + "`" + `planDemand(dryRun:)` + "`" + ` had before the demand mutations were closed, and it
+# is closed here before it exists rather than after.
+#
+# Reading stays open through both doors, narrowed by the policy rather than by the door: what one
+# holds oneself is one's own timetable.
+#
+# WHAT IS DELIBERATELY MISSING
+#
+# There is no count. No ` + "`" + `assignmentCount` + "`" + `, no ` + "`" + `isAssigned` + "`" + ` on a part, no "how much of this cohort
+# is filled" anywhere in this schema. "Zwei der drei Praktika sind vergeben" is the confidential
+# fact with the names taken out, and a field that answers it before publication is a field
+# somebody renders as a progress bar. Anybody who wants a number counts the rows they may read.
+
+"""
+Whoever holds a part: a colleague with a Tallox account, or somebody from the examination
+office's list who has none.
+
+Exactly one of ` + "`" + `person` + "`" + ` and ` + "`" + `teacher` + "`" + ` is set, and ` + "`" + `name` + "`" + ` is filled from whichever it is — so a
+screen rendering a row does not have to know which. That is a fact about accounts, not about
+teaching.
+
+**Somebody without an account is not a lesser assignee.** Lecturers on contract and colleagues
+from other institutions are planned here like anybody else; six of the teachers the examination
+office knows carry addresses this faculty's identity provider will never assert. What follows from
+having no account is only that such a row is nobody's "own" for the visibility rule.
+"""
+type Assignee {
+  """
+  The Tallox account holding this part, or ` + "`" + `null` + "`" + ` when it is held by somebody who has none.
+
+  When a teacher who does hold an account is assigned, this is what gets stored — the assignment
+  is canonicalised on the way in, so that the same colleague is never two identities in this table
+  and ` + "`" + `myAssignments` + "`" + ` cannot find half of what they teach.
+  """
+  personId: ID
+  """
+  The examination office's record, or ` + "`" + `null` + "`" + ` when the assignment names an account directly.
+  Resolve it through ` + "`" + `teachers` + "`" + ` when a screen needs more than the name.
+  """
+  teacherId: ID
+  "What to show. From whichever of the two is set."
+  name: String!
+  """
+  The address, or ` + "`" + `null` + "`" + ` for the few teachers who carry none.
+
+  The same address that makes a ` + "`" + `Teacher` + "`" + ` and a ` + "`" + `Person` + "`" + ` one human being.
+  """
+  mail: String
+}
+
+# Ids and a name rather than an embedded ` + "`" + `Person` + "`" + ` and ` + "`" + `Teacher` + "`" + `, which is what this type carried
+# for about an hour.
+#
+# Two reasons, and the second is the one that matters. The first is honesty: this row is rendered
+# by one query per assignment, which knows the name and the address and nothing else — an embedded
+# Person would arrive with an empty role list and ` + "`" + `active: false` + "`" + `, which does not read as "not
+# loaded", it reads as a claim.
+#
+# The second is that ` + "`" + `Person` + "`" + ` carries roles and study programme scopes, and ` + "`" + `Teacher` + "`" + ` carries an
+# employment profile. Neither belongs in a teaching plan. Hanging them off an assignment would
+# make the assignment list a traversal path to them for everybody who may read one — which is the
+# opposite of keeping personnel data in root fields of its own so that no such path exists.
+
+"""
+One person holding one part of one course instance.
+"""
+type Assignment {
+  id: ID!
+  """
+  The part that is held: which kind, which of several laboratory groups, and what it is worth in
+  teaching hours.
+
+  ` + "`" + `part.teachingHours` + "`" + ` is what **one lecturer** is credited with — not what a student attends
+  (` + "`" + `Module.contactHoursPerWeek` + "`" + `) and not the canonical split (` + "`" + `ModuleComponent.teachingHours` + "`" + `).
+  Three quantities that could all be called SWS, which is why they are named differently.
+  """
+  part: InstancePart!
+  """
+  The instance the part belongs to: one module, in one study programme, for one cohort.
+
+  Carried in full because an assignment is unreadable without it. "Analysis, IF1B, Praktikum 2" is
+  the row somebody recognises; an id is not. Its ` + "`" + `parts` + "`" + ` are not populated here — this is one row
+  per assignment, and loading them would be one row per part to carry a figure that is already on
+  ` + "`" + `part` + "`" + `.
+  """
+  instance: CourseInstance!
+  "Who holds it."
+  assignee: Assignee!
+  """
+  What the deciding person wanted recorded: "vertretungsweise", "nur im ersten Halbsemester".
+
+  Read by whoever may read the assignment, which is the same rule as the row.
+  """
+  note: String!
+  """
+  Who decided, or ` + "`" + `null` + "`" + ` once that person's row is gone.
+
+  The field a wish deliberately does not have. An assignment is always somebody's decision about
+  somebody else — that is what distinguishes the two — so its provenance belongs on the row.
+
+  An id for the reason ` + "`" + `Assignee` + "`" + ` carries ids: this is provenance, and it should not be the route
+  by which a screen learns what roles somebody holds.
+  """
+  assignedById: ID
+  "When the part was first filled."
+  createdAt: Time!
+  """
+  When it last changed. Handing the part to somebody else moves this and keeps ` + "`" + `createdAt` + "`" + `: the
+  part has been staffed since then, and by whom is what changed.
+  """
+  updatedAt: Time!
+}
+
+extend type Query {
+  """
+  What the caller has been given to teach — in one semester, or in every semester.
+
+  The semester is optional here and required on ` + "`" + `assignments` + "`" + `, the same asymmetry ` + "`" + `myWishes` + "`" + ` has
+  and for the same reason: this is the one question whose answer never depends on the
+  confidentiality rule. One's own assignments are visible to oneself in every semester and every
+  phase, so there is no publication date to resolve — and inventing one would mean applying a
+  single semester's state to all of them.
+
+  Reachable through both doors. This is your own timetable, and building a calendar from it is the
+  first script a colleague will write.
+  """
+  myAssignments(
+    "Four digits, a hyphen and SS or WS. Omit for every semester."
+    semester: String
+  ): [Assignment!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  The assignments of one semester that the caller may see.
+
+  The semester is required, because the rule *is* per semester: one may be published and the next
+  not, so a filter built without knowing which would be a filter for the wrong one.
+
+  Asking for somebody else's assignments is not refused — it narrows the same filtered set and
+  answers with what was visible anyway. A refusal here would turn the filter into an oracle, since
+  the difference between "refused" and "empty" is the fact being protected.
+  """
+  assignments(
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
+    semester: String!
+    "Narrow to one study programme's instances, by code."
+    programme: String
+    "Narrow to one module across its cohorts."
+    module: ID
+    "Narrow to a single cohort of one module."
+    instance: ID
+    "Narrow to one person's assignments. Matches an account, not a teacher without one."
+    person: ID
+  ): [Assignment!]! @scope(area: PLANNING, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Put somebody on a part of an instance.
+
+  Pass exactly one of ` + "`" + `personId` + "`" + ` and ` + "`" + `teacherId` + "`" + `. A teacher who holds an account is stored as the
+  account.
+
+  **` + "`" + `replacing` + "`" + ` is what makes this safe when two people decide at once.** It is the id of the
+  assignment you were looking at; omit it to say "I believe this part is free". A call that names
+  nothing can only ever fill a part nobody holds, so somebody who has not seen the current state
+  cannot take a decision away from somebody who has. Since the lead of the module's subject group
+  and the lead of the instance's study programme may both write this row, that is not a formality.
+
+  Refusals: ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + ` before the assignment phase, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + ` when you are
+  responsible for neither the subject nor the programme, ` + "`" + `PART_ALREADY_ASSIGNED` + "`" + ` when you believed
+  a part was free and it is not, ` + "`" + `ASSIGNMENT_MOVED_ON` + "`" + ` when the assignment you named is no longer
+  the one there, ` + "`" + `ASSIGNEE_INVALID` + "`" + ` for neither or both ids, ` + "`" + `ASSIGNEE_NOT_FOUND` + "`" + ` for one that
+  does not resolve.
+  """
+  setAssignment(
+    "The part to fill."
+    instancePartId: ID!
+    "The account to put on it. Mutually exclusive with ` + "`" + `teacherId` + "`" + `."
+    personId: ID
+    "The examination office's record to put on it. Mutually exclusive with ` + "`" + `personId` + "`" + `."
+    teacherId: ID
+    "What to record about the decision. At most 500 characters."
+    note: String
+    """
+    The assignment being replaced, or omitted when the part is believed to be free.
+    """
+    replacing: ID
+  ): Assignment! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Give a part back: remove an assignment.
+
+  Bound by the same phase and the same responsibility as making one. A list that may be added to
+  but not corrected is worse than a closed one.
+
+  Returns the id of what was removed. ` + "`" + `ASSIGNMENT_NOT_FOUND` + "`" + ` covers both "there is no such
+  assignment" and "that one is not yours" — deliberately the same answer.
+  """
+  clearAssignment(id: ID!): ID! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../catalogue.graphqls", Input: `# The module catalogue: study programmes, their examination regulations, and the modules that
@@ -4835,7 +5236,11 @@ enum ScopeArea {
   Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `planningSemester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `,
   ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
   ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
-  ` + "`" + `publishWishes` + "`" + `,
+  ` + "`" + `publishWishes` + "`" + `, ` + "`" + `publishAssignments` + "`" + `,
+  # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
+  # "is this part taken", which through a token the read rule would not.
+
+  ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `,
   ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
@@ -5146,6 +5551,19 @@ type Semester {
   wishesPublishedAt: Time
 
   """
+  When the assignments of this semester became visible to everybody, or ` + "`" + `null` + "`" + ` while they are
+  still confidential.
+
+  Its own mark, independent of the one above in both directions. The ordinary case is wishes
+  published while the assignment is still being made — that is what lets it be made from a
+  complete picture. The reverse is unusual and legitimate: a finished plan may be published to a
+  faculty whose wishes were never made public at all.
+
+  There is no un-publishing here either.
+  """
+  assignmentsPublishedAt: Time
+
+  """
   When the last decision about this semester was recorded, or ` + "`" + `null` + "`" + ` while none has been.
 
   Not "when the semester was created" — nothing creates one. It is the phase switch or the
@@ -5267,6 +5685,17 @@ extend type Mutation {
   ` + "`" + `INTERACTIVE_ONLY` + "`" + `.
   """
   publishWishes(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  End the confidentiality window over the assignments: make who holds what visible to everybody.
+
+  **There is no way back.** Calling it twice is not an error and does not move the timestamp.
+
+  ` + "`" + `@interactiveOnly` + "`" + ` for the same reason ` + "`" + `publishWishes` + "`" + ` is: it cannot be undone, and it is the
+  moment a confidentiality rule stops applying. An act that cannot be walked back should be
+  attributable to a sign-in rather than to a string in a script.
+  """
+  publishAssignments(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../session.graphqls", Input: `# The difference between "who you are" and "how this request is being judged".
@@ -6432,6 +6861,42 @@ func (ec *executionContext) childFields_AccessSummary(ctx context.Context, field
 	return nil, fmt.Errorf("no field named %q was found under type AccessSummary", field.Name)
 }
 
+func (ec *executionContext) childFields_Assignee(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "personId":
+		return ec.fieldContext_Assignee_personId(ctx, field)
+	case "teacherId":
+		return ec.fieldContext_Assignee_teacherId(ctx, field)
+	case "name":
+		return ec.fieldContext_Assignee_name(ctx, field)
+	case "mail":
+		return ec.fieldContext_Assignee_mail(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Assignee", field.Name)
+}
+
+func (ec *executionContext) childFields_Assignment(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Assignment_id(ctx, field)
+	case "part":
+		return ec.fieldContext_Assignment_part(ctx, field)
+	case "instance":
+		return ec.fieldContext_Assignment_instance(ctx, field)
+	case "assignee":
+		return ec.fieldContext_Assignment_assignee(ctx, field)
+	case "note":
+		return ec.fieldContext_Assignment_note(ctx, field)
+	case "assignedById":
+		return ec.fieldContext_Assignment_assignedById(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_Assignment_createdAt(ctx, field)
+	case "updatedAt":
+		return ec.fieldContext_Assignment_updatedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Assignment", field.Name)
+}
+
 func (ec *executionContext) childFields_BorrowedPart(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "part":
@@ -6802,6 +7267,8 @@ func (ec *executionContext) childFields_Semester(ctx context.Context, field grap
 		return ec.fieldContext_Semester_reachablePhases(ctx, field)
 	case "wishesPublishedAt":
 		return ec.fieldContext_Semester_wishesPublishedAt(ctx, field)
+	case "assignmentsPublishedAt":
+		return ec.fieldContext_Semester_assignmentsPublishedAt(ctx, field)
 	case "decidedAt":
 		return ec.fieldContext_Semester_decidedAt(ctx, field)
 	}

@@ -111,7 +111,11 @@ enum ScopeArea {
   Fields: `semesters`, `semester`, `planningSemester`, `programmes`, `programme`, `modules`,
   `module`, `teachers`,
   `courseInstances`, `courseInstance`, `advanceSemesterPhase`, `setPlanningSemester`,
-  `publishWishes`,
+  `publishWishes`, `publishAssignments`,
+  # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
+  # "is this part taken", which through a token the read rule would not.
+
+  `assignments`, `myAssignments`, `setAssignment`, `clearAssignment`,
   `setModuleComponents`, `createLocalModule`, `changeLocalModule`,
   `setProgrammePlanningStatus`, `declareCourseInstance`, `duplicateCourseInstance`,
   `changeCourseInstance`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,

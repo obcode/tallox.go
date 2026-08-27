@@ -54,6 +54,20 @@ func (r *mutationResolver) PublishWishes(ctx context.Context, code string) (*mod
 	return semesterModel(published), nil
 }
 
+// PublishAssignments is the resolver for the publishAssignments field.
+func (r *mutationResolver) PublishAssignments(ctx context.Context, code string) (*model.Semester, error) {
+	published, err := r.Planning.PublishAssignments(ctx, principal.From(ctx), code)
+	if err != nil {
+		// Names the door as well as the role, the same way publishing the wishes does: the caller
+		// who hits this most often *has* DEANS_OFFICE and is using a token.
+		if errors.Is(err, domain.ErrForbidden) {
+			return nil, refusal("FORBIDDEN", policy.PublishAssignmentsReason)
+		}
+		return nil, semesterUserFacing(err)
+	}
+	return semesterModel(published), nil
+}
+
 // Semesters is the resolver for the semesters field.
 func (r *queryResolver) Semesters(ctx context.Context) ([]*model.Semester, error) {
 	list, err := r.Planning.List(ctx, principal.From(ctx))

@@ -75,7 +75,11 @@ type Semester struct {
 	// while it is still open. Same shape as policy.SemesterState, so the two compose without a
 	// conversion that could invert the meaning.
 	WishesPublishedAt time.Time
-	CreatedAt         time.Time
+	// AssignmentsPublishedAt is the moment the assignments of this semester became visible to
+	// everybody, or the zero time while they are still confidential. Independent of the mark
+	// above in both directions — see policy.SemesterState.
+	AssignmentsPublishedAt time.Time
+	CreatedAt              time.Time
 	// UpdatedAt is when the last decision about this semester was recorded, or the zero time
 	// while none has been.
 	UpdatedAt time.Time
@@ -90,7 +94,11 @@ func (s Semester) Recorded() bool { return s.ID != uuid.Nil }
 
 // State is the semester in the form the visibility rules take.
 func (s Semester) State() policy.SemesterState {
-	return policy.SemesterState{Phase: s.Phase, WishesPublishedAt: s.WishesPublishedAt}
+	return policy.SemesterState{
+		Phase:                  s.Phase,
+		WishesPublishedAt:      s.WishesPublishedAt,
+		AssignmentsPublishedAt: s.AssignmentsPublishedAt,
+	}
 }
 
 // SemesterStore is the persistence this service needs, and nothing more.
@@ -114,6 +122,8 @@ type SemesterStore interface {
 	AdvanceSemesterPhase(ctx context.Context, id uuid.UUID, from, to policy.Phase) (Semester, error)
 	// PublishSemesterWishes is idempotent and keeps the first timestamp.
 	PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Semester, error)
+	// PublishSemesterAssignments is the same for the second mark.
+	PublishSemesterAssignments(ctx context.Context, id uuid.UUID) (Semester, error)
 	// PlanningSemester returns the marked semester, or a zero Semester when none is marked.
 	// No row is not an error: an installation where nobody has decided yet is a real state,
 	// and List has a fallback for it.
@@ -350,6 +360,32 @@ func (s *SemesterService) PublishWishes(ctx context.Context, actor principal.Act
 		return Semester{}, err
 	}
 	return s.store.PublishSemesterWishes(ctx, existing.ID)
+}
+
+// PublishAssignments makes the assignments of a semester visible to everybody.
+//
+// Idempotent by way of the store, and irreversible by way of the world: once colleagues have seen
+// who holds what, clearing the timestamp would only be a lie about it.
+//
+// Ensures the row first, like PublishWishes and for the same reason: publishing a semester nobody
+// has filled anything in is a strange act and is still a statement somebody made about it.
+func (s *SemesterService) PublishAssignments(ctx context.Context, actor principal.Actor,
+	code string,
+) (Semester, error) {
+	if !policy.MayPublishAssignments(actor) {
+		return Semester{}, ErrForbidden
+	}
+
+	code, err := s.plannable(code)
+	if err != nil {
+		return Semester{}, err
+	}
+
+	existing, err := s.store.EnsureSemester(ctx, code)
+	if err != nil {
+		return Semester{}, err
+	}
+	return s.store.PublishSemesterAssignments(ctx, existing.ID)
 }
 
 // plannable normalises a code and reports whether a decision about it may be recorded.

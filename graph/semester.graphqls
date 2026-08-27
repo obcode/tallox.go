@@ -89,6 +89,19 @@ type Semester {
   wishesPublishedAt: Time
 
   """
+  When the assignments of this semester became visible to everybody, or `null` while they are
+  still confidential.
+
+  Its own mark, independent of the one above in both directions. The ordinary case is wishes
+  published while the assignment is still being made — that is what lets it be made from a
+  complete picture. The reverse is unusual and legitimate: a finished plan may be published to a
+  faculty whose wishes were never made public at all.
+
+  There is no un-publishing here either.
+  """
+  assignmentsPublishedAt: Time
+
+  """
   When the last decision about this semester was recorded, or `null` while none has been.
 
   Not "when the semester was created" — nothing creates one. It is the phase switch or the
@@ -210,4 +223,15 @@ extend type Mutation {
   `INTERACTIVE_ONLY`.
   """
   publishWishes(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  End the confidentiality window over the assignments: make who holds what visible to everybody.
+
+  **There is no way back.** Calling it twice is not an error and does not move the timestamp.
+
+  `@interactiveOnly` for the same reason `publishWishes` is: it cannot be undone, and it is the
+  moment a confidentiality rule stops applying. An act that cannot be walked back should be
+  attributable to a sign-in rather than to a string in a script.
+  """
+  publishAssignments(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 }

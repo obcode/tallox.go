@@ -222,6 +222,10 @@ func (f *fakeSemesterStore) PublishSemesterWishes(context.Context, uuid.UUID) (d
 	return domain.Semester{}, errors.New("not part of this test")
 }
 
+func (f *fakeSemesterStore) PublishSemesterAssignments(context.Context, uuid.UUID) (domain.Semester, error) {
+	return domain.Semester{}, errors.New("not part of this test")
+}
+
 func (f *fakeSemesterStore) PlanningSemester(context.Context) (domain.Semester, error) {
 	if f.planning == "" {
 		return domain.Semester{}, nil

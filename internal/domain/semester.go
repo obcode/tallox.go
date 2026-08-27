@@ -388,6 +388,30 @@ func (s *SemesterService) PublishAssignments(ctx context.Context, actor principa
 	return s.store.PublishSemesterAssignments(ctx, existing.ID)
 }
 
+// EnsureRecorded gives back the row for a semester, creating it if this is the first decision
+// anybody records about it.
+//
+// Public because deciding something about a semester is not only advancing its phase any more: the
+// two planning marks are decisions too, and each of them is the first one somebody may take about
+// a semester nobody has touched. "Nobody creates a semester — the row comes into existence with
+// the first decision and is its record" is the rule, and this is where callers outside this file
+// get to follow it.
+//
+// It does not check any permission. The caller has already decided whether this actor may take the
+// decision in question; what this answers is only which row it is about.
+func (s *SemesterService) EnsureRecorded(ctx context.Context, actor principal.Actor, code string,
+) (Semester, error) {
+	if !actor.Authenticated() {
+		return Semester{}, ErrNotAuthenticated
+	}
+
+	code, err := s.plannable(code)
+	if err != nil {
+		return Semester{}, err
+	}
+	return s.store.EnsureSemester(ctx, code)
+}
+
 // plannable normalises a code and reports whether a decision about it may be recorded.
 //
 // Upper-cased and trimmed, because "2026-ws" typed into a form is the same semester and

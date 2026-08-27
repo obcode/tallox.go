@@ -58,19 +58,44 @@ func TestUnknownPhaseWritesNothing(t *testing.T) {
 
 // The decision, asserted as itself rather than left to be inferred from the golden file.
 //
-// A change here is meant to be deliberate: somebody closing the demand after the wish phase edits
-// this test and the matrix together, and the pull request says so in two places.
-func TestDemandIsOpenInEveryPhase(t *testing.T) {
+// Demand may be added at any point up to the close, including while the assignment runs: a late
+// instance is a correction, and a refused correction happens outside the tool instead. What it
+// may not survive is the close, because a finished semester is a record — see
+// TestNothingIsWrittenAfterTheSemesterIsFinished, which asserts the other half.
+func TestDemandIsOpenUntilTheSemesterIsFinished(t *testing.T) {
 	t.Parallel()
 
 	lead := leadOf(testdata.Vier, principal.KindInteractive, programmeOne)
 
 	for _, phase := range policy.AllPhases() {
-		if !policy.MayWriteDemand(lead, programmeOne, phase) {
-			t.Errorf("phase %s: the lead of programme one may not declare its demand — "+
-				"a late instance is a correction, and a refused correction happens outside "+
-				"the tool instead", phase)
+		want := phase != policy.PhaseFinal
+		if got := policy.MayWriteDemand(lead, programmeOne, phase); got != want {
+			t.Errorf("phase %s: the lead of programme one may write the demand = %v, want %v",
+				phase, got, want)
 		}
+	}
+}
+
+// The one hard meaning the phase keeps, across every area at once.
+//
+// Since 2026-08-28 this is the whole of what the write matrix decides, so it is worth one test
+// that says it in those words: after the close, nobody writes anything anywhere. Everything else
+// about when the planning is open moved to demand_completion and wish_window, which are not
+// phases and are not here.
+func TestNothingIsWrittenAfterTheSemesterIsFinished(t *testing.T) {
+	t.Parallel()
+
+	checked := 0
+	for _, area := range policy.AllWriteAreas() {
+		for _, actor := range everyActor() {
+			checked++
+			if policy.MayWriteInPhase(area, policy.PhaseFinal, actor) {
+				t.Errorf("%s: %v may still write into a finished semester", area, actor.Roles)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("the cartesian product was empty — this test checked nothing")
 	}
 }
 
@@ -112,7 +137,7 @@ func TestMayWriteDemandIsTheIntersection(t *testing.T) {
 			name:      "the dean's office, for a programme it leads none of",
 			actor:     testdata.Vier.Actor(principal.KindInteractive, string(policy.RoleDeansOffice)),
 			programme: programmeOne,
-			phase:     policy.PhaseFinal,
+			phase:     policy.PhaseAssignment,
 			want:      true,
 		},
 		{
@@ -208,14 +233,14 @@ func TestDemandRefusalNamesItsRepair(t *testing.T) {
 func TestWritersInHandsOutACopy(t *testing.T) {
 	t.Parallel()
 
-	writers := policy.WritersIn(policy.WriteAreaDemand, policy.PhaseFinal)
+	writers := policy.WritersIn(policy.WriteAreaDemand, policy.PhaseAssignment)
 	if len(writers) == 0 {
-		t.Fatal("no writers in DEMAND/FINAL — the fixture this test needs is gone")
+		t.Fatal("no writers in DEMAND/ASSIGNMENT — the fixture this test needs is gone")
 	}
 	writers[0] = policy.RoleLecturer
 
 	lecturer := testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer))
-	if policy.MayWriteInPhase(policy.WriteAreaDemand, policy.PhaseFinal, lecturer) {
+	if policy.MayWriteInPhase(policy.WriteAreaDemand, policy.PhaseAssignment, lecturer) {
 		t.Error("editing the returned slice edited the matrix")
 	}
 }
@@ -276,8 +301,8 @@ func renderWriteMatrix() string {
 	return b.String()
 }
 
-const writePreamble = `Writing — when each part of the planning may be changed, and by whom
-===================================================================
+const writePreamble = `Writing — what a finished semester still allows, and what decides the rest
+==========================================================================
 
 Generated from internal/policy (TestWriteMatrix). Do not edit by hand:
 
@@ -286,104 +311,105 @@ Generated from internal/policy (TestWriteMatrix). Do not edit by hand:
 The rule
 --------
 
-The planning runs through four phases, and this table says what may be written in each. It is a
-table rather than a condition somewhere in the code, for two reasons: it is an artefact the
-faculty has to be able to read and agree with, and closing something later should be one row and
-one reviewed diff.
+The planning runs through four phases, and this table used to say what may be written in each. It
+says almost nothing now, and that is the result of a decision rather than of neglect.
 
-Read it as "when". It does not say *which* study programme or *which* subject a person reaches —
-those are the planning matrix and the subject group matrix — and this table is intersected with
-them. Both halves have to say yes.
+Read it as: **everything is open until the semester is finished.** Demand may be declared, wishes
+registered and instances filled at any point up to the close, by the roles named below, and after
+the close by nobody.
+
+What decides the rest
+---------------------
+
+The planning does not open and close for the whole faculty at once. It was modelled that way and
+the faculty corrected it on 2026-08-28: the study programmes settle their demand at different
+times, and each subject group runs its own wish round. So two things that are **not phases** carry
+what this table used to:
+
+  demand_completion   One study programme announcing that its demand for a semester is settled,
+                      as far as it knows today. An ANNOUNCEMENT: it blocks nothing at all. Demand
+                      may still be added, and adding some makes the announcement out of date
+                      rather than false — which is what withdrawing it is for.
+  wish_window         One subject group's wish round, opened and shut by its lead, at any moment
+                      and in either direction. A DOOR. An absent row means open.
+
+Neither is here, because neither is a stage the process passes through. They are facts somebody
+states about their own work.
 
 The one that surprises people
 -----------------------------
 
-**Almost nothing closes, and what does closes at the wrong end.** The demand may be changed in
-every phase, FINAL included; wishes may be entered and changed in every phase except FINAL. Both
-are decisions and neither is an oversight, and they rest on the same argument.
+**This table is deliberately almost empty, and it is worth keeping anyway.**
 
-A course instance declared during the assignment is a correction: somebody falls ill, a cohort
-turns out larger than the numbers said, a module was forgotten. So is somebody saying in March
-that they would take the second cohort after all. Corrections happen, and a tool that
-refuses one does not prevent it — it moves it into a spreadsheet or a mail passed around
-outside, which is the thing this system replaces. Its own figures then become the wrong ones.
+Three reasons. The sentence it does state — nothing is written after the semester is closed — is
+one rule, and one place to read it beats three conditions somebody has to find. The phase is still
+what a colleague sees to know where a semester roughly stands, and a table generated from the code
+is how that stays honest. And it is where the next decision about closing something lands.
 
-What protects a plan already being worked on is therefore not a closed phase. It is the refusal
-to withdraw an instance that something already hangs off, which is enforced on the row itself and
-says nothing about what that something is — and, for the assignment, the assignment itself, which
-is a decision somebody takes rather than a consequence of what is on the wish list.
+A phase this binary does not recognise permits nothing. The plausible guess would be
+DEMAND_PLANNING — the most permissive phase there is — so guessing would turn a database this
+binary cannot read into one it writes to.
 
-The cells that do close are three, and they are worth reading as two different decisions.
+What changed, and what it cost
+------------------------------
 
-**Wishes in FINAL.** A finished semester is the record of what the faculty did, and a wish
-registered afterwards would change that record without changing anything about the teaching.
+Two rows moved on 2026-08-28, in opposite directions.
 
-**The assignment in DEMAND_PLANNING and WISHES** — the only cells in this table that close
-*before* their phase rather than after it, and the only ones closed to protect a different step
-rather than a finished record. A colleague deciding whether to register interest, who finds the
-instance already filled, is in exactly the first-come-first-served race the confidentiality rule
-exists to end; and if the tool allowed it, the tool would have staged that race. Publishing the
-wishes and closing the wish phase are separate acts precisely so the assignment can begin from a
-complete picture.
+**The demand closes in FINAL, where it used to stay open.** The argument for keeping it open was
+that a late instance is a correction and a refused correction happens anyway, in a spreadsheet
+outside the tool. That argument still holds — and it is now carried by the three phases before
+FINAL, all of which are open. Letting the demand alone survive the close would make FINAL mean two
+different things depending on which screen somebody is looking at.
 
-This refuses less than it appears to. A subject group lead who knows in June who will hold the
-lecture may say so in June, in a mail or in the group's own minutes. What the closed cell refuses
-is making a provisional decision look, to the person reading the wish screen, like a settled one.
-
-Note the assignment stays open in FINAL, where the wish does not. Somebody falls ill in November,
-a lecturer on contract cancels, a laboratory group is handed over — that changes the teaching, and
-the tool that refuses to record it is the tool whose list is wrong.
+**The assignment opens from the start, where it was shut before its own phase.** That cell was
+closed for one day, on the argument that filling an instance while the wish round runs is the
+first-come-first-served race the confidentiality rule exists to end. What the faculty answered is
+that the wish round belongs to the subject group, not to the faculty — its lead opens and shuts it
+and is the same person who then fills the instances. A tool that ordered those two would be
+ordering the work of somebody who can see the whole of it, and the race is one that lead does not
+have to run.
 
 Notes
 -----
 
   · The phase is stored on the semester and advanced by an audited mutation, never derived from
     the calendar.
-  · A phase this binary does not recognise permits nothing. The plausible guess would be
-    DEMAND_PLANNING — the most permissive phase there is — so guessing would turn a database
-    this binary cannot read into one it writes to.
-  · ADMIN writes nothing here, the same decision the other two tables make: running the system
-    is a different job from planning with it.
-  · Doors are not a dimension of *this* rule — but they are a dimension of the demand, and the
-    two are easy to confuse. Every mutation that writes the demand is @interactiveOnly, so a
-    Personal Access Token cannot perform one at all. That is not about the demand being
-    confidential (it is not): a withdrawal refused with INSTANCE_IN_USE is an answer about who
-    wants an instance, and through a token the wish rule reaches only your own. Registering your
-    own wish stays open through both doors, because that is your own data.
+  · ADMIN writes nothing here, the same decision the other tables make: running the system is a
+    different job from planning with it.
+  · Doors are not a dimension of *this* rule, but they are of two areas and the three are easy to
+    confuse. Every mutation that writes the demand or an assignment is @interactiveOnly, so a
+    Personal Access Token cannot perform one at all. That is not about either being confidential:
+    a refusal that says an instance is wanted, or a part taken, is an answer about wishes and
+    assignments, and through a token both rules reach only your own. Registering your own wish
+    stays open through both doors, because that is your own data.
 
 `
 
-const writeIntersection = `How this combines with the other two matrices
----------------------------------------------
+const writeIntersection = `How this combines with everything else
+-------------------------------------
 
-The demand:
+    demand      = (this table) AND (the planning matrix, for the study programme)
+    wishes      = (this table) AND (the subject group's wish window is open)
+    assignment  = (this table) AND ((the subject group matrix, for the module's subject group)
+                                    OR (the planning matrix, for the instance's study programme))
 
-    may write = (this table says yes for the phase) AND (the planning matrix says yes for the
-                study programme)
+Three shapes, and each half of each line refuses something the others do not.
 
-The assignment, which takes a union where the demand takes a single answer:
+The union in the third line is the decision of 2026-08-27. What settled it is the module that
+belongs to no subject group: with the subject groups alone, filling its instances would be the
+dean's office or nobody, and the catalogue holds plenty of those while it is being sorted. It has
+a consequence this table cannot express, so it is written here: **two roles may write one row.**
+What decides a race is therefore not permission but the write itself — an assignment is replaced
+only when the caller names the one they are replacing, so a write that names nothing can only ever
+fill a part that is free.
 
-    may write = (this table says yes for the phase) AND ((the subject group matrix says yes for
-                the module's subject group) OR (the planning matrix says yes for the instance's
-                study programme))
+The wish window in the second line is the one that is data rather than a rule, and the one that is
+open unless somebody said otherwise. A module in no subject group has no window and stays open.
 
-Neither half of either line is redundant. A programme lead in an open phase may still only write
-for their own programmes; the dean's office reaches every programme but is still bound by the
-phase.
-
-The union in the second line is the decision of 2026-08-27, and it replaced "a programme lead
-declares instances and does not fill them". What settled it is the module that belongs to no
-subject group: with the subject groups alone, filling its instances would be the dean's office or
-nobody, and the catalogue holds plenty of those while it is being sorted.
-
-It has a consequence this table cannot express, so it is written here: **two roles may now write
-the same row.** What decides a race is therefore not permission but the write itself — an
-assignment is replaced only when the caller names the one they are replacing, so a write that
-names nothing can only ever fill a part that is free.
-
-The refusal names which half said no, because the repair differs: an unassigned lead needs an
-administrator, the lead of another programme or subject needs the right one, and a closed phase
-needs the phase moved.
+The refusal names which half said no, because the repair differs every time: an unassigned lead
+needs an administrator, the lead of another programme or subject needs the right one, a closed
+wish window needs its own subject group lead, and a finished semester needs nobody — it is
+finished.
 `
 
 // Its own widths again: these columns are the phases, and the phases are long words.

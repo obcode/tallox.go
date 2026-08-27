@@ -421,6 +421,20 @@ type DemandChange struct {
 	GroupsAfter *int `json:"groupsAfter,omitempty"`
 }
 
+// One study programme announcing that its demand for a semester is settled.
+type DemandCompletion struct {
+	// The semester it is about.
+	Semester string `json:"semester"`
+	// The study programme whose demand is settled.
+	Programme *Programme `json:"programme"`
+	// When it was last said.
+	//
+	// Moves when somebody re-announces after adding a late instance, because what a reader wants to
+	// know is how fresh the statement is. Unlike a publication mark, which keeps its first timestamp
+	// because it records something that cannot be walked back.
+	CompletedAt time.Time `json:"completedAt"`
+}
+
 // One row of a demand table: this module, in these cohorts.
 type DemandEntryInput struct {
 	// The module this row is about.
@@ -1003,6 +1017,23 @@ type Wish struct {
 	CreatedAt time.Time `json:"createdAt"`
 	// When it was last changed. Changing your mind moves this and keeps `createdAt`.
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// One subject group's wish round, for one semester.
+//
+// Only groups somebody has decided something about appear. Absent means open.
+type WishWindow struct {
+	// The semester it is about.
+	Semester string `json:"semester"`
+	// The subject group whose wish round this is.
+	SubjectGroup *SubjectGroupRef `json:"subjectGroup"`
+	// Whether entries are being taken.
+	//
+	// A row that says `true` is one that was shut and opened again — kept rather than deleted, so that
+	// the second decision is visible.
+	Open bool `json:"open"`
+	// When it was last switched.
+	ChangedAt time.Time `json:"changedAt"`
 }
 
 // One rebuild of the module catalogue out of the cached payloads.

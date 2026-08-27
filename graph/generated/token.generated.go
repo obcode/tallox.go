@@ -45,6 +45,8 @@ type MutationResolver interface {
 	ShareInstancePartAcrossTracks(ctx context.Context, id string) (*model.CourseInstance, error)
 	SplitInstancePartAcrossTracks(ctx context.Context, id string) (*model.CourseInstance, error)
 	CopyDemandFromSemester(ctx context.Context, from string, to string, programme string) (*model.CopyDemandReport, error)
+	SetDemandComplete(ctx context.Context, semester string, programme string, complete bool) (*model.DemandCompletion, error)
+	SetWishWindow(ctx context.Context, semester string, subjectGroupID string, open bool) (*model.WishWindow, error)
 	AdvanceSemesterPhase(ctx context.Context, code string, to policy.Phase) (*model.Semester, error)
 	SetPlanningSemester(ctx context.Context, code string) (*model.Semester, error)
 	PublishWishes(ctx context.Context, code string) (*model.Semester, error)
@@ -560,6 +562,36 @@ func (ec *executionContext) field_Mutation_setAssignment_args(ctx context.Contex
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_setDemandComplete_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "semester",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["semester"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "programme",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["programme"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "complete",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["complete"] = arg2
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_setModuleComponents_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -813,6 +845,36 @@ func (ec *executionContext) field_Mutation_setTeacherAdmitted_args(ctx context.C
 		return nil, err
 	}
 	args["admitted"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setWishWindow_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "semester",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["semester"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "subjectGroupId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["subjectGroupId"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "open",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["open"] = arg2
 	return args, nil
 }
 
@@ -2334,6 +2396,94 @@ func (ec *executionContext) fieldContext_Mutation_copyDemandFromSemester(ctx con
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_setDemandComplete(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setDemandComplete(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetDemandComplete(ctx, fc.Args["semester"].(string), fc.Args["programme"].(string), fc.Args["complete"].(bool))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DemandCompletion) graphql.Marshaler {
+			return ec.marshalODemandCompletion2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandCompletion(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setDemandComplete(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DemandCompletion(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setDemandComplete_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setWishWindow(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setWishWindow(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetWishWindow(ctx, fc.Args["semester"].(string), fc.Args["subjectGroupId"].(string), fc.Args["open"].(bool))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.WishWindow) graphql.Marshaler {
+			return ec.marshalNWishWindow2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishWindow(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setWishWindow(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_WishWindow(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setWishWindow_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_advanceSemesterPhase(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3507,6 +3657,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "copyDemandFromSemester":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_copyDemandFromSemester(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setDemandComplete":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setDemandComplete(ctx, field)
+			})
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "setWishWindow":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setWishWindow(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

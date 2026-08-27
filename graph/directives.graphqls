@@ -121,6 +121,7 @@ enum ScopeArea {
   `changeCourseInstance`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
   `copyDemandFromSemester`, `planDemand`,
+  `demandCompletions`, `wishWindows`, `setDemandComplete`, `setWishWindow`,
   `subjectGroups`, `subjectGroup`, `mySubjectGroups`, `modulesWithoutSubjectGroup`,
   `subjectGroupsWithoutLead`, `setMySubjectGroups`.
   """

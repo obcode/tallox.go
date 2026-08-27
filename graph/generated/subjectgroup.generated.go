@@ -819,6 +819,16 @@ func (ec *executionContext) marshalNSubjectGroupAssignmentReport2ᚖgithubᚗcom
 	return ec._SubjectGroupAssignmentReport(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNSubjectGroupRef2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupRef(ctx context.Context, sel ast.SelectionSet, v *model.SubjectGroupRef) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SubjectGroupRef(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOSubjectGroup2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroup(ctx context.Context, sel ast.SelectionSet, v *model.SubjectGroup) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null

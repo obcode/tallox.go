@@ -219,12 +219,20 @@ func TestAdminIsNotAnAssignmentReader(t *testing.T) {
 	}
 }
 
-// TestFillingIsClosedUntilTheAssignmentPhase is the cell that closes early.
+// TestFillingIsOpenUntilTheSemesterIsFinished replaced a test that asserted the opposite, and the
+// day between the two is worth recording.
 //
-// The one place in the write matrix where a refusal protects the *previous* step rather than a
-// finished record: an instance filled while the wish phase runs is the first-come-first-served
-// race the confidentiality rule exists to end.
-func TestFillingIsClosedUntilTheAssignmentPhase(t *testing.T) {
+// On 2026-08-27 the two phases before ASSIGNMENT were shut, on the argument that filling an
+// instance while the wish phase runs is the first-come-first-served race the confidentiality rule
+// exists to end. On 2026-08-28 the faculty answered that the wish round is not a phase of the
+// faculty at all: it belongs to the subject group, is opened and closed by its lead, and that lead
+// is the same person who then fills the instances. A tool that ordered the two for them would be
+// ordering work by somebody who can see all of it — and the race is one that lead simply does not
+// have to run.
+//
+// So the only closed cell is the finished semester, and what actually stops entries arriving mid
+// assignment is wish_window, which is not a phase.
+func TestFillingIsOpenUntilTheSemesterIsFinished(t *testing.T) {
 	t.Parallel()
 
 	lead := testdata.Drei.Actor(principal.KindInteractive, string(policy.RoleSubjectGroupLead))
@@ -232,13 +240,8 @@ func TestFillingIsClosedUntilTheAssignmentPhase(t *testing.T) {
 		{Role: string(policy.RoleSubjectGroupLead), SubjectGroupID: groupOne},
 	}
 
-	open := map[policy.Phase]bool{
-		policy.PhaseDemandPlanning: false,
-		policy.PhaseWishes:         false,
-		policy.PhaseAssignment:     true,
-		policy.PhaseFinal:          true,
-	}
-	for phase, want := range open {
+	for _, phase := range policy.AllPhases() {
+		want := phase != policy.PhaseFinal
 		if got := policy.MayWriteAssignment(lead, groupOne, programmeTwo, phase); got != want {
 			t.Errorf("MayWriteAssignment in %s = %v, want %v", phase, got, want)
 		}

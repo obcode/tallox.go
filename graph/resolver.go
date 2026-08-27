@@ -32,6 +32,13 @@ type Resolver struct {
 	// method and say `r.Wishes` — which is why the two halves of wish.resolvers.go do not match,
 	// and why that is not a slip.
 	Wishes *domain.WishService
+	// Marks is what opens and closes the planning: which study programmes have announced their
+	// demand as settled, and which subject groups are taking wishes.
+	//
+	// Named for what the two are rather than for either of them, because they are one service and
+	// neither name covers the other — and because DemandCompletions and WishWindows are both
+	// generated queryResolver methods, so a field called after either would be shadowed.
+	Marks *domain.PlanningMarkService
 	// Staffing is the assignment phase: who holds which part of which instance.
 	//
 	// Named for what it does rather than for its type, for the reason Planning and Catalogue are —

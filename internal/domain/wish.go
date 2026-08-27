@@ -174,9 +174,11 @@ type WishStore interface {
 		note string) (*Wish, error)
 	// WithdrawWish removes the actor's own. Returns ErrWishNotFound for anything else.
 	WithdrawWish(ctx context.Context, id, personID uuid.UUID) error
-	// SemesterOfInstance is which semester an instance belongs to, for the phase rule.
+	// WishWriteContext is what the write rule needs about an instance: which semester it is in,
+	// and whether its subject group is taking entries. Both at once, because deciding against two
+	// states read a moment apart is how a rule ends up describing neither.
 	// (nil, nil) when the instance is not there.
-	SemesterOfInstance(ctx context.Context, instanceID uuid.UUID) (*Semester, error)
+	WishWriteContext(ctx context.Context, instanceID uuid.UUID) (WishWriteContext, error)
 }
 
 // SemesterReader is the part of the semester service the wish service needs: turning a code into
@@ -274,15 +276,21 @@ func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID
 		return nil, ErrWishNoteTooLong
 	}
 
-	semester, err := s.store.SemesterOfInstance(ctx, instanceID)
+	where, err := s.store.WishWriteContext(ctx, instanceID)
 	if err != nil {
 		return nil, err
 	}
-	if semester == nil {
+	if !where.Found() {
 		return nil, ErrInstanceNotFound
 	}
-	if !policy.MayWriteInPhase(policy.WriteAreaWishes, semester.Phase, actor) {
+	if !policy.MayWriteInPhase(policy.WriteAreaWishes, where.Semester.Phase, actor) {
 		return nil, ErrWishPhaseClosed
+	}
+	// The subject group's own door, which since 2026-08-28 is what actually ends a wish round.
+	// Checked after the phase, because "the semester is finished" is the wider statement and the
+	// one whose repair is nobody's.
+	if !where.WindowOpen {
+		return nil, ErrWishWindowClosed
 	}
 
 	return s.store.SetWish(ctx, instanceID, actor.ID, priority, note)
@@ -312,12 +320,18 @@ func (s *WishService) Withdraw(ctx context.Context, actor principal.Actor, id uu
 		return ErrWishNotFound
 	}
 
-	semester, err := s.store.SemesterOfInstance(ctx, existing.Instance.ID)
+	where, err := s.store.WishWriteContext(ctx, existing.Instance.ID)
 	if err != nil {
 		return err
 	}
-	if semester != nil && !policy.MayWriteInPhase(policy.WriteAreaWishes, semester.Phase, actor) {
+	if where.Found() && !policy.MayWriteInPhase(policy.WriteAreaWishes, where.Semester.Phase, actor) {
 		return ErrWishPhaseClosed
+	}
+	// Bound by the window like registering one, and for the same reason the phase binds both: a
+	// list that may be added to but not corrected is worse than a closed one, so the two
+	// directions are one decision about when the round is running.
+	if where.Found() && !where.WindowOpen {
+		return ErrWishWindowClosed
 	}
 
 	return s.store.WithdrawWish(ctx, id, actor.ID)

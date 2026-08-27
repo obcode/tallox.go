@@ -53,6 +53,13 @@ type CourseInstance struct {
 	UpdatedAt         time.Time
 }
 
+type DemandCompletion struct {
+	SemesterID  uuid.UUID
+	ProgrammeID uuid.UUID
+	CompletedAt time.Time
+	CompletedBy uuid.NullUUID
+}
+
 type InstancePart struct {
 	ID                  uuid.UUID
 	CourseInstanceID    uuid.UUID
@@ -249,6 +256,14 @@ type Wish struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	CourseInstanceID uuid.UUID
+}
+
+type WishWindow struct {
+	SemesterID     uuid.UUID
+	SubjectGroupID uuid.UUID
+	Open           bool
+	ChangedAt      time.Time
+	ChangedBy      uuid.NullUUID
 }
 
 type ZpaBasketV struct {

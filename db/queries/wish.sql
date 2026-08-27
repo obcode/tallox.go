@@ -150,15 +150,3 @@ RETURNING id, course_instance_id, person_id, priority, note, created_at, updated
 -- not information the caller is entitled to — and there is no window in which an id has been
 -- confirmed to exist before the write is refused.
 DELETE FROM wish WHERE id = $1 AND person_id = $2;
-
--- name: SemesterOfCourseInstance :one
--- Which semester an instance belongs to, and whether it is still there.
---
--- Needed before a write: the phase that decides whether wishes may be entered is the *semester's*
--- phase, and the instance is all the caller names. One statement rather than two round trips, and
--- an empty result is the answer to both questions at once — an instance that has been withdrawn
--- has no semester to ask about.
-SELECT s.id, s.code, s.phase, s.wishes_published_at
-FROM course_instance ci
-JOIN semester s ON s.id = ci.semester_id
-WHERE ci.id = $1;

@@ -291,15 +291,16 @@ table rather than a condition somewhere in the code, for two reasons: it is an a
 faculty has to be able to read and agree with, and closing something later should be one row and
 one reviewed diff.
 
-Read it as "when". It does not say *which* study programme somebody reaches — that is the
-planning matrix, and the two are intersected. Both have to say yes.
+Read it as "when". It does not say *which* study programme or *which* subject a person reaches —
+those are the planning matrix and the subject group matrix — and this table is intersected with
+them. Both halves have to say yes.
 
 The one that surprises people
 -----------------------------
 
-**Almost nothing closes.** The demand may be changed in every phase, FINAL included; wishes may
-be entered and changed in every phase except FINAL. Both are decisions and neither is an
-oversight, and they rest on the same argument.
+**Almost nothing closes, and what does closes at the wrong end.** The demand may be changed in
+every phase, FINAL included; wishes may be entered and changed in every phase except FINAL. Both
+are decisions and neither is an oversight, and they rest on the same argument.
 
 A course instance declared during the assignment is a correction: somebody falls ill, a cohort
 turns out larger than the numbers said, a module was forgotten. So is somebody saying in March
@@ -312,9 +313,26 @@ to withdraw an instance that something already hangs off, which is enforced on t
 says nothing about what that something is — and, for the assignment, the assignment itself, which
 is a decision somebody takes rather than a consequence of what is on the wish list.
 
-The one cell that does close is wishes in FINAL. A finished semester is the record of what the
-faculty did, and a wish registered afterwards would change that record without changing anything
-about the teaching.
+The cells that do close are three, and they are worth reading as two different decisions.
+
+**Wishes in FINAL.** A finished semester is the record of what the faculty did, and a wish
+registered afterwards would change that record without changing anything about the teaching.
+
+**The assignment in DEMAND_PLANNING and WISHES** — the only cells in this table that close
+*before* their phase rather than after it, and the only ones closed to protect a different step
+rather than a finished record. A colleague deciding whether to register interest, who finds the
+instance already filled, is in exactly the first-come-first-served race the confidentiality rule
+exists to end; and if the tool allowed it, the tool would have staged that race. Publishing the
+wishes and closing the wish phase are separate acts precisely so the assignment can begin from a
+complete picture.
+
+This refuses less than it appears to. A subject group lead who knows in June who will hold the
+lecture may say so in June, in a mail or in the group's own minutes. What the closed cell refuses
+is making a provisional decision look, to the person reading the wish screen, like a settled one.
+
+Note the assignment stays open in FINAL, where the wish does not. Somebody falls ill in November,
+a lecturer on contract cancels, a laboratory group is handed over — that changes the teaching, and
+the tool that refuses to record it is the tool whose list is wrong.
 
 Notes
 -----
@@ -335,18 +353,37 @@ Notes
 
 `
 
-const writeIntersection = `How this combines with the planning matrix
------------------------------------------
+const writeIntersection = `How this combines with the other two matrices
+---------------------------------------------
+
+The demand:
 
     may write = (this table says yes for the phase) AND (the planning matrix says yes for the
                 study programme)
 
-Neither half is redundant. A programme lead in an open phase may still only write for their own
-programmes; the dean's office reaches every programme but is still bound by the phase.
+The assignment, which takes a union where the demand takes a single answer:
 
-The refusal names which half said no, because the repair differs: an unassigned programme lead
-needs an administrator, the lead of another programme needs the right programme, and a closed
-phase needs the phase moved.
+    may write = (this table says yes for the phase) AND ((the subject group matrix says yes for
+                the module's subject group) OR (the planning matrix says yes for the instance's
+                study programme))
+
+Neither half of either line is redundant. A programme lead in an open phase may still only write
+for their own programmes; the dean's office reaches every programme but is still bound by the
+phase.
+
+The union in the second line is the decision of 2026-08-27, and it replaced "a programme lead
+declares instances and does not fill them". What settled it is the module that belongs to no
+subject group: with the subject groups alone, filling its instances would be the dean's office or
+nobody, and the catalogue holds plenty of those while it is being sorted.
+
+It has a consequence this table cannot express, so it is written here: **two roles may now write
+the same row.** What decides a race is therefore not permission but the write itself — an
+assignment is replaced only when the caller names the one they are replacing, so a write that
+names nothing can only ever fill a part that is free.
+
+The refusal names which half said no, because the repair differs: an unassigned lead needs an
+administrator, the lead of another programme or subject needs the right one, and a closed phase
+needs the phase moved.
 `
 
 // Its own widths again: these columns are the phases, and the phases are long words.

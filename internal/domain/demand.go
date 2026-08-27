@@ -467,6 +467,18 @@ type DemandStore interface {
 	// SplitInstancePartAcrossTracks undoes that: the part stops being shared and every sibling
 	// cohort that now has none of that kind gets its own, with the same hours.
 	SplitInstancePartAcrossTracks(ctx context.Context, partID uuid.UUID) (*CourseInstance, error)
+	// RequestInstanceCoverage asks that this instance's demand be met by another programme's
+	// event. Changes nothing about the instance it points at until that programme agrees.
+	RequestInstanceCoverage(ctx context.Context, guestID, hostID, by uuid.UUID) (*CourseInstance, error)
+	// AcceptInstanceCoverage agrees to hold the event for the asking programme as well, and
+	// takes the asking cohort's own parts in the same transaction. Returns ErrPartAssigned when
+	// one of them is already staffed, and then nothing at all has happened.
+	AcceptInstanceCoverage(ctx context.Context, guestID, by uuid.UUID) (*CourseInstance, error)
+	// ReleaseInstanceCoverage ends it — withdrawn, declined or revised — and gives an accepted
+	// guest its teaching back from the module's split.
+	ReleaseInstanceCoverage(ctx context.Context, guestID uuid.UUID) (*CourseInstance, error)
+	// HostCandidates lists the instances that could cover this one.
+	HostCandidates(ctx context.Context, guestID uuid.UUID) ([]CourseInstance, error)
 	// CopyDemand declares in `to` what `from` holds for one programme, in one transaction.
 	// Instances already declared in the target are left untouched and counted as skipped.
 	CopyDemand(ctx context.Context, from, to Semester, programmeID, by uuid.UUID) (CopyCounts, error)

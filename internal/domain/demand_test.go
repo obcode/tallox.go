@@ -153,6 +153,42 @@ func (f *fakeDemandStore) SplitInstancePartAcrossTracks(ctx context.Context, par
 	return f.CourseInstanceByPartID(ctx, partID)
 }
 
+// The coverage half. What is tested against this fake is only ever the permission — which side of
+// the handshake a caller may write — because everything else about coverage is a statement about
+// rows and is tested against a real database in internal/store.
+
+func (f *fakeDemandStore) RequestInstanceCoverage(ctx context.Context, guestID, hostID, by uuid.UUID) (*domain.CourseInstance, error) {
+	f.writes++
+	return f.CourseInstanceByID(ctx, guestID)
+}
+
+func (f *fakeDemandStore) AcceptInstanceCoverage(ctx context.Context, guestID, by uuid.UUID) (*domain.CourseInstance, error) {
+	f.writes++
+	return f.CourseInstanceByID(ctx, guestID)
+}
+
+func (f *fakeDemandStore) ReleaseInstanceCoverage(ctx context.Context, guestID uuid.UUID) (*domain.CourseInstance, error) {
+	f.writes++
+	return f.CourseInstanceByID(ctx, guestID)
+}
+
+func (f *fakeDemandStore) HostCandidates(ctx context.Context, guestID uuid.UUID) ([]domain.CourseInstance, error) {
+	return nil, nil
+}
+
+// cover links two of the fake's instances, so a permission test has a handshake to act on.
+func (f *fakeDemandStore) cover(guestID, hostID uuid.UUID, accepted bool) {
+	guest := f.instances[guestID]
+	host := f.instances[hostID]
+	coverage := &domain.InstanceCoverage{Instance: host, RequestedAt: time.Now()}
+	if accepted {
+		at := time.Now()
+		coverage.AcceptedAt = &at
+	}
+	guest.CoveredBy = coverage
+	f.instances[guestID] = guest
+}
+
 func (f *fakeDemandStore) CopyDemand(context.Context, domain.Semester, domain.Semester,
 	uuid.UUID, uuid.UUID,
 ) (domain.CopyCounts, error) {
@@ -815,5 +851,150 @@ func TestPlanningIsScopedToTheProgramme(t *testing.T) {
 	}
 	if f.store.writes != 0 || len(f.semesters.ensured) != 0 {
 		t.Error("the refusal wrote something anyway")
+	}
+}
+
+// The point of the two-sided handshake, at the level where it is decided.
+//
+// Two programme leads who each may write exactly one programme can between them express something
+// neither could write alone. Neither needs the other's scope, and nobody needs a role that reaches
+// both — which matters, because the role that reaches every programme is the dean's office, and
+// the faculty does not want its leads holding it.
+func TestEachSideOfTheCoverageHandshakeWritesItsOwnProgramme(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandService(t, policy.PhaseDemandPlanning)
+	ctx := t.Context()
+
+	host := f.store.add(demandProgramme, policy.PhaseDemandPlanning, 2)
+	guest := f.store.add(otherProgramme, policy.PhaseDemandPlanning, 2)
+
+	guestLead := lead(principal.KindInteractive, otherProgramme)
+	hostLead := lead(principal.KindInteractive, demandProgramme)
+
+	// Asking is a statement about the asker's own declaration, so the asking lead may make it —
+	// and may point at an instance of a programme they cannot write at all.
+	if _, err := f.service.RequestCoverage(ctx, guestLead, guest.ID, host.ID); err != nil {
+		t.Fatalf("the asking programme's lead could not ask: %v", err)
+	}
+	f.store.cover(guest.ID, host.ID, false)
+
+	// The holding programme's lead may not ask on the other's behalf.
+	if _, err := f.service.RequestCoverage(ctx, hostLead, guest.ID, host.ID); !errors.Is(
+		err, domain.ErrNotYourProgramme) {
+		t.Errorf("the holding programme's lead asked in somebody else's name, answering %v", err)
+	}
+
+	// Agreeing is a statement about the holder's own teaching, so only that lead may make it.
+	// If the asking lead could agree, the handshake would be one-sided with an extra step.
+	if _, err := f.service.AcceptCoverage(ctx, guestLead, guest.ID); !errors.Is(
+		err, domain.ErrNotYourProgramme) {
+		t.Errorf("the asking programme's lead agreed on the holder's behalf, answering %v", err)
+	}
+	if _, err := f.service.AcceptCoverage(ctx, hostLead, guest.ID); err != nil {
+		t.Errorf("the holding programme's lead could not agree: %v", err)
+	}
+}
+
+// Ending it is the one both may do: the asking programme because it is their demand, the holding
+// one because it is their teaching. A holder who could not walk away could only correct an
+// agreement by asking somebody else to.
+func TestEitherSideMayEndACoverage(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+
+	for _, who := range []struct {
+		name      string
+		programme uuid.UUID
+	}{
+		{"the asking programme's lead", otherProgramme},
+		{"the holding programme's lead", demandProgramme},
+	} {
+		t.Run(who.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newDemandService(t, policy.PhaseDemandPlanning)
+			host := f.store.add(demandProgramme, policy.PhaseDemandPlanning, 2)
+			guest := f.store.add(otherProgramme, policy.PhaseDemandPlanning, 0)
+			f.store.cover(guest.ID, host.ID, true)
+
+			if _, err := f.service.ReleaseCoverage(ctx,
+				lead(principal.KindInteractive, who.programme), guest.ID); err != nil {
+				t.Errorf("%s could not end the coverage: %v", who.name, err)
+			}
+		})
+	}
+}
+
+// A lead of neither programme is refused, and told about the instance they named rather than
+// about the one they did not.
+func TestALeadOfNeitherProgrammeCannotTouchACoverage(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandService(t, policy.PhaseDemandPlanning)
+	ctx := t.Context()
+
+	host := f.store.add(demandProgramme, policy.PhaseDemandPlanning, 2)
+	guest := f.store.add(otherProgramme, policy.PhaseDemandPlanning, 0)
+	f.store.cover(guest.ID, host.ID, true)
+
+	stranger := lead(principal.KindInteractive, unplannedProgramme)
+
+	if _, err := f.service.RequestCoverage(ctx, stranger, guest.ID, host.ID); !errors.Is(
+		err, domain.ErrNotYourProgramme) {
+		t.Errorf("asking answered %v, want ErrNotYourProgramme", err)
+	}
+	if _, err := f.service.AcceptCoverage(ctx, stranger, guest.ID); !errors.Is(
+		err, domain.ErrNotYourProgramme) {
+		t.Errorf("agreeing answered %v, want ErrNotYourProgramme", err)
+	}
+	if _, err := f.service.ReleaseCoverage(ctx, stranger, guest.ID); !errors.Is(
+		err, domain.ErrNotYourProgramme) {
+		t.Errorf("ending answered %v, want ErrNotYourProgramme", err)
+	}
+}
+
+// The dean's office reaches every programme, so it holds both halves — which is what makes it the
+// answer when two leads cannot agree between themselves.
+func TestTheDeansOfficeHoldsBothHalvesOfTheHandshake(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandService(t, policy.PhaseDemandPlanning)
+	ctx := t.Context()
+
+	host := f.store.add(demandProgramme, policy.PhaseDemandPlanning, 2)
+	guest := f.store.add(otherProgramme, policy.PhaseDemandPlanning, 2)
+	dean := testdata.Vier.Actor(principal.KindInteractive, string(policy.RoleDeansOffice))
+
+	if _, err := f.service.RequestCoverage(ctx, dean, guest.ID, host.ID); err != nil {
+		t.Fatalf("the dean's office could not ask: %v", err)
+	}
+	f.store.cover(guest.ID, host.ID, false)
+	if _, err := f.service.AcceptCoverage(ctx, dean, guest.ID); err != nil {
+		t.Errorf("the dean's office could not agree: %v", err)
+	}
+}
+
+// Agreeing and ending need something to act on, and neither writes on the way to finding out.
+func TestActingOnACoverageThatIsNotThere(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandService(t, policy.PhaseDemandPlanning)
+	ctx := t.Context()
+
+	guest := f.store.add(otherProgramme, policy.PhaseDemandPlanning, 2)
+	guestLead := lead(principal.KindInteractive, otherProgramme)
+
+	if _, err := f.service.AcceptCoverage(ctx, guestLead, guest.ID); !errors.Is(
+		err, domain.ErrCoverageNotRequested) {
+		t.Errorf("agreeing to nothing answered %v, want ErrCoverageNotRequested", err)
+	}
+	if _, err := f.service.ReleaseCoverage(ctx, guestLead, guest.ID); !errors.Is(
+		err, domain.ErrCoverageNotRequested) {
+		t.Errorf("ending nothing answered %v, want ErrCoverageNotRequested", err)
+	}
+	if f.store.writes != 0 {
+		t.Errorf("finding out there was nothing to do wrote %d time(s)", f.store.writes)
 	}
 }

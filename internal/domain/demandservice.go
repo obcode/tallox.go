@@ -289,6 +289,147 @@ func (s *DemandService) SplitPartAcrossTracks(ctx context.Context, actor princip
 	return s.store.SplitInstancePartAcrossTracks(ctx, partID)
 }
 
+// Coverage: one programme's demand met by another programme's event.
+//
+// THE HANDSHAKE, AND WHY IT IS ONE
+//
+// Three methods, and between them they are the reason this is not a single column somebody sets.
+// The permission model of the whole demand hangs off course_instance.programme_id — a lead writes
+// their own programme and nobody else's. A one-sided link would be a lead writing a fact into a
+// programme they do not lead: "your event now also serves my students" is a claim on somebody
+// else's teaching, and the person who has to hold it never said yes.
+//
+// So each half is an ordinary demand write against the caller's own programme:
+//
+//	RequestCoverage  writable(guest)  — my demand is met elsewhere
+//	AcceptCoverage   writable(host)   — yes, I hold it for them too
+//	ReleaseCoverage  either           — it is over
+//
+// No new policy function, and no new cell in the write matrix. Two people who each may write one
+// programme can between them express something neither could write alone, and nobody needs a role
+// that reaches both — which matters, because the role that reaches every programme is the dean's
+// office and the faculty does not want its leads to have it.
+
+// RequestCoverage asks that this instance's demand be met by another programme's event.
+//
+// The permission is about the *guest* and nothing else. What the caller writes is a statement
+// about their own declaration, and the instance they point at is not changed by it — not its
+// parts, not its assignments, not what it costs. Which is why the caller may point at an instance
+// they have no permission over at all, and why the schema rather than this method decides whether
+// that instance is a legitimate target.
+func (s *DemandService) RequestCoverage(ctx context.Context, actor principal.Actor,
+	guestID, hostID uuid.UUID,
+) (*CourseInstance, error) {
+	if _, err := s.writable(ctx, actor, guestID); err != nil {
+		return nil, err
+	}
+	return s.store.RequestInstanceCoverage(ctx, guestID, hostID, actor.ID)
+}
+
+// AcceptCoverage agrees to hold this event for the asking programme as well.
+//
+// The permission is about the *host*: the asking instance is read to find out which programme is
+// being asked, and that is the programme the caller must be able to write. Deliberately not the
+// guest's — a lead who could agree on the strength of leading the programme that asked would be a
+// one-sided handshake with an extra step.
+//
+// Reading the guest first needs no permission of its own: the demand is readable by anybody with
+// an account, and what comes back here is which programme was asked, which is not a secret.
+func (s *DemandService) AcceptCoverage(ctx context.Context, actor principal.Actor,
+	guestID uuid.UUID,
+) (*CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+
+	guest, err := s.store.CourseInstanceByID(ctx, guestID)
+	if err != nil {
+		return nil, err
+	}
+	if guest == nil {
+		return nil, ErrInstanceNotFound
+	}
+	if guest.CoveredBy == nil {
+		return nil, ErrCoverageNotRequested
+	}
+
+	host, err := s.store.CourseInstanceByID(ctx, guest.CoveredBy.Instance.ID)
+	if err != nil {
+		return nil, err
+	}
+	if host == nil {
+		return nil, ErrInstanceNotFound
+	}
+	if err := s.mayWrite(actor, host.Programme.ID, host.SemesterPhase); err != nil {
+		return nil, err
+	}
+
+	return s.store.AcceptInstanceCoverage(ctx, guestID, actor.ID)
+}
+
+// ReleaseCoverage ends it: a request withdrawn, a request declined, or an agreement revised.
+//
+// Either lead may. The asking one because it is their demand; the holding one because it is their
+// teaching, and a programme that cannot walk away from an agreement could only correct it by
+// asking somebody else to.
+//
+// One method for all three cases because they are one state — the demand is simply not covered.
+// Three would be three places to get the permission wrong, and the difference between "declined"
+// and "withdrawn" is a fact about the past that the two timestamps already record.
+func (s *DemandService) ReleaseCoverage(ctx context.Context, actor principal.Actor,
+	guestID uuid.UUID,
+) (*CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+
+	guest, err := s.store.CourseInstanceByID(ctx, guestID)
+	if err != nil {
+		return nil, err
+	}
+	if guest == nil {
+		return nil, ErrInstanceNotFound
+	}
+	if guest.CoveredBy == nil {
+		return nil, ErrCoverageNotRequested
+	}
+
+	guestErr := s.mayWrite(actor, guest.Programme.ID, guest.SemesterPhase)
+	if guestErr == nil {
+		return s.store.ReleaseInstanceCoverage(ctx, guestID)
+	}
+
+	host, err := s.store.CourseInstanceByID(ctx, guest.CoveredBy.Instance.ID)
+	if err != nil {
+		return nil, err
+	}
+	if host == nil {
+		return nil, ErrInstanceNotFound
+	}
+	if err := s.mayWrite(actor, host.Programme.ID, host.SemesterPhase); err != nil {
+		// Neither side. The refusal reported is the asking programme's, because that is the
+		// instance the caller named: telling somebody they may not write the *other* programme
+		// would answer a question they did not ask.
+		return nil, guestErr
+	}
+
+	return s.store.ReleaseInstanceCoverage(ctx, guestID)
+}
+
+// CoverageCandidates lists the instances that could cover this one.
+//
+// A read, and scoped like every other demand read — anybody with an account may see which
+// instances exist. The list is the schema's four conditions, so a picker built from it offers
+// exactly what a request would be allowed to name.
+func (s *DemandService) CoverageCandidates(ctx context.Context, actor principal.Actor,
+	guestID uuid.UUID,
+) ([]CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	return s.store.HostCandidates(ctx, guestID)
+}
+
 // CopyFrom declares in one semester what the same programme declared in another.
 //
 // The permission is about the target semester and nothing else: what is being written is next

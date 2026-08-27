@@ -147,16 +147,67 @@ func (s *Semesters) PlanningSemester(ctx context.Context) (domain.Semester, erro
 	return semesterFrom(row), nil
 }
 
-// SetPlanningSemester moves the mark onto this semester, in one transaction.
+// SetPlanningSemester moves the mark onto this semester, in one transaction, retried once.
 //
 // Two statements, and both halves are needed: a database in which two semesters carry the mark
 // is one the unique index refuses to be in, so writing only the second half would fail rather
 // than corrupt — but it would fail with a constraint violation, which says nothing anybody can
-// act on. Clearing first turns that into ordinary serialisation: the UPDATE takes a row lock on
-// whichever semester currently carries the mark, and two people deciding at the same moment
-// take turns instead of colliding. The second one wins, which is what a decision taken on
-// purpose should do.
+// act on. Clearing first turns the ordinary case into ordinary serialisation: the UPDATE takes a
+// row lock on whichever semester currently carries the mark, so two people deciding at the same
+// moment take turns. The second one wins, which is what a decision taken on purpose should do.
+//
+// # Why taking turns is not enough on its own
+//
+// The row lock serialises the two transactions and does not make the second one correct, which is
+// a distinction READ COMMITTED makes and a reader of the two statements does not. Suppose X
+// carries the mark and two callers arrive, one setting SS and one setting WS:
+//
+//	A  UPDATE ... WHERE is_planning_semester AND id <> SS   -- locks X, clears it
+//	B  UPDATE ... WHERE is_planning_semester AND id <> WS   -- waits for A
+//	A  UPDATE ... WHERE id = SS                             -- marks SS, commits
+//	B  (wakes, re-checks X: no longer marked, updates nothing — and never sees SS,
+//	    because a statement that blocked re-evaluates the rows it locked and does not
+//	    rescan for rows that became eligible while it waited)
+//	B  UPDATE ... WHERE id = WS                             -- two marks now: SQLSTATE 23505
+//
+// So the clearing statement can miss exactly the mark it exists to remove. Reproduced outside the
+// suite before this was written, and it is what made TestConcurrentPlanningSemesterSetters fail
+// under load while passing in isolation for three weeks.
+//
+// # Why a retry, and not a lock
+//
+// One retry fixes it because the second attempt begins with a fresh snapshot: it sees SS marked,
+// clears it, and marks WS. The window cannot reopen indefinitely — a third caller would make the
+// second attempt fail again, and then the caller is told, which is honest.
+//
+// The alternatives were considered and are worse here. An advisory lock is database-wide, and the
+// test harness gives every test its own schema in one database: it would serialise unrelated tests
+// against each other, which is the trap db/migrations documents for the migration lock.
+// SERIALIZABLE would turn this into a retry loop as well, only with a wider blast radius and a
+// second isolation level to reason about.
 func (s *Semesters) SetPlanningSemester(ctx context.Context, id, by uuid.UUID,
+) (domain.Semester, error) {
+	// Two attempts, not a loop with a bound somebody has to justify. The race has exactly one
+	// shape and one retry closes it; anything beyond that is a different problem and should be
+	// reported rather than hidden by trying harder.
+	const attempts = 2
+
+	var err error
+	for range attempts {
+		var row domain.Semester
+		row, err = s.setPlanningSemesterOnce(ctx, id, by)
+		if err == nil {
+			return row, nil
+		}
+		if !isUniqueViolation(err) {
+			return domain.Semester{}, err
+		}
+	}
+	return domain.Semester{}, err
+}
+
+// setPlanningSemesterOnce is one attempt at moving the mark. See SetPlanningSemester.
+func (s *Semesters) setPlanningSemesterOnce(ctx context.Context, id, by uuid.UUID,
 ) (domain.Semester, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {

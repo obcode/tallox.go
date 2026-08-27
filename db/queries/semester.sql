@@ -90,11 +90,17 @@ WHERE is_planning_semester;
 -- name: ClearPlanningSemester :exec
 -- Take the mark off whichever semester carries it, except the one about to receive it.
 --
--- Runs first in the transaction that moves the mark, and that order is what makes concurrency
--- boring: this UPDATE takes a row lock on the current planning semester, so two people setting
--- different semesters at the same moment serialise here instead of colliding on the unique
--- index afterwards. The second one wins, which is the right outcome for a decision somebody is
--- taking on purpose.
+-- Runs first in the transaction that moves the mark, and that order is most of what makes
+-- concurrency boring: this UPDATE takes a row lock on the current planning semester, so two
+-- people setting different semesters at the same moment serialise here instead of colliding on
+-- the unique index afterwards. The second one wins, which is the right outcome for a decision
+-- somebody is taking on purpose.
+--
+-- It is most of it and not all of it, and the gap is not visible from this statement. Under READ
+-- COMMITTED the caller that waited here re-evaluates the row it locked and does not rescan for
+-- rows that became eligible while it waited — so it can miss the mark the other transaction just
+-- set, and hit the unique index anyway. store.SetPlanningSemester retries once for that; the
+-- whole sequence is written out there.
 --
 -- The exception for the target is not decoration: without it, setting the semester that is
 -- already set would clear the mark and then set it again, moving planning_set_at and making a

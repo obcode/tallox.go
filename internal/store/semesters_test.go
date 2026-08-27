@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -638,6 +639,120 @@ func TestConcurrentPlanningSemesterSettersDoNotCollide(t *testing.T) {
 	if planning.Code != "2028-SS" && planning.Code != "2028-WS" {
 		t.Errorf("after two simultaneous setters the mark is on %q", planning.Code)
 	}
+}
+
+// TestMovingThePlanningMarkSurvivesTheRaceItUsedToLoseTo drives the interleaving by hand.
+//
+// TestConcurrentPlanningSemesterSettersDoNotCollide starts two goroutines and hopes they overlap
+// in the way that matters. They mostly do not: it passed for three weeks while the bug below was
+// in the code, and only started failing when an unrelated migration shifted the timing. A test
+// whose coverage depends on the scheduler is a test that reports on the scheduler.
+//
+// So this one holds one transaction open at the exact point the other has to wait, and lets go
+// only once the second caller is provably blocked:
+//
+//	this test  clears the mark  (locks whichever semester carries it)
+//	the caller clears the mark  (blocks on that lock)
+//	this test  marks SS, commits
+//	the caller wakes — and under READ COMMITTED does not see SS, so its clear removed nothing
+//
+// Before the retry in SetPlanningSemester the caller then marked WS on top of SS and got
+// SQLSTATE 23505. It must now succeed, and leave exactly one mark.
+func TestMovingThePlanningMarkSurvivesTheRaceItUsedToLoseTo(t *testing.T) {
+	t.Parallel()
+
+	semesters, schema := semesters(t)
+	ctx := t.Context()
+
+	first, err := semesters.EnsureSemester(ctx, "2029-SS")
+	if err != nil {
+		t.Fatalf("cannot record: %v", err)
+	}
+	second, err := semesters.EnsureSemester(ctx, "2029-WS")
+	if err != nil {
+		t.Fatalf("cannot record: %v", err)
+	}
+
+	// The transaction that plays the winning caller: it clears the mark and holds the lock.
+	tx, err := schema.Pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("cannot begin: %v", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE semester SET is_planning_semester = false, updated_at = now()
+		 WHERE is_planning_semester AND id <> $1`, first.ID); err != nil {
+		t.Fatalf("cannot clear the mark: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := semesters.SetPlanningSemester(ctx, second.ID, uuid.Nil)
+		done <- err
+	}()
+
+	if !waitForBlockedClear(t, schema) {
+		t.Fatal("the second caller never blocked on the lock — this test checked nothing")
+	}
+
+	if _, err := tx.Exec(ctx,
+		`UPDATE semester SET is_planning_semester = true, planning_set_at = now(), updated_at = now()
+		 WHERE id = $1`, first.ID); err != nil {
+		t.Fatalf("cannot take the mark: %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("cannot commit: %v", err)
+	}
+
+	if err := <-done; err != nil {
+		t.Fatalf("the caller that waited was refused: %v", err)
+	}
+
+	planning, err := semesters.PlanningSemester(ctx)
+	if err != nil {
+		t.Fatalf("cannot read the planning semester: %v", err)
+	}
+	if planning.Code != "2029-WS" {
+		t.Errorf("the mark is on %q, want 2029-WS — the caller that finished last is the one "+
+			"that decided", planning.Code)
+	}
+
+	var marked int
+	if err := schema.Pool.QueryRow(ctx,
+		`SELECT count(*) FROM semester WHERE is_planning_semester`).Scan(&marked); err != nil {
+		t.Fatalf("cannot count the marks: %v", err)
+	}
+	if marked != 1 {
+		t.Errorf("%d semesters carry the mark, want exactly 1", marked)
+	}
+}
+
+// waitForBlockedClear reports whether somebody is waiting on a lock inside ClearPlanningSemester.
+//
+// Polled rather than slept: a sleep long enough to be safe on a loaded CI machine is a second
+// added to every run, and a sleep short enough not to be is a test that quietly stops asserting
+// anything. The query text is what narrows this to the statement in question — pg_stat_activity is
+// database-wide, and every test in this package shares the database.
+func waitForBlockedClear(t *testing.T, schema *storetest.Schema) bool {
+	t.Helper()
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		var blocked int
+		err := schema.Pool.QueryRow(t.Context(),
+			`SELECT count(*) FROM pg_stat_activity
+			 WHERE wait_event_type = 'Lock'
+			   AND query ILIKE '%is_planning_semester = false%'`).Scan(&blocked)
+		if err != nil {
+			t.Fatalf("cannot read pg_stat_activity: %v", err)
+		}
+		if blocked > 0 {
+			return true
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	return false
 }
 
 // The migration that introduced the mark took the first decision, and this is that decision

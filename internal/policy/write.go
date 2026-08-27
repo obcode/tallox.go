@@ -85,82 +85,65 @@ func (a WriteArea) Valid() bool {
 // answered by PlanningScope, and the two are intersected by MayWriteDemand below. Keeping them
 // apart is what lets this table be read as a sentence about the process rather than about grants.
 var writeMatrix = map[WriteArea]map[Phase][]Role{
+	// Open until the semester is finished. Every area, and that is the shape the faculty asked
+	// for on 2026-08-28 rather than a table that lost its content.
+	//
+	// # What this table stopped being
+	//
+	// It used to be the answer to "may I write this now". It is not any more, and the reason is
+	// that it was answering at the wrong grain: one value on the semester, for the whole faculty,
+	// while the planning happens per study programme and per subject group and at different
+	// speeds. What opens and closes is now decided by the people who carry that responsibility —
+	// demand_completion announces, wish_window opens and shuts — and neither is a phase.
+	//
+	// # What it still is
+	//
+	// The one hard meaning the phase keeps: FINAL is finished. A semester that has been closed is
+	// the record of what the faculty did, and a record that can still be edited is not one. That
+	// is why every row below has the same shape, and why the table is worth keeping in spite of
+	// it: the sentence "nothing may be written after the semester is closed" is one rule with one
+	// place to read it, and the next decision about when something closes lands here rather than
+	// in three conditions somebody has to find.
+	//
+	// The demand row changed with this: it used to stay open in FINAL, on the argument that a
+	// late instance is a correction and a refused correction happens anyway. That argument is now
+	// carried by the three phases before FINAL, all of which are open — and letting the demand
+	// alone survive the close would make FINAL mean two things depending on which screen somebody
+	// is looking at.
 	WriteAreaDemand: {
 		PhaseDemandPlanning: {RoleProgrammeLead, RoleDeansOffice},
 		PhaseWishes:         {RoleProgrammeLead, RoleDeansOffice},
 		PhaseAssignment:     {RoleProgrammeLead, RoleDeansOffice},
-		PhaseFinal:          {RoleProgrammeLead, RoleDeansOffice},
+		PhaseFinal:          nil,
 	},
-	// The first row with a closed cell, which is what makes PhaseClosedReason reachable at last.
-	//
 	// LECTURER alone, and that is the whole list rather than an abbreviation of it: role.go says
 	// LECTURER is the baseline everybody who appears in the planning holds, so a colleague who
 	// also leads a programme registers interest as a lecturer like anybody else.
 	//
-	// # Open until the semester is finished
-	//
-	// Decided with the faculty on 2026-08-25, and it replaced a narrower reading — open in the
-	// wish phase alone — that this table had carried for a day. The rule they asked for is
-	// "solange das Semester noch nicht abgeschlossen ist, also solange die Zuteilung nicht
-	// erfolgt ist", which is every phase up to and including ASSIGNMENT.
-	//
-	// It is the same argument the demand row makes one line up, and it is worth reading twice
-	// because both times it beats the tidier rule. A colleague falls ill, a cohort turns out
-	// larger than the numbers said, somebody is asked in the corridor whether they would take the
-	// second cohort after all. Refusing to record that does not stop it happening — it moves it
-	// into a mail to the subject group lead, and then the tool's list is the wrong one. What
-	// protects the assignment is not a closed phase but the assignment itself, which is a
-	// decision somebody takes and not a consequence of what is on the wish list.
-	//
-	// DEMAND_PLANNING is open for the less obvious half of the same reason: the demand of the
-	// *next* semester is often visible long before the wish phase opens, and somebody who knows
-	// now which subject they want should be able to say so now.
-	//
-	// FINAL is closed, and it is the only closed cell in this table. A finished semester is a
-	// record of what the faculty did; a wish registered afterwards would change that record
-	// without changing anything about the teaching.
+	// Whether the door of a particular subject is open is not decided here — see wish_window and
+	// domain.ErrWishWindowClosed. This row only says that a finished semester takes no more
+	// entries: a wish registered afterwards would change the record of what the faculty
+	// considered without changing anything about the teaching.
 	WriteAreaWishes: {
 		PhaseDemandPlanning: {RoleLecturer},
 		PhaseWishes:         {RoleLecturer},
 		PhaseAssignment:     {RoleLecturer},
 		PhaseFinal:          nil,
 	},
-	// The row that closes early rather than late, and it is the only one in this table that does.
+	// Open from the start, which reversed a decision taken one day earlier (2026-08-27) that shut
+	// the two phases before ASSIGNMENT. The argument then was that filling an instance while the
+	// wish phase runs is the first-come-first-served race the confidentiality rule exists to end.
 	//
-	// # Why the two early cells are shut
-	//
-	// Decided 2026-08-27. Every other closed cell in this table is closed because the record is
-	// finished; these two are closed because of what filling a part early would do to the step
-	// before it. A colleague deciding whether to register interest, who finds the instance already
-	// filled, is in exactly the first-come-first-served race the confidentiality rule exists to
-	// end — and this time the tool would have staged it. Publishing the wishes and closing the
-	// wish phase are separate acts precisely so that the assignment can start from a complete
-	// picture; starting it earlier makes the wish phase decorative.
-	//
-	// It is worth being explicit that this is not an argument about who is trusted. A subject
-	// group lead who already knows in June who will hold the lecture can say so in June — in a
-	// mail, in a corridor, in the subject group's own minutes. What the closed cell refuses is
-	// making that provisional decision look, to the person reading the wish screen, like the
-	// finished one.
-	//
-	// # Why FINAL is open
-	//
-	// The same argument the demand row makes, and it beats the tidier rule here too. Somebody
-	// falls ill in November, a lecturer on contract cancels, a laboratory group is handed over.
-	// Refusing to record that does not prevent it — it moves it into a mail, and then the tool's
-	// list is the wrong one, which is the failure mode this system exists to remove. What protects
-	// a finished plan is not a closed phase but the fact that changing it is a decision somebody
-	// takes and signs their name to: assigned_by is on every row.
-	//
-	// Note the asymmetry with the wish row directly above, which *is* shut in FINAL. A wish
-	// registered after the semester is settled would change the record of what the faculty
-	// considered without changing anything about the teaching. A reassignment changes the
-	// teaching, which is why it is the one that stays open.
+	// What the faculty answered is that the wish round is not a phase of the faculty at all: it
+	// is the subject group's own, opened and closed by its lead, who is the same person who then
+	// fills the instances. A tool that ordered those two for them would be ordering the work of
+	// somebody who can see the whole of it — and the race it prevented is one that lead can now
+	// simply not run, by shutting their window first.
 	WriteAreaAssignment: {
-		PhaseDemandPlanning: nil,
-		PhaseWishes:         nil,
+		PhaseDemandPlanning: {RoleSubjectGroupLead, RoleProgrammeLead, RoleDeansOffice},
+		PhaseWishes:         {RoleSubjectGroupLead, RoleProgrammeLead, RoleDeansOffice},
 		PhaseAssignment:     {RoleSubjectGroupLead, RoleProgrammeLead, RoleDeansOffice},
-		PhaseFinal:          {RoleSubjectGroupLead, RoleProgrammeLead, RoleDeansOffice},
+		PhaseFinal:          nil,
 	},
 }
 
@@ -223,10 +206,11 @@ func MayWriteDemand(a principal.Actor, programmeID uuid.UUID, phase Phase) bool 
 
 // PhaseClosedReason is what somebody is told when the phase is what refuses them.
 //
-// Written before it was reachable, because the day the table gets its first closed cell is the day
-// this sentence is needed — and a refusal invented in a hurry is how a German sentence ends up
-// saying "0 rows". That day is here: the wish row has three closed cells.
-const PhaseClosedReason = "In dieser Phase kann der Bedarf nicht mehr geändert werden."
+// One sentence for all three areas since 2026-08-28, because there is now one closed cell per area
+// and it is the same one: the semester is finished. It used to say "in dieser Phase", which was
+// true of a table with several closed cells and would now be misleading — a reader would go
+// looking for the phase in which it *is* allowed, and there is none after this one.
+const PhaseClosedReason = "Dieses Semester ist abgeschlossen und wird nicht mehr geändert."
 
 // DemandRefusal picks the sentence for a refused write, out of the three that can be true.
 //
@@ -240,14 +224,15 @@ func DemandRefusal(a principal.Actor, programmeID uuid.UUID, phase Phase) string
 	return PhaseClosedReason
 }
 
-// AssignmentPhaseClosedReason is what somebody is told when the phase is what refuses the write.
+// AssignmentPhaseClosedReason is what somebody is told when the phase refuses an assignment.
 //
-// Its own sentence rather than PhaseClosedReason, which says "der Bedarf" in plain words. It also
-// has to say something that one does not: the assignment is refused *before* its phase and not
-// after it, so "die Phase ist vorbei" would be the wrong half of the truth in the case that
-// actually occurs. Somebody meeting this refusal is early, and the repair is to advance the phase.
-const AssignmentPhaseClosedReason = "Zugeteilt wird ab der Zuteilungsphase. Solange die " +
-	"Wunschphase läuft, sollen die Instanzen offen bleiben."
+// The same sentence PhaseClosedReason gives, and it is a named constant rather than a use of that
+// one so that the assignment area keeps its own line to change. It said something else for a day:
+// that filling is refused *before* its phase, which was the decision of 2026-08-27 and was
+// reversed on 2026-08-28 — the wish round turned out to belong to the subject group rather than to
+// the faculty, and a tool that ordered the two for a lead who can see both was ordering the wrong
+// thing.
+const AssignmentPhaseClosedReason = PhaseClosedReason
 
 // MayWriteAssignment is the whole rule for filling a part: the right role, in a phase that is
 // open, for an instance this actor is responsible for.

@@ -125,6 +125,7 @@ func assignmentHandler(t *testing.T, people ...grants) assignmentAPIFixture {
 		Demand:        domain.NewDemandService(store.NewDemand(s.Pool, modules), modules, planning),
 		SubjectGroups: domain.NewSubjectGroupService(store.NewSubjectGroups(s.Pool)),
 		Wishes:        domain.NewWishService(store.NewWishes(s.Pool), planning),
+		Marks:         domain.NewPlanningMarkService(store.NewPlanningMarks(s.Pool), planning),
 		Staffing:      domain.NewAssignmentService(store.NewAssignments(s.Pool), planning),
 	})
 	return f
@@ -469,8 +470,16 @@ func TestAssignmentWritesDoNotLeak(t *testing.T) {
 		append(graphqltest.DatabaseNoise(), testdata.Eins.Mail, testdata.Eins.Name)...)
 }
 
-// TestFillingIsRefusedWhileTheWishPhaseRuns is the cell that closes early, at the surface.
-func TestFillingIsRefusedWhileTheWishPhaseRuns(t *testing.T) {
+// TestFillingIsOpenWhileTheWishRoundRuns replaced a test that asserted the opposite, one day
+// after it was written.
+//
+// The wish round belongs to the subject group and not to the faculty: its lead opens and shuts it,
+// and is the same person who then fills the instances. A tool that ordered those two would be
+// ordering the work of somebody who can see all of it. What ends a round is wish_window, which
+// this same lead holds — not a phase.
+//
+// A finished semester still refuses, and that is the other half of the assertion.
+func TestFillingIsOpenWhileTheWishRoundRuns(t *testing.T) {
 	t.Parallel()
 
 	f := assignmentHandler(t,
@@ -484,10 +493,20 @@ func TestFillingIsRefusedWhileTheWishPhaseRuns(t *testing.T) {
 		t.Fatalf("cannot go back to the wish phase: %v", err)
 	}
 
+	f.fill(t, testdata.Drei, f.lecture, testdata.Eins)
+	if got := held(t, graphqltest.New(f.handler).AsUser(testdata.Drei.Mail), f.semester); len(got) != 1 {
+		t.Errorf("filling during the wish round left %v, want the one assignment", got)
+	}
+
+	if _, err := f.schema.Pool.Exec(t.Context(),
+		`UPDATE semester SET phase = 'FINAL' WHERE code = $1`, f.semester); err != nil {
+		t.Fatalf("cannot finish the semester: %v", err)
+	}
+
 	resp := graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).Do(t,
 		setAssignmentMutation,
 		map[string]any{
-			"p": f.lecture, "who": testdata.Eins.ID().String(), "note": nil, "replacing": nil,
+			"p": f.lab, "who": testdata.Eins.ID().String(), "note": nil, "replacing": nil,
 		})
 	assertRefusal(t, resp, "ASSIGNMENT_PHASE_CLOSED")
 }

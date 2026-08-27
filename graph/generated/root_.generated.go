@@ -167,6 +167,12 @@ type ComplexityRoot struct {
 		TrackBefore  func(childComplexity int) int
 	}
 
+	DemandCompletion struct {
+		CompletedAt func(childComplexity int) int
+		Programme   func(childComplexity int) int
+		Semester    func(childComplexity int) int
+	}
+
 	DemandPlanReport struct {
 		Changed       func(childComplexity int) int
 		Created       func(childComplexity int) int
@@ -265,6 +271,7 @@ type ComplexityRoot struct {
 		RenameSubjectGroup            func(childComplexity int, id string, name string) int
 		RevokePersonalAccessToken     func(childComplexity int, id string) int
 		SetAssignment                 func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
+		SetDemandComplete             func(childComplexity int, semester string, programme string, complete bool) int
 		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
 		SetModulesSubjectGroup        func(childComplexity int, moduleIds []string, subjectGroup *string) int
 		SetMySubjectGroups            func(childComplexity int, subjectGroupIds []string) int
@@ -278,6 +285,7 @@ type ComplexityRoot struct {
 		SetSubjectGroupMembers        func(childComplexity int, id string, personIds []string) int
 		SetTeacherAdmitted            func(childComplexity int, teacherID string, admitted bool) int
 		SetWish                       func(childComplexity int, courseInstanceID string, priority domain.WishPriority, note *string) int
+		SetWishWindow                 func(childComplexity int, semester string, subjectGroupID string, open bool) int
 		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
 		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
 		SyncZpaNow                    func(childComplexity int) int
@@ -326,6 +334,7 @@ type ComplexityRoot struct {
 		BuildInfo                  func(childComplexity int) int
 		CourseInstance             func(childComplexity int, id string) int
 		CourseInstances            func(childComplexity int, semester string, programme *string, module *string) int
+		DemandCompletions          func(childComplexity int, semester string) int
 		DiagnoseAccess             func(childComplexity int, mail string) int
 		Me                         func(childComplexity int) int
 		Module                     func(childComplexity int, id string) int
@@ -349,6 +358,7 @@ type ComplexityRoot struct {
 		SubjectGroupsWithoutLead   func(childComplexity int) int
 		TeacherAccounts            func(childComplexity int) int
 		Teachers                   func(childComplexity int, search *string, includeInactive *bool) int
+		WishWindows                func(childComplexity int, semester string) int
 		Wishes                     func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
 		ZpaCatalogueProjections    func(childComplexity int, limit *int) int
 		ZpaChanges                 func(childComplexity int, runID string) int
@@ -450,6 +460,13 @@ type ComplexityRoot struct {
 		Person    func(childComplexity int) int
 		Priority  func(childComplexity int) int
 		UpdatedAt func(childComplexity int) int
+	}
+
+	WishWindow struct {
+		ChangedAt    func(childComplexity int) int
+		Open         func(childComplexity int) int
+		Semester     func(childComplexity int) int
+		SubjectGroup func(childComplexity int) int
 	}
 
 	ZpaCatalogueProjection struct {
@@ -1051,6 +1068,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DemandChange.TrackBefore(childComplexity), true
 
+	case "DemandCompletion.completedAt":
+		if e.ComplexityRoot.DemandCompletion.CompletedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandCompletion.CompletedAt(childComplexity), true
+	case "DemandCompletion.programme":
+		if e.ComplexityRoot.DemandCompletion.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandCompletion.Programme(childComplexity), true
+	case "DemandCompletion.semester":
+		if e.ComplexityRoot.DemandCompletion.Semester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandCompletion.Semester(childComplexity), true
+
 	case "DemandPlanReport.changed":
 		if e.ComplexityRoot.DemandPlanReport.Changed == nil {
 			break
@@ -1634,6 +1670,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetAssignment(childComplexity, args["instancePartId"].(string), args["personId"].(*string), args["teacherId"].(*string), args["note"].(*string), args["replacing"].(*string)), true
+	case "Mutation.setDemandComplete":
+		if e.ComplexityRoot.Mutation.SetDemandComplete == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setDemandComplete_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetDemandComplete(childComplexity, args["semester"].(string), args["programme"].(string), args["complete"].(bool)), true
 	case "Mutation.setModuleComponents":
 		if e.ComplexityRoot.Mutation.SetModuleComponents == nil {
 			break
@@ -1777,6 +1824,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetWish(childComplexity, args["courseInstanceId"].(string), args["priority"].(domain.WishPriority), args["note"].(*string)), true
+	case "Mutation.setWishWindow":
+		if e.ComplexityRoot.Mutation.SetWishWindow == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setWishWindow_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetWishWindow(childComplexity, args["semester"].(string), args["subjectGroupId"].(string), args["open"].(bool)), true
 	case "Mutation.shareInstancePartAcrossTracks":
 		if e.ComplexityRoot.Mutation.ShareInstancePartAcrossTracks == nil {
 			break
@@ -2025,6 +2083,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.CourseInstances(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string)), true
+	case "Query.demandCompletions":
+		if e.ComplexityRoot.Query.DemandCompletions == nil {
+			break
+		}
+
+		args, err := ec.field_Query_demandCompletions_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.DemandCompletions(childComplexity, args["semester"].(string)), true
 	case "Query.diagnoseAccess":
 		if e.ComplexityRoot.Query.DiagnoseAccess == nil {
 			break
@@ -2234,6 +2303,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Teachers(childComplexity, args["search"].(*string), args["includeInactive"].(*bool)), true
+	case "Query.wishWindows":
+		if e.ComplexityRoot.Query.WishWindows == nil {
+			break
+		}
+
+		args, err := ec.field_Query_wishWindows_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.WishWindows(childComplexity, args["semester"].(string)), true
 	case "Query.wishes":
 		if e.ComplexityRoot.Query.Wishes == nil {
 			break
@@ -2678,6 +2758,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Wish.UpdatedAt(childComplexity), true
+
+	case "WishWindow.changedAt":
+		if e.ComplexityRoot.WishWindow.ChangedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WishWindow.ChangedAt(childComplexity), true
+	case "WishWindow.open":
+		if e.ComplexityRoot.WishWindow.Open == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WishWindow.Open(childComplexity), true
+	case "WishWindow.semester":
+		if e.ComplexityRoot.WishWindow.Semester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WishWindow.Semester(childComplexity), true
+	case "WishWindow.subjectGroup":
+		if e.ComplexityRoot.WishWindow.SubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WishWindow.SubjectGroup(childComplexity), true
 
 	case "ZpaCatalogueProjection.error":
 		if e.ComplexityRoot.ZpaCatalogueProjection.Error == nil {
@@ -5246,6 +5351,7 @@ enum ScopeArea {
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
   ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `,
+  ` + "`" + `demandCompletions` + "`" + `, ` + "`" + `wishWindows` + "`" + `, ` + "`" + `setDemandComplete` + "`" + `, ` + "`" + `setWishWindow` + "`" + `,
   ` + "`" + `subjectGroups` + "`" + `, ` + "`" + `subjectGroup` + "`" + `, ` + "`" + `mySubjectGroups` + "`" + `, ` + "`" + `modulesWithoutSubjectGroup` + "`" + `,
   ` + "`" + `subjectGroupsWithoutLead` + "`" + `, ` + "`" + `setMySubjectGroups` + "`" + `.
   """
@@ -5413,6 +5519,146 @@ extend type Query {
   by. It is the same field the web interface uses, so it cannot answer differently there.
   """
   me: Person @scope(area: PROFILE, verb: READ)
+}
+`, BuiltIn: false},
+	{Name: "../planning.graphqls", Input: `# When the planning is open, at the grain the planning actually happens in.
+#
+# The semester's phase used to answer this, with one value for the whole faculty. That was wrong
+# about how the faculty works and was corrected on 2026-08-28: the study programmes settle their
+# demand at different times, and each subject group runs its own wish round. What the phase still
+# says is only that a finished semester is finished.
+#
+# TWO MARKS, AND THEY ARE NOT THE SAME SHAPE
+#
+# ` + "`" + `DemandCompletion` + "`" + ` is an **announcement**. "IF for SS29 is settled, as far as I know today." It
+# blocks nothing — demand may still be declared, and doing so makes the announcement out of date
+# rather than false, which is what withdrawing it is for. Its whole job is to tell the colleagues
+# that registering interest in that programme's instances is now worth the effort.
+#
+# ` + "`" + `WishWindow` + "`" + ` is a **door**. Shut means this subject group takes no more entries, and its lead
+# opens it again the same afternoon if they want to. Everything else — demand, assignment — stays
+# open until the semester is closed.
+#
+# BOTH ARE PUBLIC, AND THAT IS DELIBERATE
+#
+# Anybody with an account reads both. They are facts about the process rather than about people,
+# and a colleague who meets a refusal should be able to see that a door is shut instead of
+# concluding that the tool is broken. What is confidential is what the marks are *about* — the
+# wishes and the assignments — and those carry their own rules.
+#
+# AN ABSENT WINDOW MEANS OPEN
+#
+# ` + "`" + `wishWindows` + "`" + ` lists the exceptions, not the state of every subject group: a group nobody has
+# decided anything about is open, and so is a module in no subject group at all. That is the
+# opposite of the fail-closed default everywhere else in this API, and it is the rule the faculty
+# stated — in principle always possible, closing is the intervention.
+
+"""
+One study programme announcing that its demand for a semester is settled.
+"""
+type DemandCompletion {
+  "The semester it is about."
+  semester: String!
+  "The study programme whose demand is settled."
+  programme: Programme!
+  """
+  When it was last said.
+
+  Moves when somebody re-announces after adding a late instance, because what a reader wants to
+  know is how fresh the statement is. Unlike a publication mark, which keeps its first timestamp
+  because it records something that cannot be walked back.
+  """
+  completedAt: Time!
+}
+
+"""
+One subject group's wish round, for one semester.
+
+Only groups somebody has decided something about appear. Absent means open.
+"""
+type WishWindow {
+  "The semester it is about."
+  semester: String!
+  "The subject group whose wish round this is."
+  subjectGroup: SubjectGroupRef!
+  """
+  Whether entries are being taken.
+
+  A row that says ` + "`" + `true` + "`" + ` is one that was shut and opened again — kept rather than deleted, so that
+  the second decision is visible.
+  """
+  open: Boolean!
+  "When it was last switched."
+  changedAt: Time!
+}
+
+extend type Query {
+  """
+  Which study programmes have announced their demand as settled, for one semester.
+
+  Programmes that have not are simply absent. There is no "in Arbeit" row, because not announcing
+  and withdrawing an announcement are the same state: the demand is not settled.
+  """
+  demandCompletions(
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2029-SS` + "`" + `."
+    semester: String!
+  ): [DemandCompletion!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  The subject groups whose wish round somebody has switched, for one semester.
+
+  The exceptions and not the whole list: a group that is not here is open. Reading it as "these are
+  the open ones" is the mistake this field's shape invites, and the reason the sentence is here.
+  """
+  wishWindows(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): [WishWindow!]! @scope(area: PLANNING, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Announce this study programme's demand as settled for a semester, or withdraw the announcement.
+
+  Blocks nothing either way. Declaring another instance afterwards stays possible and is the
+  ordinary case; re-announcing then refreshes the timestamp.
+
+  ` + "`" + `complete: false` + "`" + ` withdraws and answers ` + "`" + `null` + "`" + ` — there is no "withdrawn" state to return, because
+  it is the same state as never having announced.
+
+  Only the lead of that study programme and the dean's office. Not bound by the phase: announcing
+  is a statement about work somebody did, not a change to the plan.
+  """
+  setDemandComplete(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "The study programme's code."
+    programme: String!
+    "True to announce or refresh, false to withdraw."
+    complete: Boolean!
+  ): DemandCompletion @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Open or shut one subject group's wish round for a semester.
+
+  In either direction and at any time: a round that was shut can be opened again, which is what
+  makes this a door rather than a phase.
+
+  Only the lead of that subject group and the dean's office — the same reach as filling that
+  subject's instances, which is the point: the person who shuts the round is the one who then works
+  from what it collected.
+
+  Reachable through both doors. Shutting a round is ordinary process work and reversible, the same
+  reading ` + "`" + `advanceSemesterPhase` + "`" + ` takes.
+  """
+  setWishWindow(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "The subject group whose round this is."
+    subjectGroupId: ID!
+    "True to take entries, false to stop."
+    open: Boolean!
+  ): WishWindow! @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../schema.graphqls", Input: `# Descriptions in this file are read by two audiences that have nothing to do with each
@@ -7005,6 +7251,18 @@ func (ec *executionContext) childFields_DemandChange(ctx context.Context, field 
 	return nil, fmt.Errorf("no field named %q was found under type DemandChange", field.Name)
 }
 
+func (ec *executionContext) childFields_DemandCompletion(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "semester":
+		return ec.fieldContext_DemandCompletion_semester(ctx, field)
+	case "programme":
+		return ec.fieldContext_DemandCompletion_programme(ctx, field)
+	case "completedAt":
+		return ec.fieldContext_DemandCompletion_completedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DemandCompletion", field.Name)
+}
+
 func (ec *executionContext) childFields_DemandPlanReport(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "dryRun":
@@ -7413,6 +7671,20 @@ func (ec *executionContext) childFields_Wish(ctx context.Context, field graphql.
 		return ec.fieldContext_Wish_updatedAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Wish", field.Name)
+}
+
+func (ec *executionContext) childFields_WishWindow(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "semester":
+		return ec.fieldContext_WishWindow_semester(ctx, field)
+	case "subjectGroup":
+		return ec.fieldContext_WishWindow_subjectGroup(ctx, field)
+	case "open":
+		return ec.fieldContext_WishWindow_open(ctx, field)
+	case "changedAt":
+		return ec.fieldContext_WishWindow_changedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type WishWindow", field.Name)
 }
 
 func (ec *executionContext) childFields_ZpaCatalogueProjection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

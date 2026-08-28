@@ -98,6 +98,10 @@ const LastAdminReason = "Das würde Tallox ohne Administration zurücklassen. " 
 type Person struct {
 	ID   uuid.UUID
 	Mail string
+	// Name is the spelling to show: given name, surname, no academic titles. Where the
+	// examination office publishes this person, it is derived from SortName rather than read
+	// out of the row — see domain.PlainName. Where it does not, it is whatever the
+	// administration typed, and this system has nothing better to go on.
 	Name string
 	// SortName is the surname-first spelling, for a list that has to be in an order somebody can
 	// follow. Empty for everybody the examination office does not publish — there is no way to

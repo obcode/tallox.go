@@ -52,7 +52,7 @@ func (p *People) ListPeople(ctx context.Context, search string,
 		people = append(people, domain.Person{
 			ID:       row.ID,
 			Mail:     row.Mail,
-			Name:     row.Name,
+			Name:     domain.PlainName(row.Name, row.SortName),
 			SortName: row.SortName,
 			Active:   row.Active,
 			Roles:    knownRoles(row.Roles),
@@ -213,9 +213,11 @@ func teacherAccountFrom(row teacherAccountRow) domain.TeacherAccount {
 	}
 	if row.PersonID.Valid {
 		account.Person = &domain.Person{
-			ID:     row.PersonID.UUID,
-			Mail:   row.PersonMail,
-			Name:   row.PersonName,
+			ID:   row.PersonID.UUID,
+			Mail: row.PersonMail,
+			// The teacher's surname-first spelling, because it is the same colleague: an
+			// account and the row it was made from must not read as two people.
+			Name:   domain.PlainName(row.PersonName, row.ShortName),
 			Active: row.PersonActive,
 			Roles:  knownRoles(row.Roles),
 		}
@@ -236,7 +238,7 @@ func (p *People) PersonByID(ctx context.Context, id uuid.UUID) (*domain.Person, 
 	person := &domain.Person{
 		ID:       row.ID,
 		Mail:     row.Mail,
-		Name:     row.Name,
+		Name:     domain.PlainName(row.Name, row.SortName),
 		SortName: row.SortName,
 		Active:   row.Active,
 		Roles:    knownRoles(row.Roles),
@@ -331,7 +333,12 @@ func (p *People) AdmitTeacher(ctx context.Context, teacherID uuid.UUID, role pol
 		Mail: row.Mail,
 		// Only written when the row is created — EnsurePerson says so. Somebody renamed here, or
 		// by a later import, is not renamed back by re-admitting them.
-		Name: row.FullName,
+		//
+		// The plain spelling, so that the row this account is stored as reads the same as the
+		// row it was made from. `me` is the one place that shows person.name without a surname-
+		// first spelling beside it to derive from, and an account created titled would be the
+		// one titled name left on an otherwise untitled screen.
+		Name: domain.PlainName(row.FullName, row.ShortName),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("cannot create the account: %w", err)

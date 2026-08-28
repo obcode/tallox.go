@@ -326,7 +326,8 @@ func (s *SubjectGroups) withPeople(ctx context.Context,
 	byLead := make(map[uuid.UUID][]domain.Person, len(groups))
 	for _, row := range leads {
 		byLead[row.SubjectGroupID] = append(byLead[row.SubjectGroupID], domain.Person{
-			ID: row.ID, Mail: row.Mail, Name: row.Name, SortName: row.SortName,
+			ID: row.ID, Mail: row.Mail, SortName: row.SortName,
+			Name:   domain.PlainName(row.Name, row.SortName),
 			Active: row.Active,
 			// The role is not read back: everybody in this list holds SUBJECT_GROUP_LEAD by
 			// construction, since the query joins through person_role to find them.
@@ -336,7 +337,8 @@ func (s *SubjectGroups) withPeople(ctx context.Context,
 	byMember := make(map[uuid.UUID][]domain.Person, len(groups))
 	for _, row := range members {
 		byMember[row.SubjectGroupID] = append(byMember[row.SubjectGroupID], domain.Person{
-			ID: row.ID, Mail: row.Mail, Name: row.Name, SortName: row.SortName,
+			ID: row.ID, Mail: row.Mail, SortName: row.SortName,
+			Name:   domain.PlainName(row.Name, row.SortName),
 			Active: row.Active,
 		})
 	}

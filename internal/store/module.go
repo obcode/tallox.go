@@ -163,7 +163,7 @@ type teacherRow struct {
 func teacherFrom(row teacherRow) domain.Teacher {
 	return domain.Teacher{
 		ID:                   row.ID,
-		Name:                 row.FullName,
+		Name:                 domain.PlainName(row.FullName, row.ShortName),
 		SortName:             row.ShortName,
 		Mail:                 row.Mail,
 		IsProfessor:          row.IsProfessor,

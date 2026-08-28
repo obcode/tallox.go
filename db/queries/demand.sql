@@ -258,17 +258,6 @@ SET covered_by_instance_id = NULL,
     updated_at = now()
 WHERE id = $1 AND covered_by_instance_id IS NOT NULL;
 
--- name: CoveredInstanceCountFor :one
--- Whether anything's demand hangs off this instance, so a withdrawal can say so by name.
---
--- Safe to count, unlike everything else that stops a withdrawal. A coverage link is a declaration
--- of demand and the demand is not confidential — which is why INSTANCE_COVERS_OTHERS may name what
--- is in the way where INSTANCE_IN_USE deliberately refuses to. The asymmetry is argued here rather
--- than assumed, because a count in this file is otherwise exactly the thing that should not exist.
-SELECT count(*)::bigint AS covered
-FROM course_instance
-WHERE covered_by_instance_id = $1;
-
 -- name: HostCandidatesFor :many
 -- The instances that could cover this one: same semester, same module, another programme, and not
 -- themselves covered.
@@ -516,3 +505,77 @@ FROM course_instance h
 WHERE g.id = $1
   AND h.id = sqlc.arg(host_id)::uuid
   AND g.covered_by_instance_id IS NULL;
+
+-- name: LockCoverageGroup :many
+-- An instance and everything whose demand hangs off it, in id order.
+--
+-- FOR UPDATE on the host is what makes a withdrawal exclusive of a concurrent coupling: the
+-- foreign key on a guest's side takes FOR KEY SHARE on the row it points at, and KEY SHARE and
+-- UPDATE conflict. So a coupling that would arrive between the read below and the delete waits
+-- here instead of turning the delete into a foreign key violation nobody can explain.
+--
+-- Id order, for the reason lockCoveragePair already gives: locking in the order the caller happens
+-- to name things is how two operations on the same pair deadlock. LockRows sits above Sort, so the
+-- rows are taken in the sorted order whatever the plan.
+SELECT id
+FROM course_instance
+WHERE id = $1 OR covered_by_instance_id = $1
+ORDER BY id
+FOR UPDATE;
+
+-- name: CoverageSuccessorFor :one
+-- The guest that becomes the holder when the current one is withdrawn: the longest-standing.
+--
+-- The agreement's own timestamp first, because that is the rule the faculty stated. The rest is a
+-- tiebreak somebody can read back off the screen: cohorts coupled in one planDemand share a
+-- timestamp to the microsecond — now() is the transaction's clock — and letting a random uuid
+-- decide is not something anybody can explain to the lead who lost.
+SELECT g.id, g.programme_id, g.track, p.code AS programme_code, p.title AS programme_title
+FROM course_instance g
+JOIN programme p ON p.id = g.programme_id
+WHERE g.covered_by_instance_id = $1
+ORDER BY g.covered_accepted_at, g.created_at, p.code, g.track, g.id
+LIMIT 1;
+
+-- name: MoveInstancePartsTo :execrows
+-- Hand the teaching to another cohort, rows and all.
+--
+-- An UPDATE rather than a delete and an insert, and that is the whole point: an assignment
+-- references instance_part, so moving the row keeps who holds the event. Deleting and rebuilding
+-- would lose the assignment — or, since assignment is ON DELETE RESTRICT, refuse the withdrawal
+-- outright the moment anybody is teaching it.
+--
+-- position comes along unchanged. There is no unique constraint on (course_instance_id, position),
+-- the successor holds nothing to collide with, and renumbering would be a write with no reader.
+UPDATE instance_part
+SET course_instance_id = sqlc.arg(to_instance)::uuid, updated_at = now()
+WHERE course_instance_id = sqlc.arg(from_instance)::uuid;
+
+-- name: RepointGuestsTo :execrows
+-- Point the remaining guests at the cohort that took the teaching over.
+--
+-- The successor must already have been released, or this fails: the foreign key reads its
+-- is_covered, which is generated from covered_by_instance_id.
+--
+-- It can only ever pass course_instance_coverage_crosses_programmes because of the partial unique
+-- index on one covered cohort per programme — with that, every guest of one host is in a different
+-- programme, so none of them can end up pointing at the successor's own.
+UPDATE course_instance g
+SET covered_by_instance_id = s.id,
+    covered_by_programme_id = s.programme_id,
+    updated_at = now()
+FROM course_instance s
+WHERE g.covered_by_instance_id = sqlc.arg(from_instance)::uuid
+  AND s.id = sqlc.arg(to_instance)::uuid
+  AND g.id <> s.id;
+
+-- name: SharedPartsOf :many
+-- The parts this cohort holds for its own programme's sibling cohorts.
+--
+-- What a promotion has to hand back before it hands the rows to another programme: the flag means
+-- "serves the other cohorts of my programme", and it would go on meaning that in the programme the
+-- rows land in.
+SELECT id, kind, teaching_hours
+FROM instance_part
+WHERE course_instance_id = $1 AND serves_sibling_tracks
+ORDER BY position, id;

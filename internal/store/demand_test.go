@@ -1520,12 +1520,11 @@ func TestNothingGivesACoveredCohortTeachingBack(t *testing.T) {
 		t.Errorf("duplicating a covered cohort answered %v, want ErrInstanceCovered", err)
 	}
 
-	// And the host cannot be withdrawn while another programme's demand hangs off it. Named,
-	// unlike the opaque refusal a wish earns: a coverage link is a declaration of demand, and
-	// the demand is not confidential.
-	if err := f.demand.DeleteCourseInstance(ctx, host.ID); !errors.Is(
-		err, domain.ErrInstanceCoversOthers) {
-		t.Errorf("withdrawing a host answered %v, want ErrInstanceCoversOthers", err)
+	// The holder, on the other hand, may now be withdrawn: it hands the teaching over rather than
+	// being refused. Asserted in full by TestWithdrawingTheHolderHandsTheTeachingOver; here only
+	// that it is no longer a refusal, since that is what this test used to say.
+	if err := f.demand.DeleteCourseInstance(ctx, host.ID); err != nil {
+		t.Errorf("withdrawing the holder answered %v, want it to hand the teaching over", err)
 	}
 }
 
@@ -1895,5 +1894,234 @@ func TestSplittingDoesNotGiveACoveredSiblingItsOwnPart(t *testing.T) {
 	}
 	if got := read.TeachingHours(); got != 0 {
 		t.Errorf("the held cohort costs %v hours, want 0", got)
+	}
+}
+
+// Withdrawing the cohort that holds a joint event hands the teaching to one that attends it.
+//
+// The assertion that matters is the assignment: the parts are *moved*, not rebuilt, so whoever was
+// teaching the event still is. Rebuilding them from the module's split would lose that — and,
+// because assignment references instance_part ON DELETE RESTRICT, would refuse the withdrawal
+// outright the moment anybody was teaching it.
+func TestWithdrawingTheHolderHandsTheTeachingOver(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	if guest.CoveredBy == nil {
+		t.Fatal("the second declaration was not held with the first")
+	}
+
+	// A second laboratory group, so that the group count has something to survive.
+	hours := 2.0
+	if _, err := f.demand.AddInstancePart(ctx, host.ID, domain.PartKindLab, &hours); err != nil {
+		t.Fatalf("cannot add a second group: %v", err)
+	}
+	held, err := f.demand.CourseInstanceByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("cannot re-read the holder: %v", err)
+	}
+	before := held.TeachingHours()
+
+	// Somebody is teaching the lecture.
+	storetest.SeedPerson(t, f.schema, testdata.Eins, "LECTURER")
+	lecture := partOfKind(t, held, domain.PartKindLecture)
+	if _, err := f.schema.Pool.Exec(ctx,
+		`INSERT INTO assignment (instance_part_id, person_id) VALUES ($1, $2)`,
+		lecture.ID, testdata.Eins.ID()); err != nil {
+		t.Fatalf("cannot fill the lecture: %v", err)
+	}
+
+	if err := f.demand.DeleteCourseInstance(ctx, host.ID); err != nil {
+		t.Fatalf("cannot withdraw the holder: %v", err)
+	}
+
+	took, err := f.demand.CourseInstanceByID(ctx, guest.ID)
+	if err != nil {
+		t.Fatalf("cannot read the cohort that took over: %v", err)
+	}
+	if took == nil {
+		t.Fatal("the withdrawal took the other programme's declaration with it")
+	}
+	if took.CoveredBy != nil {
+		t.Error("the cohort that took the teaching over still reports being held elsewhere")
+	}
+	if got := took.TeachingHours(); got != before {
+		t.Errorf("it holds %v hours, want the %v the withdrawn cohort held — the group count "+
+			"goes with the teaching", got, before)
+	}
+
+	// The part kept its id, which is what kept the assignment.
+	if got := partOfKind(t, took, domain.PartKindLecture); got.ID != lecture.ID {
+		t.Errorf("the lecture was rebuilt rather than handed over (%v became %v)", lecture.ID, got.ID)
+	}
+	var assignee string
+	if err := f.schema.Pool.QueryRow(ctx,
+		`SELECT p.mail FROM assignment a JOIN person p ON p.id = a.person_id
+		  WHERE a.instance_part_id = $1`, lecture.ID).Scan(&assignee); err != nil {
+		t.Fatalf("the assignment did not survive the handover: %v", err)
+	}
+	if assignee != testdata.Eins.Mail {
+		t.Errorf("the lecture is held by %s, want %s", assignee, testdata.Eins.Mail)
+	}
+
+	// And the faculty pays exactly what it paid before.
+	var total float64
+	for _, instance := range f.allInstances(t) {
+		total += instance.TeachingHours()
+	}
+	if total != before {
+		t.Errorf("the faculty now pays %v hours, want the %v it paid before the withdrawal",
+			total, before)
+	}
+}
+
+// With three programmes, the ones that keep attending are pointed at whoever took over.
+func TestWithdrawingTheHolderRepointsTheOtherGuests(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	first := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	second := f.declareIn(t, storetest.FixtureProgrammeZ, "")
+	if first.CoveredBy == nil || second.CoveredBy == nil {
+		t.Fatal("the two later declarations were not held with the first")
+	}
+
+	if err := f.demand.DeleteCourseInstance(ctx, host.ID); err != nil {
+		t.Fatalf("cannot withdraw the holder: %v", err)
+	}
+
+	took, err := f.demand.CourseInstanceByID(ctx, first.ID)
+	if err != nil {
+		t.Fatalf("cannot read the successor: %v", err)
+	}
+	if took.CoveredBy != nil {
+		t.Fatal("the longest-standing guest did not take the teaching over")
+	}
+
+	still, err := f.demand.CourseInstanceByID(ctx, second.ID)
+	if err != nil {
+		t.Fatalf("cannot read the remaining guest: %v", err)
+	}
+	if still.CoveredBy == nil {
+		t.Fatal("the remaining cohort was left holding nothing and attending nothing")
+	}
+	if got := still.CoveredBy.Instance.ID; got != first.ID {
+		t.Errorf("it attends %v, want the cohort that took over (%v)", got, first.ID)
+	}
+	if len(still.BorrowedParts) == 0 {
+		t.Error("it attends no parts after the handover")
+	}
+}
+
+// What the withdrawing programme held for its *own* cohorts is given back before the rows leave.
+//
+// serves_sibling_tracks means "held for the other cohorts of my programme". Carried into another
+// programme it would go on saying that there: the withdrawing programme's second cohort would
+// silently lose the lecture it was attending, and the successor's cohorts would gain one they
+// never had.
+func TestPromotionGivesTheHoldersOwnSiblingsTheirTeachingBack(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	trackA := f.declareIn(t, storetest.FixtureProgrammeA, "A")
+	trackB := f.declareIn(t, storetest.FixtureProgrammeA, "B")
+	lecture := partOfKind(t, trackA, domain.PartKindLecture)
+	if _, err := f.demand.ShareInstancePartAcrossTracks(ctx, lecture.ID); err != nil {
+		t.Fatalf("cannot hold one lecture for both cohorts: %v", err)
+	}
+
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	if guest.CoveredBy == nil {
+		t.Fatal("the other programme was not held with this one")
+	}
+
+	if err := f.demand.DeleteCourseInstance(ctx, trackA.ID); err != nil {
+		t.Fatalf("cannot withdraw the holder: %v", err)
+	}
+
+	// The withdrawing programme's own second cohort has its lecture back.
+	sibling, err := f.demand.CourseInstanceByID(ctx, trackB.ID)
+	if err != nil {
+		t.Fatalf("cannot read the sibling cohort: %v", err)
+	}
+	if !hasKind(sibling.Parts, domain.PartKindLecture) {
+		t.Error("the sibling lost the lecture it was attending — the flag went to another " +
+			"programme and took the teaching with it")
+	}
+
+	// And the cohort that took over holds a lecture that is nobody else's.
+	took, err := f.demand.CourseInstanceByID(ctx, guest.ID)
+	if err != nil {
+		t.Fatalf("cannot read the successor: %v", err)
+	}
+	for _, p := range took.Parts {
+		if p.SharedAcrossTracks {
+			t.Error("the handed-over lecture still claims to be held for sibling cohorts, " +
+				"which now means the wrong programme's")
+		}
+	}
+}
+
+// hasKind reports whether a cohort holds a part of this kind.
+func hasKind(parts []domain.InstancePart, kind domain.InstancePartKind) bool {
+	for _, p := range parts {
+		if p.Kind == kind {
+			return true
+		}
+	}
+	return false
+}
+
+// A holder somebody has registered interest in is still refused, and nothing moves.
+//
+// The handover cannot rescue it: wish.course_instance_id is ON DELETE RESTRICT, so the delete
+// fails and the whole transaction rolls back with it. The refusal stays opaque, because naming it
+// would be the wish oracle db/queries/wish.sql exists to prevent.
+func TestAHolderWithWishesIsStillRefusedAndNothingMoved(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+
+	storetest.SeedPerson(t, f.schema, testdata.Eins, "LECTURER")
+	if _, err := f.schema.Pool.Exec(ctx,
+		`INSERT INTO wish (course_instance_id, person_id, priority) VALUES ($1, $2, 2)`,
+		host.ID, testdata.Eins.ID()); err != nil {
+		t.Fatalf("cannot register interest: %v", err)
+	}
+
+	if err := f.demand.DeleteCourseInstance(ctx, host.ID); !errors.Is(err, domain.ErrInstanceInUse) {
+		t.Fatalf("withdrawing answered %v, want ErrInstanceInUse", err)
+	}
+
+	// Nothing moved: the handover is in the same transaction as the delete.
+	stillHeld, err := f.demand.CourseInstanceByID(ctx, guest.ID)
+	if err != nil {
+		t.Fatalf("cannot re-read the guest: %v", err)
+	}
+	if stillHeld.CoveredBy == nil {
+		t.Error("the refused withdrawal handed the teaching over anyway")
+	}
+	if len(stillHeld.Parts) != 0 {
+		t.Errorf("the guest holds %d parts after a refused withdrawal", len(stillHeld.Parts))
+	}
+	held, err := f.demand.CourseInstanceByID(ctx, host.ID)
+	if err != nil {
+		t.Fatalf("cannot re-read the holder: %v", err)
+	}
+	if len(held.Parts) == 0 {
+		t.Error("the refused withdrawal gave the holder's teaching away")
 	}
 }

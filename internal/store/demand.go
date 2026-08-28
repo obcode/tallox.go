@@ -578,25 +578,26 @@ func (d *Demand) UpdateCourseInstance(ctx context.Context, id uuid.UUID, track s
 // A part has exactly one kind of thing pointing at it, so DeleteInstancePart can afford to name
 // it. The asymmetry is deliberate and each half is argued where it is.
 func (d *Demand) DeleteCourseInstance(ctx context.Context, id uuid.UUID) error {
-	q := New(d.pool)
-
-	// Asked before the delete rather than decoded from its refusal, because the refusal cannot
-	// tell the two cases apart: a wish, an assignment and another programme's coverage all arrive
-	// as the same foreign key violation, and only one of them may be named.
-	//
-	// Named, because a coverage link is a declaration of demand and the demand is not
-	// confidential. ErrInstanceInUse stays opaque for the other two: "this instance has 3 wishes"
-	// is the confidential fact with the names removed.
-	covered, err := q.CoveredInstanceCountFor(ctx, uuid.NullUUID{UUID: id, Valid: true})
+	tx, err := d.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("cannot check whether this instance covers another: %w", err)
+		return fmt.Errorf("cannot begin: %w", err)
 	}
-	if covered > 0 {
-		return domain.ErrInstanceCoversOthers
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	// Whatever this cohort was holding for other programmes is handed to one of them first, so
+	// that the withdrawal can go ahead at all. A refusal here would leave a stale row in one
+	// programme holding another programme's lead hostage.
+	if _, err := promoteCoverageSuccessor(ctx, q, id); err != nil {
+		return err
 	}
 
 	rows, err := q.DeleteCourseInstance(ctx, id)
 	if isForeignKeyViolation(err) {
+		// A wish still points at it, and that refusal stays opaque. Naming it would be the wish
+		// oracle db/queries/wish.sql exists to prevent: "this instance has 3 wishes" is the
+		// confidential fact with the names taken out. The handover above rolls back with it.
 		return domain.ErrInstanceInUse
 	}
 	if err != nil {
@@ -604,6 +605,10 @@ func (d *Demand) DeleteCourseInstance(ctx context.Context, id uuid.UUID) error {
 	}
 	if rows == 0 {
 		return domain.ErrInstanceNotFound
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("cannot commit: %w", err)
 	}
 	return nil
 }
@@ -893,6 +898,150 @@ func refuseIfCovered(ctx context.Context, q *Queries, instanceID uuid.UUID) erro
 	}
 	if ctx1.CoveredAcceptedAt.Valid {
 		return domain.ErrInstanceCovered
+	}
+	return nil
+}
+
+// promoteCoverageSuccessor hands a withdrawing cohort's teaching to one of the cohorts it holds it
+// for, so that the withdrawal can go ahead.
+//
+// # WHY A WITHDRAWAL PROMOTES INSTEAD OF BEING REFUSED
+//
+// This one is not justified by staying inside the writer's scope; it plainly does not. Parts
+// appear in a programme the withdrawing lead does not lead, and an assignment moves with them.
+// It is justified by being the only outcome that loses nothing.
+//
+// A holder's withdrawal has four possible answers and three of them destroy a fact:
+//
+//   - Refuse it. That was the old answer, and it leaves one programme's stale row holding another
+//     programme's lead hostage: the guest cannot fix it because the row is not theirs.
+//   - Take the guests with it. That deletes another programme's declaration outright.
+//   - Release the guests to rebuild from the module's split. That loses the group counts, loses
+//     the assignment, and turns one event into several.
+//   - Hand it to the longest-standing guest. The event survives with its groups and whoever holds
+//     it, both declarations survive, the remaining guests keep attending the same teaching, and
+//     the faculty's hours do not move by an hour.
+//
+// The consent that is missing is the successor's, and it is bought back the way the coupling's is:
+// it may release at once, and then holds what it would have held had it never been coupled. What
+// is *not* bought back is the group count — it arrives as the withdrawing programme planned it,
+// and the plan report says so.
+//
+// Returns the successor for the report, or nil where there was nothing to promote.
+func promoteCoverageSuccessor(ctx context.Context, q *Queries, hostID uuid.UUID) (
+	*domain.CourseInstance, error,
+) {
+	if _, err := q.LockCoverageGroup(ctx, hostID); err != nil {
+		return nil, fmt.Errorf("cannot lock the cohorts: %w", err)
+	}
+
+	successor, err := q.CoverageSuccessorFor(ctx, uuid.NullUUID{UUID: hostID, Valid: true})
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Nobody's demand hangs off it; an ordinary withdrawal.
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot find the cohort to hand the teaching to: %w", err)
+	}
+
+	// First, give this programme's own sibling cohorts back what this cohort was holding for them.
+	//
+	// serves_sibling_tracks means "held for the other cohorts of my programme". Moved to another
+	// programme it would go on saying that there — the withdrawing programme's siblings would
+	// silently lose the lecture they were attending, and the successor's would gain one they never
+	// had. Only inserts, so this cannot meet a RESTRICT.
+	if err := unshareBeforeHandover(ctx, q, hostID); err != nil {
+		return nil, err
+	}
+
+	// The successor stops being a guest before anything points at it: the foreign key reads its
+	// is_covered, which is generated from covered_by_instance_id.
+	if _, err := q.ReleaseInstanceCoverage(ctx, successor.ID); err != nil {
+		return nil, fmt.Errorf("cannot release the cohort taking over: %w", err)
+	}
+
+	if _, err := q.MoveInstancePartsTo(ctx, MoveInstancePartsToParams{
+		FromInstance: hostID,
+		ToInstance:   successor.ID,
+	}); err != nil {
+		return nil, fmt.Errorf("cannot hand the teaching over: %w", err)
+	}
+
+	if _, err := q.RepointGuestsTo(ctx, RepointGuestsToParams{
+		FromInstance: hostID,
+		ToInstance:   successor.ID,
+	}); err != nil {
+		return nil, fmt.Errorf("cannot point the other cohorts at the new holder: %w", err)
+	}
+
+	return &domain.CourseInstance{
+		ID:    successor.ID,
+		Track: successor.Track,
+		Programme: domain.Programme{
+			ID: successor.ProgrammeID, Code: successor.ProgrammeCode, Title: successor.ProgrammeTitle,
+		},
+	}, nil
+}
+
+// unshareBeforeHandover gives a withdrawing cohort's own siblings back whatever it was holding for
+// them, and clears the flag so the rows mean nothing once they belong to another programme.
+//
+// The body of SplitInstancePartAcrossTracks, minus its bookkeeping: a covered sibling is skipped
+// for the reason it is skipped there too — it holds nothing by construction.
+func unshareBeforeHandover(ctx context.Context, q *Queries, hostID uuid.UUID) error {
+	shared, err := q.SharedPartsOf(ctx, hostID)
+	if err != nil {
+		return fmt.Errorf("cannot read what this cohort holds for its siblings: %w", err)
+	}
+	if len(shared) == 0 {
+		return nil
+	}
+
+	siblings, err := q.SiblingInstanceIDs(ctx, hostID)
+	if err != nil {
+		return fmt.Errorf("cannot read the sibling cohorts: %w", err)
+	}
+
+	for _, part := range shared {
+		for _, sibling := range siblings {
+			if err := refuseIfCovered(ctx, q, sibling); errors.Is(err, domain.ErrInstanceCovered) {
+				continue
+			} else if err != nil {
+				return err
+			}
+
+			exists, err := q.InstancePartsOfKindExist(ctx, InstancePartsOfKindExistParams{
+				CourseInstanceID: sibling,
+				Kind:             part.Kind,
+			})
+			if err != nil {
+				return fmt.Errorf("cannot check the sibling cohort: %w", err)
+			}
+			if exists {
+				continue
+			}
+
+			position, err := q.NextInstancePartPosition(ctx, sibling)
+			if err != nil {
+				return fmt.Errorf("cannot find the end of the sibling's list: %w", err)
+			}
+			if _, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
+				CourseInstanceID:    sibling,
+				Kind:                part.Kind,
+				Position:            position,
+				TeachingHours:       part.TeachingHours,
+				ServesSiblingTracks: false,
+			}); err != nil {
+				return fmt.Errorf("cannot give the sibling its own part back: %w", err)
+			}
+		}
+
+		if err := q.SetInstancePartShared(ctx, SetInstancePartSharedParams{
+			ID:                  part.ID,
+			ServesSiblingTracks: false,
+		}); err != nil {
+			return fmt.Errorf("cannot stop sharing the part: %w", err)
+		}
 	}
 	return nil
 }
@@ -1720,6 +1869,14 @@ func (d *Demand) withdraw(ctx context.Context, tx pgx.Tx, plan *domain.DemandPla
 		return fmt.Errorf("cannot open a savepoint: %w", err)
 	}
 
+	// The same handover the single withdrawal does, inside the savepoint this one already opens —
+	// so that a cohort somebody has registered interest in costs its own row and not the screen.
+	promoted, err := promoteCoverageSuccessor(ctx, New(sub), instance.id)
+	if err != nil {
+		_ = sub.Rollback(ctx)
+		return err
+	}
+
 	rows, err := New(sub).DeleteCourseInstance(ctx, instance.id)
 	switch {
 	case isForeignKeyViolation(err):
@@ -1746,6 +1903,20 @@ func (d *Demand) withdraw(ctx context.Context, tx pgx.Tx, plan *domain.DemandPla
 		ModuleID: instance.moduleID,
 		Track:    instance.track,
 	})
+	if promoted != nil {
+		// Said out loud, because it happened in a programme this caller does not lead. A save that
+		// hands another programme's cohort four hours of teaching and whoever holds it, silently,
+		// is a save nobody can check.
+		plan.Promoted = append(plan.Promoted, domain.DemandChange{
+			ModuleID: instance.moduleID,
+			Track:    promoted.Track,
+			Programme: &domain.Programme{
+				ID:    promoted.Programme.ID,
+				Code:  promoted.Programme.Code,
+				Title: promoted.Programme.Title,
+			},
+		})
+	}
 	return nil
 }
 

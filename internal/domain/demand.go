@@ -98,13 +98,6 @@ var (
 	ErrInstanceCovered = errors.New(
 		"diese Instanz wird von einem anderen Studiengang gehalten und hat deshalb " +
 			"keine eigenen Teile")
-	// ErrInstanceCoversOthers is withdrawing an instance another programme's demand depends on.
-	//
-	// This one names what is in the way, where ErrInstanceInUse deliberately does not. A
-	// coverage link is a declaration of demand and the demand is not confidential; a wish is.
-	ErrInstanceCoversOthers = errors.New(
-		"diese Instanz deckt den Bedarf eines anderen Studiengangs — " +
-			"bitte dort zuerst lösen")
 )
 
 // MaxPartsPerInstance bounds one instance.
@@ -376,6 +369,9 @@ type DemandEntry struct {
 type DemandChange struct {
 	ModuleID   uuid.UUID
 	ModuleName string
+	// Programme is set where the change happened somewhere other than the programme being planned
+	// — which today is exactly the promotions.
+	Programme *Programme
 	// Track after the change.
 	Track string
 	// TrackBefore is set where a cohort was renamed rather than created — IF1 becoming IF1A when
@@ -411,7 +407,13 @@ type DemandPlan struct {
 	// arrives holding nothing is the row this whole mechanism exists to explain, and a line that
 	// looked like every other creation would hide the half worth reading.
 	Coupled []DemandChange
-	Refused []DemandRefusal
+	// Promoted is the cohorts of *other* programmes that took a withdrawn cohort's teaching over.
+	//
+	// The one thing a plan does outside the programme it was called for, so it is the one thing a
+	// report cannot leave out. A save that hands somebody else four hours of teaching and whoever
+	// holds it, without a line, is a save nobody can check before pressing it.
+	Promoted []DemandChange
+	Refused  []DemandRefusal
 	// Instances is the demand afterwards, so that one answer redraws the screen. After a dry run
 	// it is what is there now, because that is what is there.
 	Instances []CourseInstance

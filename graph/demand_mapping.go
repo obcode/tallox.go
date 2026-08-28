@@ -237,11 +237,6 @@ func demandUserFacing(actor principal.Actor, err error) error {
 		return refusal("COVERAGE_SELF", err.Error())
 	case errors.Is(err, domain.ErrInstanceCovered):
 		return refusal("INSTANCE_COVERED", err.Error())
-	// Names what is in the way, unlike INSTANCE_IN_USE two dozen lines up, and the asymmetry is
-	// deliberate: a coverage link is a declaration of demand and the demand is not confidential,
-	// while "this instance has 3 wishes" is the confidential fact with the names removed.
-	case errors.Is(err, domain.ErrInstanceCoversOthers):
-		return refusal("INSTANCE_COVERS_OTHERS", err.Error())
 	case errors.Is(err, domain.ErrProgrammeNotFound):
 		return refusal("PROGRAMME_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrProgrammeNotPlanned):

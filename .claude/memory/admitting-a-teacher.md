@@ -40,6 +40,12 @@ Liste — ein zweites No-op statt einer `UNIQUE`-Verletzung, die als `INTERNAL` 
 landet. Ein Bildschirm, der bei jedem Klick speichert, wird doppelt geklickt.
 `TestTwoAdministratorsAdmittingTheSameTeacherAtOnce` hält das fest.
 
+**Der Name kommt schlicht ins Konto**, also ohne akademische Titel: `domain.PlainName` dreht die
+ZPA-Schreibweise `Nachname, Vorname` um. `person.name` ist die eine Stelle, die später ohne
+`sortName` daneben gelesen wird — `me` beantwortet sie direkt —, also muss sie beim Schreiben schon
+richtig sein. Migration 21 hat die Konten davor nachgezogen, aber nur die, deren Name Zeichen für
+Zeichen `teacher.full_name` war. Begründung im geteilten Memory unter `name-register`.
+
 **Es ist ein Root-Feld und kein `Teacher.person`.** `graph/scope.go` liest `@scope` nur an
 Root-Feldern — an einem verschachtelten Feld würde es stillschweigend ignoriert. Und `Teacher`
 ist unter `PLANNING` für jede:n mit Konto lesbar (eine Dozentin muss sehen, wer für ein Modul

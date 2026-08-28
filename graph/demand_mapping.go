@@ -25,13 +25,14 @@ func courseInstanceModel(i domain.CourseInstance) *model.CourseInstance {
 		ProgrammeSemester: i.ProgrammeSemester,
 		// Computed here rather than in a field resolver: it is a sum over a slice that is
 		// already loaded, and a resolver would suggest it costs something to ask for.
-		TeachingHours: i.TeachingHours(),
-		Parts:         make([]*model.InstancePart, 0, len(i.Parts)),
-		BorrowedParts: make([]*model.BorrowedPart, 0, len(i.BorrowedParts)),
-		CoveredBy:     coverageModel(i.CoveredBy),
-		Covers:        make([]*model.InstanceCoverage, 0, len(i.Covers)),
-		CreatedAt:     i.CreatedAt,
-		UpdatedAt:     i.UpdatedAt,
+		TeachingHours:         i.TeachingHours(),
+		Parts:                 make([]*model.InstancePart, 0, len(i.Parts)),
+		BorrowedParts:         make([]*model.BorrowedPart, 0, len(i.BorrowedParts)),
+		CoveredBy:             coverageModel(i.CoveredBy),
+		Covers:                make([]*model.InstanceCoverage, 0, len(i.Covers)),
+		AlsoPlannedSeparately: make([]*model.CourseInstance, 0, len(i.AlsoPlannedSeparately)),
+		CreatedAt:             i.CreatedAt,
+		UpdatedAt:             i.UpdatedAt,
 	}
 	for _, p := range i.Parts {
 		out.Parts = append(out.Parts, instancePartModel(p))
@@ -48,6 +49,24 @@ func courseInstanceModel(i domain.CourseInstance) *model.CourseInstance {
 	}
 	for _, c := range i.Covers {
 		out.Covers = append(out.Covers, coverageModel(&c))
+	}
+	for _, o := range i.AlsoPlannedSeparately {
+		// Built here rather than through courseInstanceModel, and for the same reason
+		// coverageModel builds its own: that call would map this one's coverage and separate
+		// offerings in turn, and the depth would be bounded by luck rather than by construction.
+		out.AlsoPlannedSeparately = append(out.AlsoPlannedSeparately, &model.CourseInstance{
+			ID:                o.ID.String(),
+			Semester:          i.SemesterCode,
+			Programme:         programmeModel(o.Programme),
+			Module:            moduleModel(i.Module),
+			Track:             o.Track,
+			ProgrammeSemester: o.ProgrammeSemester,
+			Parts:             make([]*model.InstancePart, 0),
+			BorrowedParts:     make([]*model.BorrowedPart, 0),
+			Covers:            make([]*model.InstanceCoverage, 0),
+
+			AlsoPlannedSeparately: make([]*model.CourseInstance, 0),
+		})
 	}
 	return out
 }
@@ -117,6 +136,8 @@ func demandPlanModel(p domain.DemandPlan) *model.DemandPlanReport {
 		Created:       demandChanges(p.Created),
 		Withdrawn:     demandChanges(p.Withdrawn),
 		Changed:       demandChanges(p.Changed),
+		Coupled:       demandChanges(p.Coupled),
+		Promoted:      demandChanges(p.Promoted),
 		Refused:       make([]*model.DemandRefusal, 0, len(p.Refused)),
 		Instances:     make([]*model.CourseInstance, 0, len(p.Instances)),
 		TeachingHours: p.TeachingHours,
@@ -146,9 +167,19 @@ func demandChanges(changes []domain.DemandChange) []*model.DemandChange {
 			TrackBefore:  c.TrackBefore,
 			GroupsBefore: c.GroupsBefore,
 			GroupsAfter:  c.GroupsAfter,
+			Programme:    optionalProgrammeModel(c.Programme),
 		})
 	}
 	return out
+}
+
+// optionalProgrammeModel maps the programme a change happened in, where it is not the one being
+// planned. Nil for everything a save does inside its own programme, which is almost all of it.
+func optionalProgrammeModel(p *domain.Programme) *model.Programme {
+	if p == nil {
+		return nil
+	}
+	return programmeModel(*p)
 }
 
 // demandUserFacing turns a service refusal into an error the interface can branch on.

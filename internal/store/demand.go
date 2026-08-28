@@ -208,10 +208,10 @@ func (d *Demand) one(ctx context.Context, q *Queries, row instanceRow) (*domain.
 	return &instances[0], nil
 }
 
-// attach fills in the parts, the borrowed parts, the covered demands and the catalogue entry of a
-// set of instances.
+// attach fills in the parts, the borrowed parts, the covered demands, who else offers the module
+// separately, and the catalogue entry of a set of instances.
 //
-// Four statements plus the catalogue's own, regardless of how many instances there are.
+// Five statements plus the catalogue's own, regardless of how many instances there are.
 func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.CourseInstance, ids []uuid.UUID) error {
 	parts, err := q.InstancePartsFor(ctx, ids)
 	if err != nil {
@@ -266,6 +266,26 @@ func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.Cour
 		coversByInstance[c.ForInstanceID.UUID] = append(coversByInstance[c.ForInstanceID.UUID], coverage)
 	}
 
+	// The same offering, declared by somebody else and held there. One statement for the whole
+	// list, like the two above it — and the only thing attach computes about a row rather than
+	// reading off it.
+	separate, err := q.SeparatelyPlannedInstancesFor(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("cannot read who else offers these modules: %w", err)
+	}
+	separateByInstance := make(map[uuid.UUID][]domain.CourseInstance, len(ids))
+	for _, s := range separate {
+		separateByInstance[s.ForInstanceID] = append(separateByInstance[s.ForInstanceID],
+			domain.CourseInstance{
+				ID:                s.ID,
+				Track:             s.Track,
+				ProgrammeSemester: intOrNil(s.ProgrammeSemester),
+				Programme: domain.Programme{
+					ID: s.ProgrammeID, Code: s.ProgrammeCode, Title: s.ProgrammeTitle,
+				},
+			})
+	}
+
 	moduleIDs := make([]uuid.UUID, 0, len(instances))
 	for i := range instances {
 		if !slices.Contains(moduleIDs, instances[i].Module.ID) {
@@ -285,6 +305,7 @@ func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.Cour
 		instances[i].Parts = partsByInstance[instances[i].ID]
 		instances[i].BorrowedParts = borrowedByInstance[instances[i].ID]
 		instances[i].Covers = coversByInstance[instances[i].ID]
+		instances[i].AlsoPlannedSeparately = separateByInstance[instances[i].ID]
 		// A module that vanished between the two statements is not a state the schema allows —
 		// course_instance references it ON DELETE RESTRICT and modules are never deleted — so
 		// the zero Module here would be a bug rather than a case, and it keeps its id so that

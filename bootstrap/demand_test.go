@@ -1393,3 +1393,111 @@ func TestDeclaringBesideAnotherProgrammeHoldsTheTwoTogether(t *testing.T) {
 		t.Error("releasing left the cohort with no teaching at all")
 	}
 }
+
+// The badge that makes an unnoticed duplicate visible.
+//
+// Two programmes offering the same module separately is the case this whole area exists to make
+// avoidable, and until now nothing said it out loud: the coupling was only ever found by somebody
+// looking for it. It is also the net under the race — two leads planning the same module in the
+// same moment, neither seeing the other's uncommitted row, both ending up holding their own.
+func TestACohortSaysWhoElseOffersTheModuleSeparately(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{
+			testdata.Vier.Mail: {storetest.FixtureProgrammeA, storetest.FixtureProgrammeB},
+		},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		grants{testdata.Eins, []string{"LECTURER"}})
+
+	lead := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+
+	var first, second struct {
+		DeclareCourseInstance struct{ ID string }
+	}
+	lead.MustQuery(t, declareMutation,
+		declareInput(f, storetest.FixtureProgrammeA, "2027-SS", ""), &first)
+	lead.MustQuery(t, declareMutation,
+		declareInput(f, storetest.FixtureProgrammeB, "2027-SS", ""), &second)
+
+	// The second was held with the first, so neither is "planned separately" — they are one event
+	// seen from two programmes, and that is what coveredBy and covers are for.
+	lead.MustQuery(t, `mutation($id: ID!) { releaseInstanceCoverage(id: $id) { id } }`,
+		map[string]any{"id": second.DeclareCourseInstance.ID}, &struct {
+			ReleaseInstanceCoverage struct{ ID string }
+		}{})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct {
+				CourseInstances []struct {
+					Programme             struct{ Code string }
+					CoveredBy             *struct{ AcceptedAt *string }
+					AlsoPlannedSeparately []struct {
+						Programme struct{ Code string }
+					}
+				}
+			}
+			c.MustQuery(t, `query($s: String!) {
+				courseInstances(semester: $s) {
+					programme { code }
+					coveredBy { acceptedAt }
+					alsoPlannedSeparately { programme { code } }
+				}
+			}`, map[string]any{"s": "2027-SS"}, &out)
+
+			if len(out.CourseInstances) != 2 {
+				t.Fatalf("the semester holds %d instances, want 2", len(out.CourseInstances))
+			}
+
+			for _, i := range out.CourseInstances {
+				if i.CoveredBy != nil {
+					t.Fatalf("%s is still held elsewhere; this test is about the separate case",
+						i.Programme.Code)
+				}
+				if len(i.AlsoPlannedSeparately) != 1 {
+					t.Fatalf("%s names %d other programmes offering the module separately, want 1",
+						i.Programme.Code, len(i.AlsoPlannedSeparately))
+				}
+				// Each names the other, and neither names itself.
+				other := i.AlsoPlannedSeparately[0].Programme.Code
+				if other == i.Programme.Code {
+					t.Errorf("%s names itself", i.Programme.Code)
+				}
+			}
+		})
+
+	// And once they are held together it stops saying so: a covered cohort is not a second event,
+	// it is the same one seen from another programme.
+	lead.MustQuery(t, `mutation($id: ID!, $by: ID!) {
+		requestInstanceCoverage(id: $id, coveredBy: $by) { id }
+	}`, map[string]any{
+		"id": second.DeclareCourseInstance.ID, "by": first.DeclareCourseInstance.ID,
+	}, &struct {
+		RequestInstanceCoverage struct{ ID string }
+	}{})
+	lead.MustQuery(t, `mutation($id: ID!) { acceptInstanceCoverage(id: $id) { id } }`,
+		map[string]any{"id": second.DeclareCourseInstance.ID}, &struct {
+			AcceptInstanceCoverage struct{ ID string }
+		}{})
+
+	var after struct {
+		CourseInstances []struct {
+			Programme             struct{ Code string }
+			AlsoPlannedSeparately []struct{ ID string }
+		}
+	}
+	lead.MustQuery(t, `query($s: String!) {
+		courseInstances(semester: $s) {
+			programme { code }
+			alsoPlannedSeparately { id }
+		}
+	}`, map[string]any{"s": "2027-SS"}, &after)
+
+	for _, i := range after.CourseInstances {
+		if len(i.AlsoPlannedSeparately) != 0 {
+			t.Errorf("%s still reports %d separate offerings after the two were held together",
+				i.Programme.Code, len(i.AlsoPlannedSeparately))
+		}
+	}
+}

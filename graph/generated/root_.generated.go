@@ -143,19 +143,20 @@ type ComplexityRoot struct {
 	}
 
 	CourseInstance struct {
-		BorrowedParts     func(childComplexity int) int
-		CoveredBy         func(childComplexity int) int
-		Covers            func(childComplexity int) int
-		CreatedAt         func(childComplexity int) int
-		ID                func(childComplexity int) int
-		Module            func(childComplexity int) int
-		Parts             func(childComplexity int) int
-		Programme         func(childComplexity int) int
-		ProgrammeSemester func(childComplexity int) int
-		Semester          func(childComplexity int) int
-		TeachingHours     func(childComplexity int) int
-		Track             func(childComplexity int) int
-		UpdatedAt         func(childComplexity int) int
+		AlsoPlannedSeparately func(childComplexity int) int
+		BorrowedParts         func(childComplexity int) int
+		CoveredBy             func(childComplexity int) int
+		Covers                func(childComplexity int) int
+		CreatedAt             func(childComplexity int) int
+		ID                    func(childComplexity int) int
+		Module                func(childComplexity int) int
+		Parts                 func(childComplexity int) int
+		Programme             func(childComplexity int) int
+		ProgrammeSemester     func(childComplexity int) int
+		Semester              func(childComplexity int) int
+		TeachingHours         func(childComplexity int) int
+		Track                 func(childComplexity int) int
+		UpdatedAt             func(childComplexity int) int
 	}
 
 	CreatedPersonalAccessToken struct {
@@ -168,6 +169,7 @@ type ComplexityRoot struct {
 		GroupsBefore func(childComplexity int) int
 		ModuleID     func(childComplexity int) int
 		ModuleName   func(childComplexity int) int
+		Programme    func(childComplexity int) int
 		Track        func(childComplexity int) int
 		TrackBefore  func(childComplexity int) int
 	}
@@ -180,9 +182,11 @@ type ComplexityRoot struct {
 
 	DemandPlanReport struct {
 		Changed       func(childComplexity int) int
+		Coupled       func(childComplexity int) int
 		Created       func(childComplexity int) int
 		DryRun        func(childComplexity int) int
 		Instances     func(childComplexity int) int
+		Promoted      func(childComplexity int) int
 		Refused       func(childComplexity int) int
 		TeachingHours func(childComplexity int) int
 		Withdrawn     func(childComplexity int) int
@@ -983,6 +987,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.CopyDemandReport.To(childComplexity), true
 
+	case "CourseInstance.alsoPlannedSeparately":
+		if e.ComplexityRoot.CourseInstance.AlsoPlannedSeparately == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.AlsoPlannedSeparately(childComplexity), true
 	case "CourseInstance.borrowedParts":
 		if e.ComplexityRoot.CourseInstance.BorrowedParts == nil {
 			break
@@ -1099,6 +1109,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DemandChange.ModuleName(childComplexity), true
+	case "DemandChange.programme":
+		if e.ComplexityRoot.DemandChange.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandChange.Programme(childComplexity), true
 	case "DemandChange.track":
 		if e.ComplexityRoot.DemandChange.Track == nil {
 			break
@@ -1137,6 +1153,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DemandPlanReport.Changed(childComplexity), true
+	case "DemandPlanReport.coupled":
+		if e.ComplexityRoot.DemandPlanReport.Coupled == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandPlanReport.Coupled(childComplexity), true
 	case "DemandPlanReport.created":
 		if e.ComplexityRoot.DemandPlanReport.Created == nil {
 			break
@@ -1155,6 +1177,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DemandPlanReport.Instances(childComplexity), true
+	case "DemandPlanReport.promoted":
+		if e.ComplexityRoot.DemandPlanReport.Promoted == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandPlanReport.Promoted(childComplexity), true
 	case "DemandPlanReport.refused":
 		if e.ComplexityRoot.DemandPlanReport.Refused == nil {
 			break
@@ -4907,6 +4935,18 @@ type CourseInstance {
   """
   covers: [InstanceCoverage!]!
   """
+  Other study programmes that declared this module in this semester and hold it themselves.
+
+  Neither the holder nor the cohorts held with this one — those are ` + "`" + `coveredBy` + "`" + ` and ` + "`" + `covers` + "`" + `. What
+  is left is the case where a joint event was possible and nobody noticed: the same module offered
+  twice, which is what this whole area exists to make avoidable and what nothing said out loud
+  until now.
+
+  Readable by anybody who may read the demand, because the demand is not confidential — unlike a
+  wish, about which this API says nothing before publication.
+  """
+  alsoPlannedSeparately: [CourseInstance!]!
+  """
   What this instance costs the faculty: the sum over the parts it holds.
 
   **Not the module's own ` + "`" + `contactHoursPerWeek` + "`" + `**, which is what a student attends. A four-hour
@@ -5161,6 +5201,14 @@ type DemandChange {
   groupsBefore: Int
   "Where the number of groups changed: what it is now."
   groupsAfter: Int
+  """
+  The study programme this change happened in, where that is not the one being planned.
+
+  ` + "`" + `null` + "`" + ` for everything a save does inside its own programme, which is almost all of it. Set on the
+  entries in ` + "`" + `promoted` + "`" + `, because a cohort taking a withdrawn event over is the one change that
+  lands somewhere the caller does not lead.
+  """
+  programme: Programme
 }
 
 """
@@ -5200,6 +5248,23 @@ type DemandPlanReport {
   withdrawn: [DemandChange!]!
   "Cohorts that were renamed, or whose number of groups changed."
   changed: [DemandChange!]!
+  """
+  Cohorts that were declared already held by another study programme's event.
+
+  Not a refusal — nothing was refused — and not merely a creation either. A cohort that arrives
+  holding nothing is the row this whole mechanism exists to explain, and a line that looked like
+  every other creation would hide the half worth reading.
+  """
+  coupled: [DemandChange!]!
+  """
+  Cohorts of **other** study programmes that took a withdrawn cohort's teaching over.
+
+  The one thing a save does outside the programme it was called for, so the one thing this report
+  cannot leave out: withdrawing a cohort that holds a joint event hands the teaching — its groups
+  and whoever holds it — to a programme this caller does not lead. ` + "`" + `programme` + "`" + ` on those entries
+  says which.
+  """
+  promoted: [DemandChange!]!
   "What could not be done, one entry per cohort, with the rest of the plan applied."
   refused: [DemandRefusal!]!
   """
@@ -7470,6 +7535,8 @@ func (ec *executionContext) childFields_CourseInstance(ctx context.Context, fiel
 		return ec.fieldContext_CourseInstance_coveredBy(ctx, field)
 	case "covers":
 		return ec.fieldContext_CourseInstance_covers(ctx, field)
+	case "alsoPlannedSeparately":
+		return ec.fieldContext_CourseInstance_alsoPlannedSeparately(ctx, field)
 	case "teachingHours":
 		return ec.fieldContext_CourseInstance_teachingHours(ctx, field)
 	case "createdAt":
@@ -7504,6 +7571,8 @@ func (ec *executionContext) childFields_DemandChange(ctx context.Context, field 
 		return ec.fieldContext_DemandChange_groupsBefore(ctx, field)
 	case "groupsAfter":
 		return ec.fieldContext_DemandChange_groupsAfter(ctx, field)
+	case "programme":
+		return ec.fieldContext_DemandChange_programme(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DemandChange", field.Name)
 }
@@ -7530,6 +7599,10 @@ func (ec *executionContext) childFields_DemandPlanReport(ctx context.Context, fi
 		return ec.fieldContext_DemandPlanReport_withdrawn(ctx, field)
 	case "changed":
 		return ec.fieldContext_DemandPlanReport_changed(ctx, field)
+	case "coupled":
+		return ec.fieldContext_DemandPlanReport_coupled(ctx, field)
+	case "promoted":
+		return ec.fieldContext_DemandPlanReport_promoted(ctx, field)
 	case "refused":
 		return ec.fieldContext_DemandPlanReport_refused(ctx, field)
 	case "instances":

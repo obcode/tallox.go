@@ -148,9 +148,17 @@ type CourseInstance struct {
 	//
 	// A request nobody has answered is in here with AcceptedAt nil: this is the side where it is
 	// answered, so leaving it out would hide the only thing that needs doing.
-	Covers    []InstanceCoverage
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Covers []InstanceCoverage
+	// AlsoPlannedSeparately are the other programmes that declared this module in this semester
+	// and hold it themselves.
+	//
+	// Neither the holder nor the guests — those are CoveredBy and Covers. What is left is the case
+	// where a joint event was possible and nobody noticed: two programmes running the same module
+	// twice, which is the thing this whole area exists to make avoidable and, until now, the thing
+	// nothing said out loud.
+	AlsoPlannedSeparately []CourseInstance
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 
 	// HoursFromQuery is the sum over the parts, computed by a query that did not load them.
 	//

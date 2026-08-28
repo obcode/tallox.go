@@ -579,3 +579,32 @@ SELECT id, kind, teaching_hours
 FROM instance_part
 WHERE course_instance_id = $1 AND serves_sibling_tracks
 ORDER BY position, id;
+
+-- name: SeparatelyPlannedInstancesFor :many
+-- The same offering, declared by another programme and held there rather than here.
+--
+-- What the badge says: "auch in GS geplant (getrennt)". Not a coverage link — the whole point is
+-- that there is none — so it is the one thing this file computes about a row rather than reads off
+-- it. It makes an uncoupled duplicate visible, and two things need that: the coupling nobody
+-- noticed was possible, and the one that could not happen because two leads planned the same
+-- module in the same moment and neither saw the other.
+--
+-- covered_by_instance_id IS NULL on the other side is what makes "separately" true: a covered row
+-- is not a second event, it is the same one seen from another programme. That clause alone also
+-- drops this instance's own guests, since a guest is covered by definition; the holder has to be
+-- dropped by name.
+--
+-- No confidentiality question: the demand is explicitly not confidential, unlike the wish.
+SELECT me.id AS for_instance_id,
+       o.id, o.track, o.programme_semester,
+       p.id AS programme_id, p.code AS programme_code, p.title AS programme_title
+FROM course_instance me
+JOIN course_instance o
+  ON o.semester_id = me.semester_id
+ AND o.module_id = me.module_id
+ AND o.programme_id <> me.programme_id
+ AND o.covered_by_instance_id IS NULL
+ AND o.id IS DISTINCT FROM me.covered_by_instance_id
+JOIN programme p ON p.id = o.programme_id
+WHERE me.id = ANY (sqlc.arg(instance_ids)::uuid[])
+ORDER BY me.id, p.code, o.track, o.id;

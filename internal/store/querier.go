@@ -1027,6 +1027,21 @@ type Querier interface {
 	// WS within a year, in the order the terms actually happen. Ordering by created_at instead
 	// would list them by when somebody got round to entering them.
 	Semesters(ctx context.Context) ([]Semester, error)
+	// The same offering, declared by another programme and held there rather than here.
+	//
+	// What the badge says: "auch in GS geplant (getrennt)". Not a coverage link — the whole point is
+	// that there is none — so it is the one thing this file computes about a row rather than reads off
+	// it. It makes an uncoupled duplicate visible, and two things need that: the coupling nobody
+	// noticed was possible, and the one that could not happen because two leads planned the same
+	// module in the same moment and neither saw the other.
+	//
+	// covered_by_instance_id IS NULL on the other side is what makes "separately" true: a covered row
+	// is not a second event, it is the same one seen from another programme. That clause alone also
+	// drops this instance's own guests, since a guest is covered by definition; the holder has to be
+	// dropped by name.
+	//
+	// No confidentiality question: the demand is explicitly not confidential, unlike the wish.
+	SeparatelyPlannedInstancesFor(ctx context.Context, instanceIds []uuid.UUID) ([]SeparatelyPlannedInstancesForRow, error)
 	SetInstancePartShared(ctx context.Context, arg SetInstancePartSharedParams) error
 	// Deactivation is how a leaver loses access to everything at once, tokens included.
 	//

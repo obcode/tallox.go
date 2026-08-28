@@ -4115,7 +4115,12 @@ never be connected to anybody.
 type Teacher {
   id: ID!
   """
-  The full name with its titles, as the examination office writes it.
+  The name to show: given name, surname, and no academic titles.
+
+  Turned round from ` + "`" + `sortName` + "`" + `, which is the only spelling the source publishes that is free of
+  titles by construction. The written-out spelling it also publishes carries whatever titles
+  somebody holds — and since an account created here carries none, showing it is how one list
+  ends up in two registers, saying nothing except which table each row came from.
   """
   name: String!
   """
@@ -5788,7 +5793,11 @@ type Person {
   mail: String!
   name: String!
   """
-  Surname first, for a list — ` + "`" + `Braun, Oliver` + "`" + ` where ` + "`" + `name` + "`" + ` is ` + "`" + `Prof. Dr. Oliver Braun` + "`" + `.
+  Surname first, for a list — ` + "`" + `Nachname, Vorname` + "`" + `, where ` + "`" + `name` + "`" + ` is ` + "`" + `Vorname Nachname` + "`" + `.
+
+  Also what ` + "`" + `name` + "`" + ` is derived from wherever it exists: this is the spelling the examination
+  office publishes without titles, and turning it round is how every name in this API comes out
+  in one register.
 
   Taken from the list the examination office publishes, matched on the address, and ` + "`" + `null` + "`" + ` for
   everybody it does not know: which word of a written-out name is the surname is not something to

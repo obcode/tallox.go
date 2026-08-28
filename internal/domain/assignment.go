@@ -91,7 +91,11 @@ type Assignee struct {
 	// writing: a teacher who holds an account is stored as the account, so that the same colleague
 	// is not two identities in this table.
 	TeacherID uuid.UUID
-	// Name is what to show. Empty only for a row whose subject has since been emptied of both.
+	// Name is what to show: given name, surname, no academic titles, derived from SortName
+	// where there is one — see domain.PlainName. It has to be the same spelling either way,
+	// because both kinds of assignee stand in one list, under each other.
+	//
+	// Empty only for a row whose subject has since been emptied of both.
 	Name string
 	// Mail is the address, empty for the three teachers who carry none.
 	Mail string

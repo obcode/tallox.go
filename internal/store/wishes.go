@@ -251,7 +251,7 @@ func wishFrom(row wishRow) domain.Wish {
 		Person: domain.Person{
 			ID:       row.PersonID,
 			Mail:     row.PersonMail,
-			Name:     row.PersonName,
+			Name:     domain.PlainName(row.PersonName, row.PersonSortName),
 			SortName: row.PersonSortName,
 			Active:   true,
 		},

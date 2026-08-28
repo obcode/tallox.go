@@ -371,7 +371,7 @@ func assignmentFrom(row assignmentRow) domain.Assignment {
 			},
 		},
 		Assignee: domain.Assignee{
-			Name:     row.AssigneeName,
+			Name:     domain.PlainName(row.AssigneeName, row.AssigneeSortName),
 			Mail:     row.AssigneeMail,
 			SortName: row.AssigneeSortName,
 		},

@@ -125,7 +125,12 @@ never be connected to anybody.
 type Teacher {
   id: ID!
   """
-  The full name with its titles, as the examination office writes it.
+  The name to show: given name, surname, and no academic titles.
+
+  Turned round from `sortName`, which is the only spelling the source publishes that is free of
+  titles by construction. The written-out spelling it also publishes carries whatever titles
+  somebody holds — and since an account created here carries none, showing it is how one list
+  ends up in two registers, saying nothing except which table each row came from.
   """
   name: String!
   """

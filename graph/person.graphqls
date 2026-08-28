@@ -38,7 +38,11 @@ type Person {
   mail: String!
   name: String!
   """
-  Surname first, for a list — `Braun, Oliver` where `name` is `Prof. Dr. Oliver Braun`.
+  Surname first, for a list — `Nachname, Vorname`, where `name` is `Vorname Nachname`.
+
+  Also what `name` is derived from wherever it exists: this is the spelling the examination
+  office publishes without titles, and turning it round is how every name in this API comes out
+  in one register.
 
   Taken from the list the examination office publishes, matched on the address, and `null` for
   everybody it does not know: which word of a written-out name is the surname is not something to

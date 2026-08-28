@@ -64,8 +64,11 @@ type Spo struct {
 // it, which is why IsUser is derived on every read rather than stored — somebody admitted this
 // morning is connected to their own modules now rather than after the next import.
 type Teacher struct {
-	ID       uuid.UUID
-	Name     string
+	ID uuid.UUID
+	// Name is the spelling to show: given name, surname, no titles. Derived from SortName —
+	// see domain.PlainName for why it is that one and not the written-out spelling.
+	Name string
+	// SortName is the source's surname-first spelling, untouched. What a list is ordered by.
 	SortName string
 	// Mail is empty for the handful the source gives no address for. Such a person can never be
 	// connected to somebody who signs in.

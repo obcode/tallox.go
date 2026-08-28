@@ -387,6 +387,16 @@ type CourseInstance struct {
 	// A request nobody has answered appears here with `acceptedAt: null`. This is the side where it is
 	// answered, so leaving it out would hide the only thing that needs doing.
 	Covers []*InstanceCoverage `json:"covers"`
+	// Other study programmes that declared this module in this semester and hold it themselves.
+	//
+	// Neither the holder nor the cohorts held with this one — those are `coveredBy` and `covers`. What
+	// is left is the case where a joint event was possible and nobody noticed: the same module offered
+	// twice, which is what this whole area exists to make avoidable and what nothing said out loud
+	// until now.
+	//
+	// Readable by anybody who may read the demand, because the demand is not confidential — unlike a
+	// wish, about which this API says nothing before publication.
+	AlsoPlannedSeparately []*CourseInstance `json:"alsoPlannedSeparately"`
 	// What this instance costs the faculty: the sum over the parts it holds.
 	//
 	// **Not the module's own `contactHoursPerWeek`**, which is what a student attends. A four-hour
@@ -459,6 +469,12 @@ type DemandChange struct {
 	GroupsBefore *int `json:"groupsBefore,omitempty"`
 	// Where the number of groups changed: what it is now.
 	GroupsAfter *int `json:"groupsAfter,omitempty"`
+	// The study programme this change happened in, where that is not the one being planned.
+	//
+	// `null` for everything a save does inside its own programme, which is almost all of it. Set on the
+	// entries in `promoted`, because a cohort taking a withdrawn event over is the one change that
+	// lands somewhere the caller does not lead.
+	Programme *Programme `json:"programme,omitempty"`
 }
 
 // One study programme announcing that its demand for a semester is settled.
@@ -500,6 +516,19 @@ type DemandPlanReport struct {
 	Withdrawn []*DemandChange `json:"withdrawn"`
 	// Cohorts that were renamed, or whose number of groups changed.
 	Changed []*DemandChange `json:"changed"`
+	// Cohorts that were declared already held by another study programme's event.
+	//
+	// Not a refusal — nothing was refused — and not merely a creation either. A cohort that arrives
+	// holding nothing is the row this whole mechanism exists to explain, and a line that looked like
+	// every other creation would hide the half worth reading.
+	Coupled []*DemandChange `json:"coupled"`
+	// Cohorts of **other** study programmes that took a withdrawn cohort's teaching over.
+	//
+	// The one thing a save does outside the programme it was called for, so the one thing this report
+	// cannot leave out: withdrawing a cohort that holds a joint event hands the teaching — its groups
+	// and whoever holds it — to a programme this caller does not lead. `programme` on those entries
+	// says which.
+	Promoted []*DemandChange `json:"promoted"`
 	// What could not be done, one entry per cohort, with the rest of the plan applied.
 	Refused []*DemandRefusal `json:"refused"`
 	// The demand of that programme afterwards — the whole list, so that one answer redraws the

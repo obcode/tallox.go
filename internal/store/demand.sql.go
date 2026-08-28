@@ -159,6 +159,43 @@ func (q *Queries) BorrowedInstancePartsFor(ctx context.Context, instanceIds []uu
 	return items, nil
 }
 
+const coupleInstanceCoverage = `-- name: CoupleInstanceCoverage :execrows
+UPDATE course_instance g
+SET covered_by_instance_id = h.id,
+    covered_by_programme_id = h.programme_id,
+    covered_by_is_covered = false,
+    covered_requested_at = now(),
+    covered_requested_by = $2::uuid,
+    covered_accepted_at = now(),
+    covered_accepted_by = $2::uuid,
+    updated_at = now()
+FROM course_instance h
+WHERE g.id = $1
+  AND h.id = $3::uuid
+  AND g.covered_by_instance_id IS NULL
+`
+
+type CoupleInstanceCoverageParams struct {
+	ID     uuid.UUID
+	By     uuid.NullUUID
+	HostID uuid.UUID
+}
+
+// Hold this cohort's demand with another programme's event, from the moment it is declared.
+//
+// Both timestamps at once, and that is the difference between the two ways in. Declaring a cohort
+// beside another programme's is one act by one lead over a cohort that has nothing yet, so asking
+// and holding happen together. The other way in — RequestInstanceCoverage, on a cohort that
+// already holds parts and possibly an assignment — keeps the two apart, because dissolving what
+// somebody already planned is a bigger act and the other programme answers for it.
+func (q *Queries) CoupleInstanceCoverage(ctx context.Context, arg CoupleInstanceCoverageParams) (int64, error) {
+	result, err := q.db.Exec(ctx, coupleInstanceCoverage, arg.ID, arg.By, arg.HostID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const courseInstanceByID = `-- name: CourseInstanceByID :one
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
        ci.created_at, ci.updated_at,
@@ -403,6 +440,88 @@ func (q *Queries) CoverageContextByInstanceID(ctx context.Context, id uuid.UUID)
 	return i, err
 }
 
+const coverageHostFor = `-- name: CoverageHostFor :one
+SELECT h.id, h.programme_id
+FROM course_instance h
+JOIN programme p ON p.id = h.programme_id
+WHERE h.semester_id = $1
+  AND h.module_id = $2
+  AND h.programme_id <> $3::uuid
+  AND h.covered_by_instance_id IS NULL
+  AND p.planning_status = 'PLANNED'
+ORDER BY h.created_at, h.id
+LIMIT 1
+FOR KEY SHARE
+`
+
+type CoverageHostForParams struct {
+	SemesterID  uuid.UUID
+	ModuleID    uuid.UUID
+	ProgrammeID uuid.UUID
+}
+
+type CoverageHostForRow struct {
+	ID          uuid.UUID
+	ProgrammeID uuid.UUID
+}
+
+// Who would hold the teaching of a cohort about to be declared.
+//
+// The same four conditions the composite foreign key asserts, plus the order the faculty lives:
+// whoever planned first holds. `created_at` and then the id, so that two declarations inside one
+// transaction do not draw lots — `now()` is the transaction's clock, so they tie to the
+// microsecond.
+//
+// FOR KEY SHARE is the lock the foreign key would take at the write a statement later. Taken here
+// so that "this instance exists and is not itself covered" is still true when the write happens.
+// Two cohorts coupling at once share the lock and do not queue; only a withdrawal of the host,
+// which takes FOR UPDATE, makes them wait.
+//
+// planning_status: an automatic coupling to a programme the faculty has stopped planning would be
+// a fact nobody chose. The manual picker still offers it — that one is somebody's decision.
+func (q *Queries) CoverageHostFor(ctx context.Context, arg CoverageHostForParams) (CoverageHostForRow, error) {
+	row := q.db.QueryRow(ctx, coverageHostFor, arg.SemesterID, arg.ModuleID, arg.ProgrammeID)
+	var i CoverageHostForRow
+	err := row.Scan(&i.ID, &i.ProgrammeID)
+	return i, err
+}
+
+const coverageSuccessorFor = `-- name: CoverageSuccessorFor :one
+SELECT g.id, g.programme_id, g.track, p.code AS programme_code, p.title AS programme_title
+FROM course_instance g
+JOIN programme p ON p.id = g.programme_id
+WHERE g.covered_by_instance_id = $1
+ORDER BY g.covered_accepted_at, g.created_at, p.code, g.track, g.id
+LIMIT 1
+`
+
+type CoverageSuccessorForRow struct {
+	ID             uuid.UUID
+	ProgrammeID    uuid.UUID
+	Track          string
+	ProgrammeCode  string
+	ProgrammeTitle string
+}
+
+// The guest that becomes the holder when the current one is withdrawn: the longest-standing.
+//
+// The agreement's own timestamp first, because that is the rule the faculty stated. The rest is a
+// tiebreak somebody can read back off the screen: cohorts coupled in one planDemand share a
+// timestamp to the microsecond — now() is the transaction's clock — and letting a random uuid
+// decide is not something anybody can explain to the lead who lost.
+func (q *Queries) CoverageSuccessorFor(ctx context.Context, coveredByInstanceID uuid.NullUUID) (CoverageSuccessorForRow, error) {
+	row := q.db.QueryRow(ctx, coverageSuccessorFor, coveredByInstanceID)
+	var i CoverageSuccessorForRow
+	err := row.Scan(
+		&i.ID,
+		&i.ProgrammeID,
+		&i.Track,
+		&i.ProgrammeCode,
+		&i.ProgrammeTitle,
+	)
+	return i, err
+}
+
 const coverageToCarryForward = `-- name: CoverageToCarryForward :many
 SELECT g.id AS for_instance_id,
        host.programme_id AS host_programme_id,
@@ -451,21 +570,28 @@ func (q *Queries) CoverageToCarryForward(ctx context.Context, instanceIds []uuid
 	return items, nil
 }
 
-const coveredInstanceCountFor = `-- name: CoveredInstanceCountFor :one
-SELECT count(*)::bigint AS covered
-FROM course_instance
-WHERE covered_by_instance_id = $1
+const coveredCohortExistsFor = `-- name: CoveredCohortExistsFor :one
+SELECT EXISTS (
+    SELECT 1 FROM course_instance
+     WHERE semester_id = $1 AND module_id = $2 AND programme_id = $3
+       AND covered_by_instance_id IS NOT NULL
+)::boolean AS covered
 `
 
-// Whether anything's demand hangs off this instance, so a withdrawal can say so by name.
+type CoveredCohortExistsForParams struct {
+	SemesterID  uuid.UUID
+	ModuleID    uuid.UUID
+	ProgrammeID uuid.UUID
+}
+
+// Whether this programme already has a covered cohort of this module in this semester.
 //
-// Safe to count, unlike everything else that stops a withdrawal. A coverage link is a declaration
-// of demand and the demand is not confidential — which is why INSTANCE_COVERS_OTHERS may name what
-// is in the way where INSTANCE_IN_USE deliberately refuses to. The asymmetry is argued here rather
-// than assumed, because a count in this file is otherwise exactly the thing that should not exist.
-func (q *Queries) CoveredInstanceCountFor(ctx context.Context, coveredByInstanceID uuid.NullUUID) (int64, error) {
-	row := q.db.QueryRow(ctx, coveredInstanceCountFor, coveredByInstanceID)
-	var covered int64
+// The fallback the automatic coupling needs: a second cohort holds its own teaching, because the
+// index below refuses to let it be covered as well and a raw unique violation out of a save is not
+// an answer anybody can act on.
+func (q *Queries) CoveredCohortExistsFor(ctx context.Context, arg CoveredCohortExistsForParams) (bool, error) {
+	row := q.db.QueryRow(ctx, coveredCohortExistsFor, arg.SemesterID, arg.ModuleID, arg.ProgrammeID)
+	var covered bool
 	err := row.Scan(&covered)
 	return covered, err
 }
@@ -964,6 +1090,44 @@ func (q *Queries) ListCourseInstances(ctx context.Context, arg ListCourseInstanc
 	return items, nil
 }
 
+const lockCoverageGroup = `-- name: LockCoverageGroup :many
+SELECT id
+FROM course_instance
+WHERE id = $1 OR covered_by_instance_id = $1
+ORDER BY id
+FOR UPDATE
+`
+
+// An instance and everything whose demand hangs off it, in id order.
+//
+// FOR UPDATE on the host is what makes a withdrawal exclusive of a concurrent coupling: the
+// foreign key on a guest's side takes FOR KEY SHARE on the row it points at, and KEY SHARE and
+// UPDATE conflict. So a coupling that would arrive between the read below and the delete waits
+// here instead of turning the delete into a foreign key violation nobody can explain.
+//
+// Id order, for the reason lockCoveragePair already gives: locking in the order the caller happens
+// to name things is how two operations on the same pair deadlock. LockRows sits above Sort, so the
+// rows are taken in the sorted order whatever the plan.
+func (q *Queries) LockCoverageGroup(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, lockCoverageGroup, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockInstanceForCoverage = `-- name: LockInstanceForCoverage :one
 SELECT id, programme_id, semester_id, module_id, covered_by_instance_id, covered_accepted_at
 FROM course_instance
@@ -998,6 +1162,34 @@ func (q *Queries) LockInstanceForCoverage(ctx context.Context, id uuid.UUID) (Lo
 		&i.CoveredAcceptedAt,
 	)
 	return i, err
+}
+
+const moveInstancePartsTo = `-- name: MoveInstancePartsTo :execrows
+UPDATE instance_part
+SET course_instance_id = $1::uuid, updated_at = now()
+WHERE course_instance_id = $2::uuid
+`
+
+type MoveInstancePartsToParams struct {
+	ToInstance   uuid.UUID
+	FromInstance uuid.UUID
+}
+
+// Hand the teaching to another cohort, rows and all.
+//
+// An UPDATE rather than a delete and an insert, and that is the whole point: an assignment
+// references instance_part, so moving the row keeps who holds the event. Deleting and rebuilding
+// would lose the assignment — or, since assignment is ON DELETE RESTRICT, refuse the withdrawal
+// outright the moment anybody is teaching it.
+//
+// position comes along unchanged. There is no unique constraint on (course_instance_id, position),
+// the successor holds nothing to collide with, and renumbering would be a write with no reader.
+func (q *Queries) MoveInstancePartsTo(ctx context.Context, arg MoveInstancePartsToParams) (int64, error) {
+	result, err := q.db.Exec(ctx, moveInstancePartsTo, arg.ToInstance, arg.FromInstance)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const nextInstancePartPosition = `-- name: NextInstancePartPosition :one
@@ -1037,6 +1229,38 @@ WHERE id = $1 AND covered_by_instance_id IS NOT NULL
 // covered — and three statements would be three places to get the permission wrong.
 func (q *Queries) ReleaseInstanceCoverage(ctx context.Context, id uuid.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, releaseInstanceCoverage, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const repointGuestsTo = `-- name: RepointGuestsTo :execrows
+UPDATE course_instance g
+SET covered_by_instance_id = s.id,
+    covered_by_programme_id = s.programme_id,
+    updated_at = now()
+FROM course_instance s
+WHERE g.covered_by_instance_id = $1::uuid
+  AND s.id = $2::uuid
+  AND g.id <> s.id
+`
+
+type RepointGuestsToParams struct {
+	FromInstance uuid.UUID
+	ToInstance   uuid.UUID
+}
+
+// Point the remaining guests at the cohort that took the teaching over.
+//
+// The successor must already have been released, or this fails: the foreign key reads its
+// is_covered, which is generated from covered_by_instance_id.
+//
+// It can only ever pass course_instance_coverage_crosses_programmes because of the partial unique
+// index on one covered cohort per programme — with that, every guest of one host is in a different
+// programme, so none of them can end up pointing at the successor's own.
+func (q *Queries) RepointGuestsTo(ctx context.Context, arg RepointGuestsToParams) (int64, error) {
+	result, err := q.db.Exec(ctx, repointGuestsTo, arg.FromInstance, arg.ToInstance)
 	if err != nil {
 		return 0, err
 	}
@@ -1112,6 +1336,74 @@ func (q *Queries) SeedProgrammeSemester(ctx context.Context, arg SeedProgrammeSe
 	return programme_semester, err
 }
 
+const separatelyPlannedInstancesFor = `-- name: SeparatelyPlannedInstancesFor :many
+SELECT me.id AS for_instance_id,
+       o.id, o.track, o.programme_semester,
+       p.id AS programme_id, p.code AS programme_code, p.title AS programme_title
+FROM course_instance me
+JOIN course_instance o
+  ON o.semester_id = me.semester_id
+ AND o.module_id = me.module_id
+ AND o.programme_id <> me.programme_id
+ AND o.covered_by_instance_id IS NULL
+ AND o.id IS DISTINCT FROM me.covered_by_instance_id
+JOIN programme p ON p.id = o.programme_id
+WHERE me.id = ANY ($1::uuid[])
+ORDER BY me.id, p.code, o.track, o.id
+`
+
+type SeparatelyPlannedInstancesForRow struct {
+	ForInstanceID     uuid.UUID
+	ID                uuid.UUID
+	Track             string
+	ProgrammeSemester *int32
+	ProgrammeID       uuid.UUID
+	ProgrammeCode     string
+	ProgrammeTitle    string
+}
+
+// The same offering, declared by another programme and held there rather than here.
+//
+// What the badge says: "auch in GS geplant (getrennt)". Not a coverage link — the whole point is
+// that there is none — so it is the one thing this file computes about a row rather than reads off
+// it. It makes an uncoupled duplicate visible, and two things need that: the coupling nobody
+// noticed was possible, and the one that could not happen because two leads planned the same
+// module in the same moment and neither saw the other.
+//
+// covered_by_instance_id IS NULL on the other side is what makes "separately" true: a covered row
+// is not a second event, it is the same one seen from another programme. That clause alone also
+// drops this instance's own guests, since a guest is covered by definition; the holder has to be
+// dropped by name.
+//
+// No confidentiality question: the demand is explicitly not confidential, unlike the wish.
+func (q *Queries) SeparatelyPlannedInstancesFor(ctx context.Context, instanceIds []uuid.UUID) ([]SeparatelyPlannedInstancesForRow, error) {
+	rows, err := q.db.Query(ctx, separatelyPlannedInstancesFor, instanceIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SeparatelyPlannedInstancesForRow{}
+	for rows.Next() {
+		var i SeparatelyPlannedInstancesForRow
+		if err := rows.Scan(
+			&i.ForInstanceID,
+			&i.ID,
+			&i.Track,
+			&i.ProgrammeSemester,
+			&i.ProgrammeID,
+			&i.ProgrammeCode,
+			&i.ProgrammeTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setInstancePartShared = `-- name: SetInstancePartShared :exec
 UPDATE instance_part
 SET serves_sibling_tracks = $2,
@@ -1127,6 +1419,44 @@ type SetInstancePartSharedParams struct {
 func (q *Queries) SetInstancePartShared(ctx context.Context, arg SetInstancePartSharedParams) error {
 	_, err := q.db.Exec(ctx, setInstancePartShared, arg.ID, arg.ServesSiblingTracks)
 	return err
+}
+
+const sharedPartsOf = `-- name: SharedPartsOf :many
+SELECT id, kind, teaching_hours
+FROM instance_part
+WHERE course_instance_id = $1 AND serves_sibling_tracks
+ORDER BY position, id
+`
+
+type SharedPartsOfRow struct {
+	ID            uuid.UUID
+	Kind          string
+	TeachingHours pgtype.Numeric
+}
+
+// The parts this cohort holds for its own programme's sibling cohorts.
+//
+// What a promotion has to hand back before it hands the rows to another programme: the flag means
+// "serves the other cohorts of my programme", and it would go on meaning that in the programme the
+// rows land in.
+func (q *Queries) SharedPartsOf(ctx context.Context, courseInstanceID uuid.UUID) ([]SharedPartsOfRow, error) {
+	rows, err := q.db.Query(ctx, sharedPartsOf, courseInstanceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SharedPartsOfRow{}
+	for rows.Next() {
+		var i SharedPartsOfRow
+		if err := rows.Scan(&i.ID, &i.Kind, &i.TeachingHours); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const siblingInstanceIDs = `-- name: SiblingInstanceIDs :many

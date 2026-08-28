@@ -622,6 +622,38 @@ func (ec *executionContext) fieldContext_CourseInstance_covers(_ context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _CourseInstance_alsoPlannedSeparately(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CourseInstance_alsoPlannedSeparately(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AlsoPlannedSeparately, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.CourseInstance) graphql.Marshaler {
+			return ec.marshalNCourseInstance2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCourseInstanceᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CourseInstance_alsoPlannedSeparately(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "CourseInstance",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CourseInstance(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _CourseInstance_teachingHours(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -829,6 +861,38 @@ func (ec *executionContext) fieldContext_DemandChange_groupsAfter(_ context.Cont
 	return graphql.NewScalarFieldContext("DemandChange", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _DemandChange_programme(ctx context.Context, field graphql.CollectedField, obj *model.DemandChange) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandChange_programme(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Programme, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Programme) graphql.Marshaler {
+			return ec.marshalOProgramme2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgramme(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DemandChange_programme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DemandChange",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Programme(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _DemandPlanReport_dryRun(ctx context.Context, field graphql.CollectedField, obj *model.DemandPlanReport) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -936,6 +1000,70 @@ func (ec *executionContext) _DemandPlanReport_changed(ctx context.Context, field
 	)
 }
 func (ec *executionContext) fieldContext_DemandPlanReport_changed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DemandPlanReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DemandChange(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DemandPlanReport_coupled(ctx context.Context, field graphql.CollectedField, obj *model.DemandPlanReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandPlanReport_coupled(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Coupled, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.DemandChange) graphql.Marshaler {
+			return ec.marshalNDemandChange2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandChangeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandPlanReport_coupled(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DemandPlanReport",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DemandChange(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DemandPlanReport_promoted(ctx context.Context, field graphql.CollectedField, obj *model.DemandPlanReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandPlanReport_promoted(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Promoted, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.DemandChange) graphql.Marshaler {
+			return ec.marshalNDemandChange2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandChangeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandPlanReport_promoted(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "DemandPlanReport",
 		Field:      field,
@@ -1697,6 +1825,11 @@ func (ec *executionContext) _CourseInstance(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "alsoPlannedSeparately":
+			out.Values[i] = ec._CourseInstance_alsoPlannedSeparately(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "teachingHours":
 			out.Values[i] = ec._CourseInstance_teachingHours(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -1775,6 +1908,11 @@ func (ec *executionContext) _DemandChange(ctx context.Context, sel ast.Selection
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
+		case "programme":
+			out.Values[i] = ec._DemandChange_programme(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -1825,6 +1963,16 @@ func (ec *executionContext) _DemandPlanReport(ctx context.Context, sel ast.Selec
 			}
 		case "changed":
 			out.Values[i] = ec._DemandPlanReport_changed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "coupled":
+			out.Values[i] = ec._DemandPlanReport_coupled(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "promoted":
+			out.Values[i] = ec._DemandPlanReport_promoted(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

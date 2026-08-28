@@ -301,6 +301,14 @@ type Querier interface {
 	// be in, and eleven modules are in it — burying the genuinely new phrases under them would
 	// defeat the purpose of the line.
 	CountUnmappedFrequencies(ctx context.Context) (CountUnmappedFrequenciesRow, error)
+	// Hold this cohort's demand with another programme's event, from the moment it is declared.
+	//
+	// Both timestamps at once, and that is the difference between the two ways in. Declaring a cohort
+	// beside another programme's is one act by one lead over a cohort that has nothing yet, so asking
+	// and holding happen together. The other way in — RequestInstanceCoverage, on a cohort that
+	// already holds parts and possibly an assignment — keeps the two apart, because dissolving what
+	// somebody already planned is a bigger act and the other programme answers for it.
+	CoupleInstanceCoverage(ctx context.Context, arg CoupleInstanceCoverageParams) (int64, error)
 	CourseInstanceByID(ctx context.Context, id uuid.UUID) (CourseInstanceByIDRow, error)
 	// The instance a part belongs to, for the permission check on a part-level write.
 	//
@@ -320,6 +328,28 @@ type Querier interface {
 	// Deliberately unfiltered and reached by id, like PartWriteContext: it answers "may I act here",
 	// and a caller who may not is told so by the policy rather than by an empty row.
 	CoverageContextByInstanceID(ctx context.Context, id uuid.UUID) (CoverageContextByInstanceIDRow, error)
+	// Who would hold the teaching of a cohort about to be declared.
+	//
+	// The same four conditions the composite foreign key asserts, plus the order the faculty lives:
+	// whoever planned first holds. `created_at` and then the id, so that two declarations inside one
+	// transaction do not draw lots — `now()` is the transaction's clock, so they tie to the
+	// microsecond.
+	//
+	// FOR KEY SHARE is the lock the foreign key would take at the write a statement later. Taken here
+	// so that "this instance exists and is not itself covered" is still true when the write happens.
+	// Two cohorts coupling at once share the lock and do not queue; only a withdrawal of the host,
+	// which takes FOR UPDATE, makes them wait.
+	//
+	// planning_status: an automatic coupling to a programme the faculty has stopped planning would be
+	// a fact nobody chose. The manual picker still offers it — that one is somebody's decision.
+	CoverageHostFor(ctx context.Context, arg CoverageHostForParams) (CoverageHostForRow, error)
+	// The guest that becomes the holder when the current one is withdrawn: the longest-standing.
+	//
+	// The agreement's own timestamp first, because that is the rule the faculty stated. The rest is a
+	// tiebreak somebody can read back off the screen: cohorts coupled in one planDemand share a
+	// timestamp to the microsecond — now() is the transaction's clock — and letting a random uuid
+	// decide is not something anybody can explain to the lead who lost.
+	CoverageSuccessorFor(ctx context.Context, coveredByInstanceID uuid.NullUUID) (CoverageSuccessorForRow, error)
 	// Where these instances' coverage pointed, described by what identifies an instance rather than by
 	// id: the covering instance's programme and cohort.
 	//
@@ -327,13 +357,12 @@ type Querier interface {
 	// copied from. What it can carry is "GS was held by DE's B cohort", which is a sentence that still
 	// means something next year, and which InstanceByIdentity below turns back into an id.
 	CoverageToCarryForward(ctx context.Context, instanceIds []uuid.UUID) ([]CoverageToCarryForwardRow, error)
-	// Whether anything's demand hangs off this instance, so a withdrawal can say so by name.
+	// Whether this programme already has a covered cohort of this module in this semester.
 	//
-	// Safe to count, unlike everything else that stops a withdrawal. A coverage link is a declaration
-	// of demand and the demand is not confidential — which is why INSTANCE_COVERS_OTHERS may name what
-	// is in the way where INSTANCE_IN_USE deliberately refuses to. The asymmetry is argued here rather
-	// than assumed, because a count in this file is otherwise exactly the thing that should not exist.
-	CoveredInstanceCountFor(ctx context.Context, coveredByInstanceID uuid.NullUUID) (int64, error)
+	// The fallback the automatic coupling needs: a second cohort holds its own teaching, because the
+	// index below refuses to let it be covered as well and a raw unique violation out of a save is not
+	// an answer anybody can act on.
+	CoveredCohortExistsFor(ctx context.Context, arg CoveredCohortExistsForParams) (bool, error)
 	// The other programmes' demands these instances meet — the host's side of the link.
 	//
 	// A programme lead who has agreed to hold one event for two programmes has to see the second one
@@ -645,6 +674,17 @@ type Querier interface {
 	// which is what lets the integration tests run in parallel, and it needs no magic number that
 	// somebody else could pick again for something unrelated.
 	LockAdminGrants(ctx context.Context) error
+	// An instance and everything whose demand hangs off it, in id order.
+	//
+	// FOR UPDATE on the host is what makes a withdrawal exclusive of a concurrent coupling: the
+	// foreign key on a guest's side takes FOR KEY SHARE on the row it points at, and KEY SHARE and
+	// UPDATE conflict. So a coupling that would arrive between the read below and the delete waits
+	// here instead of turning the delete into a foreign key violation nobody can explain.
+	//
+	// Id order, for the reason lockCoveragePair already gives: locking in the order the caller happens
+	// to name things is how two operations on the same pair deadlock. LockRows sits above Sort, so the
+	// rows are taken in the sorted order whatever the plan.
+	LockCoverageGroup(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error)
 	// Belt to the foreign key's braces. Two leads acting in opposite directions at the same moment is
 	// write skew, both checks individually correct; the key would refuse the result anyway, and this
 	// is what makes the refusal a refusal rather than a serialisation error somebody has to read.
@@ -694,6 +734,16 @@ type Querier interface {
 	// Retired modules do not count. A module the examination office stopped publishing is not work
 	// anybody has to finish, and counting it would make the list unfinishable.
 	ModulesWithoutSubjectGroup(ctx context.Context) (int32, error)
+	// Hand the teaching to another cohort, rows and all.
+	//
+	// An UPDATE rather than a delete and an insert, and that is the whole point: an assignment
+	// references instance_part, so moving the row keeps who holds the event. Deleting and rebuilding
+	// would lose the assignment — or, since assignment is ON DELETE RESTRICT, refuse the withdrawal
+	// outright the moment anybody is teaching it.
+	//
+	// position comes along unchanged. There is no unique constraint on (course_instance_id, position),
+	// the successor holds nothing to collide with, and renumbering would be a write with no reader.
+	MoveInstancePartsTo(ctx context.Context, arg MoveInstancePartsToParams) (int64, error)
 	// Where a newly added part goes: after the last one.
 	//
 	// COALESCE with the cast outside, for the same reason as above — MAX over no rows is NULL, and
@@ -913,6 +963,15 @@ type Querier interface {
 	// is being replaced is one statement about a module, not a set of independent rows. Inside a
 	// transaction, so nobody reads the empty moment in between.
 	ReplaceModuleComponents(ctx context.Context, moduleID uuid.UUID) error
+	// Point the remaining guests at the cohort that took the teaching over.
+	//
+	// The successor must already have been released, or this fails: the foreign key reads its
+	// is_covered, which is generated from covered_by_instance_id.
+	//
+	// It can only ever pass course_instance_coverage_crosses_programmes because of the partial unique
+	// index on one covered cohort per programme — with that, every guest of one host is in a different
+	// programme, so none of them can end up pointing at the successor's own.
+	RepointGuestsTo(ctx context.Context, arg RepointGuestsToParams) (int64, error)
 	// Ask that this instance's demand be met by another programme's event.
 	//
 	// Every invariant about the host — same semester, same module, another programme, not itself
@@ -968,6 +1027,21 @@ type Querier interface {
 	// WS within a year, in the order the terms actually happen. Ordering by created_at instead
 	// would list them by when somebody got round to entering them.
 	Semesters(ctx context.Context) ([]Semester, error)
+	// The same offering, declared by another programme and held there rather than here.
+	//
+	// What the badge says: "auch in GS geplant (getrennt)". Not a coverage link — the whole point is
+	// that there is none — so it is the one thing this file computes about a row rather than reads off
+	// it. It makes an uncoupled duplicate visible, and two things need that: the coupling nobody
+	// noticed was possible, and the one that could not happen because two leads planned the same
+	// module in the same moment and neither saw the other.
+	//
+	// covered_by_instance_id IS NULL on the other side is what makes "separately" true: a covered row
+	// is not a second event, it is the same one seen from another programme. That clause alone also
+	// drops this instance's own guests, since a guest is covered by definition; the holder has to be
+	// dropped by name.
+	//
+	// No confidentiality question: the demand is explicitly not confidential, unlike the wish.
+	SeparatelyPlannedInstancesFor(ctx context.Context, instanceIds []uuid.UUID) ([]SeparatelyPlannedInstancesForRow, error)
 	SetInstancePartShared(ctx context.Context, arg SetInstancePartSharedParams) error
 	// Deactivation is how a leaver loses access to everything at once, tokens included.
 	//
@@ -998,6 +1072,12 @@ type Querier interface {
 	// announcement above, the two states are not the same: a window that was shut and reopened means
 	// somebody took two decisions, and the second one is worth being able to see.
 	SetWishWindow(ctx context.Context, arg SetWishWindowParams) (WishWindow, error)
+	// The parts this cohort holds for its own programme's sibling cohorts.
+	//
+	// What a promotion has to hand back before it hands the rows to another programme: the flag means
+	// "serves the other cohorts of my programme", and it would go on meaning that in the programme the
+	// rows land in.
+	SharedPartsOf(ctx context.Context, courseInstanceID uuid.UUID) ([]SharedPartsOfRow, error)
 	// The other parallel cohorts of one instance's module, in the same semester and programme.
 	SiblingInstanceIDs(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error)
 	// The projection's own bookkeeping

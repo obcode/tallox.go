@@ -98,13 +98,6 @@ var (
 	ErrInstanceCovered = errors.New(
 		"diese Instanz wird von einem anderen Studiengang gehalten und hat deshalb " +
 			"keine eigenen Teile")
-	// ErrInstanceCoversOthers is withdrawing an instance another programme's demand depends on.
-	//
-	// This one names what is in the way, where ErrInstanceInUse deliberately does not. A
-	// coverage link is a declaration of demand and the demand is not confidential; a wish is.
-	ErrInstanceCoversOthers = errors.New(
-		"diese Instanz deckt den Bedarf eines anderen Studiengangs — " +
-			"bitte dort zuerst lösen")
 )
 
 // MaxPartsPerInstance bounds one instance.
@@ -155,9 +148,17 @@ type CourseInstance struct {
 	//
 	// A request nobody has answered is in here with AcceptedAt nil: this is the side where it is
 	// answered, so leaving it out would hide the only thing that needs doing.
-	Covers    []InstanceCoverage
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	Covers []InstanceCoverage
+	// AlsoPlannedSeparately are the other programmes that declared this module in this semester
+	// and hold it themselves.
+	//
+	// Neither the holder nor the guests — those are CoveredBy and Covers. What is left is the case
+	// where a joint event was possible and nobody noticed: two programmes running the same module
+	// twice, which is the thing this whole area exists to make avoidable and, until now, the thing
+	// nothing said out loud.
+	AlsoPlannedSeparately []CourseInstance
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 
 	// HoursFromQuery is the sum over the parts, computed by a query that did not load them.
 	//
@@ -376,6 +377,9 @@ type DemandEntry struct {
 type DemandChange struct {
 	ModuleID   uuid.UUID
 	ModuleName string
+	// Programme is set where the change happened somewhere other than the programme being planned
+	// — which today is exactly the promotions.
+	Programme *Programme
 	// Track after the change.
 	Track string
 	// TrackBefore is set where a cohort was renamed rather than created — IF1 becoming IF1A when
@@ -405,7 +409,19 @@ type DemandPlan struct {
 	Created   []DemandChange
 	Withdrawn []DemandChange
 	Changed   []DemandChange
-	Refused   []DemandRefusal
+	// Coupled is the cohorts that were declared already held by another programme's event.
+	//
+	// Not a refusal — nothing was refused — and not merely a creation either. A cohort that
+	// arrives holding nothing is the row this whole mechanism exists to explain, and a line that
+	// looked like every other creation would hide the half worth reading.
+	Coupled []DemandChange
+	// Promoted is the cohorts of *other* programmes that took a withdrawn cohort's teaching over.
+	//
+	// The one thing a plan does outside the programme it was called for, so it is the one thing a
+	// report cannot leave out. A save that hands somebody else four hours of teaching and whoever
+	// holds it, without a line, is a save nobody can check before pressing it.
+	Promoted []DemandChange
+	Refused  []DemandRefusal
 	// Instances is the demand afterwards, so that one answer redraws the screen. After a dry run
 	// it is what is there now, because that is what is there.
 	Instances []CourseInstance
@@ -417,7 +433,8 @@ type DemandPlan struct {
 //
 // What the interface needs in order to skip a confirmation nobody has anything to confirm.
 func (p DemandPlan) Empty() bool {
-	return len(p.Created) == 0 && len(p.Withdrawn) == 0 && len(p.Changed) == 0
+	return len(p.Created) == 0 && len(p.Withdrawn) == 0 && len(p.Changed) == 0 &&
+		len(p.Coupled) == 0
 }
 
 // Destructive reports whether a plan would take something away.

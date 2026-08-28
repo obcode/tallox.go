@@ -121,3 +121,86 @@ als Datum vor, also lässt sich jede spätere Regel darauf ausdrücken — auch 
 klären: zählt der gedeckte Bedarf voll, gar nicht, oder anteilig?
 
 Verwandt: [[assignments]], [[wishes]], [[local-modules]], [[planning-marks]]
+
+## Vom Sonderfall zum Regelfall (2026-08-28, Migration 20)
+
+Einen Tag nach Migration 19 hat die Fakultät die Voreinstellung umgedreht: **eine Kohorte, die
+neben der Meldung eines anderen Studiengangs für dasselbe Modul entsteht, wird sofort mit ihr
+zusammen gehalten.** Getrennt zu planen ist das, was man ausdrücklich wählt.
+
+### Der Handschlag stand an der falschen Stelle, nicht zu viel
+
+Er ist **nicht** verschwunden, sondern enger geschnitten — und das ist die eigentliche Erkenntnis:
+
+| Weg | Akt | Regel |
+| --- | --- | --- |
+| **Planen** (Häkchen, `declareCourseInstance`) | eine **neue** Kohorte, die noch nichts hat | sofort gekoppelt |
+| **Nachträglich** (`requestInstanceCoverage`) | eine **bestehende** Kohorte mit Teilen und womöglich Zuteilungen wird aufgelöst | Handschlag bleibt |
+
+Die Begründung für die einseitige Kopplung steht schon in Migration 19, gegen sie selbst
+gerichtet: *„the instance they point at is not changed by it — not its parts, not its assignments,
+not what it costs."* Beim Koppeln einer **frischen** Kohorte wird ausschließlich in der Zeile des
+Gastes geschrieben. Der Handschlag hat dort keine Datenwirkung abgesichert, sondern eine
+Wirklichkeit — fremde Studierende im Hörsaal —, und die ist jetzt der Normalfall.
+
+Weil kein Contract-Bruch erlaubt war, blieben `acceptInstanceCoverage` und beide Zeitstempel. Das
+ist kein Ballast: der manuelle Weg braucht sie weiterhin. **Der automatische Pfad setzt
+`covered_requested_at` und `covered_accepted_at` im selben Moment.**
+
+### Der Index, der zwei Lasten trägt
+
+```sql
+CREATE UNIQUE INDEX course_instance_one_covered_cohort_per_programme
+    ON course_instance (semester_id, module_id, programme_id)
+    WHERE covered_by_instance_id IS NOT NULL;
+```
+
+Er sagt: eine gedeckte Kohorte ist die *ganze* Teilnahme eines Studiengangs an dem Modul. Und er
+macht die Beförderung sicher — weil damit alle Gäste eines Gastgebers in verschiedenen
+Studiengängen liegen, kann das Umhängen nie auf den Studiengang des Nachfolgers treffen. Ohne ihn
+bräuchte die Beförderung einen Sonderweg für gleichnamige Mit-Gäste.
+
+`coupleIfHostExists` prüft deshalb **vorher**, ob der Studiengang schon eine gedeckte Kohorte hat,
+und legt sonst mit eigenen Teilen an. Sonst käme der Index als roher Unique-Verstoß aus dem
+Speichern.
+
+### Beförderung statt Verweigerung
+
+Der Rückzug eines Gastgebers wird nicht mehr abgelehnt: der **längstgedeckte Gast** übernimmt.
+Die Teile werden **umgehängt, nicht neu gebaut** — deshalb überlebt die Zuteilung, die an der
+Teil-Id hängt. Neu bauen würde sie verlieren und den Rückzug obendrein ablehnen, sobald jemand die
+Veranstaltung hält (`assignment … ON DELETE RESTRICT`).
+
+**Das schreibt in einen fremden Studiengang, und das ist nicht mit „bleibt im eigenen Scope" zu
+rechtfertigen.** Die Rechtfertigung ist Erhaltung: von vier möglichen Ausgängen verlieren drei eine
+Tatsache. Nicht zurückgekauft wird die Gruppenzahl — sie kommt so an, wie der abgebende
+Studiengang sie geplant hat.
+
+### Zwei Fallen, die Geld gekostet hätten
+
+**`serves_sibling_tracks` wandert mit.** Das Flag heißt „für die anderen Kohorten *meines*
+Studiengangs". Zieht die Zeile in einen anderen Studiengang um, heißt es dort weiter dasselbe —
+der abgebende Studiengang verlöre still seine Vorlesung, der aufnehmende bekäme eine geschenkt.
+Die Beförderung löst das Teilen deshalb **vor** dem Umhängen auf.
+
+**`SplitInstancePartAcrossTracks` hatte denselben Fehler schon.** Die Schleife legt jedem
+Geschwisterzug ohne Teil einen an — ohne Deckungsprüfung. Betroffen ist *nicht* ein Gast aus einem
+anderen Studiengang (`SiblingInstanceIDs` joint auf denselben Studiengang), sondern ein **zweiter
+Zug desselben Studiengangs**, der anderswo gehalten wird — was der Index ausdrücklich erlaubt.
+Mein erster Test dafür war deshalb vakuum und musste umgebaut werden.
+
+**Merksatz: einen Deckungstest immer einmal ohne den Fix laufen lassen.** Zweimal in dieser Sitzung
+war ein Test grün, der nichts prüfte.
+
+### Ein Gastgeber mit Wünschen bleibt unrückziehbar
+
+`wish.course_instance_id` ist `ON DELETE RESTRICT`. Die Beförderung rettet ihn nicht: sie liegt in
+derselben Transaktion, rollt also mit zurück. Die Ablehnung bleibt das opake `ErrInstanceInUse` —
+eine Vorabprüfung wäre das Wunsch-Orakel, das `db/queries/wish.sql` nicht haben will. **Die GUI
+darf in der Rückzugs-Bestätigung deshalb nicht versprechen, dass jemand übernimmt.**
+
+### Zurückgestellt
+
+`covered_since` statt der vier Spalten, und `acceptInstanceCoverage` entfernen — beides erst, wenn
+ein Breaking Change erlaubt ist. Solange der manuelle Weg den Handschlag behält, ist ohnehin
+nichts davon überflüssig.

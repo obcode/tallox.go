@@ -1838,3 +1838,62 @@ func TestAFreshlyCoupledCohortIsNotAlsoReportedAsRefused(t *testing.T) {
 		}
 	}
 }
+
+// Undoing a shared lecture must skip a sibling whose demand another programme holds.
+//
+// The loop that gives every sibling its own part back knew nothing about coverage. A covered
+// sibling holds no teaching by construction, so handing it a lecture gives it parts of its own —
+// the one cardinality no foreign key can refuse, and the state in which the joint event is
+// counted twice in a figure that looks entirely reasonable.
+//
+// The set-up is fiddly because the bug is: SiblingInstanceIDs joins on the *same* programme, so a
+// guest from another programme is not a sibling at all and never was at risk. What is at risk is a
+// second cohort of *this* programme that happens to be held elsewhere — which the partial unique
+// index expressly allows, since it bounds coverage to one cohort per programme rather than
+// forbidding the others.
+//
+// Theoretical while coupling was arranged by hand. Ordinary now that declaring beside another
+// programme couples on the spot, which is what turned this from a note into a bug.
+func TestSplittingDoesNotGiveACoveredSiblingItsOwnPart(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	// The other programme plans first, so it holds.
+	other := f.declareIn(t, storetest.FixtureProgrammeB, "")
+
+	// This programme's first cohort would be held with it; planned separately, so that it has a
+	// lecture of its own to share.
+	trackA := f.declareSeparatelyIn(t, storetest.FixtureProgrammeA, "A")
+
+	// Its second cohort is held by the other programme — allowed, and the case at issue.
+	trackB := f.declareIn(t, storetest.FixtureProgrammeA, "B")
+	if trackB.CoveredBy == nil {
+		t.Fatalf("the second cohort holds its own teaching; expected it to be held by %s",
+			other.Programme.Code)
+	}
+
+	// One lecture for both cohorts of this programme.
+	lecture := partOfKind(t, trackA, domain.PartKindLecture)
+	if _, err := f.demand.ShareInstancePartAcrossTracks(ctx, lecture.ID); err != nil {
+		t.Fatalf("cannot hold one lecture for both cohorts: %v", err)
+	}
+
+	// Undoing it hands every sibling its own lecture back — except the one that holds nothing.
+	if _, err := f.demand.SplitInstancePartAcrossTracks(ctx, lecture.ID); err != nil {
+		t.Fatalf("cannot split the shared lecture: %v", err)
+	}
+
+	read, err := f.demand.CourseInstanceByID(ctx, trackB.ID)
+	if err != nil {
+		t.Fatalf("cannot re-read the held cohort: %v", err)
+	}
+	if len(read.Parts) != 0 {
+		t.Errorf("the held cohort was given %d parts of its own — the joint event is now "+
+			"counted twice", len(read.Parts))
+	}
+	if got := read.TeachingHours(); got != 0 {
+		t.Errorf("the held cohort costs %v hours, want 0", got)
+	}
+}

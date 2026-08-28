@@ -805,6 +805,19 @@ func (d *Demand) SplitInstancePartAcrossTracks(ctx context.Context, partID uuid.
 	}
 
 	for _, sibling := range siblings {
+		// A sibling whose demand another programme holds gets nothing back. It holds no teaching
+		// at all by construction, and handing it a lecture here would give it parts of its own —
+		// the one cardinality no foreign key can refuse and the reason refuseIfCovered exists.
+		// The joint event would then be counted twice, in a figure that looks right.
+		//
+		// Theoretical while coupling was arranged by hand; ordinary now that declaring beside
+		// another programme couples on the spot.
+		if err := refuseIfCovered(ctx, q, sibling); errors.Is(err, domain.ErrInstanceCovered) {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
 		exists, err := q.InstancePartsOfKindExist(ctx, InstancePartsOfKindExistParams{
 			CourseInstanceID: sibling,
 			Kind:             kind,

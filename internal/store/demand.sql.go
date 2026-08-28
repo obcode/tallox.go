@@ -159,6 +159,43 @@ func (q *Queries) BorrowedInstancePartsFor(ctx context.Context, instanceIds []uu
 	return items, nil
 }
 
+const coupleInstanceCoverage = `-- name: CoupleInstanceCoverage :execrows
+UPDATE course_instance g
+SET covered_by_instance_id = h.id,
+    covered_by_programme_id = h.programme_id,
+    covered_by_is_covered = false,
+    covered_requested_at = now(),
+    covered_requested_by = $2::uuid,
+    covered_accepted_at = now(),
+    covered_accepted_by = $2::uuid,
+    updated_at = now()
+FROM course_instance h
+WHERE g.id = $1
+  AND h.id = $3::uuid
+  AND g.covered_by_instance_id IS NULL
+`
+
+type CoupleInstanceCoverageParams struct {
+	ID     uuid.UUID
+	By     uuid.NullUUID
+	HostID uuid.UUID
+}
+
+// Hold this cohort's demand with another programme's event, from the moment it is declared.
+//
+// Both timestamps at once, and that is the difference between the two ways in. Declaring a cohort
+// beside another programme's is one act by one lead over a cohort that has nothing yet, so asking
+// and holding happen together. The other way in — RequestInstanceCoverage, on a cohort that
+// already holds parts and possibly an assignment — keeps the two apart, because dissolving what
+// somebody already planned is a bigger act and the other programme answers for it.
+func (q *Queries) CoupleInstanceCoverage(ctx context.Context, arg CoupleInstanceCoverageParams) (int64, error) {
+	result, err := q.db.Exec(ctx, coupleInstanceCoverage, arg.ID, arg.By, arg.HostID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const courseInstanceByID = `-- name: CourseInstanceByID :one
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
        ci.created_at, ci.updated_at,
@@ -403,6 +440,52 @@ func (q *Queries) CoverageContextByInstanceID(ctx context.Context, id uuid.UUID)
 	return i, err
 }
 
+const coverageHostFor = `-- name: CoverageHostFor :one
+SELECT h.id, h.programme_id
+FROM course_instance h
+JOIN programme p ON p.id = h.programme_id
+WHERE h.semester_id = $1
+  AND h.module_id = $2
+  AND h.programme_id <> $3::uuid
+  AND h.covered_by_instance_id IS NULL
+  AND p.planning_status = 'PLANNED'
+ORDER BY h.created_at, h.id
+LIMIT 1
+FOR KEY SHARE
+`
+
+type CoverageHostForParams struct {
+	SemesterID  uuid.UUID
+	ModuleID    uuid.UUID
+	ProgrammeID uuid.UUID
+}
+
+type CoverageHostForRow struct {
+	ID          uuid.UUID
+	ProgrammeID uuid.UUID
+}
+
+// Who would hold the teaching of a cohort about to be declared.
+//
+// The same four conditions the composite foreign key asserts, plus the order the faculty lives:
+// whoever planned first holds. `created_at` and then the id, so that two declarations inside one
+// transaction do not draw lots — `now()` is the transaction's clock, so they tie to the
+// microsecond.
+//
+// FOR KEY SHARE is the lock the foreign key would take at the write a statement later. Taken here
+// so that "this instance exists and is not itself covered" is still true when the write happens.
+// Two cohorts coupling at once share the lock and do not queue; only a withdrawal of the host,
+// which takes FOR UPDATE, makes them wait.
+//
+// planning_status: an automatic coupling to a programme the faculty has stopped planning would be
+// a fact nobody chose. The manual picker still offers it — that one is somebody's decision.
+func (q *Queries) CoverageHostFor(ctx context.Context, arg CoverageHostForParams) (CoverageHostForRow, error) {
+	row := q.db.QueryRow(ctx, coverageHostFor, arg.SemesterID, arg.ModuleID, arg.ProgrammeID)
+	var i CoverageHostForRow
+	err := row.Scan(&i.ID, &i.ProgrammeID)
+	return i, err
+}
+
 const coverageToCarryForward = `-- name: CoverageToCarryForward :many
 SELECT g.id AS for_instance_id,
        host.programme_id AS host_programme_id,
@@ -449,6 +532,32 @@ func (q *Queries) CoverageToCarryForward(ctx context.Context, instanceIds []uuid
 		return nil, err
 	}
 	return items, nil
+}
+
+const coveredCohortExistsFor = `-- name: CoveredCohortExistsFor :one
+SELECT EXISTS (
+    SELECT 1 FROM course_instance
+     WHERE semester_id = $1 AND module_id = $2 AND programme_id = $3
+       AND covered_by_instance_id IS NOT NULL
+)::boolean AS covered
+`
+
+type CoveredCohortExistsForParams struct {
+	SemesterID  uuid.UUID
+	ModuleID    uuid.UUID
+	ProgrammeID uuid.UUID
+}
+
+// Whether this programme already has a covered cohort of this module in this semester.
+//
+// The fallback the automatic coupling needs: a second cohort holds its own teaching, because the
+// index below refuses to let it be covered as well and a raw unique violation out of a save is not
+// an answer anybody can act on.
+func (q *Queries) CoveredCohortExistsFor(ctx context.Context, arg CoveredCohortExistsForParams) (bool, error) {
+	row := q.db.QueryRow(ctx, coveredCohortExistsFor, arg.SemesterID, arg.ModuleID, arg.ProgrammeID)
+	var covered bool
+	err := row.Scan(&covered)
+	return covered, err
 }
 
 const coveredInstanceCountFor = `-- name: CoveredInstanceCountFor :one

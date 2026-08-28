@@ -301,6 +301,14 @@ type Querier interface {
 	// be in, and eleven modules are in it — burying the genuinely new phrases under them would
 	// defeat the purpose of the line.
 	CountUnmappedFrequencies(ctx context.Context) (CountUnmappedFrequenciesRow, error)
+	// Hold this cohort's demand with another programme's event, from the moment it is declared.
+	//
+	// Both timestamps at once, and that is the difference between the two ways in. Declaring a cohort
+	// beside another programme's is one act by one lead over a cohort that has nothing yet, so asking
+	// and holding happen together. The other way in — RequestInstanceCoverage, on a cohort that
+	// already holds parts and possibly an assignment — keeps the two apart, because dissolving what
+	// somebody already planned is a bigger act and the other programme answers for it.
+	CoupleInstanceCoverage(ctx context.Context, arg CoupleInstanceCoverageParams) (int64, error)
 	CourseInstanceByID(ctx context.Context, id uuid.UUID) (CourseInstanceByIDRow, error)
 	// The instance a part belongs to, for the permission check on a part-level write.
 	//
@@ -320,6 +328,21 @@ type Querier interface {
 	// Deliberately unfiltered and reached by id, like PartWriteContext: it answers "may I act here",
 	// and a caller who may not is told so by the policy rather than by an empty row.
 	CoverageContextByInstanceID(ctx context.Context, id uuid.UUID) (CoverageContextByInstanceIDRow, error)
+	// Who would hold the teaching of a cohort about to be declared.
+	//
+	// The same four conditions the composite foreign key asserts, plus the order the faculty lives:
+	// whoever planned first holds. `created_at` and then the id, so that two declarations inside one
+	// transaction do not draw lots — `now()` is the transaction's clock, so they tie to the
+	// microsecond.
+	//
+	// FOR KEY SHARE is the lock the foreign key would take at the write a statement later. Taken here
+	// so that "this instance exists and is not itself covered" is still true when the write happens.
+	// Two cohorts coupling at once share the lock and do not queue; only a withdrawal of the host,
+	// which takes FOR UPDATE, makes them wait.
+	//
+	// planning_status: an automatic coupling to a programme the faculty has stopped planning would be
+	// a fact nobody chose. The manual picker still offers it — that one is somebody's decision.
+	CoverageHostFor(ctx context.Context, arg CoverageHostForParams) (CoverageHostForRow, error)
 	// Where these instances' coverage pointed, described by what identifies an instance rather than by
 	// id: the covering instance's programme and cohort.
 	//
@@ -327,6 +350,12 @@ type Querier interface {
 	// copied from. What it can carry is "GS was held by DE's B cohort", which is a sentence that still
 	// means something next year, and which InstanceByIdentity below turns back into an id.
 	CoverageToCarryForward(ctx context.Context, instanceIds []uuid.UUID) ([]CoverageToCarryForwardRow, error)
+	// Whether this programme already has a covered cohort of this module in this semester.
+	//
+	// The fallback the automatic coupling needs: a second cohort holds its own teaching, because the
+	// index below refuses to let it be covered as well and a raw unique violation out of a save is not
+	// an answer anybody can act on.
+	CoveredCohortExistsFor(ctx context.Context, arg CoveredCohortExistsForParams) (bool, error)
 	// Whether anything's demand hangs off this instance, so a withdrawal can say so by name.
 	//
 	// Safe to count, unlike everything else that stops a withdrawal. A coverage link is a declaration

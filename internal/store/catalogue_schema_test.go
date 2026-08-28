@@ -832,3 +832,64 @@ func TestAHostCannotBecomeAGuestWhileItCoversSomebody(t *testing.T) {
 		t.Errorf("a covered instance could not be withdrawn: %v", err)
 	}
 }
+
+// A programme has at most one covered cohort of a module, and the index carries two weights.
+//
+// What it says: a covered cohort is that programme's whole participation — it holds nothing and
+// attends what is held elsewhere. Two of them side by side would be two cohorts in one event.
+//
+// What it makes safe: withdrawing a holder promotes a guest and re-points the rest at it. That
+// re-pointing has to pass course_instance_coverage_crosses_programmes, and it only ever can
+// because this index leaves every guest of one host in a different programme.
+func TestAProgrammeHasAtMostOneCoveredCohortOfAModule(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	ctx := t.Context()
+
+	de := seedProgramme(t, s, "DE")
+	gs := seedProgramme(t, s, "GS")
+	dc := seedProgramme(t, s, "DC")
+	module := seedModule(t, s, dc, "IT-Sicherheit und technischer Datenschutz")
+	ws := seedSemester(t, s, "2026-WS")
+
+	declare := func(programme uuid.UUID, track string) uuid.UUID {
+		t.Helper()
+		var id uuid.UUID
+		if err := s.Pool.QueryRow(ctx,
+			`INSERT INTO course_instance (semester_id, module_id, programme_id, track)
+			 VALUES ($1, $2, $3, $4) RETURNING id`, ws, module, programme, track).Scan(&id); err != nil {
+			t.Fatalf("cannot declare an instance: %v", err)
+		}
+		return id
+	}
+	cover := func(guest, host, hostProgramme uuid.UUID) error {
+		_, err := s.Pool.Exec(ctx,
+			`UPDATE course_instance
+			    SET covered_by_instance_id = $2, covered_by_programme_id = $3,
+			        covered_by_is_covered = false,
+			        covered_requested_at = now(), covered_accepted_at = now()
+			  WHERE id = $1`, guest, host, hostProgramme)
+		return err
+	}
+
+	host := declare(de, "")
+	firstOfGS := declare(gs, "A")
+	secondOfGS := declare(gs, "B")
+
+	if err := cover(firstOfGS, host, de); err != nil {
+		t.Fatalf("the first cohort could not be held with the other event: %v", err)
+	}
+	if err := cover(secondOfGS, host, de); err == nil {
+		t.Error("both cohorts of one programme were held by one event")
+	}
+
+	// And the second cohort holding its own teaching is untouched — the index bounds coverage,
+	// not the number of cohorts.
+	var parts int
+	if err := s.Pool.QueryRow(ctx,
+		`INSERT INTO instance_part (course_instance_id, kind, position, teaching_hours)
+		 VALUES ($1, 'LECTURE', 0, 2) RETURNING 1`, secondOfGS).Scan(&parts); err != nil {
+		t.Errorf("a second cohort that holds its own teaching was refused: %v", err)
+	}
+}

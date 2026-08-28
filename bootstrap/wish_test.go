@@ -842,13 +842,13 @@ func TestACoveredCohortsWishesReachWhoeverFillsThePart(t *testing.T) {
 	}
 }
 
-// declareCoveredCohort gives a second programme the same module and has its demand covered by the
-// fixture's instance, through the API and as somebody who may write both.
+// declareCoveredCohort gives a second programme the same module, which is enough: declaring beside
+// the fixture's instance holds the two together on the spot.
 func (f wishFixture) declareCoveredCohort(t *testing.T) string {
 	t.Helper()
 
-	// The dean's office holds both halves of the handshake, which is what it is for — and keeps
-	// this helper from being a test of the permission rule it is not about.
+	// The dean's office reaches every programme, which keeps this helper from being a test of the
+	// permission rule it is not about.
 	storetest.SeedPerson(t, f.schema, testdata.Drei, "DEANS_OFFICE")
 	dean := graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).On(graphqltest.Browser)
 
@@ -865,16 +865,7 @@ func (f wishFixture) declareCoveredCohort(t *testing.T) string {
 		"moduleId":  moduleID.String(),
 	}}, &declared)
 
-	guestID := declared.DeclareCourseInstance.ID
-	dean.MustQuery(t, `mutation($id: ID!, $by: ID!) {
-		requestInstanceCoverage(id: $id, coveredBy: $by) { id }
-	}`, map[string]any{"id": guestID, "by": f.instance}, &struct {
-		RequestInstanceCoverage struct{ ID string }
-	}{})
-	dean.MustQuery(t, `mutation($id: ID!) { acceptInstanceCoverage(id: $id) { id } }`,
-		map[string]any{"id": guestID}, &struct {
-			AcceptInstanceCoverage struct{ ID string }
-		}{})
-
-	return guestID
+	// No handshake to perform: the second programme's declaration was held with the first as it
+	// was made, which is the rule this fixture wants to stand on.
+	return declared.DeclareCourseInstance.ID
 }

@@ -1037,7 +1037,12 @@ const coverageQuery = `query($s: String!, $p: String) {
 	}
 }`
 
-// The whole handshake, and the point of it: two leads who each write one programme.
+// The handshake, on the way in that still has one.
+//
+// Declaring a cohort beside another programme's holds the two together on the spot — nothing is
+// taken from anybody, because the cohort has nothing yet. Pointing a cohort that *already* holds
+// parts at somebody else's event is the larger act, and there the other programme still answers
+// for it. This is that way in, so the test begins by planning the two separately.
 //
 // Read as a sequence rather than as four tests, because the state each step needs is the previous
 // step's result and the interesting refusals are the ones in the middle of it.
@@ -1066,6 +1071,13 @@ func TestTheCoverageHandshakeNeedsBothSides(t *testing.T) {
 
 	hostID := host.DeclareCourseInstance.ID
 	guestID := guest.DeclareCourseInstance.ID
+
+	// The second declaration arrived held with the first. Planned apart again, so that what
+	// follows is the manual way in rather than a repeat of the automatic one.
+	guestLead.MustQuery(t, `mutation($id: ID!) { releaseInstanceCoverage(id: $id) { id } }`,
+		map[string]any{"id": guestID}, &struct {
+			ReleaseInstanceCoverage struct{ ID string }
+		}{})
 
 	const request = `mutation($id: ID!, $by: ID!) {
 		requestInstanceCoverage(id: $id, coveredBy: $by) {
@@ -1201,25 +1213,15 @@ func TestCoverageIsReadableThroughBothDoors(t *testing.T) {
 
 	lead := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
 
-	var host, guest struct {
+	// Two programmes declare the same module, and the second is held with the first as it is
+	// made. Nothing is arranged here: this test reads the result of the rule, not of a handshake.
+	var declared struct {
 		DeclareCourseInstance struct{ ID string }
 	}
 	lead.MustQuery(t, declareMutation,
-		declareInput(f, storetest.FixtureProgrammeA, "2027-SS", ""), &host)
+		declareInput(f, storetest.FixtureProgrammeA, "2027-SS", ""), &declared)
 	lead.MustQuery(t, declareMutation,
-		declareInput(f, storetest.FixtureProgrammeB, "2027-SS", ""), &guest)
-
-	lead.MustQuery(t, `mutation($id: ID!, $by: ID!) {
-		requestInstanceCoverage(id: $id, coveredBy: $by) { id }
-	}`, map[string]any{
-		"id": guest.DeclareCourseInstance.ID, "by": host.DeclareCourseInstance.ID,
-	}, &struct {
-		RequestInstanceCoverage struct{ ID string }
-	}{})
-	lead.MustQuery(t, `mutation($id: ID!) { acceptInstanceCoverage(id: $id) { id } }`,
-		map[string]any{"id": guest.DeclareCourseInstance.ID}, &struct {
-			AcceptInstanceCoverage struct{ ID string }
-		}{})
+		declareInput(f, storetest.FixtureProgrammeB, "2027-SS", ""), &declared)
 
 	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
 		func(t *testing.T, c *graphqltest.Client) {
@@ -1283,4 +1285,111 @@ func TestCoverageIsReadableThroughBothDoors(t *testing.T) {
 				t.Errorf("the two cohorts cost %v hours together, want 4", total)
 			}
 		})
+}
+
+// declareWithCoverage is the declaration, asked for with what the coupling puts on it.
+//
+// Its own document rather than a wider declareMutation: every other test in this file reads a
+// declaration that holds its own teaching, and adding coverage to the shared one would make them
+// all assert against fields they are not about.
+const declareWithCoverage = `mutation($in: DeclareCourseInstanceInput!) {
+	declareCourseInstance(input: $in) {
+		id teachingHours
+		parts { kind }
+		borrowedParts { fromProgramme { code } }
+		coveredBy { acceptedAt instance { programme { code } } }
+	}
+}`
+
+// The rule, through the API: declaring beside another programme's declaration holds the two
+// together, and nobody is asked.
+//
+// The write is entirely inside the declaring programme — a cohort appears, holding nothing, with a
+// reference. Not one field of the other programme's row changes, which is what makes one side
+// enough. What it does take from the other side is optionality, and that is given straight back:
+// either lead may release, and the release is asserted here beside the coupling for that reason.
+func TestDeclaringBesideAnotherProgrammeHoldsTheTwoTogether(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{
+			testdata.Vier.Mail: {storetest.FixtureProgrammeA},
+			testdata.Eins.Mail: {storetest.FixtureProgrammeB},
+		},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		grants{testdata.Eins, []string{"LECTURER", "PROGRAMME_LEAD"}})
+
+	hostLead := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+	guestLead := graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).On(graphqltest.Browser)
+
+	var host struct {
+		DeclareCourseInstance struct {
+			ID            string
+			TeachingHours float64
+			Parts         []struct{ Kind string }
+		}
+	}
+	hostLead.MustQuery(t, declareWithCoverage,
+		declareInput(f, storetest.FixtureProgrammeA, "2027-SS", ""), &host)
+	if host.DeclareCourseInstance.TeachingHours == 0 {
+		t.Fatal("the first declaration holds nothing; there was nobody to hold it for")
+	}
+
+	var guest struct {
+		DeclareCourseInstance struct {
+			ID            string
+			TeachingHours float64
+			Parts         []struct{ Kind string }
+			BorrowedParts []struct {
+				FromProgramme *struct{ Code string }
+			}
+			CoveredBy *struct {
+				AcceptedAt *string
+				Instance   struct{ Programme struct{ Code string } }
+			}
+		}
+	}
+	guestLead.MustQuery(t, declareWithCoverage,
+		declareInput(f, storetest.FixtureProgrammeB, "2027-SS", ""), &guest)
+
+	got := guest.DeclareCourseInstance
+	if got.CoveredBy == nil {
+		t.Fatal("the second declaration holds its own teaching; the two were not held together")
+	}
+	if got.CoveredBy.AcceptedAt == nil {
+		t.Error("the coupling is waiting for somebody to agree — declaring beside another " +
+			"programme is one act by one lead, not two")
+	}
+	if code := got.CoveredBy.Instance.Programme.Code; code != storetest.FixtureProgrammeA {
+		t.Errorf("it is held by %q, want %s", code, storetest.FixtureProgrammeA)
+	}
+	if len(got.Parts) != 0 {
+		t.Errorf("the held cohort holds %d parts of its own", len(got.Parts))
+	}
+	if got.TeachingHours != 0 {
+		t.Errorf("the held cohort costs %v hours, want 0", got.TeachingHours)
+	}
+	if len(got.BorrowedParts) == 0 {
+		t.Error("it attends nothing — a cohort with neither its own teaching nor borrowed " +
+			"teaching is the row this mechanism exists to prevent")
+	}
+
+	// The veto, exercised after the fact rather than before it. This is what makes one side
+	// enough: nobody is held to a state they cannot leave.
+	var released struct {
+		ReleaseInstanceCoverage struct {
+			TeachingHours float64
+			CoveredBy     *struct{ AcceptedAt *string }
+		}
+	}
+	hostLead.MustQuery(t, `mutation($id: ID!) {
+		releaseInstanceCoverage(id: $id) { teachingHours coveredBy { acceptedAt } }
+	}`, map[string]any{"id": got.ID}, &released)
+
+	if released.ReleaseInstanceCoverage.CoveredBy != nil {
+		t.Error("the holding programme could not walk away from a coupling it never agreed to")
+	}
+	if released.ReleaseInstanceCoverage.TeachingHours == 0 {
+		t.Error("releasing left the cohort with no teaching at all")
+	}
 }

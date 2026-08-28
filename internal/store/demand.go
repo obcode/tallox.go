@@ -406,6 +406,23 @@ func (d *Demand) CreateCourseInstance(ctx context.Context, spec domain.NewCourse
 		return nil, fmt.Errorf("cannot declare the instance: %w", err)
 	}
 
+	// Held with another programme's event where there is one, and then it holds nothing itself.
+	//
+	// The parts are skipped rather than created and deleted again: a covered cohort holds nothing
+	// by construction, and building them first would mean this path could fail on an assignment
+	// that cannot exist yet.
+	coupled, err := coupleIfHostExists(ctx, q, id,
+		spec.SemesterID, spec.ModuleID, spec.ProgrammeID, spec.CreatedBy)
+	if err != nil {
+		return nil, err
+	}
+	if coupled {
+		if err := tx.Commit(ctx); err != nil {
+			return nil, fmt.Errorf("cannot commit: %w", err)
+		}
+		return d.CourseInstanceByID(ctx, id)
+	}
+
 	for i, c := range components {
 		// What a lecturer is credited with starts as what the split says and is editable
 		// afterwards — the two are different quantities that merely begin equal.
@@ -865,6 +882,69 @@ func refuseIfCovered(ctx context.Context, q *Queries, instanceID uuid.UUID) erro
 		return domain.ErrInstanceCovered
 	}
 	return nil
+}
+
+// coupleIfHostExists holds a freshly declared cohort with another programme's event, where there
+// is one to hold it with.
+//
+// The rule the faculty stated: a cohort declared beside another programme's declaration of the
+// same module is held with it from the moment it is declared. Planning separately is what somebody
+// chooses afterwards, with one click.
+//
+// # WHY THIS IS NOT FOLDED INTO THE INSERT
+//
+// Called from exactly two places — declaring one instance and planning a screenful of them — and
+// deliberately not from InsertCourseInstance itself. CopyDemand inserts through the same statement
+// and must not couple: a copy reproduces the arrangement of the semester it copies from, and
+// inventing a coupling because some other programme happens to have declared the module in the
+// target semester would be the copy making a decision nobody pressed a button for.
+//
+// # WHY IT CAN DECLINE
+//
+// Two ways, and both end with the cohort holding its own teaching rather than with an error:
+//
+//   - The programme already has a covered cohort of this module. A covered cohort is that
+//     programme's whole participation, so the second one holds its own — and the partial unique
+//     index would otherwise refuse the write as a raw unique violation out of a save.
+//   - The host vanished between the read and the write. FOR KEY SHARE with LIMIT 1 returns *no*
+//     row under EvalPlanQual when the chosen one no longer qualifies, rather than the next
+//     candidate, so the caller runs this inside a savepoint and carries on.
+func coupleIfHostExists(ctx context.Context, q *Queries, instanceID uuid.UUID,
+	semesterID, moduleID, programmeID, by uuid.UUID,
+) (bool, error) {
+	taken, err := q.CoveredCohortExistsFor(ctx, CoveredCohortExistsForParams{
+		SemesterID:  semesterID,
+		ModuleID:    moduleID,
+		ProgrammeID: programmeID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("cannot check for a covered cohort: %w", err)
+	}
+	if taken {
+		return false, nil
+	}
+
+	host, err := q.CoverageHostFor(ctx, CoverageHostForParams{
+		SemesterID:  semesterID,
+		ModuleID:    moduleID,
+		ProgrammeID: programmeID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("cannot look for a holding cohort: %w", err)
+	}
+
+	rows, err := q.CoupleInstanceCoverage(ctx, CoupleInstanceCoverageParams{
+		ID:     instanceID,
+		HostID: host.ID,
+		By:     nullUUID(nonNilUUID(by)),
+	})
+	if err != nil {
+		return false, fmt.Errorf("cannot hold the cohort with the other programme's event: %w", err)
+	}
+	return rows > 0, nil
 }
 
 // RequestInstanceCoverage asks that this instance's demand be met by another programme's event.
@@ -1772,6 +1852,39 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 		programmeSemester: programmeSemester,
 	}
 
+	// Held with another programme's event where there is one — the case the whole automatic half
+	// of this exists for. It holds no parts then, so the loop below is skipped rather than run and
+	// undone, and adjustGroups is told not to ask about groups it has no say over.
+	//
+	// In a savepoint: the host is read under FOR KEY SHARE, and a host that stops qualifying
+	// between the read and the write yields no row rather than the next candidate. That costs this
+	// cohort its coupling, never the screen.
+	sub, err := tx.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot open a savepoint: %w", err)
+	}
+	coupled, err := coupleIfHostExists(ctx, New(sub), id,
+		pc.semesterID, pc.entry.ModuleID, pc.programmeID, pc.by)
+	switch {
+	case err != nil:
+		_ = sub.Rollback(ctx)
+		return nil, err
+	case coupled:
+		if err := sub.Commit(ctx); err != nil {
+			return nil, fmt.Errorf("cannot release the savepoint: %w", err)
+		}
+		instance.covered = true
+		plan.Coupled = append(plan.Coupled, domain.DemandChange{
+			ModuleID: pc.entry.ModuleID,
+			Track:    want.Track,
+		})
+		return instance, nil
+	default:
+		if err := sub.Commit(ctx); err != nil {
+			return nil, fmt.Errorf("cannot release the savepoint: %w", err)
+		}
+	}
+
 	position := int32(0)
 	for _, c := range components {
 		if shared[string(c.Kind)] {
@@ -1826,7 +1939,14 @@ func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.Deman
 	//
 	// Reported rather than skipped. Somebody moved a stepper and is owed an answer; a silent
 	// no-op reads as a save that did not stick.
+	//
+	// Except where the cohort was declared coupled by this very save. Then nothing was refused:
+	// the row is reported as coupled where it was created, and saying so twice — once as made,
+	// once as impossible — would be one save telling somebody both.
 	if instance.covered {
+		if justCreated {
+			return nil
+		}
 		plan.Refused = append(plan.Refused, domain.DemandRefusal{
 			ModuleID: instance.moduleID,
 			Track:    instance.track,

@@ -1144,6 +1144,26 @@ func TestAModuleOfAnotherProgrammeCanBeDeclared(t *testing.T) {
 	}
 }
 
+// declareSeparatelyIn declares a cohort that holds its own teaching, whatever else is planned.
+//
+// Declaring beside another programme's declaration of the same module now holds the two together —
+// that is the rule. Every test about the *manual* way in needs the other state, and getting there
+// is the same two steps a lead takes: declare, then plan separately.
+func (f demandFixture) declareSeparatelyIn(t *testing.T, programme, track string) *domain.CourseInstance {
+	t.Helper()
+
+	instance := f.declareIn(t, programme, track)
+	if instance.CoveredBy == nil {
+		return instance
+	}
+
+	released, err := f.demand.ReleaseInstanceCoverage(t.Context(), instance.ID)
+	if err != nil {
+		t.Fatalf("cannot plan %s separately: %v", programme, err)
+	}
+	return released
+}
+
 // declareIn declares the fixture's ordinary module for a named programme and cohort.
 //
 // The coverage tests need two programmes' demand for one module, which is the case the whole
@@ -1171,7 +1191,7 @@ func TestAcceptingCoverageTakesTheGuestsParts(t *testing.T) {
 	ctx := t.Context()
 
 	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
-	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	guest := f.declareSeparatelyIn(t, storetest.FixtureProgrammeB, "")
 
 	// Both hold their own teaching until somebody says otherwise, which is the safe default:
 	// coverage by accident would make the faculty's hours look smaller than they are.
@@ -1261,7 +1281,7 @@ func TestAHostSeesTheDemandsItCovers(t *testing.T) {
 	ctx := t.Context()
 
 	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
-	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	guest := f.declareSeparatelyIn(t, storetest.FixtureProgrammeB, "")
 
 	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
 		t.Fatalf("cannot ask to be covered: %v", err)
@@ -1312,7 +1332,7 @@ func TestAcceptingCoverageIsRefusedWhenAGuestPartIsAssigned(t *testing.T) {
 	ctx := t.Context()
 
 	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
-	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	guest := f.declareSeparatelyIn(t, storetest.FixtureProgrammeB, "")
 
 	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
 		t.Fatalf("cannot ask to be covered: %v", err)
@@ -1355,7 +1375,7 @@ func TestReleasingCoverageGivesTheGuestItsTeachingBack(t *testing.T) {
 	ctx := t.Context()
 
 	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
-	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	guest := f.declareSeparatelyIn(t, storetest.FixtureProgrammeB, "")
 
 	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
 		t.Fatalf("cannot ask: %v", err)
@@ -1397,7 +1417,7 @@ func TestReleasingAnUnansweredRequestChangesNoParts(t *testing.T) {
 	ctx := t.Context()
 
 	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
-	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	guest := f.declareSeparatelyIn(t, storetest.FixtureProgrammeB, "")
 
 	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
 		t.Fatalf("cannot ask: %v", err)
@@ -1425,7 +1445,7 @@ func TestCoverageRefusalsNameWhatIsWrong(t *testing.T) {
 
 	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
 	sibling := f.declareIn(t, storetest.FixtureProgrammeA, "B")
-	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	guest := f.declareSeparatelyIn(t, storetest.FixtureProgrammeB, "")
 
 	if _, err := f.demand.RequestInstanceCoverage(ctx, host.ID, host.ID, uuid.Nil); !errors.Is(
 		err, domain.ErrCoverageSelf) {
@@ -1478,7 +1498,7 @@ func TestNothingGivesACoveredCohortTeachingBack(t *testing.T) {
 	ctx := t.Context()
 
 	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
-	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	guest := f.declareSeparatelyIn(t, storetest.FixtureProgrammeB, "")
 
 	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
 		t.Fatalf("cannot ask: %v", err)
@@ -1519,7 +1539,7 @@ func TestPlanningDoesNotGiveACoveredCohortItsPartsBack(t *testing.T) {
 	ctx := t.Context()
 
 	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
-	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	guest := f.declareSeparatelyIn(t, storetest.FixtureProgrammeB, "")
 
 	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
 		t.Fatalf("cannot ask: %v", err)
@@ -1566,7 +1586,7 @@ func TestCopyingASemesterAsksToBeCoveredAgain(t *testing.T) {
 	ctx := t.Context()
 
 	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
-	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	guest := f.declareSeparatelyIn(t, storetest.FixtureProgrammeB, "")
 
 	if _, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil); err != nil {
 		t.Fatalf("cannot ask: %v", err)
@@ -1610,5 +1630,211 @@ func TestCopyingASemesterAsksToBeCoveredAgain(t *testing.T) {
 	if copied[0].CoveredBy.Accepted() {
 		t.Error("the copy carried the agreement forward — that is the other programme's " +
 			"decision about a semester nobody has planned yet")
+	}
+}
+
+// The rule the faculty asked for: two programmes that need the same module hold it once, without
+// anybody arranging it.
+func TestPlanningTheSameModuleTwiceHoldsItOnce(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	if host.CoveredBy != nil {
+		t.Fatal("the first declaration was held by somebody; there was nobody to hold it")
+	}
+	if len(host.Parts) != 2 {
+		t.Fatalf("the first declaration holds %d parts, want 2", len(host.Parts))
+	}
+
+	// The second one is held with the first from the moment it is declared. Nobody asked, nobody
+	// agreed, and nothing was taken from anybody: the cohort never had parts to lose.
+	guest := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	if guest.CoveredBy == nil {
+		t.Fatal("declaring beside another programme's declaration did not hold the two together")
+	}
+	if got := guest.CoveredBy.Instance.Programme.Code; got != storetest.FixtureProgrammeA {
+		t.Errorf("it is held by %q, want %s", got, storetest.FixtureProgrammeA)
+	}
+	if !guest.CoveredBy.Accepted() {
+		t.Error("the coupling is pending; declaring beside another programme is one act, not two")
+	}
+	if len(guest.Parts) != 0 {
+		t.Errorf("the held cohort holds %d parts of its own", len(guest.Parts))
+	}
+	if got := guest.TeachingHours(); got != 0 {
+		t.Errorf("the held cohort costs %v hours, want 0", got)
+	}
+	if len(guest.BorrowedParts) != 2 {
+		t.Errorf("it attends %d parts, want the 2 the other programme holds",
+			len(guest.BorrowedParts))
+	}
+
+	// The number this exists for.
+	var total float64
+	for _, instance := range f.allInstances(t) {
+		total += instance.TeachingHours()
+	}
+	if total != 4 {
+		t.Errorf("two programmes' demand for one 4-hour module costs %v hours, want 4", total)
+	}
+}
+
+// Whoever planned first holds it — which is the order the leads themselves experience.
+func TestTheFirstToPlanHoldsTheEvent(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+
+	// B first this time, so the answer cannot come from the programme codes.
+	first := f.declareIn(t, storetest.FixtureProgrammeB, "")
+	second := f.declareIn(t, storetest.FixtureProgrammeA, "")
+
+	if first.CoveredBy != nil {
+		t.Error("the programme that planned first was made a guest of the one that came second")
+	}
+	if second.CoveredBy == nil {
+		t.Fatal("the second declaration holds its own teaching")
+	}
+	if got := second.CoveredBy.Instance.Programme.Code; got != storetest.FixtureProgrammeB {
+		t.Errorf("it is held by %q, want %s — whoever planned first holds",
+			got, storetest.FixtureProgrammeB)
+	}
+}
+
+// A second cohort of one programme holds its own, and that is the rule rather than a limitation.
+//
+// A covered cohort is that programme's whole participation in the module: it holds nothing and
+// attends what is held elsewhere. Two of them side by side would mean two cohorts sitting in one
+// event — and a programme that runs two cohorts runs them because one does not fit.
+func TestASecondCohortOfTheSameProgrammeHoldsItsOwn(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+
+	f.declareIn(t, storetest.FixtureProgrammeA, "")
+	firstOfB := f.declareIn(t, storetest.FixtureProgrammeB, "A")
+	secondOfB := f.declareIn(t, storetest.FixtureProgrammeB, "B")
+
+	if firstOfB.CoveredBy == nil {
+		t.Fatal("the first cohort of the second programme was not held with the other event")
+	}
+	if secondOfB.CoveredBy != nil {
+		t.Error("both cohorts of one programme were held by one event — two cohorts exist " +
+			"because one does not fit")
+	}
+	// And it is a proper cohort rather than an empty row: the partial unique index refuses the
+	// second coupling, and the store falls back to teaching of its own rather than letting that
+	// refusal surface as a unique violation out of a save.
+	if len(secondOfB.Parts) != 2 {
+		t.Errorf("the second cohort holds %d parts, want the 2 of the module's split",
+			len(secondOfB.Parts))
+	}
+}
+
+// The other way in keeps its handshake, and that is the point of keeping it.
+//
+// Declaring a fresh cohort beside another programme's takes nothing from anybody. Pointing a
+// cohort that already holds parts — and possibly an assignment — at somebody else's event is a
+// larger act, so the other programme still answers for it.
+func TestCouplingAnExistingCohortStillNeedsTheOtherProgramme(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	host := f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareSeparatelyIn(t, storetest.FixtureProgrammeB, "")
+
+	if len(guest.Parts) != 2 {
+		t.Fatalf("the separately planned cohort holds %d parts, want 2", len(guest.Parts))
+	}
+
+	asked, err := f.demand.RequestInstanceCoverage(ctx, guest.ID, host.ID, uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot ask: %v", err)
+	}
+	if asked.CoveredBy.Accepted() {
+		t.Error("asking about an existing cohort counted as agreeing")
+	}
+	if len(asked.Parts) != 2 {
+		t.Errorf("asking removed teaching the other programme has not agreed to hold yet")
+	}
+}
+
+// A copy reproduces the arrangement of the semester it copies from and invents none.
+//
+// The automatic coupling is deliberately not folded into the insert both paths share: a copy that
+// coupled because some other programme happens to have declared the module in the target semester
+// would be making a decision nobody pressed a button for.
+func TestCopyingDoesNotInventACoupling(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	// Two programmes, planned separately on purpose, in the semester being copied from.
+	f.declareIn(t, storetest.FixtureProgrammeA, "")
+	guest := f.declareSeparatelyIn(t, storetest.FixtureProgrammeB, "")
+	if guest.CoveredBy != nil {
+		t.Fatal("the fixture did not manage to plan the two separately")
+	}
+
+	// The holding programme's demand reaches the target semester first, so a coupling would have
+	// something to attach to if the copy invented one.
+	if _, err := f.demand.CopyDemand(ctx, f.semester, f.previous,
+		programmeID(t, f.schema, storetest.FixtureProgrammeA), uuid.Nil); err != nil {
+		t.Fatalf("cannot copy the first programme: %v", err)
+	}
+	if _, err := f.demand.CopyDemand(ctx, f.semester, f.previous,
+		programmeID(t, f.schema, storetest.FixtureProgrammeB), uuid.Nil); err != nil {
+		t.Fatalf("cannot copy the second programme: %v", err)
+	}
+
+	copied, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+		SemesterCode: f.previous.Code, Programme: storetest.FixtureProgrammeB,
+	})
+	if err != nil {
+		t.Fatalf("cannot read the copied demand: %v", err)
+	}
+	if len(copied) != 1 {
+		t.Fatalf("the copy produced %d instances, want 1", len(copied))
+	}
+	if copied[0].CoveredBy != nil {
+		t.Error("the copy coupled two cohorts that were planned separately — a copy reproduces " +
+			"an arrangement, it does not make one")
+	}
+	if len(copied[0].Parts) != 2 {
+		t.Errorf("the copied cohort holds %d parts, want the 2 it held", len(copied[0].Parts))
+	}
+}
+
+// The save that couples a cohort must not also report it as impossible.
+func TestAFreshlyCoupledCohortIsNotAlsoReportedAsRefused(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	f.declareIn(t, storetest.FixtureProgrammeA, "")
+
+	// The second programme plans the module from its own table, groups and all — which is what a
+	// lead actually does, and which sends a group count for a cohort that will hold no groups.
+	plan, err := f.demand.PlanDemand(ctx, f.semester.Code,
+		programmeID(t, f.schema, storetest.FixtureProgrammeB),
+		[]domain.DemandEntry{planEntry(f.module, track("", 2))}, uuid.Nil, false)
+	if err != nil {
+		t.Fatalf("cannot plan: %v", err)
+	}
+
+	if len(plan.Coupled) != 1 {
+		t.Errorf("the plan reports %d coupled cohorts, want 1 — a cohort that arrives holding "+
+			"nothing is the row this mechanism exists to explain", len(plan.Coupled))
+	}
+	for _, r := range plan.Refused {
+		if r.Code == "INSTANCE_COVERED" {
+			t.Error("the same save reported the cohort as created and as impossible")
+		}
 	}
 }

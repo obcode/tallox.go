@@ -405,7 +405,13 @@ type DemandPlan struct {
 	Created   []DemandChange
 	Withdrawn []DemandChange
 	Changed   []DemandChange
-	Refused   []DemandRefusal
+	// Coupled is the cohorts that were declared already held by another programme's event.
+	//
+	// Not a refusal — nothing was refused — and not merely a creation either. A cohort that
+	// arrives holding nothing is the row this whole mechanism exists to explain, and a line that
+	// looked like every other creation would hide the half worth reading.
+	Coupled []DemandChange
+	Refused []DemandRefusal
 	// Instances is the demand afterwards, so that one answer redraws the screen. After a dry run
 	// it is what is there now, because that is what is there.
 	Instances []CourseInstance
@@ -417,7 +423,8 @@ type DemandPlan struct {
 //
 // What the interface needs in order to skip a confirmation nobody has anything to confirm.
 func (p DemandPlan) Empty() bool {
-	return len(p.Created) == 0 && len(p.Withdrawn) == 0 && len(p.Changed) == 0
+	return len(p.Created) == 0 && len(p.Withdrawn) == 0 && len(p.Changed) == 0 &&
+		len(p.Coupled) == 0
 }
 
 // Destructive reports whether a plan would take something away.

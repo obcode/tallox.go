@@ -2289,7 +2289,9 @@ func (d *Demand) applyProgrammeSemester(ctx context.Context, q *Queries, instanc
 // After the transaction and in one statement: the report is read by a person, and a list of uuids
 // is not something anybody can check against what they just did.
 func (d *Demand) nameModules(ctx context.Context, plan *domain.DemandPlan) error {
-	ids := make([]uuid.UUID, 0, len(plan.Created)+len(plan.Withdrawn)+len(plan.Changed)+len(plan.Refused))
+	ids := make([]uuid.UUID, 0,
+		len(plan.Created)+len(plan.Withdrawn)+len(plan.Changed)+
+			len(plan.Coupled)+len(plan.Promoted)+len(plan.Refused))
 	collect := func(id uuid.UUID) {
 		if !slices.Contains(ids, id) {
 			ids = append(ids, id)
@@ -2302,6 +2304,12 @@ func (d *Demand) nameModules(ctx context.Context, plan *domain.DemandPlan) error
 		collect(c.ModuleID)
 	}
 	for _, c := range plan.Changed {
+		collect(c.ModuleID)
+	}
+	for _, c := range plan.Coupled {
+		collect(c.ModuleID)
+	}
+	for _, c := range plan.Promoted {
 		collect(c.ModuleID)
 	}
 	for _, r := range plan.Refused {
@@ -2328,6 +2336,12 @@ func (d *Demand) nameModules(ctx context.Context, plan *domain.DemandPlan) error
 	}
 	for i := range plan.Changed {
 		plan.Changed[i].ModuleName = names[plan.Changed[i].ModuleID]
+	}
+	for i := range plan.Coupled {
+		plan.Coupled[i].ModuleName = names[plan.Coupled[i].ModuleID]
+	}
+	for i := range plan.Promoted {
+		plan.Promoted[i].ModuleName = names[plan.Promoted[i].ModuleID]
 	}
 	for i := range plan.Refused {
 		plan.Refused[i].ModuleName = names[plan.Refused[i].ModuleID]

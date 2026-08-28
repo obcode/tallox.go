@@ -1828,8 +1828,13 @@ func TestAFreshlyCoupledCohortIsNotAlsoReportedAsRefused(t *testing.T) {
 	}
 
 	if len(plan.Coupled) != 1 {
-		t.Errorf("the plan reports %d coupled cohorts, want 1 — a cohort that arrives holding "+
+		t.Fatalf("the plan reports %d coupled cohorts, want 1 — a cohort that arrives holding "+
 			"nothing is the row this mechanism exists to explain", len(plan.Coupled))
+	}
+	// Named, like every other bucket. A report line that says "1 gemeinsam geplant" without
+	// saying which module is a line nobody can act on.
+	if plan.Coupled[0].ModuleName == "" {
+		t.Error("the coupled cohort has no module name; nameModules skipped the bucket")
 	}
 	for _, r := range plan.Refused {
 		if r.Code == "INSTANCE_COVERED" {

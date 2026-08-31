@@ -6,14 +6,14 @@ require (
 	github.com/99designs/gqlgen v0.17.94
 	github.com/getsentry/sentry-go v0.48.0
 	github.com/getsentry/sentry-go/zerolog v0.48.0
-	github.com/go-chi/chi/v5 v5.3.1
+	github.com/go-chi/chi/v5 v5.3.2
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/pressly/goose/v3 v3.27.3
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/viper v1.21.0
-	github.com/testcontainers/testcontainers-go v0.43.0
-	github.com/testcontainers/testcontainers-go/modules/postgres v0.43.0
+	github.com/testcontainers/testcontainers-go v0.44.0
+	github.com/testcontainers/testcontainers-go/modules/postgres v0.44.0
 	github.com/vektah/gqlparser/v2 v2.5.36
 )
 
@@ -35,12 +35,12 @@ require (
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/ebitengine/purego v0.10.0 // indirect
+	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-ole/go-ole v1.2.6 // indirect
+	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
@@ -48,7 +48,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/klauspost/compress v1.19.1 // indirect
-	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
+	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.23 // indirect
@@ -69,7 +69,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
-	github.com/shirou/gopsutil/v4 v4.26.5 // indirect
+	github.com/shirou/gopsutil/v4 v4.26.6 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/sosodev/duration v1.4.0 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
@@ -78,8 +78,8 @@ require (
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/tklauser/go-sysconf v0.3.16 // indirect
-	github.com/tklauser/numcpus v0.11.0 // indirect
+	github.com/tklauser/go-sysconf v0.4.0 // indirect
+	github.com/tklauser/numcpus v0.12.0 // indirect
 	github.com/urfave/cli/v3 v3.10.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect

@@ -65,3 +65,70 @@ func Open(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 
 	return pool, nil
 }
+
+// WaitReady blocks until the database answers a ping, or until timeout elapses.
+//
+// It exists because of what happens after a host reboot, and the mechanism is worth writing
+// down: docker compose's `depends_on: condition: service_healthy` orders containers only
+// within a `docker compose up`. When the Docker DAEMON restarts containers by their restart
+// policy after the machine comes back, it starts them in parallel and honours no dependency
+// at all. Measured on tallox on 2026-09-14: every container's StartedAt fell inside 30 ms of
+// the others, the server reached its migration before Postgres was accepting connections, and
+// died with "connection refused". `restart: unless-stopped` recovered it 0.8 s later, so the
+// only visible damage was one FATAL line per boot — but a server that exits because its
+// database is four seconds late is reporting a failure it does not have.
+//
+// Retries every error rather than trying to classify it. A wrong password and a database that
+// is still starting are not reliably distinguishable from the client side, and the expensive
+// case is the same either way: the timeout expires and the last error is returned, exactly as
+// a single attempt would have reported it. onWait, if non-nil, is called once on the first
+// failure, so a caller can say WHY it is waiting instead of going quiet for a minute.
+func WaitReady(ctx context.Context, dsn string, timeout time.Duration, onWait func(error)) error {
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return fmt.Errorf("cannot parse database url: %w", err)
+	}
+
+	// One pool for every attempt: pgxpool connects lazily, so NewWithConfig only validates the
+	// configuration and each Ping is a fresh connection attempt. Building a pool per try would
+	// re-parse and re-allocate for no gain.
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("cannot create connection pool: %w", err)
+	}
+	defer pool.Close()
+
+	deadline := time.Now().Add(timeout)
+	const retryEvery = 500 * time.Millisecond
+	notified := false
+
+	for attempt := 1; ; attempt++ {
+		// Per-attempt timeout, so one hung connect cannot eat the whole budget in silence.
+		pingCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		err = pool.Ping(pingCtx)
+		cancel()
+		if err == nil {
+			return nil
+		}
+
+		if !notified && onWait != nil {
+			onWait(err)
+			notified = true
+		}
+
+		// The caller's context losing patience is not the same as the database being down, and
+		// must not be reported as it.
+		if ctx.Err() != nil {
+			return fmt.Errorf("cancelled while waiting for the database: %w", ctx.Err())
+		}
+		if !time.Now().Add(retryEvery).Before(deadline) {
+			return fmt.Errorf("database not reachable within %s: %w", timeout, err)
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("cancelled while waiting for the database: %w", ctx.Err())
+		case <-time.After(retryEvery):
+		}
+	}
+}

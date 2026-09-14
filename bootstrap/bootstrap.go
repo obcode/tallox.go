@@ -262,6 +262,21 @@ func Serve(build buildinfo.Info) {
 		log.Fatal().Err(err).Msg("cannot start")
 	}
 
+	// Wait for the database before touching it. On a host reboot the Docker daemon starts the
+	// containers by their restart policy, in parallel and without honouring depends_on — that
+	// construct orders a `docker compose up` and nothing else. Measured on 2026-09-14: every
+	// container started within 30 ms of the others and this process reached the migration
+	// before Postgres accepted connections. See store.WaitReady for the full account.
+	//
+	// 90 s because the budget only has to cover Postgres finishing its own start, which takes
+	// seconds; anything longer is a database that is not coming back, and exiting then is the
+	// right answer rather than hanging a container the healthcheck would report as starting.
+	if err := store.WaitReady(ctx, dsn, 90*time.Second, func(err error) {
+		log.Warn().Err(err).Msg("database not reachable yet, waiting")
+	}); err != nil {
+		log.Fatal().Err(err).Msg("cannot reach the database")
+	}
+
 	// Migrate before opening the pool that serves requests. Embedded migrations plus "apply at
 	// startup" means a container that has the binary has the schema, by construction: there is
 	// no deploy step that can copy one and forget the other.

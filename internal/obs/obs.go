@@ -75,11 +75,22 @@ func Init(cfg Config) (zerolog.LevelWriter, error) {
 		Transport:    cfg.transport,
 
 		// This server serves one faculty's teaching planning; there is no
-		// traffic volume to trace and no budget question to answer with
-		// metrics. Both off means less that can carry data out by accident.
-		EnableTracing:  false,
-		DisableLogs:    true,
-		DisableMetrics: true,
+		// traffic volume to trace and no budget question to answer with metrics.
+		EnableTracing: false,
+
+		// DisableLogs and DisableMetrics stood here until sentry-go 0.49.0
+		// removed them: both products are gated by CALLING their APIs, so a
+		// global kill switch was, in the changelog's words, counter intuitive.
+		// Their absence is not a relaxation. Verified across this module when the
+		// fields went: nothing calls sentry.NewLogger or any metric API, and the
+		// only integration is the sentryzerolog writer below, whose source is
+		// byte-identical between 0.48.0 and 0.49.0 -- it sets event.Logger on an
+		// ERROR event and emits no log records.
+		//
+		// Keep it that way. Adding a Sentry logger here would start shipping log
+		// records to GlitchTip, and that is a decision about data leaving this
+		// host, not a logging convenience -- the rest of this block exists for
+		// the same reason.
 
 		// Events from the writer get their (useless) stack from sentryzerolog.
 		AttachStacktrace: false,

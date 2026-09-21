@@ -466,6 +466,48 @@ func TestASplitWithImpossibleHoursIsRefused(t *testing.T) {
 	}
 }
 
+// The same kind twice is refused by name. A beta tester who could not remove the second entry of
+// "2 lecture + 2 laboratory" saved "2 lecture + 2 lecture" instead, and every instance of that
+// module would have got two lecture parts — the sentence tells them to put the hours in one.
+func TestASplitNamesEachKindOnce(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}})
+
+	c := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+
+	resp := c.Do(t, `mutation($m: ID!) {
+		setModuleComponents(moduleId: $m, components: [
+			{kind: LECTURE, teachingHours: 2}, {kind: LECTURE, teachingHours: 2}
+		]) { id }
+	}`, map[string]any{"m": f.moduleOrdinary.String()})
+	assertRefusal(t, resp, "COMPONENTS_INVALID")
+	if msg := resp.Errors[0].Message; !strings.Contains(msg, "nur einmal") {
+		t.Errorf("the refusal says %q, want it to name the repeated kind as the problem", msg)
+	}
+	graphqltest.AssertNoLeak(t, resp.Errors[0].Message, graphqltest.DatabaseNoise()...)
+
+	// Four hours of lecture is one entry, and that is accepted.
+	var out struct {
+		SetModuleComponents struct {
+			Components []struct {
+				Kind          string
+				TeachingHours float64
+			}
+		}
+	}
+	c.MustQuery(t, `mutation($m: ID!) {
+		setModuleComponents(moduleId: $m, components: [{kind: LECTURE, teachingHours: 4}]) {
+			components { kind teachingHours }
+		}
+	}`, map[string]any{"m": f.moduleOrdinary.String()}, &out)
+	if got := out.SetModuleComponents.Components; len(got) != 1 || got[0].TeachingHours != 4 {
+		t.Errorf("the split is %+v, want one lecture of four hours", got)
+	}
+}
+
 // Assigning programmes is the deploy step this release creates, and the screen that has to ship
 // with it — without it, PROGRAMME_LEAD is a role nobody can use.
 func TestAssigningProgrammesToALead(t *testing.T) {

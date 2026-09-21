@@ -207,25 +207,46 @@ func (s *CatalogueService) SetModuleComponents(
 		return nil, ErrNotYourProgramme
 	}
 
-	if len(components) > MaxComponentsPerModule {
-		return nil, fmt.Errorf("%w: höchstens %d Teile", ErrComponentInvalid, MaxComponentsPerModule)
+	if err := validComponents(components); err != nil {
+		return nil, err
 	}
+
+	return s.store.SetModuleComponents(ctx, moduleID, components, actor.ID)
+}
+
+// validComponents checks the shape of a split and numbers its entries.
+//
+// One function for the catalogue module and the local one, so the rule cannot drift between
+// them. Three things are refused, each with the sentence a person can act on: hours outside
+// what a unit can have, a kind this build does not know, and the same kind twice. The last one
+// is the reader's problem rather than the database's — "Vorlesung 2 + Vorlesung 2" is a row
+// that says 4 hours of lecture in the only way the editor let somebody say it, and the two
+// lecture parts every instance would then get are a planning surprise waiting to happen.
+func validComponents(components []ModuleComponent) error {
+	if len(components) > MaxComponentsPerModule {
+		return fmt.Errorf("%w: höchstens %d Teile", ErrComponentInvalid, MaxComponentsPerModule)
+	}
+	seen := make(map[InstancePartKind]bool, len(components))
 	for i := range components {
 		if components[i].TeachingHours <= 0 || components[i].TeachingHours > 20 {
-			return nil, fmt.Errorf("%w: die SWS eines Teils müssen zwischen 0 und 20 liegen",
+			return fmt.Errorf("%w: die SWS eines Teils müssen größer als 0 und höchstens 20 sein",
 				ErrComponentInvalid)
 		}
 		if _, ok := ParseInstancePartKind(string(components[i].Kind)); !ok {
-			return nil, fmt.Errorf("%w: %q ist keine Art von Lehrveranstaltung",
+			return fmt.Errorf("%w: %q ist keine Art von Lehrveranstaltung",
 				ErrComponentInvalid, components[i].Kind)
 		}
+		if seen[components[i].Kind] {
+			return fmt.Errorf("%w: jede Art von Lehrveranstaltung darf nur einmal vorkommen — "+
+				"die SWS einer Art gehören in einen Eintrag", ErrComponentInvalid)
+		}
+		seen[components[i].Kind] = true
 		// The caller's order is the order. Positions are assigned here rather than accepted, so
 		// that a client cannot produce a gap or a collision and the unique constraint is never
 		// the thing that reports a bad request.
 		components[i].Position = i
 	}
-
-	return s.store.SetModuleComponents(ctx, moduleID, components, actor.ID)
+	return nil
 }
 
 // MaxLocalModuleName is as long as a course name may be.
@@ -364,20 +385,8 @@ func validLocalModule(spec NewLocalModule) (NewLocalModule, error) {
 			ErrLocalModuleInvalid)
 	}
 
-	if len(spec.Components) > MaxComponentsPerModule {
-		return spec, fmt.Errorf("%w: höchstens %d Teile", ErrComponentInvalid,
-			MaxComponentsPerModule)
-	}
-	for i := range spec.Components {
-		if spec.Components[i].TeachingHours <= 0 || spec.Components[i].TeachingHours > 20 {
-			return spec, fmt.Errorf("%w: die SWS eines Teils müssen zwischen 0 und 20 liegen",
-				ErrComponentInvalid)
-		}
-		if _, ok := ParseInstancePartKind(string(spec.Components[i].Kind)); !ok {
-			return spec, fmt.Errorf("%w: %q ist keine Art von Lehrveranstaltung",
-				ErrComponentInvalid, spec.Components[i].Kind)
-		}
-		spec.Components[i].Position = i
+	if err := validComponents(spec.Components); err != nil {
+		return spec, err
 	}
 	return spec, nil
 }

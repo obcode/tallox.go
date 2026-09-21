@@ -59,6 +59,7 @@ type CourseInstance struct {
 	CoveredRequestedBy   uuid.NullUUID
 	CoveredAcceptedBy    uuid.NullUUID
 	IsCovered            *bool
+	Note                 string
 }
 
 type DemandCompletion struct {

@@ -129,6 +129,10 @@ type CourseInstance struct {
 	// ProgrammeSemester is which cohort year this is for, the 3 in IF3A, or nil where nobody
 	// has said and the regulations do not either.
 	ProgrammeSemester *int
+	// Note is the planner's sentence beside the row — why four cohorts, why this semester —
+	// and empty for the ordinary row that needs none. Planning, not personnel data: it is read
+	// through both doors like the rest of the demand.
+	Note string
 	// Parts are the assignable units this cohort holds itself, in order.
 	Parts []InstancePart
 	// BorrowedParts are the parts of a sibling cohort that are held for this one as well.
@@ -282,6 +286,8 @@ type NewCourseInstance struct {
 	Track       string
 	// ProgrammeSemester, or nil to take what the programme's regulations say.
 	ProgrammeSemester *int
+	// Note beside the row, already trimmed and bounded by the service.
+	Note string
 	// CreatedBy is who declared it. uuid.Nil records nobody.
 	CreatedBy uuid.UUID
 }
@@ -371,6 +377,11 @@ type DemandEntry struct {
 	// ProgrammeSemester is the cohort year for every cohort of this module, or nil to leave what
 	// is there — and, for a new instance, to take what the regulations say.
 	ProgrammeSemester *int
+	// Note is the sentence beside the row for every cohort of this module, or nil to leave what
+	// is there. The empty string is a statement — it clears the note — which is why this is a
+	// pointer and not a string: the table sends the field it shows, and a screen that did not
+	// show it must be able to say nothing about it.
+	Note *string
 }
 
 // DemandChange is one thing a plan did, or would do.

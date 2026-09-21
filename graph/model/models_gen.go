@@ -357,6 +357,13 @@ type CourseInstance struct {
 	// module/programme pairs disagree across versions of the regulations, and it would change
 	// retroactively when a new version lands, renaming a cohort that has already been taught.
 	ProgrammeSemester *int `json:"programmeSemester,omitempty"`
+	// The planner's sentence beside the row, or empty for the ordinary row that needs none.
+	//
+	// Why four cohorts of one module in a summer, why a module runs a term off its usual one: the
+	// reasons a reader of the demand would otherwise take for mistakes. Planning, not personnel
+	// data, and readable through both doors like the rest of the demand. The planning table writes
+	// it for every cohort of a module at once, like the cohort year.
+	Note string `json:"note"`
 	// The assignable units this cohort holds itself, in order.
 	//
 	// Made from the module's split when the instance is declared — one part per unit — and edited
@@ -450,6 +457,8 @@ type DeclareCourseInstanceInput struct {
 	// The cohort year, or `null` to take what the programme's regulations say — the earliest semester
 	// the module may be taken in, across every version of them.
 	ProgrammeSemester *int `json:"programmeSemester,omitempty"`
+	// The sentence beside the row. At most 2000 characters; surrounding whitespace is dropped.
+	Note *string `json:"note,omitempty"`
 }
 
 // One thing a plan did, or would do.
@@ -504,6 +513,9 @@ type DemandEntryInput struct {
 	// The cohort year for every cohort of this module, or `null` to leave what is stored — and, for a
 	// new instance, to take what the regulations say.
 	ProgrammeSemester *int `json:"programmeSemester,omitempty"`
+	// The sentence beside the row, for every cohort of this module. `null` leaves what is stored;
+	// the empty string clears it. At most 2000 characters; surrounding whitespace is dropped.
+	Note *string `json:"note,omitempty"`
 }
 
 // What a save did, or — after a dry run — what it would do.

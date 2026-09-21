@@ -150,6 +150,7 @@ type ComplexityRoot struct {
 		CreatedAt             func(childComplexity int) int
 		ID                    func(childComplexity int) int
 		Module                func(childComplexity int) int
+		Note                  func(childComplexity int) int
 		Parts                 func(childComplexity int) int
 		Programme             func(childComplexity int) int
 		ProgrammeSemester     func(childComplexity int) int
@@ -1029,6 +1030,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CourseInstance.Module(childComplexity), true
+	case "CourseInstance.note":
+		if e.ComplexityRoot.CourseInstance.Note == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.Note(childComplexity), true
 	case "CourseInstance.parts":
 		if e.ComplexityRoot.CourseInstance.Parts == nil {
 			break
@@ -4902,6 +4909,15 @@ type CourseInstance {
   """
   programmeSemester: Int
   """
+  The planner's sentence beside the row, or empty for the ordinary row that needs none.
+
+  Why four cohorts of one module in a summer, why a module runs a term off its usual one: the
+  reasons a reader of the demand would otherwise take for mistakes. Planning, not personnel
+  data, and readable through both doors like the rest of the demand. The planning table writes
+  it for every cohort of a module at once, like the cohort year.
+  """
+  note: String!
+  """
   The assignable units this cohort holds itself, in order.
 
   Made from the module's split when the instance is declared — one part per unit — and edited
@@ -5141,6 +5157,8 @@ input DeclareCourseInstanceInput {
   the module may be taken in, across every version of them.
   """
   programmeSemester: Int
+  "The sentence beside the row. At most 2000 characters; surrounding whitespace is dropped."
+  note: String = ""
 }
 
 """
@@ -5183,6 +5201,11 @@ input DemandEntryInput {
   new instance, to take what the regulations say.
   """
   programmeSemester: Int
+  """
+  The sentence beside the row, for every cohort of this module. ` + "`" + `null` + "`" + ` leaves what is stored;
+  the empty string clears it. At most 2000 characters; surrounding whitespace is dropped.
+  """
+  note: String
 }
 
 """
@@ -7536,6 +7559,8 @@ func (ec *executionContext) childFields_CourseInstance(ctx context.Context, fiel
 		return ec.fieldContext_CourseInstance_track(ctx, field)
 	case "programmeSemester":
 		return ec.fieldContext_CourseInstance_programmeSemester(ctx, field)
+	case "note":
+		return ec.fieldContext_CourseInstance_note(ctx, field)
 	case "parts":
 		return ec.fieldContext_CourseInstance_parts(ctx, field)
 	case "borrowedParts":

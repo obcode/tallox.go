@@ -1501,3 +1501,65 @@ func TestACohortSaysWhoElseOffersTheModuleSeparately(t *testing.T) {
 		}
 	}
 }
+
+// The note beside a row is planning, not personnel data: written in the browser, read through
+// both doors, and bounded by name rather than by a database error.
+func TestANoteBesideTheRowIsReadableThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}},
+		grants{testdata.Eins, []string{"LECTURER"}})
+
+	lead := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+	entries := func(note any) []map[string]any {
+		return []map[string]any{{
+			"moduleId": f.module.String(),
+			"tracks":   []map[string]any{{"track": "A", "groups": 1}, {"track": "B", "groups": 1}},
+			"note":     note,
+		}}
+	}
+	var out planReport
+	lead.MustQuery(t, planMutation, map[string]any{
+		"s": "2027-SS", "p": storetest.FixtureProgrammeA, "e": entries("IF4 (alt) und IF2 (neu)"), "d": false,
+	}, &out)
+	if len(out.PlanDemand.Created) != 2 {
+		t.Fatalf("the plan reports %+v, want two cohorts created", out.PlanDemand)
+	}
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var read struct {
+				CourseInstances []struct{ Track, Note string }
+			}
+			c.MustQuery(t, `query($s: String!, $p: String) {
+				courseInstances(semester: $s, programme: $p) { track note }
+			}`, map[string]any{"s": "2027-SS", "p": storetest.FixtureProgrammeA}, &read)
+
+			if len(read.CourseInstances) != 2 {
+				t.Fatalf("a lecturer sees %d instances, want both cohorts", len(read.CourseInstances))
+			}
+			for _, i := range read.CourseInstances {
+				if i.Note != "IF4 (alt) und IF2 (neu)" {
+					t.Errorf("cohort %q carries the note %q, want the row's sentence", i.Track, i.Note)
+				}
+			}
+		})
+
+	// Too long is refused by name, and the refusal reaches the caller as a code the interface
+	// can act on rather than as the database's constraint name.
+	tooLong := make([]byte, domain.MaxNoteLength+1)
+	for i := range tooLong {
+		tooLong[i] = 'x'
+	}
+	resp := lead.Do(t, planMutation, map[string]any{
+		"s": "2027-SS", "p": storetest.FixtureProgrammeA, "e": entries(string(tooLong)), "d": false,
+	})
+	if code := errorCode(t, resp); code != "NOTE_TOO_LONG" {
+		t.Errorf("a note past the bound was answered with %s, want NOTE_TOO_LONG", code)
+	}
+	for _, message := range resp.Messages() {
+		graphqltest.AssertNoLeak(t, message, graphqltest.DatabaseNoise()...)
+	}
+}

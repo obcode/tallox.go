@@ -97,6 +97,15 @@ type CourseInstance {
   """
   programmeSemester: Int
   """
+  The planner's sentence beside the row, or empty for the ordinary row that needs none.
+
+  Why four cohorts of one module in a summer, why a module runs a term off its usual one: the
+  reasons a reader of the demand would otherwise take for mistakes. Planning, not personnel
+  data, and readable through both doors like the rest of the demand. The planning table writes
+  it for every cohort of a module at once, like the cohort year.
+  """
+  note: String!
+  """
   The assignable units this cohort holds itself, in order.
 
   Made from the module's split when the instance is declared — one part per unit — and edited
@@ -336,6 +345,8 @@ input DeclareCourseInstanceInput {
   the module may be taken in, across every version of them.
   """
   programmeSemester: Int
+  "The sentence beside the row. At most 2000 characters; surrounding whitespace is dropped."
+  note: String = ""
 }
 
 """
@@ -378,6 +389,11 @@ input DemandEntryInput {
   new instance, to take what the regulations say.
   """
   programmeSemester: Int
+  """
+  The sentence beside the row, for every cohort of this module. `null` leaves what is stored;
+  the empty string clears it. At most 2000 characters; surrounding whitespace is dropped.
+  """
+  note: String
 }
 
 """

@@ -61,6 +61,7 @@ type instanceRow struct {
 	ProgrammeID       uuid.UUID
 	Track             string
 	ProgrammeSemester *int32
+	Note              string
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	SemesterCode      string
@@ -92,6 +93,7 @@ func instanceFrom(row instanceRow) domain.CourseInstance {
 		Track:     row.Track,
 
 		ProgrammeSemester: intOrNil(row.ProgrammeSemester),
+		Note:              row.Note,
 		CoveredBy:         coverageFrom(row),
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,
@@ -418,6 +420,7 @@ func (d *Demand) CreateCourseInstance(ctx context.Context, spec domain.NewCourse
 		ProgrammeID:       spec.ProgrammeID,
 		Track:             spec.Track,
 		ProgrammeSemester: programmeSemester,
+		Note:              spec.Note,
 		CreatedBy:         nullUUID(nonNilUUID(spec.CreatedBy)),
 	})
 	if isUniqueViolation(err) {
@@ -530,6 +533,7 @@ func (d *Demand) DuplicateCourseInstance(ctx context.Context, id uuid.UUID, trac
 		ProgrammeID:       source.ProgrammeID,
 		Track:             track,
 		ProgrammeSemester: source.ProgrammeSemester,
+		Note:              source.Note,
 		CreatedBy:         nullUUID(nonNilUUID(by)),
 	})
 	if isUniqueViolation(err) {
@@ -1470,6 +1474,7 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 			ProgrammeID:       programmeID,
 			Track:             source.Track,
 			ProgrammeSemester: source.ProgrammeSemester,
+			Note:              source.Note,
 			CreatedBy:         nullUUID(nonNilUUID(by)),
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -1717,6 +1722,7 @@ type heldInstance struct {
 	moduleID          uuid.UUID
 	track             string
 	programmeSemester *int32
+	note              string
 	parts             []InstancePartsForRow
 	// covered is accepted coverage: another programme holds this cohort's teaching, so it has no
 	// parts and must not be given any. Planning reports it rather than skipping it silently —
@@ -1747,6 +1753,7 @@ func heldInstances(ctx context.Context, q *Queries, semesterID, programmeID uuid
 			moduleID:          row.ModuleID,
 			track:             row.Track,
 			programmeSemester: row.ProgrammeSemester,
+			note:              row.Note,
 			covered:           row.IsCovered,
 		}
 		ids = append(ids, row.ID)
@@ -1852,6 +1859,9 @@ func (d *Demand) planModule(ctx context.Context, tx pgx.Tx, plan *domain.DemandP
 			return err
 		}
 		if err := d.applyProgrammeSemester(ctx, q, instance, pc.entry.ProgrammeSemester); err != nil {
+			return err
+		}
+		if err := d.applyNote(ctx, q, instance, pc.entry.Note); err != nil {
 			return err
 		}
 	}
@@ -2029,12 +2039,22 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 		}
 	}
 
+	// The row's note, so a cohort added to a row does not arrive as the one without one: what
+	// the entry states, else what a sibling cohort already carries.
+	note := ""
+	if pc.entry.Note != nil {
+		note = *pc.entry.Note
+	} else if len(pc.held) > 0 {
+		note = pc.held[0].note
+	}
+
 	id, err := q.InsertCourseInstance(ctx, InsertCourseInstanceParams{
 		SemesterID:        pc.semesterID,
 		ModuleID:          pc.entry.ModuleID,
 		ProgrammeID:       pc.programmeID,
 		Track:             want.Track,
 		ProgrammeSemester: programmeSemester,
+		Note:              note,
 		CreatedBy:         nullUUID(nonNilUUID(pc.by)),
 	})
 	if isUniqueViolation(err) {
@@ -2055,6 +2075,7 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 		moduleID:          pc.entry.ModuleID,
 		track:             want.Track,
 		programmeSemester: programmeSemester,
+		note:              note,
 	}
 
 	// Held with another programme's event where there is one — the case the whole automatic half
@@ -2281,6 +2302,25 @@ func (d *Demand) applyProgrammeSemester(ctx context.Context, q *Queries, instanc
 		return fmt.Errorf("cannot set the cohort year: %w", err)
 	}
 	instance.programmeSemester = wanted
+	return nil
+}
+
+// applyNote writes the note where the row states one, the same way as the cohort year: nil
+// leaves what is there, and the empty string clears it.
+//
+// Not reported as a change either, and for the same reason — a sentence beside the row is not
+// something that happens to the plan.
+func (d *Demand) applyNote(ctx context.Context, q *Queries, instance *heldInstance, note *string) error {
+	if note == nil || instance.note == *note {
+		return nil
+	}
+	if err := q.UpdateCourseInstanceNote(ctx, UpdateCourseInstanceNoteParams{
+		ID:   instance.id,
+		Note: *note,
+	}); err != nil {
+		return fmt.Errorf("cannot set the note: %w", err)
+	}
+	instance.note = *note
 	return nil
 }
 

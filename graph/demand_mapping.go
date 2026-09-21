@@ -23,6 +23,7 @@ func courseInstanceModel(i domain.CourseInstance) *model.CourseInstance {
 		Module:            moduleModel(i.Module),
 		Track:             i.Track,
 		ProgrammeSemester: i.ProgrammeSemester,
+		Note:              i.Note,
 		// Computed here rather than in a field resolver: it is a sum over a slice that is
 		// already loaded, and a resolver would suggest it costs something to ask for.
 		TeachingHours:         i.TeachingHours(),
@@ -234,6 +235,8 @@ func demandUserFacing(actor principal.Actor, err error) error {
 		return refusal("TRACK_INVALID", err.Error())
 	case errors.Is(err, domain.ErrProgrammeSemesterInvalid):
 		return refusal("PROGRAMME_SEMESTER_INVALID", err.Error())
+	case errors.Is(err, domain.ErrNoteTooLong):
+		return refusal("NOTE_TOO_LONG", err.Error())
 	case errors.Is(err, domain.ErrPartInvalid):
 		return refusal("PART_INVALID", err.Error())
 	case errors.Is(err, domain.ErrTooManyParts):

@@ -494,6 +494,29 @@ func (ec *executionContext) fieldContext_CourseInstance_programmeSemester(_ cont
 	return graphql.NewScalarFieldContext("CourseInstance", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _CourseInstance_note(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CourseInstance_note(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Note, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CourseInstance_note(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CourseInstance", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _CourseInstance_parts(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1489,8 +1512,11 @@ func (ec *executionContext) unmarshalInputDeclareCourseInstanceInput(ctx context
 	if _, present := asMap["track"]; !present {
 		asMap["track"] = ""
 	}
+	if _, present := asMap["note"]; !present {
+		asMap["note"] = ""
+	}
 
-	fieldsInOrder := [...]string{"semester", "programme", "moduleId", "track", "programmeSemester"}
+	fieldsInOrder := [...]string{"semester", "programme", "moduleId", "track", "programmeSemester", "note"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -1532,6 +1558,13 @@ func (ec *executionContext) unmarshalInputDeclareCourseInstanceInput(ctx context
 				return it, err
 			}
 			it.ProgrammeSemester = data
+		case "note":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("note"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Note = data
 		}
 	}
 	return it, nil
@@ -1552,7 +1585,7 @@ func (ec *executionContext) unmarshalInputDemandEntryInput(ctx context.Context, 
 		asMap["tracks"] = []any{}
 	}
 
-	fieldsInOrder := [...]string{"moduleId", "tracks", "programmeSemester"}
+	fieldsInOrder := [...]string{"moduleId", "tracks", "programmeSemester", "note"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -1580,6 +1613,13 @@ func (ec *executionContext) unmarshalInputDemandEntryInput(ctx context.Context, 
 				return it, err
 			}
 			it.ProgrammeSemester = data
+		case "note":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("note"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Note = data
 		}
 	}
 	return it, nil
@@ -1803,6 +1843,11 @@ func (ec *executionContext) _CourseInstance(ctx context.Context, sel ast.Selecti
 		case "programmeSemester":
 			out.Values[i] = ec._CourseInstance_programmeSemester(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "note":
+			out.Values[i] = ec._CourseInstance_note(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "parts":

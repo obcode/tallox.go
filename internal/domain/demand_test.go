@@ -3,6 +3,7 @@ package domain_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -685,6 +686,7 @@ func TestReadingTheDemandNeedsNoRole(t *testing.T) {
 }
 
 func ptr(n int) *int          { return &n }
+func ptrs(s string) *string   { return &s }
 func ptrf(f float64) *float64 { return &f }
 
 // Planning names the semester and does not record it.
@@ -798,6 +800,15 @@ func TestWhatIsAcceptedAsAPlan(t *testing.T) {
 			}},
 			wantErr: domain.ErrProgrammeSemesterInvalid,
 		},
+		{
+			name: "a note longer than a sentence beside a row can be",
+			entries: []domain.DemandEntry{{
+				ModuleID: moduleID,
+				Tracks:   []domain.DemandTrack{{Track: "", Groups: 1}},
+				Note:     ptrs(strings.Repeat("ä", domain.MaxNoteLength+1)),
+			}},
+			wantErr: domain.ErrNoteTooLong,
+		},
 	}
 
 	for _, tc := range cases {
@@ -835,6 +846,52 @@ func TestWhatIsAcceptedAsAPlan(t *testing.T) {
 			}
 		})
 	}
+}
+
+// The note is trimmed before it is stored, and the bound counts characters rather than bytes:
+// a field somebody cleared with a trailing space is a cleared field, and 2000 umlauts are 2000
+// characters to the person who typed them. `nil` travels through untouched — it is the row that
+// said nothing, and the store has to be able to tell that apart from a cleared note.
+func TestANoteIsTrimmedAndCountedInCharacters(t *testing.T) {
+	t.Parallel()
+
+	moduleID := uuid.New()
+	entry := func(note *string) []domain.DemandEntry {
+		return []domain.DemandEntry{{
+			ModuleID: moduleID,
+			Tracks:   []domain.DemandTrack{{Track: "", Groups: 1}},
+			Note:     note,
+		}}
+	}
+	plan := func(t *testing.T, entries []domain.DemandEntry) *domain.DemandEntry {
+		t.Helper()
+		f := newDemandService(t, policy.PhaseDemandPlanning)
+		if _, err := f.service.PlanDemand(t.Context(),
+			lead(principal.KindInteractive, demandProgramme), "2027-SS", "PA", entries, false); err != nil {
+			t.Fatalf("unexpected refusal: %v", err)
+		}
+		return &f.store.planned[0]
+	}
+
+	if got := plan(t, entry(ptrs("  vier Züge wegen SPO-Wechsel \n"))).Note; got == nil || *got != "vier Züge wegen SPO-Wechsel" {
+		t.Errorf("the note reached the store as %q, want it trimmed", deref(got))
+	}
+	if got := plan(t, entry(ptrs("   "))).Note; got == nil || *got != "" {
+		t.Errorf("a note of whitespace reached the store as %q, want the cleared note", deref(got))
+	}
+	if got := plan(t, entry(nil)).Note; got != nil {
+		t.Errorf("a row that said nothing reached the store with a note %q", *got)
+	}
+	if got := plan(t, entry(ptrs(strings.Repeat("ä", domain.MaxNoteLength)))).Note; got == nil {
+		t.Error("a note of exactly the bound, in two-byte characters, was refused")
+	}
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return *s
 }
 
 // Planning is a write like any other, and it is refused for somebody else's programme before

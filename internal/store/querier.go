@@ -1173,6 +1173,13 @@ type Querier interface {
 	// this instance, it is a different instance — and its parts, and later its wishes, belong to the
 	// one that was declared.
 	UpdateCourseInstance(ctx context.Context, arg UpdateCourseInstanceParams) error
+	// The note beside a row, on its own rather than as a third column of UpdateCourseInstance.
+	//
+	// Renaming a cohort and duplicating one both go through UpdateCourseInstance and have no note to
+	// state; a statement that took one would make each of them restate what is there, and the one
+	// that forgot would blank it. The planning table writes the note where it writes the cohort year,
+	// and that is the only writer.
+	UpdateCourseInstanceNote(ctx context.Context, arg UpdateCourseInstanceNoteParams) error
 	UpdateInstancePart(ctx context.Context, arg UpdateInstancePartParams) error
 	// Correct one, or take it out of the lists with active = false.
 	//

@@ -2130,3 +2130,99 @@ func TestAHolderWithWishesIsStillRefusedAndNothingMoved(t *testing.T) {
 		t.Error("the refused withdrawal gave the holder's teaching away")
 	}
 }
+
+// The note beside a row follows its cohorts the way the cohort year does: stated once for the
+// module, written to every cohort, kept when the plan says nothing about it, cleared by the empty
+// string, and carried by a cohort that is added to the row, a duplicate, and a copy — so that the
+// reason four cohorts exist does not vanish on the fifth.
+func TestANoteBesideTheRowFollowsItsCohorts(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	withNote := func(entry domain.DemandEntry, note string) domain.DemandEntry {
+		entry.Note = &note
+		return entry
+	}
+	notes := func() []string {
+		t.Helper()
+		out := []string{}
+		for _, i := range f.instances(t) {
+			out = append(out, i.Note)
+		}
+		return out
+	}
+	expect := func(want ...string) {
+		t.Helper()
+		got := notes()
+		if len(got) != len(want) {
+			t.Fatalf("the notes are %q, want %q", got, want)
+		}
+		for i := range want {
+			if got[i] != want[i] {
+				t.Fatalf("the notes are %q, want %q", got, want)
+			}
+		}
+	}
+
+	// Two cohorts, one sentence.
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{withNote(planEntry(f.module, track("A", 1), track("B", 1)),
+			"IF4 (alt) und IF2 (neu)")}, uuid.Nil, false); err != nil {
+		t.Fatalf("planning gave %v", err)
+	}
+	expect("IF4 (alt) und IF2 (neu)", "IF4 (alt) und IF2 (neu)")
+
+	// A plan that says nothing about the note leaves it, and a cohort added to the row arrives
+	// with what its siblings carry rather than as the one without.
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("A", 1), track("B", 1), track("C", 1))},
+		uuid.Nil, false); err != nil {
+		t.Fatalf("adding a cohort gave %v", err)
+	}
+	expect("IF4 (alt) und IF2 (neu)", "IF4 (alt) und IF2 (neu)", "IF4 (alt) und IF2 (neu)")
+
+	// A duplicate is the same row.
+	instances := f.instances(t)
+	if _, err := f.demand.DuplicateCourseInstance(ctx, instances[2].ID, "D", "", uuid.Nil); err != nil {
+		t.Fatalf("duplicating gave %v", err)
+	}
+	expect("IF4 (alt) und IF2 (neu)", "IF4 (alt) und IF2 (neu)", "IF4 (alt) und IF2 (neu)",
+		"IF4 (alt) und IF2 (neu)")
+
+	// The empty string is a statement: it clears the note on every cohort.
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{withNote(planEntry(f.module,
+			track("A", 1), track("B", 1), track("C", 1), track("D", 1)), "")},
+		uuid.Nil, false); err != nil {
+		t.Fatalf("clearing the note gave %v", err)
+	}
+	expect("", "", "", "")
+
+	// A dry run writes no note either.
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{withNote(planEntry(f.module,
+			track("A", 1), track("B", 1), track("C", 1), track("D", 1)), "nur geprüft")},
+		uuid.Nil, true); err != nil {
+		t.Fatalf("the dry run gave %v", err)
+	}
+	expect("", "", "", "")
+
+	// And a copy from the previous semester brings the note along with the cohort year: it is a
+	// proposal somebody reviews, and a sentence that is a year out of date and visible is better
+	// than one that went missing in the copy.
+	if _, err := f.demand.PlanDemand(ctx, f.previous.Code, f.programme,
+		[]domain.DemandEntry{withNote(planEntry(f.module, track("", 1)), "einmalig doppelt")},
+		uuid.Nil, false); err != nil {
+		t.Fatalf("planning last semester gave %v", err)
+	}
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module)}, uuid.Nil, false); err != nil {
+		t.Fatalf("emptying this semester gave %v", err)
+	}
+	if _, err := f.demand.CopyDemand(ctx, f.previous, f.semester, f.programme, uuid.Nil); err != nil {
+		t.Fatalf("copying gave %v", err)
+	}
+	expect("einmalig doppelt")
+}

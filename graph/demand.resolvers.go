@@ -40,6 +40,7 @@ func (r *mutationResolver) PlanDemand(ctx context.Context, semester string, prog
 			ModuleID:          moduleID,
 			Tracks:            tracks,
 			ProgrammeSemester: entry.ProgrammeSemester,
+			Note:              entry.Note,
 		})
 	}
 
@@ -70,6 +71,9 @@ func (r *mutationResolver) DeclareCourseInstance(ctx context.Context, input mode
 	}
 	if input.Track != nil {
 		spec.Track = *input.Track
+	}
+	if input.Note != nil {
+		spec.Note = *input.Note
 	}
 
 	instance, err := r.Demand.Declare(ctx, actor, spec)

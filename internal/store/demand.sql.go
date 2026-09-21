@@ -198,7 +198,7 @@ func (q *Queries) CoupleInstanceCoverage(ctx context.Context, arg CoupleInstance
 
 const courseInstanceByID = `-- name: CourseInstanceByID :one
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
-       ci.created_at, ci.updated_at,
+       ci.note, ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
        ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
@@ -219,6 +219,7 @@ type CourseInstanceByIDRow struct {
 	ProgrammeID                uuid.UUID
 	Track                      string
 	ProgrammeSemester          *int32
+	Note                       string
 	CreatedAt                  time.Time
 	UpdatedAt                  time.Time
 	SemesterCode               string
@@ -245,6 +246,7 @@ func (q *Queries) CourseInstanceByID(ctx context.Context, id uuid.UUID) (CourseI
 		&i.ProgrammeID,
 		&i.Track,
 		&i.ProgrammeSemester,
+		&i.Note,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SemesterCode,
@@ -265,7 +267,7 @@ func (q *Queries) CourseInstanceByID(ctx context.Context, id uuid.UUID) (CourseI
 
 const courseInstanceByPartID = `-- name: CourseInstanceByPartID :one
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
-       ci.created_at, ci.updated_at,
+       ci.note, ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
        ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
@@ -287,6 +289,7 @@ type CourseInstanceByPartIDRow struct {
 	ProgrammeID                uuid.UUID
 	Track                      string
 	ProgrammeSemester          *int32
+	Note                       string
 	CreatedAt                  time.Time
 	UpdatedAt                  time.Time
 	SemesterCode               string
@@ -318,6 +321,7 @@ func (q *Queries) CourseInstanceByPartID(ctx context.Context, id uuid.UUID) (Cou
 		&i.ProgrammeID,
 		&i.Track,
 		&i.ProgrammeSemester,
+		&i.Note,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SemesterCode,
@@ -337,7 +341,7 @@ func (q *Queries) CourseInstanceByPartID(ctx context.Context, id uuid.UUID) (Cou
 }
 
 const courseInstancesOfProgramme = `-- name: CourseInstancesOfProgramme :many
-SELECT ci.id, ci.module_id, ci.track, ci.programme_semester,
+SELECT ci.id, ci.module_id, ci.track, ci.programme_semester, ci.note,
        (ci.covered_accepted_at IS NOT NULL)::boolean AS is_covered
 FROM course_instance ci
 WHERE ci.semester_id = $1
@@ -355,6 +359,7 @@ type CourseInstancesOfProgrammeRow struct {
 	ModuleID          uuid.UUID
 	Track             string
 	ProgrammeSemester *int32
+	Note              string
 	IsCovered         bool
 }
 
@@ -377,6 +382,7 @@ func (q *Queries) CourseInstancesOfProgramme(ctx context.Context, arg CourseInst
 			&i.ModuleID,
 			&i.Track,
 			&i.ProgrammeSemester,
+			&i.Note,
 			&i.IsCovered,
 		); err != nil {
 			return nil, err
@@ -789,8 +795,8 @@ func (q *Queries) HostCandidatesFor(ctx context.Context, id uuid.UUID) ([]HostCa
 
 const insertCourseInstance = `-- name: InsertCourseInstance :one
 INSERT INTO course_instance (semester_id, module_id, programme_id, track, programme_semester,
-                             created_by)
-VALUES ($1, $2, $3, $4, $5, $6)
+                             note, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id
 `
 
@@ -800,6 +806,7 @@ type InsertCourseInstanceParams struct {
 	ProgrammeID       uuid.UUID
 	Track             string
 	ProgrammeSemester *int32
+	Note              string
 	CreatedBy         uuid.NullUUID
 }
 
@@ -815,6 +822,7 @@ func (q *Queries) InsertCourseInstance(ctx context.Context, arg InsertCourseInst
 		arg.ProgrammeID,
 		arg.Track,
 		arg.ProgrammeSemester,
+		arg.Note,
 		arg.CreatedBy,
 	)
 	var id uuid.UUID
@@ -824,8 +832,8 @@ func (q *Queries) InsertCourseInstance(ctx context.Context, arg InsertCourseInst
 
 const insertCourseInstanceIfAbsent = `-- name: InsertCourseInstanceIfAbsent :one
 INSERT INTO course_instance (semester_id, module_id, programme_id, track, programme_semester,
-                             created_by)
-VALUES ($1, $2, $3, $4, $5, $6)
+                             note, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (semester_id, module_id, programme_id, track) DO NOTHING
 RETURNING id
 `
@@ -836,6 +844,7 @@ type InsertCourseInstanceIfAbsentParams struct {
 	ProgrammeID       uuid.UUID
 	Track             string
 	ProgrammeSemester *int32
+	Note              string
 	CreatedBy         uuid.NullUUID
 }
 
@@ -852,6 +861,7 @@ func (q *Queries) InsertCourseInstanceIfAbsent(ctx context.Context, arg InsertCo
 		arg.ProgrammeID,
 		arg.Track,
 		arg.ProgrammeSemester,
+		arg.Note,
 		arg.CreatedBy,
 	)
 	var id uuid.UUID
@@ -981,7 +991,7 @@ func (q *Queries) InstancePartsOfKindExist(ctx context.Context, arg InstancePart
 const listCourseInstances = `-- name: ListCourseInstances :many
 
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
-       ci.created_at, ci.updated_at,
+       ci.note, ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
        ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
@@ -1012,6 +1022,7 @@ type ListCourseInstancesRow struct {
 	ProgrammeID                uuid.UUID
 	Track                      string
 	ProgrammeSemester          *int32
+	Note                       string
 	CreatedAt                  time.Time
 	UpdatedAt                  time.Time
 	SemesterCode               string
@@ -1065,6 +1076,7 @@ func (q *Queries) ListCourseInstances(ctx context.Context, arg ListCourseInstanc
 			&i.ProgrammeID,
 			&i.Track,
 			&i.ProgrammeSemester,
+			&i.Note,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.SemesterCode,
@@ -1513,6 +1525,29 @@ type UpdateCourseInstanceParams struct {
 // one that was declared.
 func (q *Queries) UpdateCourseInstance(ctx context.Context, arg UpdateCourseInstanceParams) error {
 	_, err := q.db.Exec(ctx, updateCourseInstance, arg.ID, arg.Track, arg.ProgrammeSemester)
+	return err
+}
+
+const updateCourseInstanceNote = `-- name: UpdateCourseInstanceNote :exec
+UPDATE course_instance
+SET note = $2,
+    updated_at = now()
+WHERE id = $1
+`
+
+type UpdateCourseInstanceNoteParams struct {
+	ID   uuid.UUID
+	Note string
+}
+
+// The note beside a row, on its own rather than as a third column of UpdateCourseInstance.
+//
+// Renaming a cohort and duplicating one both go through UpdateCourseInstance and have no note to
+// state; a statement that took one would make each of them restate what is there, and the one
+// that forgot would blank it. The planning table writes the note where it writes the cohort year,
+// and that is the only writer.
+func (q *Queries) UpdateCourseInstanceNote(ctx context.Context, arg UpdateCourseInstanceNoteParams) error {
+	_, err := q.db.Exec(ctx, updateCourseInstanceNote, arg.ID, arg.Note)
 	return err
 }
 

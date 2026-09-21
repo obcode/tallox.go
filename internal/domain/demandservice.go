@@ -5,6 +5,7 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 
@@ -18,6 +19,8 @@ var (
 	ErrProgrammeNotFound = errors.New("diesen Studiengang gibt es nicht")
 	// ErrProgrammeSemesterInvalid is a cohort year outside what a degree has.
 	ErrProgrammeSemesterInvalid = errors.New("das Fachsemester muss zwischen 1 und 12 liegen")
+	// ErrNoteTooLong is a note past what a sentence beside a row can be.
+	ErrNoteTooLong = errors.New("die Notiz darf höchstens 2000 Zeichen lang sein")
 	// ErrDuplicateEntry is the same module, or the same cohort of one, twice in one plan.
 	ErrDuplicateEntry = errors.New("jedes Modul und jeder Zug darf nur einmal vorkommen")
 	// ErrTooManyTracks is more parallel cohorts than the alphabet the interface offers.
@@ -110,6 +113,8 @@ type DeclareInstance struct {
 	Track string
 	// ProgrammeSemester is the cohort year, or nil to take what the programme's regulations say.
 	ProgrammeSemester *int
+	// Note is the sentence beside the row, empty for none.
+	Note string
 }
 
 // Declare records that a study programme needs this module in this semester, for this cohort.
@@ -146,6 +151,10 @@ func (s *DemandService) Declare(ctx context.Context, actor principal.Actor, spec
 	if err := validProgrammeSemester(spec.ProgrammeSemester); err != nil {
 		return nil, err
 	}
+	note, err := normaliseNote(spec.Note)
+	if err != nil {
+		return nil, err
+	}
 
 	recorded, err := s.semesters.ensure(ctx, semester.Code)
 	if err != nil {
@@ -158,6 +167,7 @@ func (s *DemandService) Declare(ctx context.Context, actor principal.Actor, spec
 		ProgrammeID:       programme.ID,
 		Track:             track,
 		ProgrammeSemester: spec.ProgrammeSemester,
+		Note:              note,
 		CreatedBy:         actor.ID,
 	})
 }
@@ -587,6 +597,13 @@ func normaliseEntries(entries []DemandEntry) ([]DemandEntry, error) {
 		if err := validProgrammeSemester(entry.ProgrammeSemester); err != nil {
 			return nil, err
 		}
+		if entry.Note != nil {
+			note, err := normaliseNote(*entry.Note)
+			if err != nil {
+				return nil, err
+			}
+			entry.Note = &note
+		}
 
 		seenTrack := make(map[string]bool, len(entry.Tracks))
 		tracks := make([]DemandTrack, 0, len(entry.Tracks))
@@ -708,6 +725,22 @@ func validProgrammeSemester(n *int) error {
 		return ErrProgrammeSemesterInvalid
 	}
 	return nil
+}
+
+// MaxNoteLength bounds the note beside a row. The database CHECK says the same number; this is
+// the one a person is told.
+const MaxNoteLength = 2000
+
+// normaliseNote trims the note and refuses one that would not fit the column.
+//
+// Trimmed here rather than left to the caller, because the interface sends whatever is in the
+// field, and a field somebody cleared with a trailing space is a cleared field.
+func normaliseNote(note string) (string, error) {
+	note = strings.TrimSpace(note)
+	if utf8.RuneCountInString(note) > MaxNoteLength {
+		return "", ErrNoteTooLong
+	}
+	return note, nil
 }
 
 // validPart is the shape of a part, not its meaning.

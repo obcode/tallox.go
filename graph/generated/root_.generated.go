@@ -3788,9 +3788,15 @@ extend type Mutation {
 # WHO MAY FILL ONE
 #
 # The lead of the module's subject group, the lead of the instance's study programme, or the
-# dean's office — a union of the two axes, not an intersection. Only from the assignment phase
-# onwards: filling an instance while the wish phase runs is the race the confidentiality rule
-# exists to end. ` + "`" + `internal/policy/testdata/write_matrix.golden` + "`" + ` has the phases.
+# dean's office — a union of the two axes, not an intersection.
+#
+# From the beginning, and shut only by ` + "`" + `FINAL` + "`" + `. It was the other way round for one day: filling
+# an instance while the wish round ran looked like the first-come-first-served race the
+# confidentiality rule exists to end. The faculty's answer was that the wish round belongs to the
+# **subject group**, not to the faculty — its lead opens and shuts it and is the same person who
+# fills afterwards, so a tool that ordered those two steps for her would be ordering the work of
+# somebody who can see all of it. What actually opens and shuts is ` + "`" + `wishWindow` + "`" + `, one mark per
+# subject group. ` + "`" + `internal/policy/testdata/write_matrix.golden` + "`" + ` has the phases.
 #
 # WRITING IS BROWSER-ONLY
 #
@@ -3969,7 +3975,7 @@ extend type Mutation {
   cannot take a decision away from somebody who has. Since the lead of the module's subject group
   and the lead of the instance's study programme may both write this row, that is not a formality.
 
-  Refusals: ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + ` before the assignment phase, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + ` when you are
+  Refusals: ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + ` once the semester is ` + "`" + `FINAL` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + ` when you are
   responsible for neither the subject nor the programme, ` + "`" + `PART_ALREADY_ASSIGNED` + "`" + ` when you believed
   a part was free and it is not, ` + "`" + `ASSIGNMENT_MOVED_ON` + "`" + ` when the assignment you named is no longer
   the one there, ` + "`" + `ASSIGNEE_INVALID` + "`" + ` for neither or both ids, ` + "`" + `ASSIGNEE_NOT_FOUND` + "`" + ` for one that

@@ -25,9 +25,20 @@ var (
 	// repair, for a caller that wants to show one.
 	ErrNotYourSubject = errors.New("für diese Instanz sind Sie nicht zuständig")
 
-	// ErrAssignmentPhaseClosed is the phase half saying no, and it says "not yet" rather than
-	// "no longer" — this is the one write area that closes before its phase instead of after it.
-	ErrAssignmentPhaseClosed = errors.New("in dieser Phase kann noch nicht zugeteilt werden")
+	// ErrAssignmentPhaseClosed is the phase half saying no.
+	//
+	// It said "not yet" until the planning marks arrived (migration 18). The assignment was the
+	// one write area that closed *before* its phase, on the argument that filling an instance
+	// during the wish round is the first-come-first-served race the confidentiality rule exists
+	// to end. The faculty answered that the wish round belongs to the subject group, whose lead
+	// opens and shuts it and is the same person who fills afterwards — so the assignment is now
+	// open from the start and shut only by FINAL.
+	//
+	// Which makes this the opposite sentence: the only phase that produces it is the one after
+	// which nothing is written at all. "Noch nicht" sent somebody to wait for a phase that had
+	// already gone past.
+	ErrAssignmentPhaseClosed = errors.New(
+		"dieses Semester ist abgeschlossen — es lässt sich nichts mehr zuteilen")
 
 	// ErrPartAlreadyAssigned is what a caller is told who believed a part was free.
 	//

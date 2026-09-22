@@ -2,6 +2,7 @@ package bootstrap_test
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -701,6 +702,257 @@ func TestASubjectGroupSaysWhichModulesItHolds(t *testing.T) {
 		if m.HomeProgrammeCode == "" {
 			t.Errorf("the module %q carries no home programme — which is what tells two "+
 				"similarly named ones apart across programmes", m.Name)
+		}
+	}
+}
+
+// makeLead grants the subject group leadership of one group, as an administrator.
+func (f subjectGroupFixture) makeLead(t *testing.T, group string, who testdata.Persona) {
+	t.Helper()
+
+	var out struct {
+		SetSubjectGroupLeads struct{ ID string }
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).MustQuery(t,
+		`mutation($g: ID!, $p: [ID!]!) { setSubjectGroupLeads(id: $g, personIds: $p) { id } }`,
+		map[string]any{"g": group, "p": []string{who.ID().String()}}, &out)
+}
+
+// waitingModules are the modules no subject group holds yet — October's work list.
+func (f subjectGroupFixture) waitingModules(t *testing.T, n int) []string {
+	t.Helper()
+
+	var out struct {
+		Modules []struct{ ID string }
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).MustQuery(t,
+		`query { modules(filter: { withoutSubjectGroup: true }) { id } }`, nil, &out)
+	if len(out.Modules) < n {
+		t.Fatalf("only %d modules are waiting for a subject group, need %d", len(out.Modules), n)
+	}
+
+	ids := make([]string, 0, n)
+	for _, m := range out.Modules[:n] {
+		ids = append(ids, m.ID)
+	}
+	return ids
+}
+
+const fileModulesMutation = `mutation($m: [ID!]!, $g: ID) {
+	setModulesSubjectGroup(moduleIds: $m, subjectGroup: $g) {
+		modulesAssigned subjectGroup { code moduleCount }
+	}
+}`
+
+// The act the faculty asked for, end to end: a subject group lead files an unsorted module into
+// her own group, without an administrator in the loop.
+//
+// The case behind it is a study programme lead creating a local module a week before the wish
+// round. It arrives in no subject group, a module in no group reaches no lead at all, and until
+// now only an administrator could sort it out.
+func TestASubjectGroupLeadFilesModulesIntoTheirOwnGroup(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+	)
+	maths := f.create(t, "MATHE", "Mathematik")
+	f.makeLead(t, maths, testdata.Drei)
+
+	modules := f.waitingModules(t, 2)
+
+	var report struct {
+		SetModulesSubjectGroup struct {
+			ModulesAssigned int
+			SubjectGroup    struct {
+				Code        string
+				ModuleCount int
+			}
+		}
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).
+		MustQuery(t, fileModulesMutation, map[string]any{"m": modules, "g": maths}, &report)
+
+	if got := report.SetModulesSubjectGroup.ModulesAssigned; got != 2 {
+		t.Errorf("the lead filed %d modules into her own group, want 2", got)
+	}
+	if got := report.SetModulesSubjectGroup.SubjectGroup.ModuleCount; got != 2 {
+		t.Errorf("the group counts %d modules, want 2", got)
+	}
+
+	// And back out again: a list that may be added to but not corrected is worse than a closed
+	// one, and letting go of a module is never an act against anybody.
+	var cleared struct {
+		SetModulesSubjectGroup struct{ ModulesAssigned int }
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).
+		MustQuery(t, fileModulesMutation, map[string]any{"m": modules[:1], "g": nil}, &cleared)
+
+	if got := cleared.SetModulesSubjectGroup.ModulesAssigned; got != 1 {
+		t.Errorf("the lead took %d modules back out, want 1", got)
+	}
+}
+
+// The half that makes filing safe to hand out: both ends of a move have to be in reach.
+//
+// Checking only where a module is going would make "move this into mine" a unilateral act
+// against the group it came from — the one thing a lead must not be able to do to a colleague.
+func TestASubjectGroupLeadCannotFileAcrossAnotherGroup(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+	)
+	maths := f.create(t, "MATHE", "Mathematik")
+	software := f.create(t, "SWE", "Softwarefächer")
+	f.makeLead(t, maths, testdata.Drei)
+
+	modules := f.waitingModules(t, 2)
+
+	// The administrator files one module under the group the lead does not lead.
+	var seeded struct {
+		SetModulesSubjectGroup struct{ ModulesAssigned int }
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).
+		MustQuery(t, fileModulesMutation, map[string]any{"m": modules[:1], "g": software}, &seeded)
+
+	c := graphqltest.New(f.handler).AsUser(testdata.Drei.Mail)
+
+	// Taking it out of the colleague's group and into her own.
+	messages := c.MustFail(t, fileModulesMutation,
+		map[string]any{"m": modules[:1], "g": maths})
+	if len(messages) == 0 {
+		t.Error("the lead of mathematics took a module out of the software group")
+	}
+
+	// And the other direction: pushing one of hers into the colleague's group.
+	graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).
+		MustQuery(t, fileModulesMutation, map[string]any{"m": modules[1:], "g": maths}, &seeded)
+
+	messages = c.MustFail(t, fileModulesMutation,
+		map[string]any{"m": modules[1:], "g": software})
+	if len(messages) == 0 {
+		t.Error("the lead of mathematics pushed a module into the software group")
+	}
+}
+
+// Whole batch or nothing.
+//
+// The report counts rows and has no grain for "these three not", so a partial success would say
+// seven of ten were written without saying which three were left. The module that was allowed
+// has to be untouched afterwards — otherwise the refusal is a lie about what happened.
+func TestFilingRefusesTheWholeBatchWhenItReachesOutside(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+	)
+	maths := f.create(t, "MATHE", "Mathematik")
+	software := f.create(t, "SWE", "Softwarefächer")
+	f.makeLead(t, maths, testdata.Drei)
+
+	modules := f.waitingModules(t, 2)
+
+	var seeded struct {
+		SetModulesSubjectGroup struct{ ModulesAssigned int }
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).
+		MustQuery(t, fileModulesMutation, map[string]any{"m": modules[1:], "g": software}, &seeded)
+
+	// One unsorted module she may have, one filed under a group she may not touch.
+	messages := graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).
+		MustFail(t, fileModulesMutation, map[string]any{"m": modules, "g": maths})
+	if len(messages) == 0 {
+		t.Fatal("a batch reaching into another group was accepted")
+	}
+
+	var after struct {
+		SubjectGroups []struct {
+			Code        string
+			ModuleCount int
+		}
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).MustQuery(t,
+		`query { subjectGroups { code moduleCount } }`, nil, &after)
+
+	for _, g := range after.SubjectGroups {
+		if g.Code == "MATHE" && g.ModuleCount != 0 {
+			t.Errorf("the refused batch still wrote %d modules into MATHE — it is not all or "+
+				"nothing, and the report said nothing was written", g.ModuleCount)
+		}
+	}
+}
+
+// A lead with no subject group assigned may file nothing, and is told what is missing.
+//
+// The reading that is wrong everywhere else in this system: an empty scope here is the empty
+// permission, not the unrestricted one. And the sentence matters — a refusal would send her to
+// ask for a role she already holds.
+func TestAnUnscopedSubjectGroupLeadFilesNothing(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+	)
+	maths := f.create(t, "MATHE", "Mathematik")
+	modules := f.waitingModules(t, 1)
+
+	messages := graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).
+		MustFail(t, fileModulesMutation, map[string]any{"m": modules, "g": maths})
+	if len(messages) == 0 {
+		t.Fatal("a subject group lead with no group assigned filed a module")
+	}
+
+	joined := strings.Join(messages, " ")
+	if !strings.Contains(joined, "noch keiner Fachgruppe zugeordnet") {
+		t.Errorf("an unscoped lead is told %q — it should say what is missing rather than that "+
+			"she may not, which sends her to ask for a role she holds", joined)
+	}
+}
+
+// A lecturer files nothing, through either door.
+func TestFilingModulesNeedsMoreThanAnAccount(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Zwei, []string{"LECTURER"}},
+	)
+	maths := f.create(t, "MATHE", "Mathematik")
+	modules := f.waitingModules(t, 1)
+
+	graphqltest.EachDoor(t, f.handler, testdata.Zwei.Mail, testdata.Zwei.Token, func(t *testing.T, c *graphqltest.Client) {
+		if messages := c.MustFail(t, fileModulesMutation,
+			map[string]any{"m": modules, "g": maths}); len(messages) == 0 {
+			t.Error("a lecturer filed a module into a subject group")
+		}
+	})
+}
+
+// Filing stays interactive-only, for everybody.
+//
+// Re-filing a module moves who may read the unpublished wishes on its instances. A long-lived
+// token in a script that could do that would decouple "who changed who sees what" from any
+// login event — so the token door is shut here even for the lead who may do it in a browser.
+func TestFilingModulesIsRefusedThroughTheTokenDoor(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+	)
+	maths := f.create(t, "MATHE", "Mathematik")
+	f.makeLead(t, maths, testdata.Drei)
+	modules := f.waitingModules(t, 1)
+
+	for _, who := range []testdata.Persona{testdata.Drei, testdata.Sechs} {
+		if messages := graphqltest.New(f.handler).WithToken(who.Token).
+			MustFail(t, fileModulesMutation, map[string]any{"m": modules, "g": maths}); len(messages) == 0 {
+			t.Errorf("%s filed a module through the token door", who.Name)
 		}
 	}
 }

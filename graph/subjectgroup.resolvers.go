@@ -7,10 +7,13 @@ package graph
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/obcode/tallox.go/graph/generated"
 	"github.com/obcode/tallox.go/graph/model"
+	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/policy"
 	"github.com/obcode/tallox.go/internal/principal"
 )
 
@@ -71,6 +74,11 @@ func (r *mutationResolver) SetModulesSubjectGroup(ctx context.Context, moduleIds
 
 	written, err := r.SubjectGroups.AssignModules(ctx, actor, modules, group)
 	if err != nil {
+		// A lead with no subject group assigned is told what is missing rather than that she
+		// may not — the refusal she would otherwise read sends her to ask for a role she holds.
+		if errors.Is(err, domain.ErrNotAllowedToFileModules) {
+			return nil, refusal("NOT_YOUR_SUBJECT_GROUP", policy.ModuleFilingRefusal(actor))
+		}
 		return nil, subjectGroupError(err)
 	}
 

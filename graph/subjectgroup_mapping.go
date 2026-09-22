@@ -56,6 +56,15 @@ func subjectGroupError(err error) error {
 		return refusal("SUBJECT_GROUP_CODE_INVALID", err.Error())
 	case errors.Is(err, domain.ErrSubjectGroupNameBlank):
 		return refusal("SUBJECT_GROUP_NAME_BLANK", err.Error())
+	case errors.Is(err, domain.ErrNotYourSubjectGroup),
+		errors.Is(err, domain.ErrNotAllowedToFileModules),
+		errors.Is(err, domain.ErrModuleFiledElsewhere):
+		// One code for the three ways filing can be refused, because the interface does the
+		// same thing with all of them: show the sentence. They are separate errors so that the
+		// sentence can differ — "not your group", "you lead none", "that module is somebody
+		// else's" have three different repairs — and one code because a client branching on
+		// which of them it was would be branching on somebody else's subject group.
+		return refusal("NOT_YOUR_SUBJECT_GROUP", err.Error())
 	case errors.Is(err, domain.ErrNotASubjectGroupLead):
 		// The repair is a role grant, not a different group, so it gets its own code — an
 		// administrator who reads "that group does not exist" would go looking for the group.

@@ -132,6 +132,27 @@ SET subject_group_id = EXCLUDED.subject_group_id,
 DELETE FROM module_subject_group
 WHERE module_id = ANY (sqlc.arg(module_ids)::uuid[]);
 
+-- name: CountModulesFiledOutsideGroups :one
+-- How many of these modules are currently filed under a group that is not in the given list.
+--
+-- The filter half of policy.MayFileModule, and the reason it is a query rather than a loop in
+-- Go: filing is the one act that touches two subject groups, and the second one — where the
+-- module is *today* — is a column. Reading the rows first and deciding afterwards would rest
+-- the decision on a state from before the write; asked here, inside the same transaction, it
+-- cannot.
+--
+-- A module with no row at all is not counted, and that is the rule rather than an omission: a
+-- module nobody has sorted yet may be pulled in by whoever wants it. Same for a module that
+-- does not exist — the foreign key on the write refuses that one, and it says so about the
+-- thing somebody chose rather than about a list the screen just rendered.
+--
+-- Callers with an unrestricted reach do not ask. Passing every group that exists would be a
+-- snapshot, and a group created between the two statements would fall outside it.
+SELECT count(*)::int
+FROM module_subject_group
+WHERE module_id = ANY (sqlc.arg(module_ids)::uuid[])
+  AND subject_group_id <> ALL (sqlc.arg(allowed_groups)::uuid[]);
+
 -- name: ModulesWithoutSubjectGroup :one
 -- The work list as a number: "37 modules still have no subject group".
 --

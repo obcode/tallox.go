@@ -39,6 +39,26 @@ var (
 	// assignments with it.
 	ErrSubjectGroupInUse = errors.New(
 		"dieser Fachgruppe sind noch Module zugeordnet — bitte erst umhängen")
+	// ErrNotAllowedToFileModules is somebody who leads no subject group at all trying to file.
+	//
+	// Separate from ErrModuleFiledElsewhere so that the resolver can offer the sentence that
+	// fits: a lead with no group assigned is waiting for an administrator, not being refused,
+	// and policy.ModuleFilingRefusal is what picks between the two.
+	ErrNotAllowedToFileModules = errors.New(
+		"Module einer Fachgruppe zuzuordnen ist der Leitung dieser Fachgruppe und der " +
+			"Administration vorbehalten")
+	// ErrModuleFiledElsewhere is filing a module that currently sits in a group the caller
+	// does not lead.
+	//
+	// Its own error rather than ErrNotYourSubjectGroup, which is about the group somebody is
+	// acting *on*. This one is about the group the module is coming *from*, and that is the
+	// half a caller does not see coming: she picked her own group as the target and was still
+	// refused. The sentence therefore names both ends. Which module was the problem is
+	// deliberately not said — it would be a statement about a colleague's group made to
+	// somebody who may not act in it.
+	ErrModuleFiledElsewhere = errors.New(
+		"Module lassen sich nur in eine Fachgruppe einsortieren, die Sie leiten — und nur, " +
+			"solange sie in keiner anderen Fachgruppe stehen")
 	// ErrNotASubjectGroupLead is assigning a group to somebody who does not hold the role.
 	//
 	// The composite foreign key refuses it anyway; this turns the refusal into a sentence about
@@ -105,8 +125,12 @@ type SubjectGroupStore interface {
 	SetSubjectGroupActive(ctx context.Context, id uuid.UUID, active bool) (*SubjectGroup, error)
 	// SetModulesSubjectGroup assigns a batch of modules to one group, or — with the nil group —
 	// clears their assignment.
+	//
+	// scope carries the groups the caller may move modules across, so that the half of the rule
+	// about where each module is filed *today* runs in the same transaction as the write. It
+	// answers ErrModuleFiledElsewhere when the batch reaches outside it.
 	SetModulesSubjectGroup(ctx context.Context, moduleIDs []uuid.UUID, group uuid.NullUUID,
-		assignedBy uuid.UUID) (int, error)
+		assignedBy uuid.UUID, scope policy.SubjectGroupScope) (int, error)
 	// SetSubjectGroupMembers replaces the members of one group.
 	SetSubjectGroupMembers(ctx context.Context, groupID uuid.UUID, people []uuid.UUID,
 		grantedBy uuid.UUID) error
@@ -211,13 +235,23 @@ func (s *SubjectGroupService) SetActive(ctx context.Context, actor principal.Act
 // reason CopyDemandReport reports its zeroes.
 func (s *SubjectGroupService) AssignModules(ctx context.Context, actor principal.Actor,
 	moduleIDs []uuid.UUID, group uuid.NullUUID) (int, error) {
-	if !policy.MayAdministerPeople(actor) {
-		return 0, ErrNotAdministrator
+	scope := policy.FilingScope(actor)
+	if scope.Empty() {
+		return 0, ErrNotAllowedToFileModules
+	}
+	// The target, decided here because it is one value. Nil is "out of every group", which is
+	// always within reach: letting go of a module is not an act against anybody.
+	if group.Valid && !scope.Allows(group.UUID) {
+		return 0, ErrNotYourSubjectGroup
 	}
 	if len(moduleIDs) == 0 {
 		return 0, nil
 	}
-	return s.store.SetModulesSubjectGroup(ctx, moduleIDs, group, actor.ID)
+	// The other end — where each module is filed today — is a column, so it travels as a scope
+	// and is decided inside the writing transaction. policy.MayFileModule is the same rule in
+	// the form that answers for a single module, and TestFilingGuardAndScopeAgree holds the two
+	// together.
+	return s.store.SetModulesSubjectGroup(ctx, moduleIDs, group, actor.ID, scope)
 }
 
 // SetMembers replaces the members of one group.

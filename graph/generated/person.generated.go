@@ -195,6 +195,38 @@ func (ec *executionContext) fieldContext_Person_programmes(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Person_subjectGroupsLed(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Person_subjectGroupsLed(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SubjectGroupsLed, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.SubjectGroup) graphql.Marshaler {
+			return ec.marshalNSubjectGroup2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Person_subjectGroupsLed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Person",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SubjectGroup(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
@@ -251,6 +283,11 @@ func (ec *executionContext) _Person(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "programmes":
 			out.Values[i] = ec._Person_programmes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subjectGroupsLed":
+			out.Values[i] = ec._Person_subjectGroupsLed(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

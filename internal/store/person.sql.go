@@ -676,6 +676,61 @@ func (q *Queries) SetPersonName(ctx context.Context, arg SetPersonNameParams) er
 	return err
 }
 
+const subjectGroupScopesFor = `-- name: SubjectGroupScopesFor :many
+SELECT s.person_id, s.role, g.id AS subject_group_id, g.code, g.name, g.active
+FROM person_subject_group_scope s
+JOIN subject_group g ON g.id = s.subject_group_id
+JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+WHERE s.person_id = ANY ($1::uuid[])
+  AND (r.expires_at IS NULL OR r.expires_at > now())
+ORDER BY s.person_id, g.code
+`
+
+type SubjectGroupScopesForRow struct {
+	PersonID       uuid.UUID
+	Role           string
+	SubjectGroupID uuid.UUID
+	Code           string
+	Name           string
+	Active         bool
+}
+
+// Which subject groups a set of people lead.
+//
+// The counterpart of ProgrammeScopesFor, one table over and with the same expiry filter: a
+// grant the database considers over carries no subject groups. The composite foreign key covers
+// a revoked grant, and this covers one that merely ran out.
+//
+// Retired groups are kept. This answers "what is this person responsible for", and a leadership
+// nobody has revoked is still a leadership — unlike SubjectGroupsOfPerson, which answers "which
+// subjects does this person work in" and where a wound-up group is noise.
+func (q *Queries) SubjectGroupScopesFor(ctx context.Context, personIds []uuid.UUID) ([]SubjectGroupScopesForRow, error) {
+	rows, err := q.db.Query(ctx, subjectGroupScopesFor, personIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SubjectGroupScopesForRow{}
+	for rows.Next() {
+		var i SubjectGroupScopesForRow
+		if err := rows.Scan(
+			&i.PersonID,
+			&i.Role,
+			&i.SubjectGroupID,
+			&i.Code,
+			&i.Name,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const teacherAccountByID = `-- name: TeacherAccountByID :one
 SELECT
     t.id AS teacher_id,

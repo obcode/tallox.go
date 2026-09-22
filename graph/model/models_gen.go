@@ -792,6 +792,19 @@ type Person struct {
 	// Readable through both doors, like `roles`: which programmes you may plan is the first thing a
 	// script needs to know, and on `me` it is your own data.
 	Programmes []*Programme `json:"programmes"`
+	// The subject groups this person's subject-group leadership applies to.
+	//
+	// The same shape as `programmes` one field up, and the same two readings of an empty list: empty
+	// for everybody who leads none, and empty for a lead nobody has assigned a group to yet — which
+	// is a state with consequences rather than a gap, because such a lead may fill nothing, read no
+	// unpublished wishes and file no modules.
+	//
+	// And empty, for the third time, for the dean's office: it reaches every subject group,
+	// including ones that do not exist yet, so there is no list to give. An empty list here is
+	// therefore **not** "no subject groups" on its own — it has to be read together with `roles`.
+	//
+	// Readable through both doors, like `roles` and `programmes`: on `me` it is your own data.
+	SubjectGroupsLed []*SubjectGroup `json:"subjectGroupsLed"`
 }
 
 // A Personal Access Token, as its owner sees it.

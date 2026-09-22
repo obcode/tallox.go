@@ -956,3 +956,128 @@ func TestFilingModulesIsRefusedThroughTheTokenDoor(t *testing.T) {
 		}
 	}
 }
+
+// `me` answers which subject groups you lead, through both doors.
+//
+// The counterpart of Person.programmes, and what the interface needs to answer "which roles do
+// I have" — a question that had no screen at all until this field existed.
+func TestMeNamesTheSubjectGroupsYouLead(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+	)
+	maths := f.create(t, "MATHE", "Mathematik")
+	f.create(t, "SWE", "Softwarefächer")
+	f.makeLead(t, maths, testdata.Drei)
+
+	graphqltest.EachDoor(t, f.handler, testdata.Drei.Mail, testdata.Drei.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var got struct {
+				Me struct {
+					SubjectGroupsLed []struct{ Code string }
+				}
+			}
+			c.MustQuery(t, `{ me { subjectGroupsLed { code } } }`, nil, &got)
+
+			if len(got.Me.SubjectGroupsLed) != 1 || got.Me.SubjectGroupsLed[0].Code != "MATHE" {
+				t.Errorf("got %+v, want just MATHE — the field names the groups the grant "+
+					"applies to, not every group there is", got.Me.SubjectGroupsLed)
+			}
+		})
+}
+
+// The empty answer that means two opposite things.
+//
+// For a lead it is "assigned to none, and may therefore do nothing"; for the dean's office it
+// is "all of them, including ones that do not exist yet". Whoever renders this has to read the
+// roles beside it, which is exactly why the schema says so and why this test pins both.
+func TestSubjectGroupsLedIsEmptyForBothEndsOfTheScale(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+		grants{testdata.Vier, []string{"LECTURER", "DEANS_OFFICE"}},
+	)
+	f.create(t, "MATHE", "Mathematik")
+
+	for _, who := range []struct {
+		what string
+		who  testdata.Persona
+	}{
+		{"an unassigned subject group lead", testdata.Drei},
+		{"the dean's office", testdata.Vier},
+	} {
+		var got struct {
+			Me struct {
+				SubjectGroupsLed []struct{ Code string }
+			}
+		}
+		graphqltest.New(f.handler).AsUser(who.who.Mail).
+			MustQuery(t, `{ me { subjectGroupsLed { code } } }`, nil, &got)
+
+		if len(got.Me.SubjectGroupsLed) != 0 {
+			t.Errorf("%s: got %+v, want an empty list", who.what, got.Me.SubjectGroupsLed)
+		}
+	}
+}
+
+// The diagnosis says which subject groups somebody leads.
+//
+// It was built from the study programmes alone, so it reported that a correctly assigned
+// subject group lead may act in no subject group — the answer it exists to tell apart from the
+// real one.
+func TestTheAccessDiagnosisCoversSubjectGroups(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+	)
+	maths := f.create(t, "MATHE", "Mathematik")
+
+	diagnosis := func(t *testing.T) (bool, string) {
+		t.Helper()
+		var got struct {
+			DiagnoseAccess struct {
+				Decisions []struct {
+					Rule    string
+					Allowed bool
+					Reason  string
+				}
+			}
+		}
+		graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).MustQuery(t,
+			`query($m: String!) { diagnoseAccess(mail: $m) { decisions { rule allowed reason } } }`,
+			map[string]any{"m": testdata.Drei.Mail}, &got)
+
+		for _, d := range got.DiagnoseAccess.Decisions {
+			if d.Rule == "policy.AssignmentScope" {
+				return d.Allowed, d.Reason
+			}
+		}
+		t.Fatal("the diagnosis has no line about subject groups at all")
+		return false, ""
+	}
+
+	allowed, reason := diagnosis(t)
+	if allowed {
+		t.Error("a lead with no subject group is diagnosed as allowed")
+	}
+	if !strings.Contains(reason, "keiner Fachgruppe zugeordnet") {
+		t.Errorf("the diagnosis says %q — it should name what is missing, which is the whole "+
+			"support question this field answers", reason)
+	}
+
+	f.makeLead(t, maths, testdata.Drei)
+
+	allowed, reason = diagnosis(t)
+	if !allowed {
+		t.Error("a lead assigned to a group is still diagnosed as not allowed")
+	}
+	if !strings.Contains(reason, "MATHE") {
+		t.Errorf("the diagnosis says %q, without naming the group she leads", reason)
+	}
+}

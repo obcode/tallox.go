@@ -120,6 +120,12 @@ type Person struct {
 	// a state with consequences rather than a gap: an unassigned lead may plan nothing, and
 	// telling them that is different from telling them they are not allowed.
 	Programmes []Programme
+	// SubjectGroupsLed are the subject groups this person's SUBJECT_GROUP_LEAD grant applies to.
+	//
+	// The same shape as Programmes and with the same reading of an empty list: empty for
+	// everybody else, and empty for a lead nobody has assigned a group to yet — who may fill
+	// nothing, read no unpublished wishes and file no modules.
+	SubjectGroupsLed []SubjectGroup
 }
 
 // TeacherAccount is somebody the examination office publishes, together with the account they

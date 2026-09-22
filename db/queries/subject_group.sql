@@ -45,6 +45,25 @@ JOIN subject_group g ON g.id = s.subject_group_id
 WHERE s.person_id = $1 AND g.active
 ORDER BY g.code;
 
+-- name: SubjectGroupsByIDs :many
+-- A handful of subject groups by id.
+--
+-- For `me`, which has to turn the subject group ids an actor carries into codes a person reads
+-- — the counterpart of ProgrammesByIDs, and the same argument: the full list would be three
+-- statements for a field that renders a handful of names.
+--
+-- Retired groups are kept, unlike SubjectGroupsOfPerson. That query answers "which subjects am
+-- I working in", where a wound-up group is noise; this one answers "what have I been made
+-- responsible for", and a leadership nobody has revoked is still a leadership. Hiding it would
+-- be a screen that says she leads nothing while the grant says otherwise.
+SELECT
+    g.id, g.code, g.name, g.active, g.created_at, g.updated_at,
+    (SELECT count(*) FROM module_subject_group m WHERE m.subject_group_id = g.id)::int
+        AS module_count
+FROM subject_group g
+WHERE g.id = ANY (sqlc.arg(ids)::uuid[])
+ORDER BY g.code;
+
 -- name: SubjectGroupLeadsFor :many
 -- Who leads each of these groups.
 --

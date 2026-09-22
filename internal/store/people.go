@@ -62,7 +62,7 @@ func (p *People) ListPeople(ctx context.Context, search string,
 	// One statement for the whole list rather than one per row: the administration screen shows
 	// which programmes each lead is assigned to, and a query per person would make that screen
 	// cost a round trip per colleague.
-	if err := p.attachProgrammes(ctx, pointersTo(people)); err != nil {
+	if err := p.attachScopes(ctx, pointersTo(people)); err != nil {
 		return nil, err
 	}
 	return people, nil
@@ -78,18 +78,69 @@ func pointersTo(people []domain.Person) []*domain.Person {
 	return out
 }
 
-// attachProgrammes fills in the study programmes each person's leadership applies to.
+// attachScopes fills in both things a person's scoped grants name: the study programmes their
+// study-programme leadership applies to, and the subject groups their subject-group leadership
+// does.
 //
-// Pointers rather than a value slice, because two of the four callers hold one person and a
-// third holds people reached through a teacher — writing back by index would mean a different
-// copy-out dance at each of them, and one of those dances would eventually be wrong.
-func (p *People) attachProgrammes(ctx context.Context, people []*domain.Person) error {
+// One entry point rather than two calls at each of the four sites. The two halves are read
+// separately because they are separate tables, but they are attached together — a caller that
+// remembered one and forgot the other would render a person who leads nothing, which is a
+// statement about their permissions and not a missing field.
+func (p *People) attachScopes(ctx context.Context, people []*domain.Person) error {
+	if err := p.attachProgrammes(ctx, people); err != nil {
+		return err
+	}
+	return p.attachSubjectGroupsLed(ctx, people)
+}
+
+// attachSubjectGroupsLed fills in the subject groups each person's leadership applies to.
+func (p *People) attachSubjectGroupsLed(ctx context.Context, people []*domain.Person) error {
+	ids := scopeSubjects(people)
+	if len(ids) == 0 {
+		return nil
+	}
+
+	rows, err := New(p.pool).SubjectGroupScopesFor(ctx, ids)
+	if err != nil {
+		return fmt.Errorf("cannot read the subject group assignments: %w", err)
+	}
+
+	byPerson := make(map[uuid.UUID][]domain.SubjectGroup, len(ids))
+	for _, row := range rows {
+		byPerson[row.PersonID] = append(byPerson[row.PersonID], domain.SubjectGroup{
+			ID:     row.SubjectGroupID,
+			Code:   row.Code,
+			Name:   row.Name,
+			Active: row.Active,
+		})
+	}
+
+	for _, person := range people {
+		if person != nil {
+			person.SubjectGroupsLed = byPerson[person.ID]
+		}
+	}
+	return nil
+}
+
+// scopeSubjects is the ids of the people worth asking about, skipping the nils.
+func scopeSubjects(people []*domain.Person) []uuid.UUID {
 	ids := make([]uuid.UUID, 0, len(people))
 	for _, person := range people {
 		if person != nil {
 			ids = append(ids, person.ID)
 		}
 	}
+	return ids
+}
+
+// attachProgrammes fills in the study programmes each person's leadership applies to.
+//
+// Pointers rather than a value slice, because two of the four callers hold one person and a
+// third holds people reached through a teacher — writing back by index would mean a different
+// copy-out dance at each of them, and one of those dances would eventually be wrong.
+func (p *People) attachProgrammes(ctx context.Context, people []*domain.Person) error {
+	ids := scopeSubjects(people)
 	if len(ids) == 0 {
 		return nil
 	}
@@ -142,7 +193,7 @@ func (p *People) TeacherAccounts(ctx context.Context) ([]domain.TeacherAccount, 
 			people = append(people, accounts[i].Person)
 		}
 	}
-	if err := p.attachProgrammes(ctx, people); err != nil {
+	if err := p.attachScopes(ctx, people); err != nil {
 		return nil, err
 	}
 	return accounts, nil
@@ -161,7 +212,7 @@ func (p *People) TeacherAccountByID(ctx context.Context,
 
 	account := teacherAccountFrom(teacherAccountRow(row))
 	if account.Person != nil {
-		if err := p.attachProgrammes(ctx, []*domain.Person{account.Person}); err != nil {
+		if err := p.attachScopes(ctx, []*domain.Person{account.Person}); err != nil {
 			return nil, err
 		}
 	}
@@ -243,7 +294,7 @@ func (p *People) PersonByID(ctx context.Context, id uuid.UUID) (*domain.Person, 
 		Active:   row.Active,
 		Roles:    knownRoles(row.Roles),
 	}
-	if err := p.attachProgrammes(ctx, []*domain.Person{person}); err != nil {
+	if err := p.attachScopes(ctx, []*domain.Person{person}); err != nil {
 		return nil, err
 	}
 	return person, nil
@@ -265,7 +316,7 @@ func (p *People) PersonByMail(ctx context.Context, mail string) (*domain.Person,
 		Active: row.Active,
 		Roles:  knownRoles(row.Roles),
 	}
-	if err := p.attachProgrammes(ctx, []*domain.Person{person}); err != nil {
+	if err := p.attachScopes(ctx, []*domain.Person{person}); err != nil {
 		return nil, err
 	}
 	return person, nil

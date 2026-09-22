@@ -549,6 +549,64 @@ func (q *Queries) SubjectGroups(ctx context.Context, includeInactive bool) ([]Su
 	return items, nil
 }
 
+const subjectGroupsByIDs = `-- name: SubjectGroupsByIDs :many
+SELECT
+    g.id, g.code, g.name, g.active, g.created_at, g.updated_at,
+    (SELECT count(*) FROM module_subject_group m WHERE m.subject_group_id = g.id)::int
+        AS module_count
+FROM subject_group g
+WHERE g.id = ANY ($1::uuid[])
+ORDER BY g.code
+`
+
+type SubjectGroupsByIDsRow struct {
+	ID          uuid.UUID
+	Code        string
+	Name        string
+	Active      bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	ModuleCount int32
+}
+
+// A handful of subject groups by id.
+//
+// For `me`, which has to turn the subject group ids an actor carries into codes a person reads
+// — the counterpart of ProgrammesByIDs, and the same argument: the full list would be three
+// statements for a field that renders a handful of names.
+//
+// Retired groups are kept, unlike SubjectGroupsOfPerson. That query answers "which subjects am
+// I working in", where a wound-up group is noise; this one answers "what have I been made
+// responsible for", and a leadership nobody has revoked is still a leadership. Hiding it would
+// be a screen that says she leads nothing while the grant says otherwise.
+func (q *Queries) SubjectGroupsByIDs(ctx context.Context, ids []uuid.UUID) ([]SubjectGroupsByIDsRow, error) {
+	rows, err := q.db.Query(ctx, subjectGroupsByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SubjectGroupsByIDsRow{}
+	for rows.Next() {
+		var i SubjectGroupsByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Code,
+			&i.Name,
+			&i.Active,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ModuleCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const subjectGroupsOfPerson = `-- name: SubjectGroupsOfPerson :many
 SELECT
     g.id, g.code, g.name, g.active, g.created_at, g.updated_at,

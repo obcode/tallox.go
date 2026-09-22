@@ -84,6 +84,29 @@ func (s *SubjectGroups) SubjectGroupsOfPerson(ctx context.Context,
 	return s.withPeople(ctx, groups)
 }
 
+// SubjectGroupsByID resolves a handful of subject groups by id.
+//
+// For `me`, which turns the ids an actor carries into names a person reads. The counterpart of
+// Modules.ProgrammesByID, and it fills the groups in the same way every other read here does.
+func (s *SubjectGroups) SubjectGroupsByID(ctx context.Context,
+	ids []uuid.UUID) ([]domain.SubjectGroup, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	rows, err := New(s.pool).SubjectGroupsByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the subject groups: %w", err)
+	}
+
+	groups := make([]domain.SubjectGroup, 0, len(rows))
+	for _, row := range rows {
+		groups = append(groups, subjectGroupFrom(row.ID, row.Code, row.Name, row.Active,
+			row.ModuleCount, row.CreatedAt, row.UpdatedAt))
+	}
+	return s.withPeople(ctx, groups)
+}
+
 // CreateSubjectGroup adds one.
 func (s *SubjectGroups) CreateSubjectGroup(ctx context.Context,
 	code, name string) (*domain.SubjectGroup, error) {

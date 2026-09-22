@@ -313,13 +313,14 @@ type ComplexityRoot struct {
 	}
 
 	Person struct {
-		Active     func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Mail       func(childComplexity int) int
-		Name       func(childComplexity int) int
-		Programmes func(childComplexity int) int
-		Roles      func(childComplexity int) int
-		SortName   func(childComplexity int) int
+		Active           func(childComplexity int) int
+		ID               func(childComplexity int) int
+		Mail             func(childComplexity int) int
+		Name             func(childComplexity int) int
+		Programmes       func(childComplexity int) int
+		Roles            func(childComplexity int) int
+		SortName         func(childComplexity int) int
+		SubjectGroupsLed func(childComplexity int) int
 	}
 
 	PersonalAccessToken struct {
@@ -2059,6 +2060,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Person.SortName(childComplexity), true
+	case "Person.subjectGroupsLed":
+		if e.ComplexityRoot.Person.SubjectGroupsLed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Person.SubjectGroupsLed(childComplexity), true
 
 	case "PersonalAccessToken.createdAt":
 		if e.ComplexityRoot.PersonalAccessToken.CreatedAt == nil {
@@ -5852,6 +5859,21 @@ type Person {
   script needs to know, and on ` + "`" + `me` + "`" + ` it is your own data.
   """
   programmes: [Programme!]!
+  """
+  The subject groups this person's subject-group leadership applies to.
+
+  The same shape as ` + "`" + `programmes` + "`" + ` one field up, and the same two readings of an empty list: empty
+  for everybody who leads none, and empty for a lead nobody has assigned a group to yet — which
+  is a state with consequences rather than a gap, because such a lead may fill nothing, read no
+  unpublished wishes and file no modules.
+
+  And empty, for the third time, for the dean's office: it reaches every subject group,
+  including ones that do not exist yet, so there is no list to give. An empty list here is
+  therefore **not** "no subject groups" on its own — it has to be read together with ` + "`" + `roles` + "`" + `.
+
+  Readable through both doors, like ` + "`" + `roles` + "`" + ` and ` + "`" + `programmes` + "`" + `: on ` + "`" + `me` + "`" + ` it is your own data.
+  """
+  subjectGroupsLed: [SubjectGroup!]!
 }
 
 extend type Query {
@@ -7824,6 +7846,8 @@ func (ec *executionContext) childFields_Person(ctx context.Context, field graphq
 		return ec.fieldContext_Person_roles(ctx, field)
 	case "programmes":
 		return ec.fieldContext_Person_programmes(ctx, field)
+	case "subjectGroupsLed":
+		return ec.fieldContext_Person_subjectGroupsLed(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Person", field.Name)
 }

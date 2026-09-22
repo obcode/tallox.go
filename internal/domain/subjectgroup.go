@@ -123,6 +123,8 @@ type SubjectGroupStore interface {
 	RenameSubjectGroup(ctx context.Context, id uuid.UUID, name string) (*SubjectGroup, error)
 	// SetSubjectGroupActive retires a group or brings it back.
 	SetSubjectGroupActive(ctx context.Context, id uuid.UUID, active bool) (*SubjectGroup, error)
+	// SubjectGroupsByID resolves a handful of groups by id, for the ids an actor carries.
+	SubjectGroupsByID(ctx context.Context, ids []uuid.UUID) ([]SubjectGroup, error)
 	// SetModulesSubjectGroup assigns a batch of modules to one group, or — with the nil group —
 	// clears their assignment.
 	//
@@ -184,6 +186,33 @@ func (s *SubjectGroupService) Mine(ctx context.Context,
 		return nil, ErrNotAuthenticated
 	}
 	return s.store.SubjectGroupsOfPerson(ctx, actor.ID)
+}
+
+// Led is the subject groups this actor leads.
+//
+// The counterpart of CatalogueService.MyProgrammes, and it carries that function's one
+// surprise: an actor whose reach is not enumerable — the dean's office — gets **nil**, because
+// there is no list. Every group that exists today would be a snapshot pretending to be a rule,
+// and a group created tomorrow is in its reach too.
+//
+// So an empty answer means two different things depending on the roles beside it: for a subject
+// group lead it is "assigned to none, and may therefore do nothing", and for the dean's office
+// it is "all of them". Whoever renders this has to read the roles to say which — the same
+// sentence Person.programmes carries, and the reason that field's documentation spells it out.
+//
+// Readable through both doors, like the roles themselves: which groups you are responsible for
+// is the first thing a script needs to know, and on `me` it is your own data.
+func (s *SubjectGroupService) Led(ctx context.Context,
+	actor principal.Actor) ([]SubjectGroup, error) {
+	if !actor.Authenticated() {
+		return nil, ErrNotAuthenticated
+	}
+
+	scope := policy.AssignmentScope(actor)
+	if scope.All {
+		return nil, nil
+	}
+	return s.store.SubjectGroupsByID(ctx, scope.IDs)
 }
 
 // Create adds a subject group.

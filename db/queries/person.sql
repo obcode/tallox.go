@@ -263,6 +263,24 @@ WHERE s.person_id = ANY (sqlc.arg(person_ids)::uuid[])
   AND (r.expires_at IS NULL OR r.expires_at > now())
 ORDER BY s.person_id, p.code;
 
+-- name: SubjectGroupScopesFor :many
+-- Which subject groups a set of people lead.
+--
+-- The counterpart of ProgrammeScopesFor, one table over and with the same expiry filter: a
+-- grant the database considers over carries no subject groups. The composite foreign key covers
+-- a revoked grant, and this covers one that merely ran out.
+--
+-- Retired groups are kept. This answers "what is this person responsible for", and a leadership
+-- nobody has revoked is still a leadership — unlike SubjectGroupsOfPerson, which answers "which
+-- subjects does this person work in" and where a wound-up group is noise.
+SELECT s.person_id, s.role, g.id AS subject_group_id, g.code, g.name, g.active
+FROM person_subject_group_scope s
+JOIN subject_group g ON g.id = s.subject_group_id
+JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+WHERE s.person_id = ANY (sqlc.arg(person_ids)::uuid[])
+  AND (r.expires_at IS NULL OR r.expires_at > now())
+ORDER BY s.person_id, g.code;
+
 -- name: AssignProgramme :exec
 -- Give somebody's grant one more programme.
 --

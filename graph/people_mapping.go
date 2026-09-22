@@ -22,12 +22,13 @@ import (
 // personModel reshapes a domain person for the wire.
 func personModel(p domain.Person) *model.Person {
 	out := &model.Person{
-		ID:         p.ID.String(),
-		Mail:       p.Mail,
-		Name:       p.Name,
-		Active:     p.Active,
-		Roles:      p.Roles,
-		Programmes: make([]*model.Programme, 0, len(p.Programmes)),
+		ID:               p.ID.String(),
+		Mail:             p.Mail,
+		Name:             p.Name,
+		Active:           p.Active,
+		Roles:            p.Roles,
+		Programmes:       make([]*model.Programme, 0, len(p.Programmes)),
+		SubjectGroupsLed: make([]*model.SubjectGroup, 0, len(p.SubjectGroupsLed)),
 	}
 	// Absent rather than empty, the same rule the catalogue follows: "the examination office
 	// publishes no such spelling for this person" is a fact, and an empty string is a value.
@@ -36,6 +37,9 @@ func personModel(p domain.Person) *model.Person {
 	}
 	for _, programme := range p.Programmes {
 		out.Programmes = append(out.Programmes, programmeModel(programme))
+	}
+	for _, group := range p.SubjectGroupsLed {
+		out.SubjectGroupsLed = append(out.SubjectGroupsLed, subjectGroupModel(group))
 	}
 	return out
 }
@@ -220,6 +224,21 @@ func programmeList(programmes []domain.Programme) string {
 	return strings.Join(codes, ", ")
 }
 
+// subjectGroupList names the subject groups somebody leads, or says that it is none.
+//
+// The counterpart of programmeList, and separate from it for the reason the two scopes are
+// separate everywhere: neither implies the other.
+func subjectGroupList(groups []domain.SubjectGroup) string {
+	if len(groups) == 0 {
+		return "keine Fachgruppe"
+	}
+	codes := make([]string, 0, len(groups))
+	for _, g := range groups {
+		codes = append(codes, g.Code)
+	}
+	return strings.Join(codes, ", ")
+}
+
 // diagnose renders what the rules answer for one person, without reading anything the rules
 // protect.
 //
@@ -242,11 +261,20 @@ func diagnose(p domain.Person) []*model.PolicyDecision {
 		// The programme assignments travel with the roles, because the rule about planning
 		// depends on both and a diagnosis built from the roles alone would report that a
 		// correctly assigned lead may plan nothing.
-		scopes := make([]principal.RoleScope, 0, len(p.Programmes))
+		scopes := make([]principal.RoleScope, 0, len(p.Programmes)+len(p.SubjectGroupsLed))
 		for _, programme := range p.Programmes {
 			scopes = append(scopes, principal.RoleScope{
 				Role:        string(policy.RoleProgrammeLead),
 				ProgrammeID: programme.ID,
+			})
+		}
+		// And the other axis, for the same reason. Built from the programmes alone, this
+		// diagnosis reported that a correctly assigned subject group lead may act in no subject
+		// group — which is the answer it exists to distinguish from the real one.
+		for _, group := range p.SubjectGroupsLed {
+			scopes = append(scopes, principal.RoleScope{
+				Role:           string(policy.RoleSubjectGroupLead),
+				SubjectGroupID: group.ID,
 			})
 		}
 
@@ -312,6 +340,37 @@ func diagnose(p domain.Person) []*model.PolicyDecision {
 			Allowed: len(scope.IDs) > 0,
 			Reason: "Bedarf festlegen, für " + programmeList(p.Programmes) + ". Nur für die " +
 				"zugeordneten Studiengänge, nie für andere.",
+		})
+	}
+
+	// The same question one table over, and it is asked separately because the two reaches are
+	// orthogonal: somebody can be correctly assigned a study programme and still be a subject
+	// group lead nobody has given a subject group.
+	groups := policy.AssignmentScope(interactive)
+	switch {
+	case groups.All:
+		decisions = append(decisions, &model.PolicyDecision{
+			Rule:    "policy.AssignmentScope",
+			Allowed: true,
+			Reason: "Instanzen besetzen und vor dem Stichtag die Wünsche darauf lesen. Das " +
+				"Dekanat für alle Fachgruppen — auch für Fachgruppen, die es heute noch " +
+				"nicht gibt.",
+		})
+	case policy.HoldsSubjectGroupLeadWithoutScope(interactive):
+		decisions = append(decisions, &model.PolicyDecision{
+			Rule:    "policy.AssignmentScope",
+			Allowed: false,
+			Reason: "Instanzen besetzen. Diese Person ist Fachgruppenleitung, ist aber keiner " +
+				"Fachgruppe zugeordnet — und darf deshalb in keiner etwas besetzen, keine " +
+				"Wünsche vorab lesen und keine Module einsortieren. Zuordnen in der " +
+				"Fachgruppenverwaltung.",
+		})
+	default:
+		decisions = append(decisions, &model.PolicyDecision{
+			Rule:    "policy.AssignmentScope",
+			Allowed: len(groups.IDs) > 0,
+			Reason: "Instanzen besetzen, für " + subjectGroupList(p.SubjectGroupsLed) + ". Nur " +
+				"für die zugeordneten Fachgruppen, nie für andere.",
 		})
 	}
 

@@ -313,13 +313,14 @@ type ComplexityRoot struct {
 	}
 
 	Person struct {
-		Active     func(childComplexity int) int
-		ID         func(childComplexity int) int
-		Mail       func(childComplexity int) int
-		Name       func(childComplexity int) int
-		Programmes func(childComplexity int) int
-		Roles      func(childComplexity int) int
-		SortName   func(childComplexity int) int
+		Active           func(childComplexity int) int
+		ID               func(childComplexity int) int
+		Mail             func(childComplexity int) int
+		Name             func(childComplexity int) int
+		Programmes       func(childComplexity int) int
+		Roles            func(childComplexity int) int
+		SortName         func(childComplexity int) int
+		SubjectGroupsLed func(childComplexity int) int
 	}
 
 	PersonalAccessToken struct {
@@ -2059,6 +2060,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Person.SortName(childComplexity), true
+	case "Person.subjectGroupsLed":
+		if e.ComplexityRoot.Person.SubjectGroupsLed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Person.SubjectGroupsLed(childComplexity), true
 
 	case "PersonalAccessToken.createdAt":
 		if e.ComplexityRoot.PersonalAccessToken.CreatedAt == nil {
@@ -3781,9 +3788,15 @@ extend type Mutation {
 # WHO MAY FILL ONE
 #
 # The lead of the module's subject group, the lead of the instance's study programme, or the
-# dean's office — a union of the two axes, not an intersection. Only from the assignment phase
-# onwards: filling an instance while the wish phase runs is the race the confidentiality rule
-# exists to end. ` + "`" + `internal/policy/testdata/write_matrix.golden` + "`" + ` has the phases.
+# dean's office — a union of the two axes, not an intersection.
+#
+# From the beginning, and shut only by ` + "`" + `FINAL` + "`" + `. It was the other way round for one day: filling
+# an instance while the wish round ran looked like the first-come-first-served race the
+# confidentiality rule exists to end. The faculty's answer was that the wish round belongs to the
+# **subject group**, not to the faculty — its lead opens and shuts it and is the same person who
+# fills afterwards, so a tool that ordered those two steps for her would be ordering the work of
+# somebody who can see all of it. What actually opens and shuts is ` + "`" + `wishWindow` + "`" + `, one mark per
+# subject group. ` + "`" + `internal/policy/testdata/write_matrix.golden` + "`" + ` has the phases.
 #
 # WRITING IS BROWSER-ONLY
 #
@@ -3962,7 +3975,7 @@ extend type Mutation {
   cannot take a decision away from somebody who has. Since the lead of the module's subject group
   and the lead of the instance's study programme may both write this row, that is not a formality.
 
-  Refusals: ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + ` before the assignment phase, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + ` when you are
+  Refusals: ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + ` once the semester is ` + "`" + `FINAL` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + ` when you are
   responsible for neither the subject nor the programme, ` + "`" + `PART_ALREADY_ASSIGNED` + "`" + ` when you believed
   a part was free and it is not, ` + "`" + `ASSIGNMENT_MOVED_ON` + "`" + ` when the assignment you named is no longer
   the one there, ` + "`" + `ASSIGNEE_INVALID` + "`" + ` for neither or both ids, ` + "`" + `ASSIGNEE_NOT_FOUND` + "`" + ` for one that
@@ -5693,7 +5706,7 @@ enum ScopeArea {
   ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `,
   ` + "`" + `demandCompletions` + "`" + `, ` + "`" + `wishWindows` + "`" + `, ` + "`" + `setDemandComplete` + "`" + `, ` + "`" + `setWishWindow` + "`" + `,
   ` + "`" + `subjectGroups` + "`" + `, ` + "`" + `subjectGroup` + "`" + `, ` + "`" + `mySubjectGroups` + "`" + `, ` + "`" + `modulesWithoutSubjectGroup` + "`" + `,
-  ` + "`" + `subjectGroupsWithoutLead` + "`" + `, ` + "`" + `setMySubjectGroups` + "`" + `.
+  ` + "`" + `subjectGroupsWithoutLead` + "`" + `, ` + "`" + `setMySubjectGroups` + "`" + `, ` + "`" + `setModulesSubjectGroup` + "`" + `.
   """
   PLANNING
 
@@ -5737,7 +5750,7 @@ enum ScopeArea {
   ` + "`" + `createPerson` + "`" + `, ` + "`" + `renamePerson` + "`" + `, ` + "`" + `setPersonRoles` + "`" + `, ` + "`" + `setPersonActive` + "`" + `, ` + "`" + `setPersonProgrammes` + "`" + `,
   ` + "`" + `setTeacherAdmitted` + "`" + `, ` + "`" + `zpaSyncRuns` + "`" + `, ` + "`" + `zpaSyncRun` + "`" + `, ` + "`" + `zpaChanges` + "`" + `, ` + "`" + `zpaCatalogueProjections` + "`" + `,
   ` + "`" + `syncZpaNow` + "`" + `, ` + "`" + `projectZpaCatalogue` + "`" + `, ` + "`" + `accessLog` + "`" + `, ` + "`" + `accessSummary` + "`" + `,
-  ` + "`" + `createSubjectGroup` + "`" + `, ` + "`" + `renameSubjectGroup` + "`" + `, ` + "`" + `setSubjectGroupActive` + "`" + `, ` + "`" + `setModulesSubjectGroup` + "`" + `,
+  ` + "`" + `createSubjectGroup` + "`" + `, ` + "`" + `renameSubjectGroup` + "`" + `, ` + "`" + `setSubjectGroupActive` + "`" + `,
   ` + "`" + `setSubjectGroupMembers` + "`" + `, ` + "`" + `setSubjectGroupLeads` + "`" + `.
   """
   ADMIN
@@ -5852,6 +5865,21 @@ type Person {
   script needs to know, and on ` + "`" + `me` + "`" + ` it is your own data.
   """
   programmes: [Programme!]!
+  """
+  The subject groups this person's subject-group leadership applies to.
+
+  The same shape as ` + "`" + `programmes` + "`" + ` one field up, and the same two readings of an empty list: empty
+  for everybody who leads none, and empty for a lead nobody has assigned a group to yet — which
+  is a state with consequences rather than a gap, because such a lead may fill nothing, read no
+  unpublished wishes and file no modules.
+
+  And empty, for the third time, for the dean's office: it reaches every subject group,
+  including ones that do not exist yet, so there is no list to give. An empty list here is
+  therefore **not** "no subject groups" on its own — it has to be read together with ` + "`" + `roles` + "`" + `.
+
+  Readable through both doors, like ` + "`" + `roles` + "`" + ` and ` + "`" + `programmes` + "`" + `: on ` + "`" + `me` + "`" + ` it is your own data.
+  """
+  subjectGroupsLed: [SubjectGroup!]!
 }
 
 extend type Query {
@@ -6591,13 +6619,32 @@ extend type Mutation {
 
   A module already in another group is **moved**, in one statement, so there is no moment in which
   it belongs to nothing. Pass ` + "`" + `null` + "`" + ` for ` + "`" + `subjectGroup` + "`" + ` to clear the assignment instead.
+
+  # Who may
+
+  An administrator, across the whole catalogue — that is the October work list, and it crosses
+  every group by construction.
+
+  Beyond that, **the lead of a subject group may file modules into her own**, and take them out
+  again. She is already the person who fills that group's instances and who reads the unpublished
+  wishes on them; being unable to say which modules those *are* made her responsible for a set
+  somebody else had to maintain for her.
+
+  **Both ends of a move have to be in reach.** A lead may pull in a module that is in no group
+  yet, and let go of one that is hers, and may do nothing at all to one filed under a colleague's
+  group — otherwise "move this into mine" would be a unilateral act against another group. The
+  batch is refused as a whole when it reaches outside, with ` + "`" + `NOT_YOUR_SUBJECT_GROUP` + "`" + `: this report
+  counts rows and has no grain for "these three not", so a partial success could not say which
+  three were left.
+
+  The dean's office reaches every group, here as everywhere else.
   """
   setModulesSubjectGroup(
     "The modules to assign. Modules not named here are untouched."
     moduleIds: [ID!]!
     "The group to put them in, or ` + "`" + `null` + "`" + ` to take them out of every group."
     subjectGroup: ID
-  ): SubjectGroupAssignmentReport! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+  ): SubjectGroupAssignmentReport! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Replace the **members** of one subject group.
@@ -7805,6 +7852,8 @@ func (ec *executionContext) childFields_Person(ctx context.Context, field graphq
 		return ec.fieldContext_Person_roles(ctx, field)
 	case "programmes":
 		return ec.fieldContext_Person_programmes(ctx, field)
+	case "subjectGroupsLed":
+		return ec.fieldContext_Person_subjectGroupsLed(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Person", field.Name)
 }

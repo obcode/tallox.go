@@ -245,3 +245,160 @@ func TestTheTwoScopesDoNotReadEachOther(t *testing.T) {
 		t.Error("a malformed scope granted a programme")
 	}
 }
+
+// The act the faculty asked for: a lead files an unsorted module into her own group.
+//
+// The case that motivated the whole change is a study programme lead creating a local module a
+// week before the wish round — it arrives in no subject group, and until now only an
+// administrator could sort it. A module in no group reaches no lead at all, so the person who
+// would fill its instances could not even see it on her screen.
+func TestASubjectGroupLeadFilesAnUnsortedModuleIntoTheirOwnGroup(t *testing.T) {
+	t.Parallel()
+
+	lead := headOf(testdata.Drei, principal.KindInteractive, groupOne)
+
+	if !policy.MayFileModule(lead, uuid.Nil, groupOne) {
+		t.Error("the lead of group one may not file an unsorted module into group one")
+	}
+	if !policy.MayFileModule(lead, groupOne, uuid.Nil) {
+		t.Error("the lead of group one may not take one of her own modules out again")
+	}
+	if !policy.MayFileModule(lead, groupOne, groupOne) {
+		t.Error("re-filing into the same group is refused — which breaks every batch that " +
+			"contains a module already filed correctly")
+	}
+}
+
+// The half that makes filing safe to hand out: both ends of the move have to be in reach.
+//
+// Checking only the target would make "move this module into mine" a unilateral act against
+// the group it came from. Two directions, and neither of them is allowed.
+func TestASubjectGroupLeadCannotFileAcrossSomebodyElsesGroup(t *testing.T) {
+	t.Parallel()
+
+	lead := headOf(testdata.Drei, principal.KindInteractive, groupOne)
+
+	if policy.MayFileModule(lead, groupTwo, groupOne) {
+		t.Error("the lead of group one takes a module out of group two — filing is checking " +
+			"only where the module is going")
+	}
+	if policy.MayFileModule(lead, groupOne, groupTwo) {
+		t.Error("the lead of group one pushes a module into group two")
+	}
+}
+
+// The same reading as everywhere else in this file, on the new act.
+//
+// The no-op is in here deliberately. Without the emptiness check, moving a module from no group
+// to no group would come back true for everybody — and "yes, you may do nothing" is a row
+// somebody later reads as "yes, you may do this".
+func TestAnUnscopedSubjectGroupLeadFilesNothing(t *testing.T) {
+	t.Parallel()
+
+	lead := headOf(testdata.Drei, principal.KindInteractive)
+
+	if policy.MayFileModule(lead, uuid.Nil, groupOne) {
+		t.Error("an unscoped subject group lead files a module into a group")
+	}
+	if policy.MayFileModule(lead, uuid.Nil, uuid.Nil) {
+		t.Error("an unscoped lead may perform the move that changes nothing")
+	}
+	if policy.ModuleFilingRefusal(lead) != policy.SubjectGroupScopeMissingReason {
+		t.Error("an unscoped lead is told they may not file, rather than what is missing")
+	}
+}
+
+// Filing is @interactiveOnly, and the rule says so rather than leaving it to the directive.
+//
+// Re-filing a module moves who may read the unpublished wishes on its instances. A long-lived
+// token in a script that could do that would decouple "who changed who sees what" from any
+// login event — the same argument the wish rule makes for collapsing the token door.
+func TestFilingAModuleIsRefusedThroughTheTokenDoor(t *testing.T) {
+	t.Parallel()
+
+	for _, actor := range []struct {
+		what string
+		who  principal.Actor
+	}{
+		{"a scoped subject group lead", headOf(testdata.Drei, principal.KindToken, groupOne)},
+		{"an administrator", testdata.Drei.Actor(principal.KindToken, string(policy.RoleAdmin))},
+		{"the dean's office", testdata.Drei.Actor(principal.KindToken, string(policy.RoleDeansOffice))},
+	} {
+		if policy.MayFileModule(actor.who, uuid.Nil, groupOne) {
+			t.Errorf("%s files a module through the token door", actor.what)
+		}
+	}
+}
+
+// The dean's office reaches every group here, as it does everywhere else.
+//
+// Through AssignmentScope rather than through a special case: it is the role that means "all
+// subject groups", and a rule saying otherwise only here would be one nobody could remember.
+func TestTheDeansOfficeFilesAcrossGroups(t *testing.T) {
+	t.Parallel()
+
+	deans := testdata.Drei.Actor(principal.KindInteractive, string(policy.RoleDeansOffice))
+
+	if !policy.MayFileModule(deans, groupTwo, groupOne) {
+		t.Error("the dean's office may not move a module between two groups")
+	}
+}
+
+// The two forms of the filing rule have to agree, over everything.
+//
+// The realistic way a guard/filter pair breaks is that somebody changes one of them — the same
+// hazard TestGuardAndFilterAgree watches for on the wish rule. Here the filter runs in the
+// WHERE clause that decides which modules a batch is allowed to touch, and the guard answers
+// for a row already in hand; a drift between them is a batch that writes rows the rule refuses,
+// or refuses rows it permits.
+func TestFilingGuardAndScopeAgree(t *testing.T) {
+	t.Parallel()
+
+	groups := []uuid.UUID{uuid.Nil, groupOne, groupTwo}
+
+	for _, actor := range filingActors() {
+		scope := policy.FilingScope(actor.who)
+		for _, from := range groups {
+			for _, to := range groups {
+				guard := policy.MayFileModule(actor.who, from, to)
+				filter := !scope.Empty() &&
+					(from == uuid.Nil || scope.Allows(from)) &&
+					(to == uuid.Nil || scope.Allows(to))
+
+				if guard != filter {
+					t.Errorf("%s filing %v→%v: guard says %v, scope says %v",
+						actor.what, from, to, guard, filter)
+				}
+			}
+		}
+	}
+}
+
+// Every shape of actor the filing rule distinguishes, for the agreement test.
+func filingActors() []struct {
+	what string
+	who  principal.Actor
+} {
+	out := []struct {
+		what string
+		who  principal.Actor
+	}{
+		{"anonymous", principal.Anonymous},
+		{"a scoped lead", headOf(testdata.Drei, principal.KindInteractive, groupOne)},
+		{"a lead scoped to both", headOf(testdata.Drei, principal.KindInteractive, groupOne, groupTwo)},
+		{"an unscoped lead", headOf(testdata.Drei, principal.KindInteractive)},
+		{"a scoped lead through a token", headOf(testdata.Drei, principal.KindToken, groupOne)},
+	}
+	for _, role := range policy.AllRoles() {
+		for _, kind := range []principal.Kind{principal.KindInteractive, principal.KindToken} {
+			out = append(out, struct {
+				what string
+				who  principal.Actor
+			}{
+				what: string(role) + " (" + string(kind) + ")",
+				who:  testdata.Drei.Actor(kind, string(role)),
+			})
+		}
+	}
+	return out
+}

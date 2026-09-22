@@ -236,13 +236,32 @@ extend type Mutation {
 
   A module already in another group is **moved**, in one statement, so there is no moment in which
   it belongs to nothing. Pass `null` for `subjectGroup` to clear the assignment instead.
+
+  # Who may
+
+  An administrator, across the whole catalogue — that is the October work list, and it crosses
+  every group by construction.
+
+  Beyond that, **the lead of a subject group may file modules into her own**, and take them out
+  again. She is already the person who fills that group's instances and who reads the unpublished
+  wishes on them; being unable to say which modules those *are* made her responsible for a set
+  somebody else had to maintain for her.
+
+  **Both ends of a move have to be in reach.** A lead may pull in a module that is in no group
+  yet, and let go of one that is hers, and may do nothing at all to one filed under a colleague's
+  group — otherwise "move this into mine" would be a unilateral act against another group. The
+  batch is refused as a whole when it reaches outside, with `NOT_YOUR_SUBJECT_GROUP`: this report
+  counts rows and has no grain for "these three not", so a partial success could not say which
+  three were left.
+
+  The dean's office reaches every group, here as everywhere else.
   """
   setModulesSubjectGroup(
     "The modules to assign. Modules not named here are untouched."
     moduleIds: [ID!]!
     "The group to put them in, or `null` to take them out of every group."
     subjectGroup: ID
-  ): SubjectGroupAssignmentReport! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+  ): SubjectGroupAssignmentReport! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Replace the **members** of one subject group.

@@ -218,7 +218,7 @@ func (s *AssignmentService) Clear(ctx context.Context, actor principal.Actor, id
 // mayWrite asks the policy and then picks which half said no.
 //
 // Two sentences, because the repairs differ: somebody who is not responsible needs the right
-// subject or the right programme, and somebody who is too early needs the phase advanced.
+// subject or the right programme, and somebody whose semester is finished has no repair at all.
 // policy.AssignmentWriteRefusal splits the first of those further, for a caller that wants to
 // name the repair.
 func (s *AssignmentService) mayWrite(actor principal.Actor, where PartWriteContext) error {

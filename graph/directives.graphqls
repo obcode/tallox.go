@@ -130,7 +130,7 @@ enum ScopeArea {
   `copyDemandFromSemester`, `planDemand`,
   `demandCompletions`, `wishWindows`, `setDemandComplete`, `setWishWindow`,
   `subjectGroups`, `subjectGroup`, `mySubjectGroups`, `modulesWithoutSubjectGroup`,
-  `subjectGroupsWithoutLead`, `setMySubjectGroups`.
+  `subjectGroupsWithoutLead`, `setMySubjectGroups`, `setModulesSubjectGroup`.
   """
   PLANNING
 
@@ -174,7 +174,7 @@ enum ScopeArea {
   `createPerson`, `renamePerson`, `setPersonRoles`, `setPersonActive`, `setPersonProgrammes`,
   `setTeacherAdmitted`, `zpaSyncRuns`, `zpaSyncRun`, `zpaChanges`, `zpaCatalogueProjections`,
   `syncZpaNow`, `projectZpaCatalogue`, `accessLog`, `accessSummary`,
-  `createSubjectGroup`, `renameSubjectGroup`, `setSubjectGroupActive`, `setModulesSubjectGroup`,
+  `createSubjectGroup`, `renameSubjectGroup`, `setSubjectGroupActive`,
   `setSubjectGroupMembers`, `setSubjectGroupLeads`.
   """
   ADMIN

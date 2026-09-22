@@ -247,6 +247,22 @@ type Querier interface {
 	// state in two versions of the regulations at once, and printing its identifier twice would
 	// read as two different modules.
 	CountMinSemesterConflicts(ctx context.Context) (CountMinSemesterConflictsRow, error)
+	// How many of these modules are currently filed under a group that is not in the given list.
+	//
+	// The filter half of policy.MayFileModule, and the reason it is a query rather than a loop in
+	// Go: filing is the one act that touches two subject groups, and the second one — where the
+	// module is *today* — is a column. Reading the rows first and deciding afterwards would rest
+	// the decision on a state from before the write; asked here, inside the same transaction, it
+	// cannot.
+	//
+	// A module with no row at all is not counted, and that is the rule rather than an omission: a
+	// module nobody has sorted yet may be pulled in by whoever wants it. Same for a module that
+	// does not exist — the foreign key on the write refuses that one, and it says so about the
+	// thing somebody chose rather than about a list the screen just rendered.
+	//
+	// Callers with an unrestricted reach do not ask. Passing every group that exists would be a
+	// snapshot, and a group created between the two statements would fall outside it.
+	CountModulesFiledOutsideGroups(ctx context.Context, arg CountModulesFiledOutsideGroupsParams) (int32, error)
 	// The source names somebody the teacher list does not contain.
 	//
 	// Sixteen of 506 today: seven placeholders ("N.N", "ex_prof_003") and nine addresses. The
@@ -1102,6 +1118,16 @@ type Querier interface {
 	// No expiry filter, and the asymmetry with the query above is the point: membership is not a
 	// grant. It says which subjects a colleague works in, it grants nothing, and it does not run out.
 	SubjectGroupMembersFor(ctx context.Context, groupIds []uuid.UUID) ([]SubjectGroupMembersForRow, error)
+	// Which subject groups a set of people lead.
+	//
+	// The counterpart of ProgrammeScopesFor, one table over and with the same expiry filter: a
+	// grant the database considers over carries no subject groups. The composite foreign key covers
+	// a revoked grant, and this covers one that merely ran out.
+	//
+	// Retired groups are kept. This answers "what is this person responsible for", and a leadership
+	// nobody has revoked is still a leadership — unlike SubjectGroupsOfPerson, which answers "which
+	// subjects does this person work in" and where a wound-up group is noise.
+	SubjectGroupScopesFor(ctx context.Context, personIds []uuid.UUID) ([]SubjectGroupScopesForRow, error)
 	// Subject groups: the faculty's own grouping of modules and people.
 	//
 	// No semester anywhere in this file, and that is the shape of the thing rather than an omission.
@@ -1116,6 +1142,17 @@ type Querier interface {
 	// Counting modules is safe in a way counting anything over wishes never is: a module assignment
 	// is catalogue data, and nobody is protected from it being known.
 	SubjectGroups(ctx context.Context, includeInactive bool) ([]SubjectGroupsRow, error)
+	// A handful of subject groups by id.
+	//
+	// For `me`, which has to turn the subject group ids an actor carries into codes a person reads
+	// — the counterpart of ProgrammesByIDs, and the same argument: the full list would be three
+	// statements for a field that renders a handful of names.
+	//
+	// Retired groups are kept, unlike SubjectGroupsOfPerson. That query answers "which subjects am
+	// I working in", where a wound-up group is noise; this one answers "what have I been made
+	// responsible for", and a leadership nobody has revoked is still a leadership. Hiding it would
+	// be a screen that says she leads nothing while the grant says otherwise.
+	SubjectGroupsByIDs(ctx context.Context, ids []uuid.UUID) ([]SubjectGroupsByIDsRow, error)
 	// One person's memberships. What the wish screen offers first.
 	//
 	// Inactive groups are left out: a retired group is not a subject somebody is currently working

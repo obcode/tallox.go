@@ -144,3 +144,93 @@ func AssignmentRefusal(a principal.Actor) string {
 	}
 	return AssignmentReason
 }
+
+// ModuleFilingReason is what somebody who may not file this module is told.
+//
+// Names the two things that can be wrong, because they have different repairs: the target group
+// is not one you lead, or the module is currently in somebody else's. A refusal that said only
+// "not allowed" would send a lead who is looking at her own group to ask for a role she holds.
+const ModuleFilingReason = "Module lassen sich nur in eine Fachgruppe einsortieren, die Sie " +
+	"leiten — und nur, solange sie in keiner anderen Fachgruppe stehen."
+
+// MayFileModule reports whether a may move one module from the subject group it is in today
+// into the one it should be in.
+//
+// uuid.Nil on either side means "no subject group": as `from` it is a module nobody has sorted
+// yet, which is the ordinary state until the faculty has worked through its catalogue, and as
+// `to` it is taking a module out of every group.
+//
+// # Both sides, not just the target
+//
+// Filing is the one act in this package that touches two subject groups at once, and checking
+// only the target would make "move this module into mine" a unilateral act against the group it
+// is taken from. So both ends have to be in reach: a lead may pull in a module that is
+// unsorted, and may let go of one that is hers, and may do nothing at all to one that is filed
+// under a colleague's group. Re-cutting the catalogue across two groups stays what it was — an
+// administrator's job, done once, visibly.
+//
+// # Why the leads at all
+//
+// The faculty asked for it, and the reason is that the assignment already works this way: the
+// lead of a group is the person who fills its instances and who reads the unpublished wishes on
+// them (AssignmentScope, above). Being unable to say which modules those *are* made her
+// responsible for a set somebody else had to maintain for her. The scope she already holds is
+// exactly the right size for the question.
+//
+// ADMIN keeps the unrestricted form: sorting 506 modules in October is administration, and it
+// crosses every group by construction. It is the one place in this file where ADMIN appears at
+// all — AssignmentScope leaves it out on purpose, because running the system is a different job
+// from planning with it, and filing the catalogue is the administrative half of this act rather
+// than the planning half.
+//
+// DEANS_OFFICE reaches every group through AssignmentScope, and that is deliberate rather than
+// incidental — it is the role that means "all subject groups", and a special case saying
+// otherwise here would be a rule that holds nowhere else.
+func MayFileModule(a principal.Actor, from, to uuid.UUID) bool {
+	// An actor who reaches nothing is refused before the two sides are looked at. Without this,
+	// moving a module from no group to no group — a row in a batch that changes nothing —
+	// would come back true for everybody, and a rule that says "anybody may do nothing" is a
+	// rule somebody will later read as "anybody may do this".
+	scope := FilingScope(a)
+	if scope.Empty() {
+		return false
+	}
+
+	return (from == uuid.Nil || scope.Allows(from)) &&
+		(to == uuid.Nil || scope.Allows(to))
+}
+
+// FilingScope is the filter half: which subject groups an actor may file modules across.
+//
+// The pair FilingScope/MayFileModule is the same two-form arrangement as
+// WishVisibility/CanSeeWish, and it exists here for the same reason. The target of a move is a
+// single value the service has in its hand, but "which group is this module in today" is a
+// column — one per module in a batch of five hundred. Asking Go would mean reading the rows
+// first and deciding afterwards, with the decision resting on a state from before the write.
+// As a scope it becomes a WHERE clause in the same statement.
+//
+// TestFilingGuardAndScopeAgree asserts the two forms give the same answer over the full
+// cartesian product, which is the realistic way this arrangement breaks: somebody changes one
+// of them.
+//
+// Through a token it reaches nothing — not even for an administrator. The mutation carries
+// @interactiveOnly and the rule repeats it rather than leaving it to the directive alone:
+// re-filing a module moves who may read the unpublished wishes on its instances, and a
+// long-lived token in a script could do that quietly and in bulk.
+func FilingScope(a principal.Actor) SubjectGroupScope {
+	if !MayReadInteractiveOnly(a) {
+		return SubjectGroupScope{}
+	}
+	if RolesOf(a).Has(RoleAdmin) {
+		return SubjectGroupScope{All: true}
+	}
+	return AssignmentScope(a)
+}
+
+// ModuleFilingRefusal is the sentence to show when filing a module is refused.
+func ModuleFilingRefusal(a principal.Actor) string {
+	if HoldsSubjectGroupLeadWithoutScope(a) {
+		return SubjectGroupScopeMissingReason
+	}
+	return ModuleFilingReason
+}

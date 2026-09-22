@@ -40,9 +40,10 @@ func (r *queryResolver) Me(ctx context.Context) (*model.Person, error) {
 		// True by construction rather than by lookup: internal/auth refuses an inactive person
 		// at both doors, so an actor that got this far is active. Reading it again would be a
 		// second opinion about something authentication has already decided.
-		Active:     true,
-		Roles:      policy.RolesOf(actor).Sorted(),
-		Programmes: []*model.Programme{},
+		Active:           true,
+		Roles:            policy.RolesOf(actor).Sorted(),
+		Programmes:       []*model.Programme{},
+		SubjectGroupsLed: []*model.SubjectGroup{},
 	}
 
 	// The actor carries the ids of the programmes it leads and nothing else. Resolving them to
@@ -58,6 +59,19 @@ func (r *queryResolver) Me(ctx context.Context) (*model.Person, error) {
 		}
 		for _, p := range programmes {
 			me.Programmes = append(me.Programmes, programmeModel(p))
+		}
+	}
+
+	// The same for the other axis. Nil for the dean's office, which reaches every group and
+	// therefore has no list — which is why an empty answer here has to be read together with
+	// the roles above rather than on its own.
+	if r.Resolver.SubjectGroups != nil {
+		groups, err := r.Resolver.SubjectGroups.Led(ctx, actor)
+		if err != nil {
+			return nil, subjectGroupError(err)
+		}
+		for _, g := range groups {
+			me.SubjectGroupsLed = append(me.SubjectGroupsLed, subjectGroupModel(g))
 		}
 	}
 

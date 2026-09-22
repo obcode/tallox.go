@@ -84,6 +84,29 @@ func (s *SubjectGroups) SubjectGroupsOfPerson(ctx context.Context,
 	return s.withPeople(ctx, groups)
 }
 
+// SubjectGroupsByID resolves a handful of subject groups by id.
+//
+// For `me`, which turns the ids an actor carries into names a person reads. The counterpart of
+// Modules.ProgrammesByID, and it fills the groups in the same way every other read here does.
+func (s *SubjectGroups) SubjectGroupsByID(ctx context.Context,
+	ids []uuid.UUID) ([]domain.SubjectGroup, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	rows, err := New(s.pool).SubjectGroupsByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the subject groups: %w", err)
+	}
+
+	groups := make([]domain.SubjectGroup, 0, len(rows))
+	for _, row := range rows {
+		groups = append(groups, subjectGroupFrom(row.ID, row.Code, row.Name, row.Active,
+			row.ModuleCount, row.CreatedAt, row.UpdatedAt))
+	}
+	return s.withPeople(ctx, groups)
+}
+
 // CreateSubjectGroup adds one.
 func (s *SubjectGroups) CreateSubjectGroup(ctx context.Context,
 	code, name string) (*domain.SubjectGroup, error) {
@@ -143,29 +166,63 @@ func (s *SubjectGroups) SetSubjectGroupActive(ctx context.Context, id uuid.UUID,
 // Returns how many rows it wrote. "Nothing happened" and "it failed" are indistinguishable to
 // the person who pressed the button otherwise — the same argument CopyDemandReport makes for
 // reporting its zeroes.
+//
+// scope is the filing half of policy.MayFileModule: which groups the caller may move modules
+// across. The target was decided before the call — it is one value the service has in its hand
+// — and what has to be decided here is where each module is filed *today*, which is a column.
+// Both statements run in one transaction, so the permission is not read off a state from before
+// the write.
+//
+// A caller whose reach is unrestricted does not ask the question. Enumerating every group that
+// exists would be a snapshot, and one created between the two statements would fall outside it.
 func (s *SubjectGroups) SetModulesSubjectGroup(ctx context.Context, moduleIDs []uuid.UUID,
-	group uuid.NullUUID, assignedBy uuid.UUID) (int, error) {
-	if !group.Valid {
-		written, err := New(s.pool).ClearModulesSubjectGroup(ctx, moduleIDs)
-		if err != nil {
-			return 0, fmt.Errorf("cannot clear the subject group of the modules: %w", err)
-		}
-		return int(written), nil
-	}
+	group uuid.NullUUID, assignedBy uuid.UUID, scope policy.SubjectGroupScope) (int, error) {
+	var written int64
 
-	written, err := New(s.pool).AssignModulesToSubjectGroup(ctx, AssignModulesToSubjectGroupParams{
-		SubjectGroupID: group.UUID,
-		AssignedBy:     nullUUID(nonNilUUID(assignedBy)),
-		ModuleIds:      moduleIDs,
+	err := s.inTx(ctx, func(q *Queries) error {
+		if !scope.All {
+			outside, err := q.CountModulesFiledOutsideGroups(ctx, CountModulesFiledOutsideGroupsParams{
+				ModuleIds:     moduleIDs,
+				AllowedGroups: scope.IDs,
+			})
+			if err != nil {
+				return fmt.Errorf("cannot check where the modules are filed: %w", err)
+			}
+			// Whole batch or nothing. The report this ends up in counts rows and has no grain
+			// for "these three not", so a partial success would say seven of ten were written
+			// without saying which three were not.
+			if outside > 0 {
+				return domain.ErrModuleFiledElsewhere
+			}
+		}
+
+		var err error
+		if !group.Valid {
+			written, err = q.ClearModulesSubjectGroup(ctx, moduleIDs)
+			if err != nil {
+				return fmt.Errorf("cannot clear the subject group of the modules: %w", err)
+			}
+			return nil
+		}
+
+		written, err = q.AssignModulesToSubjectGroup(ctx, AssignModulesToSubjectGroupParams{
+			SubjectGroupID: group.UUID,
+			AssignedBy:     nullUUID(nonNilUUID(assignedBy)),
+			ModuleIds:      moduleIDs,
+		})
+		// The foreign key refuses a group that does not exist, and a module that does not
+		// either. Reported as the group, because the module ids come from a list the screen
+		// just rendered and the group is the thing somebody chose.
+		if isForeignKeyViolation(err) {
+			return domain.ErrSubjectGroupNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("cannot assign the modules: %w", err)
+		}
+		return nil
 	})
-	// The foreign key refuses a group that does not exist, and a module that does not either.
-	// Reported as the group, because the module ids come from a list the screen just rendered
-	// and the group is the thing somebody chose.
-	if isForeignKeyViolation(err) {
-		return 0, domain.ErrSubjectGroupNotFound
-	}
 	if err != nil {
-		return 0, fmt.Errorf("cannot assign the modules: %w", err)
+		return 0, err
 	}
 	return int(written), nil
 }

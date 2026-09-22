@@ -1,0 +1,101 @@
+Filing modules — who may put which module into which subject group
+==================================================================
+
+Generated from internal/policy (TestModuleFilingMatrix). Do not edit by hand:
+
+    go test ./internal/policy/ -update-golden
+
+The rule
+--------
+
+Somebody may move a module from the subject group it is in today into the one it should be in if
+
+  · they are an administrator — any module, any group, and
+  · in a signed-in browser session either way: through a Personal Access Token, nobody, or
+  · they lead subject groups, and **both** ends of the move are groups they lead.
+
+"No group" counts as an end that is always in reach: a module nobody has sorted yet may be
+pulled in by whoever wants it, and a module may always be let go of by whoever holds it.
+
+Both ends, not just the target
+------------------------------
+
+This is the only act in this package that touches two subject groups at once. Checking only
+where a module is going would make "move this into mine" a unilateral act against the group it
+came from — which is the one thing a lead must not be able to do to a colleague. So a lead may
+
+  · pull in an unsorted module                     (none→1)
+  · let go of one of her own                       (1→none)
+  · re-file one of her own into her own            (1→1, the no-op a batch produces)
+
+and may not
+
+  · take one out of a colleague's group            (2→1)
+  · push one into a colleague's group              (1→2)
+
+Re-cutting the catalogue across two groups stays what it was: an administrator's job, done once
+and visibly.
+
+Why the leads at all
+--------------------
+
+The lead of a group is already the person who fills its instances and who reads the unpublished
+wishes on them — that is the assignment matrix. Being unable to say which modules those *are*
+made her responsible for a set somebody else had to maintain on her behalf, and the faculty
+asked for it back. The scope she already holds is exactly the right size for the question.
+
+The one that surprises people, again
+------------------------------------
+
+**A lead who has not been assigned a subject group may do nothing here either.** Not everything.
+The same reading as everywhere else in this file, and she is shown
+SubjectGroupScopeMissingReason rather than a refusal, because the repair is an administrator's
+and not hers.
+
+Note the row it produces: even the move that changes nothing — none→none, which a batch of
+"take these out of every group" produces for a module that was already out — is refused for
+somebody who leads nothing. A rule that answered "yes, you may do nothing" is one somebody
+later reads as "yes, you may do this".
+
+The token door
+--------------
+
+Empty, on every row. Re-filing a module moves who may read the unpublished wishes on its
+instances, so it is exactly the kind of act that belongs to a session somebody signed into and
+not to a token in a script. The mutation carries @interactiveOnly as well; this table is the
+second half of that sentence, so that the rule does not live only in a directive.
+
+The columns
+-----------
+
+  Leads     Which subject groups this person has been assigned. Group one below.
+  none→none Filing a module that is in no group into no group: the row a batch of "take these
+            out of every group" produces for one that was already out. It changes nothing, and
+            it is still answered by the rule rather than waved through.
+  none→1    Filing an unsorted module into group one.
+  1→none    Taking a module out of group one, into no group at all.
+  1→1       Filing a module into the group it is already in — what a batch does to the rows
+            that were already right.
+  2→1       Taking a module out of group two and into group one.
+  1→2       The other direction: out of group one and into group two.
+
+Role                Door          Leads   none→none   none→1   1→none   1→1    2→1    1→2
+-----------------------------------------------------------------------------------------
+(not signed in)     —             —       no          no       no       no     no     no
+
+LECTURER            interactive   —       no          no       no       no     no     no
+LECTURER            token         —       no          no       no       no     no     no
+
+SUBJECT_GROUP_LEAD  interactive   —       no          no       no       no     no     no
+SUBJECT_GROUP_LEAD  interactive   one     yes         yes      yes      yes    no     no
+SUBJECT_GROUP_LEAD  token         —       no          no       no       no     no     no
+SUBJECT_GROUP_LEAD  token         one     no          no       no       no     no     no
+
+PROGRAMME_LEAD      interactive   —       no          no       no       no     no     no
+PROGRAMME_LEAD      token         —       no          no       no       no     no     no
+
+DEANS_OFFICE        interactive   —       yes         yes      yes      yes    yes    yes
+DEANS_OFFICE        token         —       no          no       no       no     no     no
+
+ADMIN               interactive   —       yes         yes      yes      yes    yes    yes
+ADMIN               token         —       no          no       no       no     no     no

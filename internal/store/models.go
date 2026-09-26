@@ -41,6 +41,18 @@ type Assignment struct {
 	UpdatedAt      time.Time
 }
 
+type Competence struct {
+	ID        uuid.UUID
+	ModuleID  uuid.UUID
+	PersonID  uuid.NullUUID
+	TeacherID uuid.NullUUID
+	Level     string
+	Note      string
+	EnteredBy uuid.NullUUID
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type CourseInstance struct {
 	ID                   uuid.UUID
 	SemesterID           uuid.UUID

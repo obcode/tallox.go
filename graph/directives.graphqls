@@ -135,7 +135,8 @@ enum ScopeArea {
   PLANNING
 
   """
-  Registering interest in instance parts, and reading what may be read of other people's.
+  Registering interest in instance parts, stating which modules you can teach or would like to,
+  and reading what may be read of other people's.
 
   Its own area rather than part of `PLANNING`, because it is the one part of the planning somebody
   might sensibly want a token narrowed *to*: "this script keeps my wishes in step with my
@@ -147,7 +148,12 @@ enum ScopeArea {
   to your own entries whatever the scope says: the area bounds the surface, the policy bounds the
   rows.
 
-  Fields: `myWishes`, `wishes`, `setWish`, `withdrawWish`.
+  Competences are here and not under `PROFILE` because "würde ich gern halten" is a wish without a
+  semester, and confidential for the same reason.
+
+  Fields: `myWishes`, `wishes`, `setWish`, `withdrawWish`, `myCompetences`, `myCompetenceStatus`,
+  `competences`, `competenceMemberStatus`, `modulesWithoutCompetence`, `setMyCompetence`,
+  `withdrawMyCompetence`, `setTeacherCompetence`, `withdrawTeacherCompetence`.
   """
   WISHES
 

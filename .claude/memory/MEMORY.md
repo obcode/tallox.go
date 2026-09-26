@@ -21,6 +21,7 @@ Kolleg:innen — das gehört nach `tallox.dev`.
 - [Deckung über Studiengänge](instance-coverage.md) — ein Bedarf, von einem anderen Studiengang gehalten: der Fremdschlüssel mit vier Invarianten, warum das Koppeln beim Planen einseitig sein darf, und die Beförderung beim Rückzug
 - [Planungsmarken](planning-marks.md) — zwei Marken statt einer Phase, und warum fehlende Zeile hier offen heißt
 - [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf, und das Planungssemester
+- [Kompetenzzone](competences.md) — am Modul ohne Semester, vertraulich ohne Veröffentlichung, Mitgliedschaft als Schreibregel, Lehrende ohne Konto durch die Fachgruppenleitung
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:
      eine Datei = ein Sachverhalt, Frontmatter mit name/description/metadata.type,

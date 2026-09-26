@@ -125,6 +125,30 @@ type ComplexityRoot struct {
 		Version func(childComplexity int) int
 	}
 
+	Competence struct {
+		CreatedAt            func(childComplexity int) int
+		Holder               func(childComplexity int) int
+		ID                   func(childComplexity int) int
+		Level                func(childComplexity int) int
+		Module               func(childComplexity int) int
+		Note                 func(childComplexity int) int
+		OutsideSubjectGroups func(childComplexity int) int
+		UpdatedAt            func(childComplexity int) int
+	}
+
+	CompetenceGroupStatus struct {
+		CanTeachCompulsory func(childComplexity int) int
+		Minimum            func(childComplexity int) int
+		SubjectGroup       func(childComplexity int) int
+	}
+
+	CompetenceModule struct {
+		Compulsory   func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Name         func(childComplexity int) int
+		SubjectGroup func(childComplexity int) int
+	}
+
 	ComponentProposal struct {
 		Kind          func(childComplexity int) int
 		TeachingHours func(childComplexity int) int
@@ -215,6 +239,12 @@ type ComplexityRoot struct {
 		TeachingHours      func(childComplexity int) int
 	}
 
+	MemberCompetenceStatus struct {
+		CanTeachCompulsory func(childComplexity int) int
+		Member             func(childComplexity int) int
+		Minimum            func(childComplexity int) int
+	}
+
 	Module struct {
 		Active              func(childComplexity int) int
 		ComponentHours      func(childComplexity int) int
@@ -264,6 +294,12 @@ type ComplexityRoot struct {
 		Name              func(childComplexity int) int
 	}
 
+	ModuleWithoutCompetence struct {
+		Compulsory func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Name       func(childComplexity int) int
+	}
+
 	Mutation struct {
 		AcceptInstanceCoverage        func(childComplexity int, id string) int
 		AddInstancePart               func(childComplexity int, instanceID string, kind domain.InstancePartKind, teachingHours *float64) int
@@ -293,6 +329,7 @@ type ComplexityRoot struct {
 		SetDemandComplete             func(childComplexity int, semester string, programme string, complete bool) int
 		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
 		SetModulesSubjectGroup        func(childComplexity int, moduleIds []string, subjectGroup *string) int
+		SetMyCompetence               func(childComplexity int, moduleID string, level domain.CompetenceLevel, note *string) int
 		SetMySubjectGroups            func(childComplexity int, subjectGroupIds []string) int
 		SetPersonActive               func(childComplexity int, id string, active bool) int
 		SetPersonProgrammes           func(childComplexity int, id string, programmes []string) int
@@ -303,12 +340,15 @@ type ComplexityRoot struct {
 		SetSubjectGroupLeads          func(childComplexity int, id string, personIds []string) int
 		SetSubjectGroupMembers        func(childComplexity int, id string, personIds []string) int
 		SetTeacherAdmitted            func(childComplexity int, teacherID string, admitted bool) int
+		SetTeacherCompetence          func(childComplexity int, moduleID string, teacherID string, level domain.CompetenceLevel, note *string) int
 		SetWish                       func(childComplexity int, courseInstanceID string, priority domain.WishPriority, note *string) int
 		SetWishWindow                 func(childComplexity int, semester string, subjectGroupID string, open bool) int
 		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
 		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
 		SyncZpaNow                    func(childComplexity int) int
 		WithdrawCourseInstance        func(childComplexity int, id string) int
+		WithdrawMyCompetence          func(childComplexity int, id string) int
+		WithdrawTeacherCompetence     func(childComplexity int, id string) int
 		WithdrawWish                  func(childComplexity int, id string) int
 	}
 
@@ -352,6 +392,8 @@ type ComplexityRoot struct {
 		AccessSummary              func(childComplexity int, from time.Time, until time.Time) int
 		Assignments                func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
 		BuildInfo                  func(childComplexity int) int
+		CompetenceMemberStatus     func(childComplexity int, subjectGroup string) int
+		Competences                func(childComplexity int, module *string, subjectGroup *string, person *string, teacher *string) int
 		CourseInstance             func(childComplexity int, id string) int
 		CourseInstances            func(childComplexity int, semester string, programme *string, module *string) int
 		DemandCompletions          func(childComplexity int, semester string) int
@@ -359,8 +401,11 @@ type ComplexityRoot struct {
 		Me                         func(childComplexity int) int
 		Module                     func(childComplexity int, id string) int
 		Modules                    func(childComplexity int, filter *model.ModuleFilter) int
+		ModulesWithoutCompetence   func(childComplexity int, subjectGroup string) int
 		ModulesWithoutSubjectGroup func(childComplexity int) int
 		MyAssignments              func(childComplexity int, semester *string) int
+		MyCompetenceStatus         func(childComplexity int) int
+		MyCompetences              func(childComplexity int) int
 		MySubjectGroups            func(childComplexity int) int
 		MyTokens                   func(childComplexity int) int
 		MyWishes                   func(childComplexity int, semester *string) int
@@ -921,6 +966,99 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.BuildInfo.Version(childComplexity), true
 
+	case "Competence.createdAt":
+		if e.ComplexityRoot.Competence.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Competence.CreatedAt(childComplexity), true
+	case "Competence.holder":
+		if e.ComplexityRoot.Competence.Holder == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Competence.Holder(childComplexity), true
+	case "Competence.id":
+		if e.ComplexityRoot.Competence.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Competence.ID(childComplexity), true
+	case "Competence.level":
+		if e.ComplexityRoot.Competence.Level == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Competence.Level(childComplexity), true
+	case "Competence.module":
+		if e.ComplexityRoot.Competence.Module == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Competence.Module(childComplexity), true
+	case "Competence.note":
+		if e.ComplexityRoot.Competence.Note == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Competence.Note(childComplexity), true
+	case "Competence.outsideSubjectGroups":
+		if e.ComplexityRoot.Competence.OutsideSubjectGroups == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Competence.OutsideSubjectGroups(childComplexity), true
+	case "Competence.updatedAt":
+		if e.ComplexityRoot.Competence.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Competence.UpdatedAt(childComplexity), true
+
+	case "CompetenceGroupStatus.canTeachCompulsory":
+		if e.ComplexityRoot.CompetenceGroupStatus.CanTeachCompulsory == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CompetenceGroupStatus.CanTeachCompulsory(childComplexity), true
+	case "CompetenceGroupStatus.minimum":
+		if e.ComplexityRoot.CompetenceGroupStatus.Minimum == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CompetenceGroupStatus.Minimum(childComplexity), true
+	case "CompetenceGroupStatus.subjectGroup":
+		if e.ComplexityRoot.CompetenceGroupStatus.SubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CompetenceGroupStatus.SubjectGroup(childComplexity), true
+
+	case "CompetenceModule.compulsory":
+		if e.ComplexityRoot.CompetenceModule.Compulsory == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CompetenceModule.Compulsory(childComplexity), true
+	case "CompetenceModule.id":
+		if e.ComplexityRoot.CompetenceModule.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CompetenceModule.ID(childComplexity), true
+	case "CompetenceModule.name":
+		if e.ComplexityRoot.CompetenceModule.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CompetenceModule.Name(childComplexity), true
+	case "CompetenceModule.subjectGroup":
+		if e.ComplexityRoot.CompetenceModule.SubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CompetenceModule.SubjectGroup(childComplexity), true
+
 	case "ComponentProposal.kind":
 		if e.ComplexityRoot.ComponentProposal.Kind == nil {
 			break
@@ -1291,6 +1429,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.InstancePart.TeachingHours(childComplexity), true
 
+	case "MemberCompetenceStatus.canTeachCompulsory":
+		if e.ComplexityRoot.MemberCompetenceStatus.CanTeachCompulsory == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MemberCompetenceStatus.CanTeachCompulsory(childComplexity), true
+	case "MemberCompetenceStatus.member":
+		if e.ComplexityRoot.MemberCompetenceStatus.Member == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MemberCompetenceStatus.Member(childComplexity), true
+	case "MemberCompetenceStatus.minimum":
+		if e.ComplexityRoot.MemberCompetenceStatus.Minimum == nil {
+			break
+		}
+
+		return e.ComplexityRoot.MemberCompetenceStatus.Minimum(childComplexity), true
+
 	case "Module.active":
 		if e.ComplexityRoot.Module.Active == nil {
 			break
@@ -1531,6 +1688,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ModuleRef.Name(childComplexity), true
+
+	case "ModuleWithoutCompetence.compulsory":
+		if e.ComplexityRoot.ModuleWithoutCompetence.Compulsory == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleWithoutCompetence.Compulsory(childComplexity), true
+	case "ModuleWithoutCompetence.id":
+		if e.ComplexityRoot.ModuleWithoutCompetence.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleWithoutCompetence.ID(childComplexity), true
+	case "ModuleWithoutCompetence.name":
+		if e.ComplexityRoot.ModuleWithoutCompetence.Name == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleWithoutCompetence.Name(childComplexity), true
 
 	case "Mutation.acceptInstanceCoverage":
 		if e.ComplexityRoot.Mutation.AcceptInstanceCoverage == nil {
@@ -1835,6 +2011,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetModulesSubjectGroup(childComplexity, args["moduleIds"].([]string), args["subjectGroup"].(*string)), true
+	case "Mutation.setMyCompetence":
+		if e.ComplexityRoot.Mutation.SetMyCompetence == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setMyCompetence_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetMyCompetence(childComplexity, args["moduleId"].(string), args["level"].(domain.CompetenceLevel), args["note"].(*string)), true
 	case "Mutation.setMySubjectGroups":
 		if e.ComplexityRoot.Mutation.SetMySubjectGroups == nil {
 			break
@@ -1945,6 +2132,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetTeacherAdmitted(childComplexity, args["teacherId"].(string), args["admitted"].(bool)), true
+	case "Mutation.setTeacherCompetence":
+		if e.ComplexityRoot.Mutation.SetTeacherCompetence == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setTeacherCompetence_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetTeacherCompetence(childComplexity, args["moduleId"].(string), args["teacherId"].(string), args["level"].(domain.CompetenceLevel), args["note"].(*string)), true
 	case "Mutation.setWish":
 		if e.ComplexityRoot.Mutation.SetWish == nil {
 			break
@@ -2006,6 +2204,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.WithdrawCourseInstance(childComplexity, args["id"].(string)), true
+	case "Mutation.withdrawMyCompetence":
+		if e.ComplexityRoot.Mutation.WithdrawMyCompetence == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_withdrawMyCompetence_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.WithdrawMyCompetence(childComplexity, args["id"].(string)), true
+	case "Mutation.withdrawTeacherCompetence":
+		if e.ComplexityRoot.Mutation.WithdrawTeacherCompetence == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_withdrawTeacherCompetence_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.WithdrawTeacherCompetence(childComplexity, args["id"].(string)), true
 	case "Mutation.withdrawWish":
 		if e.ComplexityRoot.Mutation.WithdrawWish == nil {
 			break
@@ -2199,6 +2419,28 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.BuildInfo(childComplexity), true
+	case "Query.competenceMemberStatus":
+		if e.ComplexityRoot.Query.CompetenceMemberStatus == nil {
+			break
+		}
+
+		args, err := ec.field_Query_competenceMemberStatus_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.CompetenceMemberStatus(childComplexity, args["subjectGroup"].(string)), true
+	case "Query.competences":
+		if e.ComplexityRoot.Query.Competences == nil {
+			break
+		}
+
+		args, err := ec.field_Query_competences_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Competences(childComplexity, args["module"].(*string), args["subjectGroup"].(*string), args["person"].(*string), args["teacher"].(*string)), true
 	case "Query.courseInstance":
 		if e.ComplexityRoot.Query.CourseInstance == nil {
 			break
@@ -2272,6 +2514,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Modules(childComplexity, args["filter"].(*model.ModuleFilter)), true
+	case "Query.modulesWithoutCompetence":
+		if e.ComplexityRoot.Query.ModulesWithoutCompetence == nil {
+			break
+		}
+
+		args, err := ec.field_Query_modulesWithoutCompetence_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ModulesWithoutCompetence(childComplexity, args["subjectGroup"].(string)), true
 	case "Query.modulesWithoutSubjectGroup":
 		if e.ComplexityRoot.Query.ModulesWithoutSubjectGroup == nil {
 			break
@@ -2289,6 +2542,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.MyAssignments(childComplexity, args["semester"].(*string)), true
+	case "Query.myCompetenceStatus":
+		if e.ComplexityRoot.Query.MyCompetenceStatus == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.MyCompetenceStatus(childComplexity), true
+	case "Query.myCompetences":
+		if e.ComplexityRoot.Query.MyCompetences == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.MyCompetences(childComplexity), true
 	case "Query.mySubjectGroups":
 		if e.ComplexityRoot.Query.MySubjectGroups == nil {
 			break
@@ -4823,6 +5088,197 @@ extend type Mutation {
   ): Module! @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
+	{Name: "../competence.graphqls", Input: `# Competences: who can teach which module, and who would like to.
+#
+# The kickoff's "Kompetenzzone": for every module a pool of people — "wer kann was halten, wenn es
+# brennt" and "wer würde mal gerne in Zukunft". Stated on the module, not on an instance, and
+# without a semester: it outlives every term, the way a subject group does.
+#
+# THE RULE, ONCE
+#
+# A competence is visible if and only if it is your own statement, or you are responsible for the
+# module — you lead its home study programme or its subject group, or you are the dean's office —
+# and then only in a signed-in browser session. The wish rule without its publication date:
+# "würde gern" is a wish without a semester, so nothing ever makes it public. Read the whole thing
+# in ` + "`" + `internal/policy/testdata/competence_visibility_matrix.golden` + "`" + `.
+#
+# WHO WRITES
+#
+# Your own, for the modules of the subject groups you are in — joining a group (` + "`" + `setMySubjectGroups` + "`" + `)
+# is what opens its subjects, compulsory ones included. For a teacher without an account, the lead
+# of the module's subject group, because a lecturer on contract cannot sign in to say it.
+
+"The two statements a competence can be."
+enum CompetenceLevel {
+  "Kann ich halten, wenn es brennt. Counts towards the minimum, and the assignment reads it first."
+  CAN_TEACH
+  "Würde ich in Zukunft gern halten. Confidential for the reason a wish is."
+  WOULD_LIKE
+}
+
+"""
+The module a competence is about: enough to label and group a row.
+
+Not the whole ` + "`" + `Module` + "`" + `, for the reason ` + "`" + `Assignee` + "`" + ` is not a ` + "`" + `Person` + "`" + `: this row is rendered by one
+query that knows the name and the group and nothing else, and a half-filled ` + "`" + `Module` + "`" + ` would read
+as a claim about the fields it left empty.
+"""
+type CompetenceModule {
+  id: ID!
+  "The module's name as the regulations spell it; empty for the few the source names nowhere."
+  name: String!
+  """
+  Compulsory under at least one version of some programme's regulations — what the faculty calls
+  the "Pflichtkatalog", and what the minimum counts.
+  """
+  compulsory: Boolean!
+  "The module's subject group, or ` + "`" + `null` + "`" + ` while it has none."
+  subjectGroup: SubjectGroupRef
+}
+
+"One statement about who can teach a module."
+type Competence {
+  id: ID!
+  "The module the statement is about."
+  module: CompetenceModule!
+  """
+  Who the statement is about: an account (` + "`" + `personId` + "`" + `), or a teacher without one (` + "`" + `teacherId` + "`" + `),
+  whose statements the subject group lead enters.
+  """
+  holder: Assignee!
+  "Which of the two statements this is."
+  level: CompetenceLevel!
+  "„nur die Übung“, „zuletzt 2019 gehalten“. Read by whoever may read the row."
+  note: String!
+  """
+  True for a person's statement on a module outside every subject group they are in — they have
+  left it since. Kept rather than deleted behind their back, and removable by them.
+  """
+  outsideSubjectGroups: Boolean!
+  "When it was first stated."
+  createdAt: Time!
+  "When it was last changed. Changing your mind moves this and keeps ` + "`" + `createdAt` + "`" + `."
+  updatedAt: Time!
+}
+
+"""
+One of your subject groups, and how many of its compulsory modules you have said you can teach.
+
+A hint, not a validation: ` + "`" + `canTeachCompulsory` + "`" + ` below ` + "`" + `minimum` + "`" + ` refuses nothing.
+"""
+type CompetenceGroupStatus {
+  "One of the subject groups you are in."
+  subjectGroup: SubjectGroupRef!
+  "How many of its active compulsory modules you have marked ` + "`" + `CAN_TEACH` + "`" + `."
+  canTeachCompulsory: Int!
+  "How many the faculty asks for: „mindestens 3 oder 4 Fächer aus dem Pflichtkatalog“."
+  minimum: Int!
+}
+
+"One member of a subject group and their count — the lead's work list."
+type MemberCompetenceStatus {
+  "The member: a name and an address, and deliberately not a ` + "`" + `Person` + "`" + ` with roles."
+  member: Assignee!
+  "How many of the group's active compulsory modules they have marked ` + "`" + `CAN_TEACH` + "`" + `."
+  canTeachCompulsory: Int!
+  "How many the faculty asks for."
+  minimum: Int!
+}
+
+"A module of a subject group that nobody has said they can teach."
+type ModuleWithoutCompetence {
+  id: ID!
+  "The module's name."
+  name: String!
+  "Compulsory under at least one version of some programme's regulations. These come first to mind."
+  compulsory: Boolean!
+}
+
+extend type Query {
+  """
+  Your own statements, through either door: they are your data.
+  """
+  myCompetences: [Competence!]! @scope(area: WISHES, verb: READ)
+
+  """
+  For each subject group you are in, how far you are from the minimum.
+  """
+  myCompetenceStatus: [CompetenceGroupStatus!]! @scope(area: WISHES, verb: READ)
+
+  """
+  The competences you may see, narrowed by the arguments.
+
+  **Not an error when you may see none**, for the reason ` + "`" + `wishes` + "`" + ` gives. Through a Personal Access
+  Token this is your own statements whatever your role.
+  """
+  competences(
+    "One module's pool."
+    module: ID
+    "The modules of one subject group."
+    subjectGroup: ID
+    "One account's statements."
+    person: ID
+    "One teacher's statements."
+    teacher: ID
+  ): [Competence!]! @scope(area: WISHES, verb: READ)
+
+  """
+  Every member of a subject group and how many of its compulsory modules they can teach.
+
+  Only for the lead of that group and the dean's office — ` + "`" + `COMPETENCE_GROUP_REFUSED` + "`" + ` otherwise.
+  A count over a group is a count over rows, so it is answered only to somebody who may read all
+  of them.
+  """
+  competenceMemberStatus(subjectGroup: ID!): [MemberCompetenceStatus!]!
+    @interactiveOnly @scope(area: WISHES, verb: READ)
+
+  """
+  The active modules of a subject group that nobody can teach: „wenn es brennt, kann es niemand“.
+  On the same terms as ` + "`" + `competenceMemberStatus` + "`" + `.
+  """
+  modulesWithoutCompetence(subjectGroup: ID!): [ModuleWithoutCompetence!]!
+    @interactiveOnly @scope(area: WISHES, verb: READ)
+}
+
+extend type Mutation {
+  """
+  State your own competence for a module, or change it.
+
+  Only for the modules of the subject groups you are in — ` + "`" + `COMPETENCE_OUTSIDE_GROUPS` + "`" + ` otherwise.
+  Stating twice is changing your mind and keeps ` + "`" + `createdAt` + "`" + `.
+  """
+  setMyCompetence(
+    moduleId: ID!
+    level: CompetenceLevel!
+    "Up to 500 characters, or nothing."
+    note: String
+  ): Competence! @scope(area: WISHES, verb: WRITE)
+
+  """
+  Withdraw one of your own statements. Not there and not yours are the same answer,
+  ` + "`" + `COMPETENCE_NOT_FOUND` + "`" + `. Returns the id.
+  """
+  withdrawMyCompetence(id: ID!): ID! @scope(area: WISHES, verb: WRITE)
+
+  """
+  State a competence for a teacher without an account. The lead of the module's subject group and
+  the dean's office only; a teacher with an account says it themselves
+  (` + "`" + `COMPETENCE_TEACHER_HAS_ACCOUNT` + "`" + `).
+  """
+  setTeacherCompetence(
+    moduleId: ID!
+    teacherId: ID!
+    level: CompetenceLevel!
+    note: String
+  ): Competence! @interactiveOnly @scope(area: WISHES, verb: WRITE)
+
+  """
+  Withdraw a statement about a teacher without an account. On the terms of ` + "`" + `setTeacherCompetence` + "`" + `;
+  anything else answers ` + "`" + `COMPETENCE_NOT_FOUND` + "`" + `.
+  """
+  withdrawTeacherCompetence(id: ID!): ID! @interactiveOnly @scope(area: WISHES, verb: WRITE)
+}
+`, BuiltIn: false},
 	{Name: "../demand.graphqls", Input: `# The demand: which course instances a study programme needs in a semester.
 #
 # The first area of the planning process itself, and the one the other three hang off. A wish is
@@ -5711,7 +6167,8 @@ enum ScopeArea {
   PLANNING
 
   """
-  Registering interest in instance parts, and reading what may be read of other people's.
+  Registering interest in instance parts, stating which modules you can teach or would like to,
+  and reading what may be read of other people's.
 
   Its own area rather than part of ` + "`" + `PLANNING` + "`" + `, because it is the one part of the planning somebody
   might sensibly want a token narrowed *to*: "this script keeps my wishes in step with my
@@ -5723,7 +6180,12 @@ enum ScopeArea {
   to your own entries whatever the scope says: the area bounds the surface, the policy bounds the
   rows.
 
-  Fields: ` + "`" + `myWishes` + "`" + `, ` + "`" + `wishes` + "`" + `, ` + "`" + `setWish` + "`" + `, ` + "`" + `withdrawWish` + "`" + `.
+  Competences are here and not under ` + "`" + `PROFILE` + "`" + ` because "würde ich gern halten" is a wish without a
+  semester, and confidential for the same reason.
+
+  Fields: ` + "`" + `myWishes` + "`" + `, ` + "`" + `wishes` + "`" + `, ` + "`" + `setWish` + "`" + `, ` + "`" + `withdrawWish` + "`" + `, ` + "`" + `myCompetences` + "`" + `, ` + "`" + `myCompetenceStatus` + "`" + `,
+  ` + "`" + `competences` + "`" + `, ` + "`" + `competenceMemberStatus` + "`" + `, ` + "`" + `modulesWithoutCompetence` + "`" + `, ` + "`" + `setMyCompetence` + "`" + `,
+  ` + "`" + `withdrawMyCompetence` + "`" + `, ` + "`" + `setTeacherCompetence` + "`" + `, ` + "`" + `withdrawTeacherCompetence` + "`" + `.
   """
   WISHES
 
@@ -7558,6 +8020,54 @@ func (ec *executionContext) childFields_BuildInfo(ctx context.Context, field gra
 	return nil, fmt.Errorf("no field named %q was found under type BuildInfo", field.Name)
 }
 
+func (ec *executionContext) childFields_Competence(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Competence_id(ctx, field)
+	case "module":
+		return ec.fieldContext_Competence_module(ctx, field)
+	case "holder":
+		return ec.fieldContext_Competence_holder(ctx, field)
+	case "level":
+		return ec.fieldContext_Competence_level(ctx, field)
+	case "note":
+		return ec.fieldContext_Competence_note(ctx, field)
+	case "outsideSubjectGroups":
+		return ec.fieldContext_Competence_outsideSubjectGroups(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_Competence_createdAt(ctx, field)
+	case "updatedAt":
+		return ec.fieldContext_Competence_updatedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Competence", field.Name)
+}
+
+func (ec *executionContext) childFields_CompetenceGroupStatus(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "subjectGroup":
+		return ec.fieldContext_CompetenceGroupStatus_subjectGroup(ctx, field)
+	case "canTeachCompulsory":
+		return ec.fieldContext_CompetenceGroupStatus_canTeachCompulsory(ctx, field)
+	case "minimum":
+		return ec.fieldContext_CompetenceGroupStatus_minimum(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type CompetenceGroupStatus", field.Name)
+}
+
+func (ec *executionContext) childFields_CompetenceModule(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_CompetenceModule_id(ctx, field)
+	case "name":
+		return ec.fieldContext_CompetenceModule_name(ctx, field)
+	case "compulsory":
+		return ec.fieldContext_CompetenceModule_compulsory(ctx, field)
+	case "subjectGroup":
+		return ec.fieldContext_CompetenceModule_subjectGroup(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type CompetenceModule", field.Name)
+}
+
 func (ec *executionContext) childFields_ComponentProposal(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "kind":
@@ -7738,6 +8248,18 @@ func (ec *executionContext) childFields_InstancePart(ctx context.Context, field 
 	return nil, fmt.Errorf("no field named %q was found under type InstancePart", field.Name)
 }
 
+func (ec *executionContext) childFields_MemberCompetenceStatus(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "member":
+		return ec.fieldContext_MemberCompetenceStatus_member(ctx, field)
+	case "canTeachCompulsory":
+		return ec.fieldContext_MemberCompetenceStatus_canTeachCompulsory(ctx, field)
+	case "minimum":
+		return ec.fieldContext_MemberCompetenceStatus_minimum(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type MemberCompetenceStatus", field.Name)
+}
+
 func (ec *executionContext) childFields_Module(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "id":
@@ -7834,6 +8356,18 @@ func (ec *executionContext) childFields_ModuleRef(ctx context.Context, field gra
 		return ec.fieldContext_ModuleRef_homeProgrammeCode(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ModuleRef", field.Name)
+}
+
+func (ec *executionContext) childFields_ModuleWithoutCompetence(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_ModuleWithoutCompetence_id(ctx, field)
+	case "name":
+		return ec.fieldContext_ModuleWithoutCompetence_name(ctx, field)
+	case "compulsory":
+		return ec.fieldContext_ModuleWithoutCompetence_compulsory(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ModuleWithoutCompetence", field.Name)
 }
 
 func (ec *executionContext) childFields_Person(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

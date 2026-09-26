@@ -101,6 +101,11 @@ type ModuleRef {
   similarly named modules apart.
   """
   homeProgrammeCode: String!
+  """
+  Compulsory under at least one version of some programme's regulations — the "Pflichtkatalog"
+  the competence profile's minimum counts.
+  """
+  compulsory: Boolean!
 }
 
 """

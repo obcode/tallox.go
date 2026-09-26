@@ -289,6 +289,7 @@ type ComplexityRoot struct {
 	}
 
 	ModuleRef struct {
+		Compulsory        func(childComplexity int) int
 		HomeProgrammeCode func(childComplexity int) int
 		ID                func(childComplexity int) int
 		Name              func(childComplexity int) int
@@ -1670,6 +1671,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ModuleOffering.Spo(childComplexity), true
 
+	case "ModuleRef.compulsory":
+		if e.ComplexityRoot.ModuleRef.Compulsory == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleRef.Compulsory(childComplexity), true
 	case "ModuleRef.homeProgrammeCode":
 		if e.ComplexityRoot.ModuleRef.HomeProgrammeCode == nil {
 			break
@@ -6946,6 +6953,11 @@ type ModuleRef {
   similarly named modules apart.
   """
   homeProgrammeCode: String!
+  """
+  Compulsory under at least one version of some programme's regulations — the "Pflichtkatalog"
+  the competence profile's minimum counts.
+  """
+  compulsory: Boolean!
 }
 
 """
@@ -8354,6 +8366,8 @@ func (ec *executionContext) childFields_ModuleRef(ctx context.Context, field gra
 		return ec.fieldContext_ModuleRef_name(ctx, field)
 	case "homeProgrammeCode":
 		return ec.fieldContext_ModuleRef_homeProgrammeCode(ctx, field)
+	case "compulsory":
+		return ec.fieldContext_ModuleRef_compulsory(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ModuleRef", field.Name)
 }

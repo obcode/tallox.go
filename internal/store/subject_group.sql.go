@@ -198,7 +198,10 @@ func (q *Queries) CreateSubjectGroup(ctx context.Context, arg CreateSubjectGroup
 }
 
 const modulesOfSubjectGroup = `-- name: ModulesOfSubjectGroup :many
-SELECT m.id, m.name, p.code AS home_programme_code
+SELECT m.id, m.name, p.code AS home_programme_code,
+       -- Compulsory under at least one version of some programme's regulations: what the
+       -- competence profile counts, and what the page puts first.
+       EXISTS (SELECT 1 FROM module_offering o WHERE o.module_id = m.id AND o.is_duty) AS compulsory
 FROM module_subject_group g
 JOIN module m ON m.id = g.module_id
 JOIN programme p ON p.id = m.home_programme_id
@@ -212,6 +215,7 @@ type ModulesOfSubjectGroupRow struct {
 	ID                uuid.UUID
 	Name              string
 	HomeProgrammeCode string
+	Compulsory        bool
 }
 
 // Which modules a subject group holds, for the screen that shows somebody what a group is about.
@@ -228,7 +232,12 @@ func (q *Queries) ModulesOfSubjectGroup(ctx context.Context, subjectGroupID uuid
 	items := []ModulesOfSubjectGroupRow{}
 	for rows.Next() {
 		var i ModulesOfSubjectGroupRow
-		if err := rows.Scan(&i.ID, &i.Name, &i.HomeProgrammeCode); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.HomeProgrammeCode,
+			&i.Compulsory,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -109,6 +109,9 @@ type ModuleRef struct {
 	// HomeProgrammeCode is the programme that plans it — IF, IG. Carried because a subject group
 	// reaches across programmes, so the code is what tells two similarly named modules apart.
 	HomeProgrammeCode string
+	// Compulsory is whether the module is compulsory under at least one set of regulations — what
+	// the competence profile's minimum counts.
+	Compulsory bool
 }
 
 // SubjectGroupStore is what the service needs from persistence.

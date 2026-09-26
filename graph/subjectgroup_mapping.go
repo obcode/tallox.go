@@ -127,6 +127,7 @@ func moduleRefModels(modules []domain.ModuleRef) []*model.ModuleRef {
 			ID:                m.ID.String(),
 			Name:              m.Name,
 			HomeProgrammeCode: m.HomeProgrammeCode,
+			Compulsory:        m.Compulsory,
 		})
 	}
 	return out

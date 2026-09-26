@@ -441,3 +441,29 @@ func TestDatabaseAndDomainAgreeOnCompetenceLevels(t *testing.T) {
 		t.Error("the database accepted a level the domain does not know")
 	}
 }
+
+// A subject group's module list says which modules are compulsory — the competence page puts
+// those first, and they are what the minimum counts.
+func TestAGroupsModulesSayWhichAreCompulsory(t *testing.T) {
+	t.Parallel()
+
+	f := newCompetenceFixture(t)
+	modules, err := store.NewSubjectGroups(f.schema.Pool).ModulesOfSubjectGroup(t.Context(), f.group)
+	if err != nil {
+		t.Fatalf("cannot read the group's modules: %v", err)
+	}
+
+	got := map[uuid.UUID]bool{}
+	for _, m := range modules {
+		got[m.ID] = m.Compulsory
+	}
+	for module, want := range map[uuid.UUID]bool{
+		f.compulsory:     true,
+		f.alsoCompulsory: true, // compulsory in the newer regulations only — that is enough
+		f.elective:       false,
+	} {
+		if got[module] != want {
+			t.Errorf("module %s: compulsory = %v, want %v", module, got[module], want)
+		}
+	}
+}

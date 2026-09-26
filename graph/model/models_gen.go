@@ -802,6 +802,9 @@ type ModuleRef struct {
 	// Carried because a subject group reaches across programmes, so the code is what tells two
 	// similarly named modules apart.
 	HomeProgrammeCode string `json:"homeProgrammeCode"`
+	// Compulsory under at least one version of some programme's regulations — the "Pflichtkatalog"
+	// the competence profile's minimum counts.
+	Compulsory bool `json:"compulsory"`
 }
 
 // A module of a subject group that nobody has said they can teach.

@@ -1,0 +1,67 @@
+Competence visibility — who reads who can teach what
+===================================================
+
+Generated from internal/policy (TestCompetenceVisibilityMatrix). Do not edit by hand:
+
+    go test ./internal/policy/ -update-golden
+
+The rule
+--------
+
+A competence — "I can teach this module" or "I would like to, one day" — is visible if and only if
+
+  · it is the caller's own statement, or
+  · the caller is responsible for the module — they lead its home study programme, or the
+    subject group it belongs to, or they are the dean's office — and then only in an
+    interactive session, never through a Personal Access Token.
+
+The wish rule without its publication clause. "Would like to" is a wish without a semester: a
+colleague who can read it knows who else is eyeing a subject, which is the first-come race the
+wish rule exists to end. And because a competence belongs to no semester, there is no date on
+which it becomes public. Decided 2026-09-26.
+
+Statements about a teacher without an account
+---------------------------------------------
+
+The subject group lead enters those, because a lecturer on contract cannot sign in to do it. Such
+a row is nobody's own, so it is read only through responsibility — the "teacher" column.
+
+Counting over a subject group
+-----------------------------
+
+"Who in this group can teach fewer than three compulsory modules" and "which modules can nobody
+teach" count rows. They are answered only to somebody who may read every competence of that
+group: its lead and the dean's office. A programme lead reaches the modules of their programme,
+which cut across groups, and so may read some of a group's rows but not count them all.
+
+The columns
+-----------
+
+  own               The caller's own statement.
+  prog. 1 / group 1 A colleague's statement on a module reached through one axis or the other.
+  teacher           A statement about a teacher without an account, on a module in group 1.
+  neither           A colleague's statement on a module on neither axis.
+  Filter            What CompetenceVisibility narrows a query to.
+
+Role                Door         Responsible for  own   prog. 1  group 1  teacher  neither  Filter
+--------------------------------------------------------------------------------------------------
+(not signed in)     —            —                no    no       no       no       no       no access
+
+LECTURER            interactive  —                yes   no       no       no       no       own only
+LECTURER            token        —                yes   no       no       no       no       own only
+
+SUBJECT_GROUP_LEAD  interactive  —                yes   no       no       no       no       own only
+SUBJECT_GROUP_LEAD  interactive  group 1          yes   no       yes      yes      no       own + scoped
+SUBJECT_GROUP_LEAD  token        —                yes   no       no       no       no       own only
+SUBJECT_GROUP_LEAD  token        group 1          yes   no       no       no       no       own only
+
+PROGRAMME_LEAD      interactive  —                yes   no       no       no       no       own only
+PROGRAMME_LEAD      interactive  programme 1      yes   yes      no       no       no       own + scoped
+PROGRAMME_LEAD      token        —                yes   no       no       no       no       own only
+PROGRAMME_LEAD      token        programme 1      yes   no       no       no       no       own only
+
+DEANS_OFFICE        interactive  —                yes   yes      yes      yes      yes      all
+DEANS_OFFICE        token        —                yes   no       no       no       no       own only
+
+ADMIN               interactive  —                yes   no       no       no       no       own only
+ADMIN               token        —                yes   no       no       no       no       own only

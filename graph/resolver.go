@@ -48,6 +48,11 @@ type Resolver struct {
 	// `r.Assignments` inside every mutation resolver. Wishes lives with exactly that and the
 	// comment above it exists to explain why its two halves do not match; once was enough.
 	Staffing *domain.AssignmentService
+	// Expertise is the competence profile: who can teach which module, and who would like to.
+	//
+	// Named for what it is rather than for its type, for the reason Staffing is: `Competences` is
+	// the generated queryResolver method for the `competences` field.
+	Expertise *domain.CompetenceService
 	// SubjectGroups is the faculty's own grouping of modules and people: who works on what,
 	// who leads which group, and which modules belong to it.
 	//

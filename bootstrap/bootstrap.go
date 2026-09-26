@@ -100,6 +100,8 @@ type Options struct {
 	// Staffing is the assignment phase, on the same terms. Named as it is in graph.Resolver, for
 	// the collision explained there.
 	Staffing *domain.AssignmentService
+	// Expertise is the competence profile, on the same terms and named as in graph.Resolver.
+	Expertise *domain.CompetenceService
 	// Marks is what opens and closes the planning, on the same terms.
 	Marks *domain.PlanningMarkService
 	// Access is the access log. Nil is legitimate and means the installation does not record
@@ -333,6 +335,7 @@ func Serve(build buildinfo.Info) {
 	subjectGroups := domain.NewSubjectGroupService(store.NewSubjectGroups(pool))
 	wishes := domain.NewWishService(store.NewWishes(pool), planning)
 	staffing := domain.NewAssignmentService(store.NewAssignments(pool), planning)
+	expertise := domain.NewCompetenceService(store.NewCompetences(pool))
 	marks := domain.NewPlanningMarkService(store.NewPlanningMarks(pool), planning)
 	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool), catalogueProjection)
 	access := domain.NewAccessService(store.NewAccess(pool))
@@ -367,6 +370,7 @@ func Serve(build buildinfo.Info) {
 			SubjectGroups: subjectGroups,
 			Wishes:        wishes,
 			Staffing:      staffing,
+			Expertise:     expertise,
 			Marks:         marks,
 			Access:        access,
 		}),
@@ -622,6 +626,7 @@ func graphqlHandler(opts Options) http.Handler {
 			SubjectGroups: opts.SubjectGroups,
 			Wishes:        opts.Wishes,
 			Staffing:      opts.Staffing,
+			Expertise:     opts.Expertise,
 			Marks:         opts.Marks,
 			Access:        opts.Access,
 		},

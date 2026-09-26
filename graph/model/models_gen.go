@@ -254,6 +254,55 @@ type BorrowedPart struct {
 	FromProgramme *Programme `json:"fromProgramme,omitempty"`
 }
 
+// One statement about who can teach a module.
+type Competence struct {
+	ID string `json:"id"`
+	// The module the statement is about.
+	Module *CompetenceModule `json:"module"`
+	// Who the statement is about: an account (`personId`), or a teacher without one (`teacherId`),
+	// whose statements the subject group lead enters.
+	Holder *Assignee `json:"holder"`
+	// Which of the two statements this is.
+	Level domain.CompetenceLevel `json:"level"`
+	// „nur die Übung“, „zuletzt 2019 gehalten“. Read by whoever may read the row.
+	Note string `json:"note"`
+	// True for a person's statement on a module outside every subject group they are in — they have
+	// left it since. Kept rather than deleted behind their back, and removable by them.
+	OutsideSubjectGroups bool `json:"outsideSubjectGroups"`
+	// When it was first stated.
+	CreatedAt time.Time `json:"createdAt"`
+	// When it was last changed. Changing your mind moves this and keeps `createdAt`.
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+// One of your subject groups, and how many of its compulsory modules you have said you can teach.
+//
+// A hint, not a validation: `canTeachCompulsory` below `minimum` refuses nothing.
+type CompetenceGroupStatus struct {
+	// One of the subject groups you are in.
+	SubjectGroup *SubjectGroupRef `json:"subjectGroup"`
+	// How many of its active compulsory modules you have marked `CAN_TEACH`.
+	CanTeachCompulsory int `json:"canTeachCompulsory"`
+	// How many the faculty asks for: „mindestens 3 oder 4 Fächer aus dem Pflichtkatalog“.
+	Minimum int `json:"minimum"`
+}
+
+// The module a competence is about: enough to label and group a row.
+//
+// Not the whole `Module`, for the reason `Assignee` is not a `Person`: this row is rendered by one
+// query that knows the name and the group and nothing else, and a half-filled `Module` would read
+// as a claim about the fields it left empty.
+type CompetenceModule struct {
+	ID string `json:"id"`
+	// The module's name as the regulations spell it; empty for the few the source names nowhere.
+	Name string `json:"name"`
+	// Compulsory under at least one version of some programme's regulations — what the faculty calls
+	// the "Pflichtkatalog", and what the minimum counts.
+	Compulsory bool `json:"compulsory"`
+	// The module's subject group, or `null` while it has none.
+	SubjectGroup *SubjectGroupRef `json:"subjectGroup,omitempty"`
+}
+
 // One unit of a split nobody has stated yet.
 //
 // Separate from `ModuleComponent` because it has no id: there is no row to point at, and there is
@@ -670,6 +719,16 @@ type LocalModuleInput struct {
 	Components []*ModuleComponentInput `json:"components,omitempty"`
 }
 
+// One member of a subject group and their count — the lead's work list.
+type MemberCompetenceStatus struct {
+	// The member: a name and an address, and deliberately not a `Person` with roles.
+	Member *Assignee `json:"member"`
+	// How many of the group's active compulsory modules they have marked `CAN_TEACH`.
+	CanTeachCompulsory int `json:"canTeachCompulsory"`
+	// How many the faculty asks for.
+	Minimum int `json:"minimum"`
+}
+
 // One unit of a module's split, on the way in.
 type ModuleComponentInput struct {
 	// What kind of teaching this unit is.
@@ -743,6 +802,15 @@ type ModuleRef struct {
 	// Carried because a subject group reaches across programmes, so the code is what tells two
 	// similarly named modules apart.
 	HomeProgrammeCode string `json:"homeProgrammeCode"`
+}
+
+// A module of a subject group that nobody has said they can teach.
+type ModuleWithoutCompetence struct {
+	ID string `json:"id"`
+	// The module's name.
+	Name string `json:"name"`
+	// Compulsory under at least one version of some programme's regulations. These come first to mind.
+	Compulsory bool `json:"compulsory"`
 }
 
 // Everything that changes something.

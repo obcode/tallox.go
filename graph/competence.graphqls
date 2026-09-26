@@ -1,0 +1,190 @@
+# Competences: who can teach which module, and who would like to.
+#
+# The kickoff's "Kompetenzzone": for every module a pool of people — "wer kann was halten, wenn es
+# brennt" and "wer würde mal gerne in Zukunft". Stated on the module, not on an instance, and
+# without a semester: it outlives every term, the way a subject group does.
+#
+# THE RULE, ONCE
+#
+# A competence is visible if and only if it is your own statement, or you are responsible for the
+# module — you lead its home study programme or its subject group, or you are the dean's office —
+# and then only in a signed-in browser session. The wish rule without its publication date:
+# "würde gern" is a wish without a semester, so nothing ever makes it public. Read the whole thing
+# in `internal/policy/testdata/competence_visibility_matrix.golden`.
+#
+# WHO WRITES
+#
+# Your own, for the modules of the subject groups you are in — joining a group (`setMySubjectGroups`)
+# is what opens its subjects, compulsory ones included. For a teacher without an account, the lead
+# of the module's subject group, because a lecturer on contract cannot sign in to say it.
+
+"The two statements a competence can be."
+enum CompetenceLevel {
+  "Kann ich halten, wenn es brennt. Counts towards the minimum, and the assignment reads it first."
+  CAN_TEACH
+  "Würde ich in Zukunft gern halten. Confidential for the reason a wish is."
+  WOULD_LIKE
+}
+
+"""
+The module a competence is about: enough to label and group a row.
+
+Not the whole `Module`, for the reason `Assignee` is not a `Person`: this row is rendered by one
+query that knows the name and the group and nothing else, and a half-filled `Module` would read
+as a claim about the fields it left empty.
+"""
+type CompetenceModule {
+  id: ID!
+  "The module's name as the regulations spell it; empty for the few the source names nowhere."
+  name: String!
+  """
+  Compulsory under at least one version of some programme's regulations — what the faculty calls
+  the "Pflichtkatalog", and what the minimum counts.
+  """
+  compulsory: Boolean!
+  "The module's subject group, or `null` while it has none."
+  subjectGroup: SubjectGroupRef
+}
+
+"One statement about who can teach a module."
+type Competence {
+  id: ID!
+  "The module the statement is about."
+  module: CompetenceModule!
+  """
+  Who the statement is about: an account (`personId`), or a teacher without one (`teacherId`),
+  whose statements the subject group lead enters.
+  """
+  holder: Assignee!
+  "Which of the two statements this is."
+  level: CompetenceLevel!
+  "„nur die Übung“, „zuletzt 2019 gehalten“. Read by whoever may read the row."
+  note: String!
+  """
+  True for a person's statement on a module outside every subject group they are in — they have
+  left it since. Kept rather than deleted behind their back, and removable by them.
+  """
+  outsideSubjectGroups: Boolean!
+  "When it was first stated."
+  createdAt: Time!
+  "When it was last changed. Changing your mind moves this and keeps `createdAt`."
+  updatedAt: Time!
+}
+
+"""
+One of your subject groups, and how many of its compulsory modules you have said you can teach.
+
+A hint, not a validation: `canTeachCompulsory` below `minimum` refuses nothing.
+"""
+type CompetenceGroupStatus {
+  "One of the subject groups you are in."
+  subjectGroup: SubjectGroupRef!
+  "How many of its active compulsory modules you have marked `CAN_TEACH`."
+  canTeachCompulsory: Int!
+  "How many the faculty asks for: „mindestens 3 oder 4 Fächer aus dem Pflichtkatalog“."
+  minimum: Int!
+}
+
+"One member of a subject group and their count — the lead's work list."
+type MemberCompetenceStatus {
+  "The member: a name and an address, and deliberately not a `Person` with roles."
+  member: Assignee!
+  "How many of the group's active compulsory modules they have marked `CAN_TEACH`."
+  canTeachCompulsory: Int!
+  "How many the faculty asks for."
+  minimum: Int!
+}
+
+"A module of a subject group that nobody has said they can teach."
+type ModuleWithoutCompetence {
+  id: ID!
+  "The module's name."
+  name: String!
+  "Compulsory under at least one version of some programme's regulations. These come first to mind."
+  compulsory: Boolean!
+}
+
+extend type Query {
+  """
+  Your own statements, through either door: they are your data.
+  """
+  myCompetences: [Competence!]! @scope(area: WISHES, verb: READ)
+
+  """
+  For each subject group you are in, how far you are from the minimum.
+  """
+  myCompetenceStatus: [CompetenceGroupStatus!]! @scope(area: WISHES, verb: READ)
+
+  """
+  The competences you may see, narrowed by the arguments.
+
+  **Not an error when you may see none**, for the reason `wishes` gives. Through a Personal Access
+  Token this is your own statements whatever your role.
+  """
+  competences(
+    "One module's pool."
+    module: ID
+    "The modules of one subject group."
+    subjectGroup: ID
+    "One account's statements."
+    person: ID
+    "One teacher's statements."
+    teacher: ID
+  ): [Competence!]! @scope(area: WISHES, verb: READ)
+
+  """
+  Every member of a subject group and how many of its compulsory modules they can teach.
+
+  Only for the lead of that group and the dean's office — `COMPETENCE_GROUP_REFUSED` otherwise.
+  A count over a group is a count over rows, so it is answered only to somebody who may read all
+  of them.
+  """
+  competenceMemberStatus(subjectGroup: ID!): [MemberCompetenceStatus!]!
+    @interactiveOnly @scope(area: WISHES, verb: READ)
+
+  """
+  The active modules of a subject group that nobody can teach: „wenn es brennt, kann es niemand“.
+  On the same terms as `competenceMemberStatus`.
+  """
+  modulesWithoutCompetence(subjectGroup: ID!): [ModuleWithoutCompetence!]!
+    @interactiveOnly @scope(area: WISHES, verb: READ)
+}
+
+extend type Mutation {
+  """
+  State your own competence for a module, or change it.
+
+  Only for the modules of the subject groups you are in — `COMPETENCE_OUTSIDE_GROUPS` otherwise.
+  Stating twice is changing your mind and keeps `createdAt`.
+  """
+  setMyCompetence(
+    moduleId: ID!
+    level: CompetenceLevel!
+    "Up to 500 characters, or nothing."
+    note: String
+  ): Competence! @scope(area: WISHES, verb: WRITE)
+
+  """
+  Withdraw one of your own statements. Not there and not yours are the same answer,
+  `COMPETENCE_NOT_FOUND`. Returns the id.
+  """
+  withdrawMyCompetence(id: ID!): ID! @scope(area: WISHES, verb: WRITE)
+
+  """
+  State a competence for a teacher without an account. The lead of the module's subject group and
+  the dean's office only; a teacher with an account says it themselves
+  (`COMPETENCE_TEACHER_HAS_ACCOUNT`).
+  """
+  setTeacherCompetence(
+    moduleId: ID!
+    teacherId: ID!
+    level: CompetenceLevel!
+    note: String
+  ): Competence! @interactiveOnly @scope(area: WISHES, verb: WRITE)
+
+  """
+  Withdraw a statement about a teacher without an account. On the terms of `setTeacherCompetence`;
+  anything else answers `COMPETENCE_NOT_FOUND`.
+  """
+  withdrawTeacherCompetence(id: ID!): ID! @interactiveOnly @scope(area: WISHES, verb: WRITE)
+}

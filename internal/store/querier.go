@@ -221,6 +221,40 @@ type Querier interface {
 	// an administrator sets up a group, and a colleague says which subjects they work in. Both write
 	// this table and neither may quietly rewrite the other's rows.
 	ClearSubjectGroupsOfPerson(ctx context.Context, personID uuid.UUID) error
+	// One competence, through the same filter.
+	CompetenceByID(ctx context.Context, arg CompetenceByIDParams) (CompetenceByIDRow, error)
+	// What the write rule needs about a module: whether it may be stated for at all, its subject
+	// group, and whether this person is a member of that group.
+	//
+	// One statement, so that the decision is taken against one state. A module in no subject group
+	// answers with a NULL group and is_member false: nobody can state a competence for it yet, because
+	// the rule is "the subjects of your groups" and it is in none.
+	CompetenceModuleContext(ctx context.Context, arg CompetenceModuleContextParams) (CompetenceModuleContextRow, error)
+	// Competences: who can teach which module, and who would like to.
+	//
+	// THE RULE THIS FILE IS MADE OF
+	//
+	// Every SELECT that returns rows about other people carries the same four filter parameters, the
+	// way wish.sql does, and for the same reason: WOULD_LIKE is a wish without a semester, and a query
+	// written without the predicate is not a slow query, it is a leak.
+	//
+	//     @scope = 'all'            no restriction
+	//     @scope = 'own'            the caller's own entries
+	//     @scope = 'own_or_scoped'  their own, plus the modules of the programmes and subject groups
+	//                               they lead
+	//     anything else             nothing at all
+	//
+	// The programme of a competence is the module's HOME programme. A competence has no instance and
+	// therefore no demanding programme; the home programme is the one responsible for the module.
+	//
+	// The three aggregates at the end are not filtered by that predicate, and
+	// store.TestEveryCompetenceQueryIsFiltered knows them by name: the first counts only the caller's
+	// own rows, the other two are refused in internal/domain unless the caller may read the whole
+	// subject group they count over. That is the same rule applied before the query instead of inside
+	// it — acceptable exactly because the answer is about one group the caller either reaches or not.
+	// The competences the filter allows, narrowed by whatever the caller asked for.
+	// The examination office's short name for a holder who has an account, as in assignment.sql.
+	Competences(ctx context.Context, arg CompetencesParams) ([]CompetencesRow, error)
 	// Not projected, and the largest of the nine: 665 real rows over 12 sets of regulations the
 	// endpoint stopped returning — the historical ones and a placeholder dated 2099.
 	//
@@ -432,6 +466,9 @@ type Querier interface {
 	// cohort has one lecture, and after the merge the faculty holds one lecture for both. A sibling
 	// part that something already hangs off refuses to go, and the merge fails as a whole.
 	DeleteInstancePartsOfKind(ctx context.Context, arg DeleteInstancePartsOfKindParams) (int64, error)
+	// Withdraw one's own. Ownership in the WHERE clause, as DeleteOwnWish does: "not there" and "not
+	// yours" are the same empty result.
+	DeleteOwnCompetence(ctx context.Context, arg DeleteOwnCompetenceParams) (int64, error)
 	// Withdraw one's own wish.
 	//
 	// Ownership is in the WHERE clause rather than in a read-then-write in Go, which collapses three
@@ -447,6 +484,8 @@ type Querier interface {
 	// row and gains retired_at; a programme keeps its row and loses `active`; an offering is a
 	// claim about somebody else's regulations, and when they stop making it the claim goes.
 	DeleteStaleModuleOfferings(ctx context.Context) (int64, error)
+	// Withdraw a teacher row. Only teacher rows: a person's statement is removed by that person.
+	DeleteTeacherCompetence(ctx context.Context, id uuid.UUID) (int64, error)
 	// What opens and closes the planning, at the grain the planning actually happens in.
 	//
 	// Named marks and not windows, and that is not a matter of taste: sqlc names the generated file
@@ -723,6 +762,9 @@ type Querier interface {
 	// serialises the requests of a single script against itself and makes the busiest tokens the
 	// slowest ones.
 	MarkTokenUsed(ctx context.Context, tokenID string) error
+	// For one subject group: every member and how many of its compulsory modules they can teach.
+	// Refused in internal/domain unless the caller may read every competence in the group.
+	MemberCompulsoryCounts(ctx context.Context, subjectGroupID uuid.UUID) ([]MemberCompulsoryCountsRow, error)
 	ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, error)
 	// The splits of a set of modules, in one statement.
 	ModuleComponentsFor(ctx context.Context, moduleIds []uuid.UUID) ([]ModuleComponentsForRow, error)
@@ -745,6 +787,9 @@ type Querier interface {
 	// "what does this module cost". Retired modules are left out — a group is described by what it
 	// currently covers.
 	ModulesOfSubjectGroup(ctx context.Context, subjectGroupID uuid.UUID) ([]ModulesOfSubjectGroupRow, error)
+	// The active modules of one subject group that nobody has said they can teach — "wenn es brennt,
+	// kann es niemand". Refused in internal/domain on the same terms as the query above.
+	ModulesWithoutCompetence(ctx context.Context, subjectGroupID uuid.UUID) ([]ModulesWithoutCompetenceRow, error)
 	// The work list as a number: "37 modules still have no subject group".
 	//
 	// Retired modules do not count. A module the examination office stopped publishing is not work
@@ -765,6 +810,9 @@ type Querier interface {
 	// COALESCE with the cast outside, for the same reason as above — MAX over no rows is NULL, and
 	// an instance with no parts yet is the ordinary state of one whose module has an empty split.
 	NextInstancePartPosition(ctx context.Context, courseInstanceID uuid.UUID) (int32, error)
+	// For each subject group the caller is in: how many of its compulsory modules the caller has
+	// stated they can teach. Only the caller's own rows are counted — the answer is their own number.
+	OwnCompulsoryCounts(ctx context.Context, personID uuid.UUID) ([]OwnCompulsoryCountsRow, error)
 	// Everything the write rule needs about one part, in one statement.
 	//
 	// Both halves of MayWriteAssignment hang off the instance the part belongs to — the phase from its
@@ -1173,6 +1221,9 @@ type Querier interface {
 	// and somebody clicking — and answering "no such teacher" to a change that has already been
 	// written would be a worse answer than the truth.
 	TeacherAccountByID(ctx context.Context, teacherID uuid.UUID) (TeacherAccountByIDRow, error)
+	// The subject group of a teacher row's module, for the guard on removing it. No row for an id that
+	// is not a teacher row.
+	TeacherCompetenceContext(ctx context.Context, id uuid.UUID) (TeacherCompetenceContextRow, error)
 	// A handful of teachers by id, for attaching them to the modules they are responsible for.
 	// COALESCE, and it is not cosmetic: three of the 257 carry no address, sqlc cannot know that a
 	// cast is nullable, and scanning NULL into a string fails at runtime rather than at build time.
@@ -1225,6 +1276,12 @@ type Querier interface {
 	// WHERE clause names the source, so this can never touch an imported row — a mistyped id then
 	// changes nothing rather than editing the catalogue.
 	UpdateLocalModule(ctx context.Context, arg UpdateLocalModuleParams) (UpdateLocalModuleRow, error)
+	// State one's own competence for a module, or change it. person_id and entered_by are both the
+	// caller, and the CHECK says they have to be.
+	UpsertOwnCompetence(ctx context.Context, arg UpsertOwnCompetenceParams) (uuid.UUID, error)
+	// State a teacher's competence on their behalf — only for somebody without an account, which
+	// internal/domain makes sure of. entered_by moves to whoever changed it last.
+	UpsertTeacherCompetence(ctx context.Context, arg UpsertTeacherCompetenceParams) (uuid.UUID, error)
 	// Register interest, or change your mind about something you already registered.
 	//
 	// An upsert rather than an insert that can fail: registering twice for the same instance is not a

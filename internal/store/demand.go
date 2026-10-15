@@ -174,6 +174,54 @@ func (d *Demand) CourseInstances(ctx context.Context, filter domain.DemandFilter
 	return instances, nil
 }
 
+// TeachingLoad is the semester's teaching by home programme, one entry per home programme.
+//
+// The query answers one row per (home, programme of the instance); this folds them. A home
+// programme with nothing declared comes back as one row with no programme of the instance, and
+// becomes an entry with no shares rather than a share of zero hours taught nowhere.
+func (d *Demand) TeachingLoad(ctx context.Context, semesterCode string) ([]domain.TeachingLoad, error) {
+	rows, err := New(d.pool).TeachingLoadByHomeProgramme(ctx, semesterCode)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the teaching load: %w", err)
+	}
+
+	loads := []domain.TeachingLoad{}
+	for _, row := range rows {
+		if len(loads) == 0 || loads[len(loads)-1].HomeProgramme.ID != row.HomeID {
+			loads = append(loads, domain.TeachingLoad{
+				HomeProgramme: domain.Programme{
+					ID:             row.HomeID,
+					Code:           row.HomeCode,
+					Title:          row.HomeTitle,
+					Active:         row.HomeActive,
+					PlanningStatus: domain.ProgrammeStatus(row.HomePlanningStatus),
+				},
+				Shares: []domain.TeachingLoadShare{},
+			})
+		}
+		if !row.TaughtID.Valid {
+			continue
+		}
+
+		load := &loads[len(loads)-1]
+		load.Shares = append(load.Shares, domain.TeachingLoadShare{
+			Programme: domain.Programme{
+				ID:             row.TaughtID.UUID,
+				Code:           stringOrEmpty(row.TaughtCode),
+				Title:          stringOrEmpty(row.TaughtTitle),
+				Active:         row.TaughtActive != nil && *row.TaughtActive,
+				PlanningStatus: domain.ProgrammeStatus(stringOrEmpty(row.TaughtPlanningStatus)),
+			},
+			TeachingHours:     row.Hours,
+			Instances:         int(row.Instances),
+			FwpInstances:      int(row.FwpInstances),
+			FwpHours:          row.FwpHours,
+			PartsWithoutHours: int(row.PartsWithoutHours),
+		})
+	}
+	return loads, nil
+}
+
 // CourseInstanceByID returns one instance with everything attached, or (nil, nil).
 func (d *Demand) CourseInstanceByID(ctx context.Context, id uuid.UUID) (*domain.CourseInstance, error) {
 	q := New(d.pool)

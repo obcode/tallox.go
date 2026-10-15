@@ -92,6 +92,26 @@ func (s *DemandService) Instances(ctx context.Context, actor principal.Actor,
 	return s.store.CourseInstances(ctx, filter)
 }
 
+// TeachingLoad is the semester's teaching, attributed to the home programme of each module.
+//
+// Readable by everybody who may read the demand, through both doors: it is a sum over rows that
+// are not confidential, and an evaluation script is exactly who it is for. A semester nobody has
+// touched answers with every planned programme at zero rather than with a refusal, the way its
+// demand answers with an empty list.
+func (s *DemandService) TeachingLoad(ctx context.Context, actor principal.Actor,
+	semesterCode string,
+) ([]TeachingLoad, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+
+	semester, err := s.semesters.ByCode(ctx, actor, semesterCode)
+	if err != nil {
+		return nil, err
+	}
+	return s.store.TeachingLoad(ctx, semester.Code)
+}
+
 // Instance returns one instance, or (nil, nil).
 func (s *DemandService) Instance(ctx context.Context, actor principal.Actor, id uuid.UUID) (*CourseInstance, error) {
 	if err := mayRead(actor); err != nil {

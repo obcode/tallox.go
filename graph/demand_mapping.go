@@ -15,6 +15,32 @@ import (
 // rewrites that file from the schema on every generate.
 
 // courseInstanceModel reshapes an instance for the wire.
+// teachingLoadModel computes the totals here rather than in field resolvers, for the reason
+// courseInstanceModel gives: they are sums over a slice that is already loaded.
+func teachingLoadModel(l domain.TeachingLoad) *model.ProgrammeTeachingLoad {
+	out := &model.ProgrammeTeachingLoad{
+		HomeProgramme:     programmeModel(l.HomeProgramme),
+		TeachingHours:     l.TeachingHours(),
+		OwnHours:          l.OwnHours(),
+		InstanceCount:     l.Instances(),
+		FwpInstanceCount:  l.FwpInstances(),
+		FwpHours:          l.FwpHours(),
+		PartsWithoutHours: l.PartsWithoutHours(),
+		Shares:            make([]*model.TeachingLoadShare, 0, len(l.Shares)),
+	}
+	for _, s := range l.Shares {
+		out.Shares = append(out.Shares, &model.TeachingLoadShare{
+			Programme:         programmeModel(s.Programme),
+			TeachingHours:     s.TeachingHours,
+			InstanceCount:     s.Instances,
+			FwpInstanceCount:  s.FwpInstances,
+			FwpHours:          s.FwpHours,
+			PartsWithoutHours: s.PartsWithoutHours,
+		})
+	}
+	return out
+}
+
 func courseInstanceModel(i domain.CourseInstance) *model.CourseInstance {
 	out := &model.CourseInstance{
 		ID:                i.ID.String(),

@@ -120,6 +120,10 @@ keine Statistik-Tabelle. Der Gast hat null Teile, also stimmt jede Summe schon; 
 als Datum vor, also lässt sich jede spätere Regel darauf ausdrücken — auch eine anteilige. Zu
 klären: zählt der gedeckte Bedarf voll, gar nicht, oder anteilig?
 
+Seit 2026-10-15 gibt es die erste Statistik, [[sws-controlling]] — sie zählt nach
+**Heimatstudiengang** des Moduls und umgeht die Frage damit: die Teile liegen beim Gastgeber, das
+Modul hat genau eine Heimat. Offen bleibt sie für die Sicht nach Studiengang der Instanz.
+
 Verwandt: [[assignments]], [[wishes]], [[local-modules]], [[planning-marks]]
 
 ## Vom Sonderfall zum Regelfall (2026-08-28, Migration 20)

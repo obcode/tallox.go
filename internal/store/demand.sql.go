@@ -1504,6 +1504,107 @@ func (q *Queries) SiblingInstanceIDs(ctx context.Context, id uuid.UUID) ([]uuid.
 	return items, nil
 }
 
+const teachingLoadByHomeProgramme = `-- name: TeachingLoadByHomeProgramme :many
+WITH load AS (
+    SELECT m.home_programme_id, ci.programme_id,
+           COALESCE(SUM(ip.teaching_hours), 0)::float8 AS hours,
+           COUNT(DISTINCT ci.id)::int AS instances,
+           (COUNT(DISTINCT ci.id) FILTER (WHERE m.kind = 'FWP_PLACEHOLDER'))::int AS fwp_instances,
+           COALESCE(SUM(ip.teaching_hours) FILTER (WHERE m.kind = 'FWP_PLACEHOLDER'), 0)::float8
+               AS fwp_hours,
+           (COUNT(ip.id) FILTER (WHERE ip.teaching_hours IS NULL))::int AS parts_without_hours
+    FROM course_instance ci
+    JOIN semester s ON s.id = ci.semester_id
+    JOIN module m ON m.id = ci.module_id
+    LEFT JOIN instance_part ip ON ip.course_instance_id = ci.id
+    WHERE s.code = $1::text
+    GROUP BY m.home_programme_id, ci.programme_id
+)
+SELECT hp.id AS home_id, hp.code AS home_code, hp.title AS home_title, hp.active AS home_active,
+       hp.planning_status AS home_planning_status,
+       tp.id AS taught_id, tp.code AS taught_code, tp.title AS taught_title,
+       tp.active AS taught_active, tp.planning_status AS taught_planning_status,
+       COALESCE(l.hours, 0)::float8 AS hours,
+       COALESCE(l.instances, 0)::int AS instances,
+       COALESCE(l.fwp_instances, 0)::int AS fwp_instances,
+       COALESCE(l.fwp_hours, 0)::float8 AS fwp_hours,
+       COALESCE(l.parts_without_hours, 0)::int AS parts_without_hours
+FROM programme hp
+LEFT JOIN load l ON l.home_programme_id = hp.id
+LEFT JOIN programme tp ON tp.id = l.programme_id
+WHERE hp.planning_status = 'PLANNED' OR l.home_programme_id IS NOT NULL
+ORDER BY hp.code, tp.code NULLS FIRST
+`
+
+type TeachingLoadByHomeProgrammeRow struct {
+	HomeID               uuid.UUID
+	HomeCode             string
+	HomeTitle            string
+	HomeActive           bool
+	HomePlanningStatus   string
+	TaughtID             uuid.NullUUID
+	TaughtCode           *string
+	TaughtTitle          *string
+	TaughtActive         *bool
+	TaughtPlanningStatus *string
+	Hours                float64
+	Instances            int32
+	FwpInstances         int32
+	FwpHours             float64
+	PartsWithoutHours    int32
+}
+
+// The teaching a semester's demand costs, attributed to the home programme of each module.
+//
+// The faculty's controlling view: a module counts at the programme it belongs to, wherever it is
+// taught — the arrangement the spreadsheet before this tool used, and the one every programme
+// lead knows how to read. The split by the programme of the instance comes along, because the
+// difference between the two is the import/export figure.
+//
+// One row per (home programme, programme of the instance). A plain SUM over the parts is right
+// without DISTINCT: every part belongs to exactly one instance, a lecture held for sibling cohorts
+// is one part, and a covered cohort holds none. Parts with no hours stated count zero and are
+// counted, so that an unfinished split cannot pass for a light semester.
+//
+// Every planned programme is listed even with nothing declared — a programme that has not started
+// is the row the dean's office is looking for — and any other programme only when a module of its
+// own is taught here.
+func (q *Queries) TeachingLoadByHomeProgramme(ctx context.Context, semester string) ([]TeachingLoadByHomeProgrammeRow, error) {
+	rows, err := q.db.Query(ctx, teachingLoadByHomeProgramme, semester)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []TeachingLoadByHomeProgrammeRow{}
+	for rows.Next() {
+		var i TeachingLoadByHomeProgrammeRow
+		if err := rows.Scan(
+			&i.HomeID,
+			&i.HomeCode,
+			&i.HomeTitle,
+			&i.HomeActive,
+			&i.HomePlanningStatus,
+			&i.TaughtID,
+			&i.TaughtCode,
+			&i.TaughtTitle,
+			&i.TaughtActive,
+			&i.TaughtPlanningStatus,
+			&i.Hours,
+			&i.Instances,
+			&i.FwpInstances,
+			&i.FwpHours,
+			&i.PartsWithoutHours,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateCourseInstance = `-- name: UpdateCourseInstance :exec
 UPDATE course_instance
 SET track = $2,

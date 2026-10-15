@@ -208,6 +208,11 @@ func (f *fakeDemandStore) PlanDemand(_ context.Context, semester string, _ uuid.
 	return domain.DemandPlan{DryRun: dryRun}, nil
 }
 
+func (f *fakeDemandStore) TeachingLoad(_ context.Context, semester string) ([]domain.TeachingLoad, error) {
+	f.plannedSemester = semester
+	return []domain.TeachingLoad{}, nil
+}
+
 // fakeSemesterStore is the semester half, and it records what was ensured.
 //
 // That last part is the point of it: a refused declaration must not leave a semester row behind,
@@ -1054,4 +1059,84 @@ func TestActingOnACoverageThatIsNotThere(t *testing.T) {
 	if f.store.writes != 0 {
 		t.Errorf("finding out there was nothing to do wrote %d time(s)", f.store.writes)
 	}
+}
+
+// The controlling view folds the shares of one home programme. The own share is the one taught
+// in the home programme's instances; everything else is what it lends to other programmes.
+func TestTeachingLoadSumsItsShares(t *testing.T) {
+	t.Parallel()
+
+	home := domain.Programme{ID: uuid.New(), Code: "PA"}
+	other := domain.Programme{ID: uuid.New(), Code: "PB"}
+	load := domain.TeachingLoad{
+		HomeProgramme: home,
+		Shares: []domain.TeachingLoadShare{
+			{Programme: home, TeachingHours: 12, Instances: 3, FwpInstances: 1, FwpHours: 4},
+			{Programme: other, TeachingHours: 6.5, Instances: 2, PartsWithoutHours: 1},
+		},
+	}
+
+	cases := []struct {
+		name      string
+		got, want float64
+	}{
+		{"teaching hours", load.TeachingHours(), 18.5},
+		{"own hours", load.OwnHours(), 12},
+		{"instances", float64(load.Instances()), 5},
+		{"FWP instances", float64(load.FwpInstances()), 1},
+		{"FWP hours", load.FwpHours(), 4},
+		{"parts without hours", float64(load.PartsWithoutHours()), 1},
+	}
+	for _, c := range cases {
+		if c.got != c.want {
+			t.Errorf("%s: %v, want %v", c.name, c.got, c.want)
+		}
+	}
+
+	if empty := (domain.TeachingLoad{HomeProgramme: home}); empty.TeachingHours() != 0 ||
+		empty.OwnHours() != 0 {
+		t.Error("a programme nothing has been declared for costs something")
+	}
+}
+
+// Reading the load is reading the demand: anybody with an account, a semester code checked and
+// normalised the way every other read does it, and nothing recorded on the way.
+func TestReadingTheTeachingLoad(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a lecturer reads it, and the semester stays untouched", func(t *testing.T) {
+		t.Parallel()
+		f := newDemandService(t, policy.PhaseDemandPlanning)
+
+		actor := testdata.Eins.Actor(principal.KindToken, string(policy.RoleLecturer))
+		if _, err := f.service.TeachingLoad(t.Context(), actor, " 2027-ss "); err != nil {
+			t.Fatalf("a lecturer cannot read the teaching load: %v", err)
+		}
+		if f.store.plannedSemester != "2027-SS" {
+			t.Errorf("the store was asked about %q, want 2027-SS", f.store.plannedSemester)
+		}
+		if len(f.semesters.ensured) != 0 {
+			t.Errorf("reading recorded the semester %v", f.semesters.ensured)
+		}
+	})
+
+	t.Run("nobody without an account", func(t *testing.T) {
+		t.Parallel()
+		f := newDemandService(t, policy.PhaseDemandPlanning)
+
+		if _, err := f.service.TeachingLoad(t.Context(), principal.Actor{}, "2027-SS"); err == nil {
+			t.Error("an anonymous actor read the teaching load")
+		}
+	})
+
+	t.Run("a code that names no semester", func(t *testing.T) {
+		t.Parallel()
+		f := newDemandService(t, policy.PhaseDemandPlanning)
+
+		actor := testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer))
+		_, err := f.service.TeachingLoad(t.Context(), actor, "Sommer 27")
+		if !errors.Is(err, domain.ErrSemesterCodeInvalid) {
+			t.Errorf("an invalid code gave %v, want ErrSemesterCodeInvalid", err)
+		}
+	})
 }

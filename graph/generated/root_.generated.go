@@ -388,6 +388,17 @@ type ComplexityRoot struct {
 		Title          func(childComplexity int) int
 	}
 
+	ProgrammeTeachingLoad struct {
+		FwpHours          func(childComplexity int) int
+		FwpInstanceCount  func(childComplexity int) int
+		HomeProgramme     func(childComplexity int) int
+		InstanceCount     func(childComplexity int) int
+		OwnHours          func(childComplexity int) int
+		PartsWithoutHours func(childComplexity int) int
+		Shares            func(childComplexity int) int
+		TeachingHours     func(childComplexity int) int
+	}
+
 	Query struct {
 		AccessLog                  func(childComplexity int, filter *model.AccessLogFilter, limit *int, before *string) int
 		AccessSummary              func(childComplexity int, from time.Time, until time.Time) int
@@ -424,6 +435,7 @@ type ComplexityRoot struct {
 		SubjectGroupsWithoutLead   func(childComplexity int) int
 		TeacherAccounts            func(childComplexity int) int
 		Teachers                   func(childComplexity int, search *string, includeInactive *bool) int
+		TeachingLoad               func(childComplexity int, semester string) int
 		WishWindows                func(childComplexity int, semester string) int
 		Wishes                     func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
 		ZpaCatalogueProjections    func(childComplexity int, limit *int) int
@@ -516,6 +528,15 @@ type ComplexityRoot struct {
 	TeacherAccount struct {
 		Account func(childComplexity int) int
 		Teacher func(childComplexity int) int
+	}
+
+	TeachingLoadShare struct {
+		FwpHours          func(childComplexity int) int
+		FwpInstanceCount  func(childComplexity int) int
+		InstanceCount     func(childComplexity int) int
+		PartsWithoutHours func(childComplexity int) int
+		Programme         func(childComplexity int) int
+		TeachingHours     func(childComplexity int) int
 	}
 
 	Wish struct {
@@ -2387,6 +2408,55 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Programme.Title(childComplexity), true
 
+	case "ProgrammeTeachingLoad.fwpHours":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.FwpHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.FwpHours(childComplexity), true
+	case "ProgrammeTeachingLoad.fwpInstanceCount":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.FwpInstanceCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.FwpInstanceCount(childComplexity), true
+	case "ProgrammeTeachingLoad.homeProgramme":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.HomeProgramme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.HomeProgramme(childComplexity), true
+	case "ProgrammeTeachingLoad.instanceCount":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.InstanceCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.InstanceCount(childComplexity), true
+	case "ProgrammeTeachingLoad.ownHours":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.OwnHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.OwnHours(childComplexity), true
+	case "ProgrammeTeachingLoad.partsWithoutHours":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.PartsWithoutHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.PartsWithoutHours(childComplexity), true
+	case "ProgrammeTeachingLoad.shares":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.Shares == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.Shares(childComplexity), true
+	case "ProgrammeTeachingLoad.teachingHours":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.TeachingHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.TeachingHours(childComplexity), true
+
 	case "Query.accessLog":
 		if e.ComplexityRoot.Query.AccessLog == nil {
 			break
@@ -2713,6 +2783,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Teachers(childComplexity, args["search"].(*string), args["includeInactive"].(*bool)), true
+	case "Query.teachingLoad":
+		if e.ComplexityRoot.Query.TeachingLoad == nil {
+			break
+		}
+
+		args, err := ec.field_Query_teachingLoad_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.TeachingLoad(childComplexity, args["semester"].(string)), true
 	case "Query.wishWindows":
 		if e.ComplexityRoot.Query.WishWindows == nil {
 			break
@@ -3125,6 +3206,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TeacherAccount.Teacher(childComplexity), true
+
+	case "TeachingLoadShare.fwpHours":
+		if e.ComplexityRoot.TeachingLoadShare.FwpHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeachingLoadShare.FwpHours(childComplexity), true
+	case "TeachingLoadShare.fwpInstanceCount":
+		if e.ComplexityRoot.TeachingLoadShare.FwpInstanceCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeachingLoadShare.FwpInstanceCount(childComplexity), true
+	case "TeachingLoadShare.instanceCount":
+		if e.ComplexityRoot.TeachingLoadShare.InstanceCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeachingLoadShare.InstanceCount(childComplexity), true
+	case "TeachingLoadShare.partsWithoutHours":
+		if e.ComplexityRoot.TeachingLoadShare.PartsWithoutHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeachingLoadShare.PartsWithoutHours(childComplexity), true
+	case "TeachingLoadShare.programme":
+		if e.ComplexityRoot.TeachingLoadShare.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeachingLoadShare.Programme(childComplexity), true
+	case "TeachingLoadShare.teachingHours":
+		if e.ComplexityRoot.TeachingLoadShare.TeachingHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeachingLoadShare.TeachingHours(childComplexity), true
 
 	case "Wish.createdAt":
 		if e.ComplexityRoot.Wish.CreatedAt == nil {
@@ -5286,6 +5404,80 @@ extend type Mutation {
   withdrawTeacherCompetence(id: ID!): ID! @interactiveOnly @scope(area: WISHES, verb: WRITE)
 }
 `, BuiltIn: false},
+	{Name: "../controlling.graphqls", Input: `"""
+What one programme's modules cost the faculty in a semester, wherever they are taught.
+
+The controlling view the faculty plans its electives against. A module's teaching counts at its
+**home programme** — the arrangement the spreadsheet before this tool used, and the one programme
+leads read their budget from. The split by the programme of the instance is kept beside the
+total, because the difference between the two is the import/export figure.
+
+# Which hours
+
+Teaching hours: the sum over the parts of every instance, by the rule ` + "`" + `CourseInstance.teachingHours` + "`" + `
+states. A four-hour module with a lecture and three laboratory groups costs eight; a lecture held
+once for two cohorts counts once; a cohort covered by another programme's event costs nothing.
+Not ` + "`" + `Module.contactHoursPerWeek` + "`" + `, which is what a student attends and is not a teaching load.
+"""
+type ProgrammeTeachingLoad {
+  "The programme the modules belong to."
+  homeProgramme: Programme!
+  "The whole load of the home programme's modules in this semester."
+  teachingHours: Float!
+  "The part of it taught in the home programme's own instances. The rest is lent to others."
+  ownHours: Float!
+  "The number of instances of the home programme's modules, covered ones included."
+  instanceCount: Int!
+  """
+  How many of them are elective placeholders. "We need three FWP" is three cohorts of one, so
+  this is the number a programme lead plans against.
+  """
+  fwpInstanceCount: Int!
+  "The teaching those placeholders cost."
+  fwpHours: Float!
+  """
+  Parts that state no hours and therefore count zero. Anything above zero means ` + "`" + `teachingHours` + "`" + `
+  is too low, not that the semester is light.
+  """
+  partsWithoutHours: Int!
+  """
+  The load split by the programme of the instance, ordered by its code. Empty for a planned
+  programme nothing has been declared for yet.
+  """
+  shares: [TeachingLoadShare!]!
+}
+
+"The part of a home programme's load taught in one programme's instances."
+type TeachingLoadShare {
+  "The programme of the instances."
+  programme: Programme!
+  "The teaching of the home programme's modules in this programme's instances."
+  teachingHours: Float!
+  "How many instances of the home programme's modules this programme has declared."
+  instanceCount: Int!
+  "How many of them are elective placeholders."
+  fwpInstanceCount: Int!
+  "The teaching those placeholders cost."
+  fwpHours: Float!
+  "Parts among them that state no hours and therefore count zero."
+  partsWithoutHours: Int!
+}
+
+extend type Query {
+  """
+  The teaching a semester's demand costs, by home programme.
+
+  Every programme the faculty plans is listed, at zero if nothing has been declared for it — that
+  is the row somebody is looking for — and any other programme only when one of its modules is
+  taught here. Readable by everybody who may read the demand, through a token too: it is a sum
+  over rows that are not confidential.
+  """
+  teachingLoad(
+    "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
+    semester: String!
+  ): [ProgrammeTeachingLoad!]! @scope(area: PLANNING, verb: READ)
+}
+`, BuiltIn: false},
 	{Name: "../demand.graphqls", Input: `# The demand: which course instances a study programme needs in a semester.
 #
 # The first area of the planning process itself, and the one the other three hang off. A wish is
@@ -6149,7 +6341,7 @@ enum ScopeArea {
 
   Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `planningSemester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `,
   ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
-  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
+  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `teachingLoad` + "`" + `, ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
   ` + "`" + `publishWishes` + "`" + `, ` + "`" + `publishAssignments` + "`" + `,
   # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
   # "is this part taken", which through a token the read rule would not.
@@ -8454,6 +8646,28 @@ func (ec *executionContext) childFields_Programme(ctx context.Context, field gra
 	return nil, fmt.Errorf("no field named %q was found under type Programme", field.Name)
 }
 
+func (ec *executionContext) childFields_ProgrammeTeachingLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "homeProgramme":
+		return ec.fieldContext_ProgrammeTeachingLoad_homeProgramme(ctx, field)
+	case "teachingHours":
+		return ec.fieldContext_ProgrammeTeachingLoad_teachingHours(ctx, field)
+	case "ownHours":
+		return ec.fieldContext_ProgrammeTeachingLoad_ownHours(ctx, field)
+	case "instanceCount":
+		return ec.fieldContext_ProgrammeTeachingLoad_instanceCount(ctx, field)
+	case "fwpInstanceCount":
+		return ec.fieldContext_ProgrammeTeachingLoad_fwpInstanceCount(ctx, field)
+	case "fwpHours":
+		return ec.fieldContext_ProgrammeTeachingLoad_fwpHours(ctx, field)
+	case "partsWithoutHours":
+		return ec.fieldContext_ProgrammeTeachingLoad_partsWithoutHours(ctx, field)
+	case "shares":
+		return ec.fieldContext_ProgrammeTeachingLoad_shares(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ProgrammeTeachingLoad", field.Name)
+}
+
 func (ec *executionContext) childFields_RefusedSignIn(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "mail":
@@ -8624,6 +8838,24 @@ func (ec *executionContext) childFields_TeacherAccount(ctx context.Context, fiel
 		return ec.fieldContext_TeacherAccount_account(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type TeacherAccount", field.Name)
+}
+
+func (ec *executionContext) childFields_TeachingLoadShare(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "programme":
+		return ec.fieldContext_TeachingLoadShare_programme(ctx, field)
+	case "teachingHours":
+		return ec.fieldContext_TeachingLoadShare_teachingHours(ctx, field)
+	case "instanceCount":
+		return ec.fieldContext_TeachingLoadShare_instanceCount(ctx, field)
+	case "fwpInstanceCount":
+		return ec.fieldContext_TeachingLoadShare_fwpInstanceCount(ctx, field)
+	case "fwpHours":
+		return ec.fieldContext_TeachingLoadShare_fwpHours(ctx, field)
+	case "partsWithoutHours":
+		return ec.fieldContext_TeachingLoadShare_partsWithoutHours(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type TeachingLoadShare", field.Name)
 }
 
 func (ec *executionContext) childFields_Wish(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

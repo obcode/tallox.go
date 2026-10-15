@@ -1229,6 +1229,22 @@ type Querier interface {
 	// cast is nullable, and scanning NULL into a string fails at runtime rather than at build time.
 	// Empty means absent, which is what the domain type says too.
 	TeachersByID(ctx context.Context, ids []uuid.UUID) ([]TeachersByIDRow, error)
+	// The teaching a semester's demand costs, attributed to the home programme of each module.
+	//
+	// The faculty's controlling view: a module counts at the programme it belongs to, wherever it is
+	// taught — the arrangement the spreadsheet before this tool used, and the one every programme
+	// lead knows how to read. The split by the programme of the instance comes along, because the
+	// difference between the two is the import/export figure.
+	//
+	// One row per (home programme, programme of the instance). A plain SUM over the parts is right
+	// without DISTINCT: every part belongs to exactly one instance, a lecture held for sibling cohorts
+	// is one part, and a covered cohort holds none. Parts with no hours stated count zero and are
+	// counted, so that an unfinished split cannot pass for a light semester.
+	//
+	// Every planned programme is listed even with nothing declared — a programme that has not started
+	// is the row the dean's office is looking for — and any other programme only when a module of its
+	// own is taught here.
+	TeachingLoadByHomeProgramme(ctx context.Context, semester string) ([]TeachingLoadByHomeProgrammeRow, error)
 	// The authentication query of the token door, in one round trip: the token, its owner and the
 	// owner's roles.
 	//

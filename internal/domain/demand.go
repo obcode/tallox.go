@@ -456,6 +456,82 @@ func (p DemandPlan) Empty() bool {
 // behind it.
 func (p DemandPlan) Destructive() bool { return len(p.Withdrawn) > 0 }
 
+// TeachingLoad is what one programme's modules cost the faculty in a semester, wherever they
+// are taught.
+//
+// The controlling view the faculty plans its electives against: the hours of a module count at
+// its home programme, the arrangement the spreadsheet before this tool used. That is not the
+// only sensible attribution — counting at the programme of the instance is the other — and the
+// split by that programme is kept beside the total, because the difference between the two is
+// the import/export figure.
+//
+// The hours are teaching hours, the sum over the parts, by the rule CourseInstance.TeachingHours
+// states: a four-hour module with a lecture and three laboratory groups costs eight. Not the
+// module's ContactHoursPerWeek, which is what a student attends.
+type TeachingLoad struct {
+	HomeProgramme Programme
+	// Shares is the load split by the programme of the instance, ordered by its code. Empty for a
+	// planned programme nothing has been declared for yet.
+	Shares []TeachingLoadShare
+}
+
+// TeachingLoadShare is the part of a home programme's load taught in one programme's instances.
+type TeachingLoadShare struct {
+	Programme     Programme
+	TeachingHours float64
+	Instances     int
+	// FwpInstances and FwpHours are the elective placeholders among them — "we need three FWP"
+	// is three cohorts of a placeholder, so this is the number a programme lead plans against.
+	FwpInstances int
+	FwpHours     float64
+	// PartsWithoutHours counts the parts that state no hours and therefore count zero. Non-zero
+	// means the total is too low, not that the semester is light.
+	PartsWithoutHours int
+}
+
+// TeachingHours is the whole load of the home programme.
+func (l TeachingLoad) TeachingHours() float64 {
+	return l.sum(func(s TeachingLoadShare) float64 { return s.TeachingHours })
+}
+
+// OwnHours is the load taught in the home programme's own instances.
+func (l TeachingLoad) OwnHours() float64 {
+	return l.sum(func(s TeachingLoadShare) float64 {
+		if s.Programme.ID != l.HomeProgramme.ID {
+			return 0
+		}
+		return s.TeachingHours
+	})
+}
+
+// Instances is the number of instances of the home programme's modules.
+func (l TeachingLoad) Instances() int {
+	return int(l.sum(func(s TeachingLoadShare) float64 { return float64(s.Instances) }))
+}
+
+// FwpInstances is the number of elective placeholder cohorts among them.
+func (l TeachingLoad) FwpInstances() int {
+	return int(l.sum(func(s TeachingLoadShare) float64 { return float64(s.FwpInstances) }))
+}
+
+// FwpHours is the teaching those placeholders cost.
+func (l TeachingLoad) FwpHours() float64 {
+	return l.sum(func(s TeachingLoadShare) float64 { return s.FwpHours })
+}
+
+// PartsWithoutHours is the number of parts that count zero because nobody stated their hours.
+func (l TeachingLoad) PartsWithoutHours() int {
+	return int(l.sum(func(s TeachingLoadShare) float64 { return float64(s.PartsWithoutHours) }))
+}
+
+func (l TeachingLoad) sum(f func(TeachingLoadShare) float64) float64 {
+	total := 0.0
+	for _, s := range l.Shares {
+		total += f(s)
+	}
+	return total
+}
+
 // DemandStore is the persistence the demand service needs, and nothing more.
 type DemandStore interface {
 	// CourseInstances lists the demand, with parts, borrowed parts and modules attached.
@@ -522,4 +598,7 @@ type DemandStore interface {
 	// a semester that does not exist.
 	PlanDemand(ctx context.Context, semesterCode string, programmeID uuid.UUID,
 		entries []DemandEntry, by uuid.UUID, dryRun bool) (DemandPlan, error)
+	// TeachingLoad is the semester's teaching by home programme: every planned programme, and
+	// any other whose modules are taught in it.
+	TeachingLoad(ctx context.Context, semesterCode string) ([]TeachingLoad, error)
 }

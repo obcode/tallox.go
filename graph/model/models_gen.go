@@ -920,6 +920,41 @@ type PolicyDecision struct {
 	Reason string `json:"reason"`
 }
 
+// What one programme's modules cost the faculty in a semester, wherever they are taught.
+//
+// The controlling view the faculty plans its electives against. A module's teaching counts at its
+// **home programme** — the arrangement the spreadsheet before this tool used, and the one programme
+// leads read their budget from. The split by the programme of the instance is kept beside the
+// total, because the difference between the two is the import/export figure.
+//
+// # Which hours
+//
+// Teaching hours: the sum over the parts of every instance, by the rule `CourseInstance.teachingHours`
+// states. A four-hour module with a lecture and three laboratory groups costs eight; a lecture held
+// once for two cohorts counts once; a cohort covered by another programme's event costs nothing.
+// Not `Module.contactHoursPerWeek`, which is what a student attends and is not a teaching load.
+type ProgrammeTeachingLoad struct {
+	// The programme the modules belong to.
+	HomeProgramme *Programme `json:"homeProgramme"`
+	// The whole load of the home programme's modules in this semester.
+	TeachingHours float64 `json:"teachingHours"`
+	// The part of it taught in the home programme's own instances. The rest is lent to others.
+	OwnHours float64 `json:"ownHours"`
+	// The number of instances of the home programme's modules, covered ones included.
+	InstanceCount int `json:"instanceCount"`
+	// How many of them are elective placeholders. "We need three FWP" is three cohorts of one, so
+	// this is the number a programme lead plans against.
+	FwpInstanceCount int `json:"fwpInstanceCount"`
+	// The teaching those placeholders cost.
+	FwpHours float64 `json:"fwpHours"`
+	// Parts that state no hours and therefore count zero. Anything above zero means `teachingHours`
+	// is too low, not that the semester is light.
+	PartsWithoutHours int `json:"partsWithoutHours"`
+	// The load split by the programme of the instance, ordered by its code. Empty for a planned
+	// programme nothing has been declared for yet.
+	Shares []*TeachingLoadShare `json:"shares"`
+}
+
 // Everything that can be read.
 //
 // Start with `me` to check that your token works and to see which roles you hold — the roles
@@ -1177,6 +1212,22 @@ type TeacherAccount struct {
 	// The two look alike from outside and are not — one has never been admitted, the other has been
 	// admitted and had it taken away — and the next step differs accordingly.
 	Account *Person `json:"account,omitempty"`
+}
+
+// The part of a home programme's load taught in one programme's instances.
+type TeachingLoadShare struct {
+	// The programme of the instances.
+	Programme *Programme `json:"programme"`
+	// The teaching of the home programme's modules in this programme's instances.
+	TeachingHours float64 `json:"teachingHours"`
+	// How many instances of the home programme's modules this programme has declared.
+	InstanceCount int `json:"instanceCount"`
+	// How many of them are elective placeholders.
+	FwpInstanceCount int `json:"fwpInstanceCount"`
+	// The teaching those placeholders cost.
+	FwpHours float64 `json:"fwpHours"`
+	// Parts among them that state no hours and therefore count zero.
+	PartsWithoutHours int `json:"partsWithoutHours"`
 }
 
 // One person's interest in one course instance.

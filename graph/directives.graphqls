@@ -110,7 +110,7 @@ enum ScopeArea {
 
   Fields: `semesters`, `semester`, `planningSemester`, `programmes`, `programme`, `modules`,
   `module`, `teachers`,
-  `courseInstances`, `courseInstance`, `advanceSemesterPhase`, `setPlanningSemester`,
+  `courseInstances`, `courseInstance`, `teachingLoad`, `advanceSemesterPhase`, `setPlanningSemester`,
   `publishWishes`, `publishAssignments`,
   # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
   # "is this part taken", which through a token the read rule would not.

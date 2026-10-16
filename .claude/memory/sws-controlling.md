@@ -1,6 +1,6 @@
 ---
 name: sws-controlling
-description: teachingLoad — Lehr-SWS je Heimatstudiengang, wie das alte Excel-Sheet; warum Lehr- statt Modul-SWS; Kontingent je Studienjahr und Saldo; Filter foreignHome
+description: teachingLoad — Lehr-SWS je Studiengang, der die Teile hält (seit 2026-10-16, vorher je Heimat); warum Lehr- statt Modul-SWS; Kontingent, Saldo, Studienjahr; Filter foreignHome
 metadata:
   type: project
 ---
@@ -10,7 +10,25 @@ Excel-Lösung fehlte. Dort schlug ein eigenes Sheet die SWS eines Moduls seinem
 **Heimatstudiengang** zu, und daran legten die Studiengangsleitungen fest, wie viele FWP sich ein
 Studiengang leisten kann. „Pragmatisch, nicht optimal, aber alle konnten damit leben."
 
-## Was gebaut ist
+## Zuordnung: wer die Teile hält, zahlt (2026-10-16)
+
+**Ersetzt die ursprüngliche Zuordnung nach Heimatstudiengang.** Rückmeldung aus Collab: Im Excel
+hatte z. B. Analysis eine IF- und eine DC-Variante. Im ZPA ist es *ein* Modul (Heimat IF, auch in
+den SPOs von DC, IC, GS), also zahlte IF auch die Analysis, die DC selbst plant. „DC will nicht,
+dass IF die DC-Analysis mitzahlt."
+
+- Die SWS zählen beim **Studiengang der Instanz, die die Teile hält**. Separat geplant → der
+  Studiengang selbst. Gedeckt (an die Veranstaltung eines anderen gehängt, 0 Teile) → der Gastgeber.
+- Die Excel-„Variante" ist damit die separat geplante Instanz, ohne Pflegetabelle. Bewusst
+  verworfen: eine Mitheimat je Modul (etwa 50 Module allein IF∩DC wären zu pflegen).
+- Folge: Ein fremdes Wahlfach, das ein Studiengang mit eigener Gruppe plant, zahlt er selbst.
+- `shares` sind jetzt nach **Heimat der Module** aufgeteilt; `ownHours` = eigene Module,
+  `ForeignHours()` = Import. SQL `TeachingLoadByProgramme`.
+- API: `ProgrammeTeachingLoad.programme` (vorher `homeProgramme`), `TeachingLoadShare.homeProgramme`
+  (vorher `programme`), `ProgrammeStudyYearLoad.programme`. Kontraktbruch einen Tag nach dem Bau,
+  als `feat:` committet; Frage nach dem gemeinsamen Major gestellt.
+
+## Was gebaut ist (Stand 2026-10-15, Zuordnung siehe oben)
 
 - Query `teachingLoad(semester)` (`graph/controlling.graphqls`), `@scope(PLANNING, READ)`, durch
   **beide Türen** — eine Summe über nicht vertrauliche Zeilen, und genau das, wofür die PAT-API da
@@ -29,10 +47,8 @@ Studiengang leisten kann. „Pragmatisch, nicht optimal, aber alle konnten damit
   ([[instance-coverage]], und die drei SWS-Größen im Workspace-Glossar). Ob die Excel Modul-SWS
   zählte, ist nicht geklärt — falls ja, weichen die Zahlen bewusst ab.
 - `SUM` ohne `DISTINCT` ist richtig: geteilte Vorlesung = ein Teil, gedeckte Kohorte = keine Teile.
-- **Die Heimat-Zuordnung beantwortet die offene Zählfrage aus [[instance-coverage]] nebenbei**: die
-  Teile liegen beim Gastgeber, das Modul hat eine Heimat, nichts zählt doppelt. Für die
-  Import/Export-Sicht (nach Studiengang der Instanz) bleibt sie offen; der gedeckte Bedarf steht
-  dort mit 0 SWS und als Instanz in `instanceCount`.
+- Gedeckter Bedarf steht mit 0 SWS und als Instanz in `instanceCount` beim Gast; die Teile und
+  damit die Kosten liegen beim Gastgeber. Nichts zählt doppelt.
 - Ein Teil ohne Stunden zählt 0 und wird **gezählt** (`partsWithoutHours`), damit eine unfertige
   Zerlegung nicht wie ein leichtes Semester aussieht.
 

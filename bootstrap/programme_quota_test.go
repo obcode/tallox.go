@@ -25,7 +25,7 @@ const setQuotaMutation = `mutation($p: String!, $y: Int!, $h: Float) {
 const quotaLoadQuery = `query($s: String!, $y: Int!) {
 	programmeQuotas(studyYear: $y) { programme { code } teachingHours }
 	teachingLoad(semester: $s) {
-		homeProgramme { code } teachingHours yearlyQuota semesterQuota balance
+		programme { code } teachingHours yearlyQuota semesterQuota balance
 	}
 }`
 
@@ -35,7 +35,7 @@ type quotaLoadAnswer struct {
 		TeachingHours float64
 	}
 	TeachingLoad []struct {
-		HomeProgramme struct{ Code string }
+		Programme     struct{ Code string }
 		TeachingHours float64
 		YearlyQuota   *float64
 		SemesterQuota *float64
@@ -72,7 +72,7 @@ func TestTheDeansOfficeEntersAQuotaAndTheLoadReadsAgainstIt(t *testing.T) {
 				t.Errorf("2026 holds %+v, want PA's quota of 10", out.ProgrammeQuotas)
 			}
 			for _, l := range out.TeachingLoad {
-				switch l.HomeProgramme.Code {
+				switch l.Programme.Code {
 				case storetest.FixtureProgrammeA:
 					// Nothing was declared in the winter before, so the summer may spend the whole
 					// year, and one 2+2-hour cohort costs 4 of it.
@@ -242,20 +242,20 @@ func TestTheStudyYearReadsWinterAndSummerAgainstTheQuota(t *testing.T) {
 		map[string]any{"p": storetest.FixtureProgrammeA, "y": 2026, "h": 10.0}, nil)
 
 	const q = `query {
-		winter: teachingLoad(semester: "2026-WS") { homeProgramme { code } semesterQuota balance }
-		summer: teachingLoad(semester: "2027-SS") { homeProgramme { code } semesterQuota balance }
+		winter: teachingLoad(semester: "2026-WS") { programme { code } semesterQuota balance }
+		summer: teachingLoad(semester: "2027-SS") { programme { code } semesterQuota balance }
 		studyYearLoad(studyYear: 2026) {
-			homeProgramme { code } yearlyQuota winterHours summerHours remaining
+			programme { code } yearlyQuota winterHours summerHours remaining
 		}
 	}`
 	type semesterRow struct {
-		HomeProgramme struct{ Code string }
+		Programme     struct{ Code string }
 		SemesterQuota *float64
 		Balance       *float64
 	}
 	pick := func(rows []semesterRow) semesterRow {
 		for _, r := range rows {
-			if r.HomeProgramme.Code == storetest.FixtureProgrammeA {
+			if r.Programme.Code == storetest.FixtureProgrammeA {
 				return r
 			}
 		}
@@ -269,11 +269,11 @@ func TestTheStudyYearReadsWinterAndSummerAgainstTheQuota(t *testing.T) {
 				Winter        []semesterRow
 				Summer        []semesterRow
 				StudyYearLoad []struct {
-					HomeProgramme struct{ Code string }
-					YearlyQuota   *float64
-					WinterHours   float64
-					SummerHours   float64
-					Remaining     *float64
+					Programme   struct{ Code string }
+					YearlyQuota *float64
+					WinterHours float64
+					SummerHours float64
+					Remaining   *float64
 				}
 			}
 			c.MustQuery(t, q, nil, &out)
@@ -286,7 +286,7 @@ func TestTheStudyYearReadsWinterAndSummerAgainstTheQuota(t *testing.T) {
 					*s.SemesterQuota, *s.Balance)
 			}
 			for _, y := range out.StudyYearLoad {
-				if y.HomeProgramme.Code != storetest.FixtureProgrammeA {
+				if y.Programme.Code != storetest.FixtureProgrammeA {
 					continue
 				}
 				if y.WinterHours != 4 || y.SummerHours != 4 || y.Remaining == nil || *y.Remaining != 2 {

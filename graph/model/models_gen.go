@@ -939,19 +939,19 @@ type ProgrammeQuota struct {
 	SetAt time.Time `json:"setAt"`
 }
 
-// One home programme's study year: the quota, what the winter costs and what the summer costs.
+// One programme's study year: the quota, what its winter costs and what its summer costs.
 //
 // The view a programme lead plans against: is there room for another elective this year. The
 // summer counts as soon as its demand is declared, which is how a summer is played through while
 // the winter is still being planned.
 type ProgrammeStudyYearLoad struct {
-	// The programme the modules belong to.
-	HomeProgramme *Programme `json:"homeProgramme"`
+	// The programme that pays, as `ProgrammeTeachingLoad.programme`.
+	Programme *Programme `json:"programme"`
 	// The year the study year's winter semester starts in.
 	StudyYear int `json:"studyYear"`
 	// The quota entered for the study year, or `null` when nothing has been entered.
 	YearlyQuota *float64 `json:"yearlyQuota,omitempty"`
-	// The teaching of the home programme's modules in the winter semester, as `teachingLoad` counts it.
+	// The teaching of the programme's instances in the winter semester, as `teachingLoad` counts it.
 	WinterHours float64 `json:"winterHours"`
 	// The same for the summer semester that follows.
 	SummerHours float64 `json:"summerHours"`
@@ -961,12 +961,17 @@ type ProgrammeStudyYearLoad struct {
 	PartsWithoutHours int `json:"partsWithoutHours"`
 }
 
-// What one programme's modules cost the faculty in a semester, wherever they are taught.
+// What a programme's instances cost the faculty in a semester.
 //
-// The controlling view the faculty plans its electives against. A module's teaching counts at its
-// **home programme** — the arrangement the spreadsheet before this tool used, and the one programme
-// leads read their budget from. The split by the programme of the instance is kept beside the
-// total, because the difference between the two is the import/export figure.
+// The controlling view the faculty plans its electives against. **Whoever holds the teaching pays
+// for it:** the hours count at the programme of the instance that holds the parts. A module has one
+// home in the catalogue — Analysis is IF's and appears in DC's regulations as well — but DC's own
+// Analysis is DC's to pay for, and a cohort that joins another programme's event instead holds no
+// parts and costs nothing; the host pays. The spreadsheet before this tool expressed this with an IF
+// and a DC variant of the module.
+//
+// The split by the home programme of the modules is kept beside the total: how much of what a
+// programme pays for is other programmes' modules is the import figure.
 //
 // # Which hours
 //
@@ -975,13 +980,13 @@ type ProgrammeStudyYearLoad struct {
 // once for two cohorts counts once; a cohort covered by another programme's event costs nothing.
 // Not `Module.contactHoursPerWeek`, which is what a student attends and is not a teaching load.
 type ProgrammeTeachingLoad struct {
-	// The programme the modules belong to.
-	HomeProgramme *Programme `json:"homeProgramme"`
-	// The whole load of the home programme's modules in this semester.
+	// The programme whose instances hold the teaching, and which pays for it.
+	Programme *Programme `json:"programme"`
+	// The whole load of the programme's instances in this semester.
 	TeachingHours float64 `json:"teachingHours"`
-	// The part of it taught in the home programme's own instances. The rest is lent to others.
+	// The part of it spent on the programme's own modules. The rest is other programmes' modules.
 	OwnHours float64 `json:"ownHours"`
-	// The number of instances of the home programme's modules, covered ones included.
+	// The number of the programme's instances, covered ones included.
 	InstanceCount int `json:"instanceCount"`
 	// How many of them are elective placeholders. "We need three FWP" is three cohorts of one, so
 	// this is the number a programme lead plans against.
@@ -991,7 +996,7 @@ type ProgrammeTeachingLoad struct {
 	// Parts that state no hours and therefore count zero. Anything above zero means `teachingHours`
 	// is too low, not that the semester is light.
 	PartsWithoutHours int `json:"partsWithoutHours"`
-	// The load split by the programme of the instance, ordered by its code. Empty for a planned
+	// The load split by the home programme of the modules, ordered by its code. Empty for a planned
 	// programme nothing has been declared for yet.
 	Shares []*TeachingLoadShare `json:"shares"`
 	// What the programme may spend in the study year this semester belongs to, as the dean's office
@@ -1278,13 +1283,13 @@ type TeacherAccount struct {
 	Account *Person `json:"account,omitempty"`
 }
 
-// The part of a home programme's load taught in one programme's instances.
+// The part of a programme's load spent on the modules of one home programme.
 type TeachingLoadShare struct {
-	// The programme of the instances.
-	Programme *Programme `json:"programme"`
-	// The teaching of the home programme's modules in this programme's instances.
+	// The home programme of the modules.
+	HomeProgramme *Programme `json:"homeProgramme"`
+	// The teaching of those modules in the programme's instances.
 	TeachingHours float64 `json:"teachingHours"`
-	// How many instances of the home programme's modules this programme has declared.
+	// How many of the programme's instances are of those modules.
 	InstanceCount int `json:"instanceCount"`
 	// How many of them are elective placeholders.
 	FwpInstanceCount int `json:"fwpInstanceCount"`

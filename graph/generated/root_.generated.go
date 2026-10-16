@@ -398,8 +398,8 @@ type ComplexityRoot struct {
 	}
 
 	ProgrammeStudyYearLoad struct {
-		HomeProgramme     func(childComplexity int) int
 		PartsWithoutHours func(childComplexity int) int
+		Programme         func(childComplexity int) int
 		Remaining         func(childComplexity int) int
 		StudyYear         func(childComplexity int) int
 		SummerHours       func(childComplexity int) int
@@ -411,10 +411,10 @@ type ComplexityRoot struct {
 		Balance           func(childComplexity int) int
 		FwpHours          func(childComplexity int) int
 		FwpInstanceCount  func(childComplexity int) int
-		HomeProgramme     func(childComplexity int) int
 		InstanceCount     func(childComplexity int) int
 		OwnHours          func(childComplexity int) int
 		PartsWithoutHours func(childComplexity int) int
+		Programme         func(childComplexity int) int
 		SemesterQuota     func(childComplexity int) int
 		Shares            func(childComplexity int) int
 		TeachingHours     func(childComplexity int) int
@@ -564,9 +564,9 @@ type ComplexityRoot struct {
 	TeachingLoadShare struct {
 		FwpHours          func(childComplexity int) int
 		FwpInstanceCount  func(childComplexity int) int
+		HomeProgramme     func(childComplexity int) int
 		InstanceCount     func(childComplexity int) int
 		PartsWithoutHours func(childComplexity int) int
-		Programme         func(childComplexity int) int
 		TeachingHours     func(childComplexity int) int
 	}
 
@@ -2486,18 +2486,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ProgrammeQuota.TeachingHours(childComplexity), true
 
-	case "ProgrammeStudyYearLoad.homeProgramme":
-		if e.ComplexityRoot.ProgrammeStudyYearLoad.HomeProgramme == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ProgrammeStudyYearLoad.HomeProgramme(childComplexity), true
 	case "ProgrammeStudyYearLoad.partsWithoutHours":
 		if e.ComplexityRoot.ProgrammeStudyYearLoad.PartsWithoutHours == nil {
 			break
 		}
 
 		return e.ComplexityRoot.ProgrammeStudyYearLoad.PartsWithoutHours(childComplexity), true
+	case "ProgrammeStudyYearLoad.programme":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.Programme(childComplexity), true
 	case "ProgrammeStudyYearLoad.remaining":
 		if e.ComplexityRoot.ProgrammeStudyYearLoad.Remaining == nil {
 			break
@@ -2547,12 +2547,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProgrammeTeachingLoad.FwpInstanceCount(childComplexity), true
-	case "ProgrammeTeachingLoad.homeProgramme":
-		if e.ComplexityRoot.ProgrammeTeachingLoad.HomeProgramme == nil {
-			break
-		}
-
-		return e.ComplexityRoot.ProgrammeTeachingLoad.HomeProgramme(childComplexity), true
 	case "ProgrammeTeachingLoad.instanceCount":
 		if e.ComplexityRoot.ProgrammeTeachingLoad.InstanceCount == nil {
 			break
@@ -2571,6 +2565,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProgrammeTeachingLoad.PartsWithoutHours(childComplexity), true
+	case "ProgrammeTeachingLoad.programme":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.Programme(childComplexity), true
 	case "ProgrammeTeachingLoad.semesterQuota":
 		if e.ComplexityRoot.ProgrammeTeachingLoad.SemesterQuota == nil {
 			break
@@ -3410,6 +3410,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TeachingLoadShare.FwpInstanceCount(childComplexity), true
+	case "TeachingLoadShare.homeProgramme":
+		if e.ComplexityRoot.TeachingLoadShare.HomeProgramme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeachingLoadShare.HomeProgramme(childComplexity), true
 	case "TeachingLoadShare.instanceCount":
 		if e.ComplexityRoot.TeachingLoadShare.InstanceCount == nil {
 			break
@@ -3422,12 +3428,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TeachingLoadShare.PartsWithoutHours(childComplexity), true
-	case "TeachingLoadShare.programme":
-		if e.ComplexityRoot.TeachingLoadShare.Programme == nil {
-			break
-		}
-
-		return e.ComplexityRoot.TeachingLoadShare.Programme(childComplexity), true
 	case "TeachingLoadShare.teachingHours":
 		if e.ComplexityRoot.TeachingLoadShare.TeachingHours == nil {
 			break
@@ -5596,12 +5596,17 @@ extend type Mutation {
 }
 `, BuiltIn: false},
 	{Name: "../controlling.graphqls", Input: `"""
-What one programme's modules cost the faculty in a semester, wherever they are taught.
+What a programme's instances cost the faculty in a semester.
 
-The controlling view the faculty plans its electives against. A module's teaching counts at its
-**home programme** — the arrangement the spreadsheet before this tool used, and the one programme
-leads read their budget from. The split by the programme of the instance is kept beside the
-total, because the difference between the two is the import/export figure.
+The controlling view the faculty plans its electives against. **Whoever holds the teaching pays
+for it:** the hours count at the programme of the instance that holds the parts. A module has one
+home in the catalogue — Analysis is IF's and appears in DC's regulations as well — but DC's own
+Analysis is DC's to pay for, and a cohort that joins another programme's event instead holds no
+parts and costs nothing; the host pays. The spreadsheet before this tool expressed this with an IF
+and a DC variant of the module.
+
+The split by the home programme of the modules is kept beside the total: how much of what a
+programme pays for is other programmes' modules is the import figure.
 
 # Which hours
 
@@ -5611,13 +5616,13 @@ once for two cohorts counts once; a cohort covered by another programme's event 
 Not ` + "`" + `Module.contactHoursPerWeek` + "`" + `, which is what a student attends and is not a teaching load.
 """
 type ProgrammeTeachingLoad {
-  "The programme the modules belong to."
-  homeProgramme: Programme!
-  "The whole load of the home programme's modules in this semester."
+  "The programme whose instances hold the teaching, and which pays for it."
+  programme: Programme!
+  "The whole load of the programme's instances in this semester."
   teachingHours: Float!
-  "The part of it taught in the home programme's own instances. The rest is lent to others."
+  "The part of it spent on the programme's own modules. The rest is other programmes' modules."
   ownHours: Float!
-  "The number of instances of the home programme's modules, covered ones included."
+  "The number of the programme's instances, covered ones included."
   instanceCount: Int!
   """
   How many of them are elective placeholders. "We need three FWP" is three cohorts of one, so
@@ -5632,7 +5637,7 @@ type ProgrammeTeachingLoad {
   """
   partsWithoutHours: Int!
   """
-  The load split by the programme of the instance, ordered by its code. Empty for a planned
+  The load split by the home programme of the modules, ordered by its code. Empty for a planned
   programme nothing has been declared for yet.
   """
   shares: [TeachingLoadShare!]!
@@ -5656,20 +5661,20 @@ type ProgrammeTeachingLoad {
 }
 
 """
-One home programme's study year: the quota, what the winter costs and what the summer costs.
+One programme's study year: the quota, what its winter costs and what its summer costs.
 
 The view a programme lead plans against: is there room for another elective this year. The
 summer counts as soon as its demand is declared, which is how a summer is played through while
 the winter is still being planned.
 """
 type ProgrammeStudyYearLoad {
-  "The programme the modules belong to."
-  homeProgramme: Programme!
+  "The programme that pays, as ` + "`" + `ProgrammeTeachingLoad.programme` + "`" + `."
+  programme: Programme!
   "The year the study year's winter semester starts in."
   studyYear: Int!
   "The quota entered for the study year, or ` + "`" + `null` + "`" + ` when nothing has been entered."
   yearlyQuota: Float
-  "The teaching of the home programme's modules in the winter semester, as ` + "`" + `teachingLoad` + "`" + ` counts it."
+  "The teaching of the programme's instances in the winter semester, as ` + "`" + `teachingLoad` + "`" + ` counts it."
   winterHours: Float!
   "The same for the summer semester that follows."
   summerHours: Float!
@@ -5700,13 +5705,13 @@ type ProgrammeQuota {
   setAt: Time!
 }
 
-"The part of a home programme's load taught in one programme's instances."
+"The part of a programme's load spent on the modules of one home programme."
 type TeachingLoadShare {
-  "The programme of the instances."
-  programme: Programme!
-  "The teaching of the home programme's modules in this programme's instances."
+  "The home programme of the modules."
+  homeProgramme: Programme!
+  "The teaching of those modules in the programme's instances."
   teachingHours: Float!
-  "How many instances of the home programme's modules this programme has declared."
+  "How many of the programme's instances are of those modules."
   instanceCount: Int!
   "How many of them are elective placeholders."
   fwpInstanceCount: Int!
@@ -5718,11 +5723,11 @@ type TeachingLoadShare {
 
 extend type Query {
   """
-  The teaching a semester's demand costs, by home programme.
+  The teaching a semester's demand costs, by the programme whose instances hold it.
 
   Every programme the faculty plans is listed, at zero if nothing has been declared for it — that
-  is the row somebody is looking for — and any other programme only when one of its modules is
-  taught here. Readable by everybody who may read the demand, through a token too: it is a sum
+  is the row somebody is looking for — and any other programme only when its instances hold
+  teaching here. Readable by everybody who may read the demand, through a token too: it is a sum
   over rows that are not confidential.
   """
   teachingLoad(
@@ -5731,7 +5736,7 @@ extend type Query {
   ): [ProgrammeTeachingLoad!]! @scope(area: PLANNING, verb: READ)
 
   """
-  A study year's teaching by home programme: winter and summer beside the year's quota. Every
+  A study year's teaching by paying programme: winter and summer beside the year's quota. Every
   programme that appears in either semester is listed, by code. Readable like ` + "`" + `teachingLoad` + "`" + `.
   """
   studyYearLoad(
@@ -9006,8 +9011,8 @@ func (ec *executionContext) childFields_ProgrammeQuota(ctx context.Context, fiel
 
 func (ec *executionContext) childFields_ProgrammeStudyYearLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
-	case "homeProgramme":
-		return ec.fieldContext_ProgrammeStudyYearLoad_homeProgramme(ctx, field)
+	case "programme":
+		return ec.fieldContext_ProgrammeStudyYearLoad_programme(ctx, field)
 	case "studyYear":
 		return ec.fieldContext_ProgrammeStudyYearLoad_studyYear(ctx, field)
 	case "yearlyQuota":
@@ -9026,8 +9031,8 @@ func (ec *executionContext) childFields_ProgrammeStudyYearLoad(ctx context.Conte
 
 func (ec *executionContext) childFields_ProgrammeTeachingLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
-	case "homeProgramme":
-		return ec.fieldContext_ProgrammeTeachingLoad_homeProgramme(ctx, field)
+	case "programme":
+		return ec.fieldContext_ProgrammeTeachingLoad_programme(ctx, field)
 	case "teachingHours":
 		return ec.fieldContext_ProgrammeTeachingLoad_teachingHours(ctx, field)
 	case "ownHours":
@@ -9238,8 +9243,8 @@ func (ec *executionContext) childFields_TeacherAccount(ctx context.Context, fiel
 
 func (ec *executionContext) childFields_TeachingLoadShare(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
-	case "programme":
-		return ec.fieldContext_TeachingLoadShare_programme(ctx, field)
+	case "homeProgramme":
+		return ec.fieldContext_TeachingLoadShare_homeProgramme(ctx, field)
 	case "teachingHours":
 		return ec.fieldContext_TeachingLoadShare_teachingHours(ctx, field)
 	case "instanceCount":

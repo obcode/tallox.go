@@ -18,7 +18,7 @@ import (
 // courseInstanceModel gives: they are sums over a slice that is already loaded.
 func teachingLoadModel(l domain.TeachingLoad) *model.ProgrammeTeachingLoad {
 	out := &model.ProgrammeTeachingLoad{
-		HomeProgramme:     programmeModel(l.HomeProgramme),
+		Programme:         programmeModel(l.Programme),
 		TeachingHours:     l.TeachingHours(),
 		OwnHours:          l.OwnHours(),
 		InstanceCount:     l.Instances(),
@@ -32,7 +32,7 @@ func teachingLoadModel(l domain.TeachingLoad) *model.ProgrammeTeachingLoad {
 	}
 	for _, s := range l.Shares {
 		out.Shares = append(out.Shares, &model.TeachingLoadShare{
-			Programme:         programmeModel(s.Programme),
+			HomeProgramme:     programmeModel(s.HomeProgramme),
 			TeachingHours:     s.TeachingHours,
 			InstanceCount:     s.Instances,
 			FwpInstanceCount:  s.FwpInstances,

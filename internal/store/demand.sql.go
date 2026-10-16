@@ -1635,9 +1635,9 @@ func (q *Queries) SiblingInstanceIDs(ctx context.Context, id uuid.UUID) ([]uuid.
 	return items, nil
 }
 
-const teachingLoadByHomeProgramme = `-- name: TeachingLoadByHomeProgramme :many
+const teachingLoadByProgramme = `-- name: TeachingLoadByProgramme :many
 WITH load AS (
-    SELECT m.home_programme_id, ci.programme_id,
+    SELECT ci.programme_id, m.home_programme_id,
            COALESCE(SUM(ip.teaching_hours), 0)::float8 AS hours,
            COUNT(DISTINCT ci.id)::int AS instances,
            (COUNT(DISTINCT ci.id) FILTER (WHERE m.kind = 'FWP_PLACEHOLDER'))::int AS fwp_instances,
@@ -1649,77 +1649,83 @@ WITH load AS (
     JOIN module m ON m.id = ci.module_id
     LEFT JOIN instance_part ip ON ip.course_instance_id = ci.id
     WHERE s.code = $1::text
-    GROUP BY m.home_programme_id, ci.programme_id
+    GROUP BY ci.programme_id, m.home_programme_id
 )
-SELECT hp.id AS home_id, hp.code AS home_code, hp.title AS home_title, hp.active AS home_active,
-       hp.planning_status AS home_planning_status,
-       tp.id AS taught_id, tp.code AS taught_code, tp.title AS taught_title,
-       tp.active AS taught_active, tp.planning_status AS taught_planning_status,
+SELECT p.id AS programme_id, p.code AS programme_code, p.title AS programme_title,
+       p.active AS programme_active, p.planning_status AS programme_planning_status,
+       hp.id AS home_id, hp.code AS home_code, hp.title AS home_title,
+       hp.active AS home_active, hp.planning_status AS home_planning_status,
        COALESCE(l.hours, 0)::float8 AS hours,
        COALESCE(l.instances, 0)::int AS instances,
        COALESCE(l.fwp_instances, 0)::int AS fwp_instances,
        COALESCE(l.fwp_hours, 0)::float8 AS fwp_hours,
        COALESCE(l.parts_without_hours, 0)::int AS parts_without_hours
-FROM programme hp
-LEFT JOIN load l ON l.home_programme_id = hp.id
-LEFT JOIN programme tp ON tp.id = l.programme_id
-WHERE hp.planning_status = 'PLANNED' OR l.home_programme_id IS NOT NULL
-ORDER BY hp.code, tp.code NULLS FIRST
+FROM programme p
+LEFT JOIN load l ON l.programme_id = p.id
+LEFT JOIN programme hp ON hp.id = l.home_programme_id
+WHERE p.planning_status = 'PLANNED' OR l.programme_id IS NOT NULL
+ORDER BY p.code, hp.code NULLS FIRST
 `
 
-type TeachingLoadByHomeProgrammeRow struct {
-	HomeID               uuid.UUID
-	HomeCode             string
-	HomeTitle            string
-	HomeActive           bool
-	HomePlanningStatus   string
-	TaughtID             uuid.NullUUID
-	TaughtCode           *string
-	TaughtTitle          *string
-	TaughtActive         *bool
-	TaughtPlanningStatus *string
-	Hours                float64
-	Instances            int32
-	FwpInstances         int32
-	FwpHours             float64
-	PartsWithoutHours    int32
+type TeachingLoadByProgrammeRow struct {
+	ProgrammeID             uuid.UUID
+	ProgrammeCode           string
+	ProgrammeTitle          string
+	ProgrammeActive         bool
+	ProgrammePlanningStatus string
+	HomeID                  uuid.NullUUID
+	HomeCode                *string
+	HomeTitle               *string
+	HomeActive              *bool
+	HomePlanningStatus      *string
+	Hours                   float64
+	Instances               int32
+	FwpInstances            int32
+	FwpHours                float64
+	PartsWithoutHours       int32
 }
 
-// The teaching a semester's demand costs, attributed to the home programme of each module.
+// The teaching a semester's demand costs, attributed to the programme whose instances hold it.
 //
-// The faculty's controlling view: a module counts at the programme it belongs to, wherever it is
-// taught — the arrangement the spreadsheet before this tool used, and the one every programme
-// lead knows how to read. The split by the programme of the instance comes along, because the
-// difference between the two is the import/export figure.
+// Whoever holds the parts pays (decided with the faculty on 2026-10-16). A module has one home in
+// the examination office's catalogue — Analysis belongs to IF and appears in the regulations of
+// DC, IC and GS as well — and charging every hour of it to IF made IF pay for the Analysis DC
+// plans for itself. The spreadsheet before this tool had an IF and a DC variant for exactly that.
+// Here the variant is the instance: DC's own Analysis holds its own parts and costs DC; a cohort
+// that joins IF's event instead is covered, holds no parts, and costs nothing — IF, holding the
+// event, pays for it.
 //
-// One row per (home programme, programme of the instance). A plain SUM over the parts is right
-// without DISTINCT: every part belongs to exactly one instance, a lecture held for sibling cohorts
-// is one part, and a covered cohort holds none. Parts with no hours stated count zero and are
-// counted, so that an unfinished split cannot pass for a light semester.
+// One row per (programme of the instance, home programme of the module). The split by home comes
+// along, because "how much of what we pay for is other programmes' modules" is the import figure.
+//
+// A plain SUM over the parts is right without DISTINCT: every part belongs to exactly one
+// instance, a lecture held for sibling cohorts is one part, and a covered cohort holds none.
+// Parts with no hours stated count zero and are counted, so that an unfinished split cannot pass
+// for a light semester.
 //
 // Every planned programme is listed even with nothing declared — a programme that has not started
-// is the row the dean's office is looking for — and any other programme only when a module of its
-// own is taught here.
-func (q *Queries) TeachingLoadByHomeProgramme(ctx context.Context, semester string) ([]TeachingLoadByHomeProgrammeRow, error) {
-	rows, err := q.db.Query(ctx, teachingLoadByHomeProgramme, semester)
+// is the row the dean's office is looking for — and any other programme only when its instances
+// hold teaching here.
+func (q *Queries) TeachingLoadByProgramme(ctx context.Context, semester string) ([]TeachingLoadByProgrammeRow, error) {
+	rows, err := q.db.Query(ctx, teachingLoadByProgramme, semester)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []TeachingLoadByHomeProgrammeRow{}
+	items := []TeachingLoadByProgrammeRow{}
 	for rows.Next() {
-		var i TeachingLoadByHomeProgrammeRow
+		var i TeachingLoadByProgrammeRow
 		if err := rows.Scan(
+			&i.ProgrammeID,
+			&i.ProgrammeCode,
+			&i.ProgrammeTitle,
+			&i.ProgrammeActive,
+			&i.ProgrammePlanningStatus,
 			&i.HomeID,
 			&i.HomeCode,
 			&i.HomeTitle,
 			&i.HomeActive,
 			&i.HomePlanningStatus,
-			&i.TaughtID,
-			&i.TaughtCode,
-			&i.TaughtTitle,
-			&i.TaughtActive,
-			&i.TaughtPlanningStatus,
 			&i.Hours,
 			&i.Instances,
 			&i.FwpInstances,

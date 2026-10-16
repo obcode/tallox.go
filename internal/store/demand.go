@@ -175,43 +175,43 @@ func (d *Demand) CourseInstances(ctx context.Context, filter domain.DemandFilter
 	return instances, nil
 }
 
-// TeachingLoad is the semester's teaching by home programme, one entry per home programme.
+// TeachingLoad is the semester's teaching by the programme that holds it, one entry per programme.
 //
-// The query answers one row per (home, programme of the instance); this folds them. A home
-// programme with nothing declared comes back as one row with no programme of the instance, and
-// becomes an entry with no shares rather than a share of zero hours taught nowhere.
+// The query answers one row per (programme of the instance, home of the module); this folds them.
+// A programme with nothing declared comes back as one row with no home, and becomes an entry with
+// no shares rather than a share of zero hours.
 func (d *Demand) TeachingLoad(ctx context.Context, semesterCode string) ([]domain.TeachingLoad, error) {
-	rows, err := New(d.pool).TeachingLoadByHomeProgramme(ctx, semesterCode)
+	rows, err := New(d.pool).TeachingLoadByProgramme(ctx, semesterCode)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the teaching load: %w", err)
 	}
 
 	loads := []domain.TeachingLoad{}
 	for _, row := range rows {
-		if len(loads) == 0 || loads[len(loads)-1].HomeProgramme.ID != row.HomeID {
+		if len(loads) == 0 || loads[len(loads)-1].Programme.ID != row.ProgrammeID {
 			loads = append(loads, domain.TeachingLoad{
-				HomeProgramme: domain.Programme{
-					ID:             row.HomeID,
-					Code:           row.HomeCode,
-					Title:          row.HomeTitle,
-					Active:         row.HomeActive,
-					PlanningStatus: domain.ProgrammeStatus(row.HomePlanningStatus),
+				Programme: domain.Programme{
+					ID:             row.ProgrammeID,
+					Code:           row.ProgrammeCode,
+					Title:          row.ProgrammeTitle,
+					Active:         row.ProgrammeActive,
+					PlanningStatus: domain.ProgrammeStatus(row.ProgrammePlanningStatus),
 				},
 				Shares: []domain.TeachingLoadShare{},
 			})
 		}
-		if !row.TaughtID.Valid {
+		if !row.HomeID.Valid {
 			continue
 		}
 
 		load := &loads[len(loads)-1]
 		load.Shares = append(load.Shares, domain.TeachingLoadShare{
-			Programme: domain.Programme{
-				ID:             row.TaughtID.UUID,
-				Code:           stringOrEmpty(row.TaughtCode),
-				Title:          stringOrEmpty(row.TaughtTitle),
-				Active:         row.TaughtActive != nil && *row.TaughtActive,
-				PlanningStatus: domain.ProgrammeStatus(stringOrEmpty(row.TaughtPlanningStatus)),
+			HomeProgramme: domain.Programme{
+				ID:             row.HomeID.UUID,
+				Code:           stringOrEmpty(row.HomeCode),
+				Title:          stringOrEmpty(row.HomeTitle),
+				Active:         row.HomeActive != nil && *row.HomeActive,
+				PlanningStatus: domain.ProgrammeStatus(stringOrEmpty(row.HomePlanningStatus)),
 			},
 			TeachingHours:     row.Hours,
 			Instances:         int(row.Instances),

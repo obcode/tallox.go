@@ -45,8 +45,8 @@ still**, was sie nicht modelliert, und die erste Frage nach einem nicht modellie
 mit „wissen wir nicht und haben es nie gewusst".
 
 Der Spike liefert den Beleg: eine letzte Woche geschriebene Spiegeltabelle hätte eine
-`name`-Spalte am Modul gehabt (die Modulobjekte haben gar keinen Namen — der steht nur
-verschachtelt in einer `msba`-Zeile) und `credits` als Zahl (alles kommt als String, die
+`name`-Spalte am Modul gehabt (der Name steht dort unter `module` — was übrigens auch wir
+zwei Monate übersehen haben, siehe unten) und `credits` als Zahl (alles kommt als String, die
 Booleans als „True"). Eine Projektion **aus** der Landetabelle ist dagegen jederzeit
 deterministisch neu aufbaubar.
 
@@ -82,10 +82,14 @@ einfache Casts.** Ein einziger kaputter Wert in einer Zeile ließe ein blankes `
 ganze View werfen — aus einem schlechten Datensatz würde ein Cache, den niemand lesen kann.
 NULL ist die ehrliche Antwort, das Payload steht weiter daneben.
 
-**`zpa_module_v.name` wird abgeleitet**, weil die Modulobjekte gar kein Namensfeld haben und der
-Importer es nicht füllen kann (er holt die Arten unabhängig, Module vor Zuordnungen). Gefunden
-durch Ausführen: alle 506 Namen waren leer. Bestes Argument für Views — die Regel steht einmal,
-kostete nichts zu ändern und brauchte keinen erneuten Import.
+**`zpa_module_v.name`: erst das eigene Feld `module`, dann die Zuordnung.** Die Modulobjekte
+tragen den Namen unter dem Schlüssel `module` (nicht `name`). Das wurde zwei Monate lang
+übersehen; der Name kam nur aus dem verschachtelten `module.name` einer `msba`-Zeile, und jedes
+Modul ohne Zuordnung hieß in Tallox „Modul ohne Namen", während das ZPA es benannte. Behoben am
+2026-10-16 (Migration `20261016140000`), `labelFields` liest seitdem ebenfalls `module`.
+Lehre: „das Feld gibt es nicht" heißt erst „unter diesem Namen nicht" — vor so einer Aussage die
+Schlüssel des echten Payloads auflisten (`jsonb_object_keys`). Und es bleibt das beste Argument
+für Views: die Korrektur ist ein `CREATE OR REPLACE`, ohne erneuten Sync.
 
 ## Der teuerste Fehler, gefunden durch Ausführen
 

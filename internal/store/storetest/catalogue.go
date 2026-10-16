@@ -26,7 +26,7 @@ import (
 //
 // The shapes are faithful to the source, including the parts that look like mistakes and are
 // not: everything is a string, booleans are Python's words for them, absent values arrive as
-// the four-letter string "None", and the module objects carry no name at all.
+// the four-letter string "None", and a module's name is under the key `module`.
 //
 // # The cast
 //
@@ -231,8 +231,10 @@ func moduleResponsibleTo(id int64, owner, courseType, frequency string, sws, cre
 		kind:  "MODULE",
 		zpaID: id,
 		payload: map[string]any{
-			// Note what is not here: a name. The module objects carry none, and the name has
-			// to be borrowed from an association row — which is why 104 below has none at all.
+			// Note what is not here: a name. The real objects carry one under `module`; the
+			// fixture leaves it out so that borrowing it from an association row stays covered,
+			// and 104 below, which has no association, stays nameless. The test about the
+			// module's own field adds it to the rows it is about.
 			"module_id":   fmt.Sprint(id),
 			"owner":       owner,
 			"course_type": courseType,
@@ -327,7 +329,7 @@ func catalogueObjects() []zpaObject {
 			"in jedem Sommersemester", 4, 5, true),
 		module(FixtureModuleTwoSlots, FixtureProgrammeA, "Seminar",
 			"nach Ankündigung", 2, 3, true),
-		// No association row anywhere, so nothing to borrow a name from. Active, which is why
+		// No name of its own and no association row to borrow one from. Active, which is why
 		// skipping it would cost a programme lead a module they are responsible for.
 		module(FixtureModuleWithoutName, FixtureProgrammeA, "SU", "in jedem Semester", 4, 5, true),
 		module(FixtureModuleRetired, FixtureProgrammeA, "SU mit Praktikum",

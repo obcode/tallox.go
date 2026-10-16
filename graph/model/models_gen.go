@@ -1398,8 +1398,7 @@ type ZpaChange struct {
 	ZpaID string `json:"zpaId"`
 	// A human-readable name, or `null` when the payload carries none.
 	//
-	// Modules have none today: their objects carry no name field at all, and the name exists only
-	// inside the nested object of an association row.
+	// For a module this is its `module` field, which is where the source keeps the name.
 	Label *string `json:"label,omitempty"`
 	// What happened to it.
 	Change domain.ZPAChangeType `json:"change"`

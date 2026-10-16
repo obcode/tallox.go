@@ -57,8 +57,8 @@ const (
 	// NoteProgrammeWithoutRegulations is a programme named only by the modules that call it
 	// home. Kept and marked inactive.
 	NoteProgrammeWithoutRegulations ProjectionNoteCode = "PROGRAMME_WITHOUT_REGULATIONS"
-	// NoteModuleWithoutName is a module that appears in no set of regulations and therefore has
-	// no name anywhere. Kept, and rendered by its identifier.
+	// NoteModuleWithoutName is a module whose record carries no name and that appears in no set
+	// of regulations to borrow one from. Kept, and rendered by its identifier.
 	NoteModuleWithoutName ProjectionNoteCode = "MODULE_WITHOUT_NAME"
 	// NoteModuleInactive is a module the examination office has retired. Kept and flagged.
 	NoteModuleInactive ProjectionNoteCode = "MODULE_INACTIVE"

@@ -543,11 +543,10 @@ func TestTheViewsReconstructTheStructure(t *testing.T) {
 
 // TestAModuleTakesItsNameFromAnAssociation.
 //
-// The module objects carry no name field at all — it exists only inside the nested object of an
-// association row, and the importer cannot fill it in because it fetches each kind
-// independently and modules come before associations. Deriving it in the view is what makes the
-// catalogue readable, and a module no association mentions has no name, which is the honest
-// answer rather than an id in disguise.
+// The fallback for a module object without a `module` field: the name inside the nested object
+// of an association row. The importer cannot fill it in because it fetches each kind
+// independently and modules come before associations, so the view derives it. A module with
+// neither has no name, which is the honest answer rather than an id in disguise.
 func TestAModuleTakesItsNameFromAnAssociation(t *testing.T) {
 	t.Parallel()
 
@@ -570,6 +569,46 @@ func TestAModuleTakesItsNameFromAnAssociation(t *testing.T) {
 	}
 	if orphan != nil {
 		t.Errorf("a module no association mentions got the name %q", *orphan)
+	}
+}
+
+// TestAModuleNamesItself.
+//
+// The source keeps a module's name under `module`, not `name`. Missing that made every module
+// no association mentions come out nameless while the examination office named it. Where the
+// association's copy disagrees, the module's own field wins: it is the record of the module.
+func TestAModuleNamesItself(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	seedObject(t, s, domain.ZPAKindModule, 501,
+		`{"module_id":"501","module":"Projekt ohne Zuordnung","owner":"XX"}`)
+	seedObject(t, s, domain.ZPAKindModule, 502,
+		`{"module_id":"502","module":"Eigener Name","owner":"XX"}`)
+	// "None" is a Python None that came through as text, not a module called None.
+	seedObject(t, s, domain.ZPAKindModule, 503,
+		`{"module_id":"503","module":"None","owner":"XX"}`)
+	seedObject(t, s, domain.ZPAKindMSBA, 301, `{
+		"msba_id":"301","module":{"id":"502","name":"Name aus der Zuordnung"},
+		"spo":{"id":"801"},"basket":{"id":"701"}}`)
+	seedObject(t, s, domain.ZPAKindMSBA, 302, `{
+		"msba_id":"302","module":{"id":"503","name":"Name aus der Zuordnung"},
+		"spo":{"id":"801"},"basket":{"id":"701"}}`)
+
+	for id, want := range map[int64]string{
+		501: "Projekt ohne Zuordnung",
+		502: "Eigener Name",
+		503: "Name aus der Zuordnung",
+	} {
+		var got *string
+		if err := s.Pool.QueryRow(t.Context(),
+			`SELECT name FROM zpa_module_v WHERE module_id = $1`, id).Scan(&got); err != nil {
+			t.Fatalf("reading module %d: %v", id, err)
+		}
+		if got == nil || *got != want {
+			t.Errorf("module %d has name %v, want %q", id, got, want)
+		}
 	}
 }
 

@@ -41,10 +41,9 @@ func TestEachKindIsFetchedAndItsIDRead(t *testing.T) {
 		{domain.ZPAKindSPO, "/rest/spo_info", 2, 801, "07-XX-2025"},
 		{domain.ZPAKindBasket, "/rest/basket_info", 2, 701, "Pflichtmodule"},
 		{domain.ZPAKindMSBA, "/rest/msba_info", 2, 301, "XX-B-0010"},
-		// A module has no label: the module objects genuinely carry no name field — the name
-		// exists only inside the nested object of an association row. Asserted rather than
-		// worked around, so that the day it is fixed at the source, this test says so.
-		{domain.ZPAKindModule, "/rest/module_info", 2, 501, ""},
+		// The name is under `module`, not `name`. Taking the module objects for nameless is
+		// how a catalogue came to show "module without a name" next to a name in the source.
+		{domain.ZPAKindModule, "/rest/module_info", 2, 501, "Beispielmodul"},
 	}
 
 	for _, tc := range cases {

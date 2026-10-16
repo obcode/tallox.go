@@ -296,8 +296,8 @@ WHERE NOT active;
 -- name: CountModulesWithoutName :one
 -- Projected with an empty name, because the alternative is worse.
 --
--- The source's module objects carry no name field at all; the name is borrowed from an
--- association row, so a module in no set of regulations has none anywhere. Skipping them would
+-- The name is the module object's own `module` field, else borrowed from an association row, so
+-- a module that has neither has none anywhere. Skipping them would
 -- mean a programme lead searching for a module they are responsible for and not finding it.
 --
 -- Restricted to the rows the projection wrote. A module the faculty entered itself is not a

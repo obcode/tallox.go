@@ -176,8 +176,8 @@ func TestProjectionCreatesAnInactiveProgrammeForAnOwnerWithoutRegulations(t *tes
 	}
 }
 
-// The source's module objects carry no name field. Skipping the ones that cannot borrow a name
-// would mean a programme lead searching for a module they are responsible for and not finding
+// A module with no name of its own and no association to borrow one from. Skipping it would
+// mean a programme lead searching for a module they are responsible for and not finding
 // it, which costs more than an ugly row.
 func TestProjectionKeepsAModuleWithoutAName(t *testing.T) {
 	t.Parallel()
@@ -198,6 +198,49 @@ func TestProjectionKeepsAModuleWithoutAName(t *testing.T) {
 
 	if n := note(result, domain.NoteModuleWithoutName); n == nil {
 		t.Error("a module was stored without a name and the report does not say so")
+	}
+}
+
+// The module object names itself under `module`, and that name is used — also for a module no
+// association mentions, which is the case that used to come out nameless while the source named
+// it. Where both exist, the module's own field wins over the association's copy.
+func TestProjectionTakesTheNameFromTheModuleObject(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+
+	for id, name := range map[int64]string{
+		storetest.FixtureModuleWithoutName: "Projekt mit eigenem Namen",
+		storetest.FixtureModuleOrdinary:    "Ordentliches Modul (eigener Name)",
+	} {
+		if _, err := s.Pool.Exec(ctx,
+			`UPDATE zpa_object SET payload = payload || jsonb_build_object('module', $2::text)
+			 WHERE kind = 'MODULE' AND zpa_id = $1`, id, name); err != nil {
+			t.Fatalf("cannot name module %d: %v", id, err)
+		}
+	}
+
+	result := project(t, s)
+
+	for id, want := range map[int64]string{
+		storetest.FixtureModuleWithoutName: "Projekt mit eigenem Namen",
+		storetest.FixtureModuleOrdinary:    "Ordentliches Modul (eigener Name)",
+		// Untouched: no field of its own, so the association's copy still names it.
+		storetest.FixtureModuleDutyDiffers: "Modul mit wechselnder Pflicht",
+	} {
+		var got string
+		if err := s.Pool.QueryRow(ctx,
+			`SELECT name FROM module WHERE zpa_module_ref = $1`, id).Scan(&got); err != nil {
+			t.Fatalf("module %d was not projected: %v", id, err)
+		}
+		if got != want {
+			t.Errorf("module %d is called %q, want %q", id, got, want)
+		}
+	}
+
+	if n := note(result, domain.NoteModuleWithoutName); n != nil {
+		t.Errorf("the report still finds a module without a name: %+v", *n)
 	}
 }
 

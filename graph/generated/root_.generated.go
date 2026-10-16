@@ -4891,10 +4891,9 @@ type Module {
   """
   The name, which is empty for a handful of modules.
 
-  The examination office's module records carry no name field at all — the name exists only
-  inside an association with a set of regulations, so a module that appears in none has none
-  anywhere. Kept and rendered by its identifier rather than hidden, because the person
-  responsible for it has to be able to find it.
+  Taken from the examination office's module record, or else from an association with a set of
+  regulations; a module that carries neither has none anywhere. Kept and rendered by its
+  identifier rather than hidden, because the person responsible for it has to be able to find it.
   """
   name: String!
   "The programme that plans this module. Every module has exactly one."
@@ -8163,8 +8162,7 @@ type ZpaChange {
   """
   A human-readable name, or ` + "`" + `null` + "`" + ` when the payload carries none.
 
-  Modules have none today: their objects carry no name field at all, and the name exists only
-  inside the nested object of an association row.
+  For a module this is its ` + "`" + `module` + "`" + ` field, which is where the source keeps the name.
   """
   label: String
   "What happened to it."
@@ -8265,8 +8263,8 @@ enum ZpaProjectionFinding {
   """
   PROGRAMME_WITHOUT_REGULATIONS
   """
-  Kept with an empty name: the source's module records carry no name field, and this module
-  appears in no set of regulations to borrow one from.
+  Kept with an empty name: the source's module record carries none, and this module appears in no
+  set of regulations to borrow one from.
   """
   MODULE_WITHOUT_NAME
   "Kept and flagged: the examination office has retired the module."

@@ -3,7 +3,7 @@
   "active": "True", "bonus": "", "competency_in": "", "competency_out": "",
   "content": "Beispielinhalt", "course_type": "SU mit Praktikum", "credits": "5",
   "effort": "30 Praesenzstunden", "frequency": "jedes Semester", "languages": "DE",
-  "literature": "", "media": "Tafel", "module_id": "501", "objectives": "Beispielziele",
+  "literature": "", "media": "Tafel", "module": "Beispielmodul", "module_id": "501", "objectives": "Beispielziele",
   "official": "True", "owner": "XX", "repeater_exam": "False",
   "requirements": "", "responsible": "prof.eins@example.org", "std_lang": "DE", "sws": "4"
  },

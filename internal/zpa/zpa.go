@@ -95,12 +95,10 @@ var idFields = map[domain.ZPAKind][]string{
 
 // labelFields are the candidates for a human-readable name, per kind.
 //
-// Module has none, and that is not an oversight here: the module objects genuinely carry no
-// name field — the module's name exists only inside the nested object of an association row.
-// A module therefore gets an empty label until that is fixed at the source, and the interface
-// falls back to showing the kind and the id.
+// A module's name is in the field `module`, not `name` — overlooked for two months, during
+// which every module no association mentions was shown as nameless.
 var labelFields = map[domain.ZPAKind][]string{
-	domain.ZPAKindModule: {},
+	domain.ZPAKindModule: {"module"},
 	domain.ZPAKindBasket: {"basket", "name"},
 	domain.ZPAKindMSBA:   {"module_code", "name"},
 	domain.ZPAKindSPO:    {"primuss_id", "version", "name"},

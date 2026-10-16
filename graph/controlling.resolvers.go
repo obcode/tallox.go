@@ -54,7 +54,7 @@ func (r *queryResolver) StudyYearLoad(ctx context.Context, studyYear int) ([]*mo
 	out := make([]*model.ProgrammeStudyYearLoad, 0, len(years))
 	for _, y := range years {
 		out = append(out, &model.ProgrammeStudyYearLoad{
-			HomeProgramme:     programmeModel(y.HomeProgramme),
+			Programme:         programmeModel(y.Programme),
 			StudyYear:         y.StudyYear,
 			YearlyQuota:       y.YearlyQuota,
 			WinterHours:       y.WinterHours,

@@ -126,16 +126,16 @@ func (ec *executionContext) fieldContext_ProgrammeQuota_setAt(_ context.Context,
 	return graphql.NewScalarFieldContext("ProgrammeQuota", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
-func (ec *executionContext) _ProgrammeStudyYearLoad_homeProgramme(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeStudyYearLoad) (ret graphql.Marshaler) {
+func (ec *executionContext) _ProgrammeStudyYearLoad_programme(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeStudyYearLoad) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ProgrammeStudyYearLoad_homeProgramme(ctx, field)
+			return ec.fieldContext_ProgrammeStudyYearLoad_programme(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.HomeProgramme, nil
+			return obj.Programme, nil
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Programme) graphql.Marshaler {
@@ -145,7 +145,7 @@ func (ec *executionContext) _ProgrammeStudyYearLoad_homeProgramme(ctx context.Co
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_ProgrammeStudyYearLoad_homeProgramme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ProgrammeStudyYearLoad_programme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ProgrammeStudyYearLoad",
 		Field:      field,
@@ -296,16 +296,16 @@ func (ec *executionContext) fieldContext_ProgrammeStudyYearLoad_partsWithoutHour
 	return graphql.NewScalarFieldContext("ProgrammeStudyYearLoad", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
-func (ec *executionContext) _ProgrammeTeachingLoad_homeProgramme(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeTeachingLoad) (ret graphql.Marshaler) {
+func (ec *executionContext) _ProgrammeTeachingLoad_programme(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeTeachingLoad) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_ProgrammeTeachingLoad_homeProgramme(ctx, field)
+			return ec.fieldContext_ProgrammeTeachingLoad_programme(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.HomeProgramme, nil
+			return obj.Programme, nil
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Programme) graphql.Marshaler {
@@ -315,7 +315,7 @@ func (ec *executionContext) _ProgrammeTeachingLoad_homeProgramme(ctx context.Con
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_ProgrammeTeachingLoad_homeProgramme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ProgrammeTeachingLoad_programme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ProgrammeTeachingLoad",
 		Field:      field,
@@ -567,16 +567,16 @@ func (ec *executionContext) fieldContext_ProgrammeTeachingLoad_balance(_ context
 	return graphql.NewScalarFieldContext("ProgrammeTeachingLoad", field, false, false, errors.New("field of type Float does not have child fields"))
 }
 
-func (ec *executionContext) _TeachingLoadShare_programme(ctx context.Context, field graphql.CollectedField, obj *model.TeachingLoadShare) (ret graphql.Marshaler) {
+func (ec *executionContext) _TeachingLoadShare_homeProgramme(ctx context.Context, field graphql.CollectedField, obj *model.TeachingLoadShare) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
 		ec.OperationContext,
 		field,
 		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.fieldContext_TeachingLoadShare_programme(ctx, field)
+			return ec.fieldContext_TeachingLoadShare_homeProgramme(ctx, field)
 		},
 		func(ctx context.Context) (any, error) {
-			return obj.Programme, nil
+			return obj.HomeProgramme, nil
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Programme) graphql.Marshaler {
@@ -586,7 +586,7 @@ func (ec *executionContext) _TeachingLoadShare_programme(ctx context.Context, fi
 		true,
 	)
 }
-func (ec *executionContext) fieldContext_TeachingLoadShare_programme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_TeachingLoadShare_homeProgramme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "TeachingLoadShare",
 		Field:      field,
@@ -791,8 +791,8 @@ func (ec *executionContext) _ProgrammeStudyYearLoad(ctx context.Context, sel ast
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ProgrammeStudyYearLoad")
-		case "homeProgramme":
-			out.Values[i] = ec._ProgrammeStudyYearLoad_homeProgramme(ctx, field, obj)
+		case "programme":
+			out.Values[i] = ec._ProgrammeStudyYearLoad_programme(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -859,8 +859,8 @@ func (ec *executionContext) _ProgrammeTeachingLoad(ctx context.Context, sel ast.
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("ProgrammeTeachingLoad")
-		case "homeProgramme":
-			out.Values[i] = ec._ProgrammeTeachingLoad_homeProgramme(ctx, field, obj)
+		case "programme":
+			out.Values[i] = ec._ProgrammeTeachingLoad_programme(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -947,8 +947,8 @@ func (ec *executionContext) _TeachingLoadShare(ctx context.Context, sel ast.Sele
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("TeachingLoadShare")
-		case "programme":
-			out.Values[i] = ec._TeachingLoadShare_programme(ctx, field, obj)
+		case "homeProgramme":
+			out.Values[i] = ec._TeachingLoadShare_homeProgramme(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

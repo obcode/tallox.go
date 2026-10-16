@@ -18,15 +18,15 @@ import (
 
 const teachingLoadQuery = `query($s: String!) {
 	teachingLoad(semester: $s) {
-		homeProgramme { code planningStatus }
+		programme { code planningStatus }
 		teachingHours ownHours instanceCount fwpInstanceCount fwpHours partsWithoutHours
-		shares { programme { code } teachingHours instanceCount }
+		shares { homeProgramme { code } teachingHours instanceCount }
 	}
 }`
 
 type teachingLoadAnswer struct {
 	TeachingLoad []struct {
-		HomeProgramme struct {
+		Programme struct {
 			Code           string
 			PlanningStatus string
 		}
@@ -37,15 +37,15 @@ type teachingLoadAnswer struct {
 		FwpHours          float64
 		PartsWithoutHours int
 		Shares            []struct {
-			Programme     struct{ Code string }
+			HomeProgramme struct{ Code string }
 			TeachingHours float64
 			InstanceCount int
 		}
 	}
 }
 
-// A module of PA taught for PB counts at PA, and a lecturer reads the same figure through either
-// door.
+// PB's cohort joins PA's event, so PA holds the teaching and pays; a lecturer reads the same figure
+// through either door.
 func TestTheTeachingLoadIsReadableThroughBothDoors(t *testing.T) {
 	t.Parallel()
 
@@ -65,22 +65,22 @@ func TestTheTeachingLoadIsReadableThroughBothDoors(t *testing.T) {
 
 			found := false
 			for _, l := range out.TeachingLoad {
-				switch l.HomeProgramme.Code {
+				switch l.Programme.Code {
 				case storetest.FixtureProgrammeA:
 					found = true
-					// Declared beside PA, PB's cohort is held together with PA's event, so the
-					// module costs PA one event's teaching and is in demand twice.
-					if l.TeachingHours != 4 || l.OwnHours != 4 || l.InstanceCount != 2 {
-						t.Errorf("PA costs %v hours, %v of them its own, in %d instances; "+
-							"want 4, 4 and 2", l.TeachingHours, l.OwnHours, l.InstanceCount)
+					// Declared beside PA, PB's cohort is held together with PA's event: PA holds
+					// the teaching and pays for it, and PB's covered cohort costs nothing.
+					if l.TeachingHours != 4 || l.OwnHours != 4 || l.InstanceCount != 1 {
+						t.Errorf("PA pays %v hours, %v of them for its own modules, in %d instances; "+
+							"want 4, 4 and 1", l.TeachingHours, l.OwnHours, l.InstanceCount)
 					}
-					if len(l.Shares) != 2 {
-						t.Errorf("PA's load is split into %d shares, want its own and PB's",
-							len(l.Shares))
+					if len(l.Shares) != 1 || l.Shares[0].HomeProgramme.Code != storetest.FixtureProgrammeA {
+						t.Errorf("PA's load is split into %+v, want its own modules only", l.Shares)
 					}
 				case storetest.FixtureProgrammeB:
-					if l.TeachingHours != 0 {
-						t.Errorf("PB is charged %v hours for PA's module", l.TeachingHours)
+					if l.TeachingHours != 0 || l.InstanceCount != 1 {
+						t.Errorf("PB's covered cohort costs %v hours in %d instances, want 0 and 1",
+							l.TeachingHours, l.InstanceCount)
 					}
 				}
 			}

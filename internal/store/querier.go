@@ -1246,22 +1246,28 @@ type Querier interface {
 	// cast is nullable, and scanning NULL into a string fails at runtime rather than at build time.
 	// Empty means absent, which is what the domain type says too.
 	TeachersByID(ctx context.Context, ids []uuid.UUID) ([]TeachersByIDRow, error)
-	// The teaching a semester's demand costs, attributed to the home programme of each module.
+	// The teaching a semester's demand costs, attributed to the programme whose instances hold it.
 	//
-	// The faculty's controlling view: a module counts at the programme it belongs to, wherever it is
-	// taught — the arrangement the spreadsheet before this tool used, and the one every programme
-	// lead knows how to read. The split by the programme of the instance comes along, because the
-	// difference between the two is the import/export figure.
+	// Whoever holds the parts pays (decided with the faculty on 2026-10-16). A module has one home in
+	// the examination office's catalogue — Analysis belongs to IF and appears in the regulations of
+	// DC, IC and GS as well — and charging every hour of it to IF made IF pay for the Analysis DC
+	// plans for itself. The spreadsheet before this tool had an IF and a DC variant for exactly that.
+	// Here the variant is the instance: DC's own Analysis holds its own parts and costs DC; a cohort
+	// that joins IF's event instead is covered, holds no parts, and costs nothing — IF, holding the
+	// event, pays for it.
 	//
-	// One row per (home programme, programme of the instance). A plain SUM over the parts is right
-	// without DISTINCT: every part belongs to exactly one instance, a lecture held for sibling cohorts
-	// is one part, and a covered cohort holds none. Parts with no hours stated count zero and are
-	// counted, so that an unfinished split cannot pass for a light semester.
+	// One row per (programme of the instance, home programme of the module). The split by home comes
+	// along, because "how much of what we pay for is other programmes' modules" is the import figure.
+	//
+	// A plain SUM over the parts is right without DISTINCT: every part belongs to exactly one
+	// instance, a lecture held for sibling cohorts is one part, and a covered cohort holds none.
+	// Parts with no hours stated count zero and are counted, so that an unfinished split cannot pass
+	// for a light semester.
 	//
 	// Every planned programme is listed even with nothing declared — a programme that has not started
-	// is the row the dean's office is looking for — and any other programme only when a module of its
-	// own is taught here.
-	TeachingLoadByHomeProgramme(ctx context.Context, semester string) ([]TeachingLoadByHomeProgrammeRow, error)
+	// is the row the dean's office is looking for — and any other programme only when its instances
+	// hold teaching here.
+	TeachingLoadByProgramme(ctx context.Context, semester string) ([]TeachingLoadByProgrammeRow, error)
 	// The authentication query of the token door, in one round trip: the token, its owner and the
 	// owner's roles.
 	//

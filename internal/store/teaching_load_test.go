@@ -17,12 +17,12 @@ import (
 // cohort holds parts or does not, a part without hours is NULL. A fake store would add up
 // whatever it was told.
 
-// loadOf is one home programme's entry, or fails the test.
+// loadOf is one programme's entry, or fails the test.
 func loadOf(t *testing.T, loads []domain.TeachingLoad, code string) domain.TeachingLoad {
 	t.Helper()
 
 	for _, l := range loads {
-		if l.HomeProgramme.Code == code {
+		if l.Programme.Code == code {
 			return l
 		}
 	}
@@ -52,14 +52,15 @@ func TestTeachingLoadListsAPlannedProgrammeWithNothingDeclared(t *testing.T) {
 		t.Errorf("an empty semester costs PA %v hours in %d shares, want nothing",
 			load.TeachingHours(), len(load.Shares))
 	}
-	if load.HomeProgramme.PlanningStatus != domain.ProgrammePlanned {
-		t.Errorf("PA reads as %q, want PLANNED", load.HomeProgramme.PlanningStatus)
+	if load.Programme.PlanningStatus != domain.ProgrammePlanned {
+		t.Errorf("PA reads as %q, want PLANNED", load.Programme.PlanningStatus)
 	}
 }
 
-// The case the view exists for: a module of PA taught for PB counts at PA, and the share shows
-// where it went.
-func TestTeachingLoadCountsAModuleAtItsHomeProgramme(t *testing.T) {
+// The case the rule exists for (2026-10-16): PA's module, planned by PB with parts of its own, is
+// PB's to pay for — the Analysis DC plans itself is not IF's bill. The share says whose module it
+// is.
+func TestTeachingLoadChargesTheProgrammeThatHoldsTheTeaching(t *testing.T) {
 	t.Parallel()
 
 	f := newDemandFixture(t)
@@ -69,19 +70,19 @@ func TestTeachingLoadCountsAModuleAtItsHomeProgramme(t *testing.T) {
 
 	loads := f.teachingLoad(t)
 	pa := loadOf(t, loads, storetest.FixtureProgrammeA)
-	if got := pa.TeachingHours(); got != 8 {
-		t.Errorf("two cohorts of PA's 2+2-hour module cost PA %v hours, want 8", got)
-	}
-	if got := pa.OwnHours(); got != 4 {
-		t.Errorf("PA teaches %v of them itself, want 4", got)
-	}
-	if len(pa.Shares) != 2 || pa.Shares[1].Programme.Code != storetest.FixtureProgrammeB ||
-		pa.Shares[1].TeachingHours != 4 || pa.Shares[1].Instances != 1 {
-		t.Errorf("PA's shares are %+v, want 4 hours in its own and 4 in one PB instance", pa.Shares)
+	if pa.TeachingHours() != 4 || pa.OwnHours() != 4 || pa.ForeignHours() != 0 {
+		t.Errorf("PA pays %v hours, %v for its own modules; want 4 and 4",
+			pa.TeachingHours(), pa.OwnHours())
 	}
 
-	if pb := loadOf(t, loads, storetest.FixtureProgrammeB); pb.TeachingHours() != 0 {
-		t.Errorf("PB is charged %v hours for a module that is not its own", pb.TeachingHours())
+	pb := loadOf(t, loads, storetest.FixtureProgrammeB)
+	if pb.TeachingHours() != 4 || pb.OwnHours() != 0 || pb.ForeignHours() != 4 {
+		t.Errorf("PB pays %v hours, %v of them for other programmes' modules; want 4 and 4",
+			pb.TeachingHours(), pb.ForeignHours())
+	}
+	if len(pb.Shares) != 1 || pb.Shares[0].HomeProgramme.Code != storetest.FixtureProgrammeA ||
+		pb.Shares[0].Instances != 1 {
+		t.Errorf("PB's shares are %+v, want one instance of PA's module", pb.Shares)
 	}
 }
 
@@ -126,12 +127,17 @@ func TestTeachingLoadCountsACoveredCohortAtZero(t *testing.T) {
 		t.Fatalf("cannot agree to cover: %v", err)
 	}
 
-	pa := loadOf(t, f.teachingLoad(t), storetest.FixtureProgrammeA)
+	// The host holds the event and pays for it; the covered cohort holds nothing and costs
+	// nothing, and is still in demand — covering is not withdrawing.
+	loads := f.teachingLoad(t)
+	pa := loadOf(t, loads, storetest.FixtureProgrammeA)
 	if got := pa.TeachingHours(); got != 4 {
 		t.Errorf("one event held for two programmes costs PA %v hours, want 4", got)
 	}
-	if got := pa.Instances(); got != 2 {
-		t.Errorf("PA's module is in demand %d times, want 2 — covering is not withdrawing", got)
+	pb := loadOf(t, loads, storetest.FixtureProgrammeB)
+	if pb.TeachingHours() != 0 || pb.Instances() != 1 {
+		t.Errorf("the covered cohort costs PB %v hours in %d instances, want 0 and 1",
+			pb.TeachingHours(), pb.Instances())
 	}
 }
 

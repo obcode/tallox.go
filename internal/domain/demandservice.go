@@ -97,7 +97,7 @@ func (s *DemandService) Instances(ctx context.Context, actor principal.Actor,
 	return s.store.CourseInstances(ctx, filter)
 }
 
-// TeachingLoad is the semester's teaching, attributed to the home programme of each module.
+// TeachingLoad is the semester's teaching, attributed to the programme whose instances hold it.
 //
 // Readable by everybody who may read the demand, through both doors: it is a sum over rows that
 // are not confidential, and an evaluation script is exactly who it is for. A semester nobody has
@@ -138,7 +138,7 @@ func (s *DemandService) TeachingLoad(ctx context.Context, actor principal.Actor,
 	}
 
 	for i := range loads {
-		id := loads[i].HomeProgramme.ID
+		id := loads[i].Programme.ID
 		if hours, ok := quotas[id]; ok {
 			loads[i].YearlyQuota = &hours
 		}
@@ -150,7 +150,7 @@ func (s *DemandService) TeachingLoad(ctx context.Context, actor principal.Actor,
 	return loads, nil
 }
 
-// StudyYearLoad is a study year's teaching by home programme, winter and summer side by side
+// StudyYearLoad is a study year's teaching by paying programme, winter and summer side by side
 // against the year's quota.
 //
 // Readable like the teaching load it is made of. Every programme that appears in either semester
@@ -183,7 +183,7 @@ func (s *DemandService) StudyYearLoad(ctx context.Context, actor principal.Actor
 		if e, ok := byID[p.ID]; ok {
 			return e
 		}
-		e := &StudyYearLoad{HomeProgramme: p, StudyYear: studyYear}
+		e := &StudyYearLoad{Programme: p, StudyYear: studyYear}
 		if hours, ok := quotas[p.ID]; ok {
 			e.YearlyQuota = &hours
 		}
@@ -191,12 +191,12 @@ func (s *DemandService) StudyYearLoad(ctx context.Context, actor principal.Actor
 		return e
 	}
 	for _, l := range winter {
-		e := entry(l.HomeProgramme)
+		e := entry(l.Programme)
 		e.WinterHours = l.TeachingHours()
 		e.PartsWithoutHours += l.PartsWithoutHours()
 	}
 	for _, l := range summer {
-		e := entry(l.HomeProgramme)
+		e := entry(l.Programme)
 		e.SummerHours = l.TeachingHours()
 		e.PartsWithoutHours += l.PartsWithoutHours()
 	}
@@ -205,7 +205,7 @@ func (s *DemandService) StudyYearLoad(ctx context.Context, actor principal.Actor
 	for _, e := range byID {
 		out = append(out, *e)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].HomeProgramme.Code < out[j].HomeProgramme.Code })
+	sort.Slice(out, func(i, j int) bool { return out[i].Programme.Code < out[j].Programme.Code })
 	return out, nil
 }
 
@@ -222,11 +222,11 @@ func (s *DemandService) quotasByProgramme(ctx context.Context, studyYear int) (m
 	return out, nil
 }
 
-// hoursByProgramme is a semester's teaching keyed by home programme.
+// hoursByProgramme is a semester's teaching keyed by the programme that pays for it.
 func hoursByProgramme(loads []TeachingLoad) map[uuid.UUID]float64 {
 	out := make(map[uuid.UUID]float64, len(loads))
 	for _, l := range loads {
-		out[l.HomeProgramme.ID] = l.TeachingHours()
+		out[l.Programme.ID] = l.TeachingHours()
 	}
 	return out
 }

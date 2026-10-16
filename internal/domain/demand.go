@@ -459,28 +459,31 @@ func (p DemandPlan) Empty() bool {
 // behind it.
 func (p DemandPlan) Destructive() bool { return len(p.Withdrawn) > 0 }
 
-// TeachingLoad is what one programme's modules cost the faculty in a semester, wherever they
-// are taught.
+// TeachingLoad is what a programme's instances cost the faculty in a semester.
 //
-// The controlling view the faculty plans its electives against: the hours of a module count at
-// its home programme, the arrangement the spreadsheet before this tool used. That is not the
-// only sensible attribution — counting at the programme of the instance is the other — and the
-// split by that programme is kept beside the total, because the difference between the two is
-// the import/export figure.
+// Whoever holds the parts pays (2026-10-16). A module has one home in the catalogue, but the
+// teaching is held by an instance, and that instance belongs to a programme: DC's own Analysis
+// costs DC although the module is IF's, and a cohort that joins another programme's event holds
+// no parts and costs nothing — the host pays. The spreadsheet before this tool expressed the same
+// thing with an IF and a DC variant of the module.
+//
+// The split by the home programme of the modules is kept beside the total: how much of what a
+// programme pays for is other programmes' modules is the import figure.
 //
 // The hours are teaching hours, the sum over the parts, by the rule CourseInstance.TeachingHours
 // states: a four-hour module with a lecture and three laboratory groups costs eight. Not the
 // module's ContactHoursPerWeek, which is what a student attends.
 type TeachingLoad struct {
-	HomeProgramme Programme
-	// Shares is the load split by the programme of the instance, ordered by its code. Empty for a
-	// planned programme nothing has been declared for yet.
+	// Programme is the programme whose instances hold the teaching, and which pays for it.
+	Programme Programme
+	// Shares is the load split by the home programme of the modules, ordered by its code. Empty
+	// for a planned programme nothing has been declared for yet.
 	Shares []TeachingLoadShare
 	// YearlyQuota is what the dean's office entered for the study year this semester belongs to,
 	// or nil when nothing has been entered. Nil is not zero: zero is a programme with nothing to
 	// spend, nil is a programme nobody has said anything about.
 	YearlyQuota *float64
-	// SpentInWinter is, for a summer semester, what the home programme's modules cost in the
+	// SpentInWinter is, for a summer semester, what the programme's instances cost in the
 	// winter of the same study year — zero when nothing was declared there. Nil for a winter
 	// semester, which has nothing before it in its study year.
 	SpentInWinter *float64
@@ -504,7 +507,7 @@ func (l TeachingLoad) SemesterQuota() *float64 {
 	return &half
 }
 
-// StudyYearLoad is one home programme's study year: its quota, what the winter costs, what the
+// StudyYearLoad is one programme's study year: its quota, what the winter costs, what the
 // summer costs.
 //
 // The view the programme leads plan against. The quota is stated for the year, so the question
@@ -512,11 +515,11 @@ func (l TeachingLoad) SemesterQuota() *float64 {
 // as soon as somebody has declared it, which is how a summer is played through while the winter
 // is being planned.
 type StudyYearLoad struct {
-	HomeProgramme Programme
-	StudyYear     int
-	YearlyQuota   *float64
-	WinterHours   float64
-	SummerHours   float64
+	Programme   Programme
+	StudyYear   int
+	YearlyQuota *float64
+	WinterHours float64
+	SummerHours float64
 	// PartsWithoutHours over both semesters: non-zero means the figures are too low.
 	PartsWithoutHours int
 }
@@ -557,9 +560,9 @@ type ProgrammeQuota struct {
 	SetBy uuid.UUID
 }
 
-// TeachingLoadShare is the part of a home programme's load taught in one programme's instances.
+// TeachingLoadShare is the part of a programme's load spent on the modules of one home programme.
 type TeachingLoadShare struct {
-	Programme     Programme
+	HomeProgramme Programme
 	TeachingHours float64
 	Instances     int
 	// FwpInstances and FwpHours are the elective placeholders among them — "we need three FWP"
@@ -571,22 +574,25 @@ type TeachingLoadShare struct {
 	PartsWithoutHours int
 }
 
-// TeachingHours is the whole load of the home programme.
+// TeachingHours is the whole load of the programme.
 func (l TeachingLoad) TeachingHours() float64 {
 	return l.sum(func(s TeachingLoadShare) float64 { return s.TeachingHours })
 }
 
-// OwnHours is the load taught in the home programme's own instances.
+// OwnHours is the part of the load spent on the programme's own modules.
 func (l TeachingLoad) OwnHours() float64 {
 	return l.sum(func(s TeachingLoadShare) float64 {
-		if s.Programme.ID != l.HomeProgramme.ID {
+		if s.HomeProgramme.ID != l.Programme.ID {
 			return 0
 		}
 		return s.TeachingHours
 	})
 }
 
-// Instances is the number of instances of the home programme's modules.
+// ForeignHours is the part spent on modules other programmes are home to: the import.
+func (l TeachingLoad) ForeignHours() float64 { return l.TeachingHours() - l.OwnHours() }
+
+// Instances is the number of the programme's instances, covered ones included.
 func (l TeachingLoad) Instances() int {
 	return int(l.sum(func(s TeachingLoadShare) float64 { return float64(s.Instances) }))
 }

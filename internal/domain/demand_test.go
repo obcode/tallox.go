@@ -1123,10 +1123,10 @@ func TestTeachingLoadSumsItsShares(t *testing.T) {
 	home := domain.Programme{ID: uuid.New(), Code: "PA"}
 	other := domain.Programme{ID: uuid.New(), Code: "PB"}
 	load := domain.TeachingLoad{
-		HomeProgramme: home,
+		Programme: home,
 		Shares: []domain.TeachingLoadShare{
-			{Programme: home, TeachingHours: 12, Instances: 3, FwpInstances: 1, FwpHours: 4},
-			{Programme: other, TeachingHours: 6.5, Instances: 2, PartsWithoutHours: 1},
+			{HomeProgramme: home, TeachingHours: 12, Instances: 3, FwpInstances: 1, FwpHours: 4},
+			{HomeProgramme: other, TeachingHours: 6.5, Instances: 2, PartsWithoutHours: 1},
 		},
 	}
 
@@ -1147,7 +1147,7 @@ func TestTeachingLoadSumsItsShares(t *testing.T) {
 		}
 	}
 
-	if empty := (domain.TeachingLoad{HomeProgramme: home}); empty.TeachingHours() != 0 ||
+	if empty := (domain.TeachingLoad{Programme: home}); empty.TeachingHours() != 0 ||
 		empty.OwnHours() != 0 {
 		t.Error("a programme nothing has been declared for costs something")
 	}
@@ -1202,8 +1202,8 @@ func TestTheBalanceIsHalfTheYearMinusTheLoad(t *testing.T) {
 
 	home := domain.Programme{ID: uuid.New(), Code: "PA"}
 	load := domain.TeachingLoad{
-		HomeProgramme: home,
-		Shares:        []domain.TeachingLoadShare{{Programme: home, TeachingHours: 184}},
+		Programme: home,
+		Shares:    []domain.TeachingLoadShare{{HomeProgramme: home, TeachingHours: 184}},
 	}
 	if load.SemesterQuota() != nil || load.Balance() != nil {
 		t.Fatal("a programme without a quota has a balance")
@@ -1242,8 +1242,8 @@ func TestTheTeachingLoadCarriesTheStudyYearsQuota(t *testing.T) {
 			t.Parallel()
 			f := newDemandService(t, policy.PhaseDemandPlanning)
 			f.store.loads = []domain.TeachingLoad{
-				{HomeProgramme: domain.Programme{ID: demandProgramme, Code: "PA"}},
-				{HomeProgramme: domain.Programme{ID: otherProgramme, Code: "PB"}},
+				{Programme: domain.Programme{ID: demandProgramme, Code: "PA"}},
+				{Programme: domain.Programme{ID: otherProgramme, Code: "PB"}},
 			}
 			f.store.quotas = []domain.ProgrammeQuota{
 				{Programme: domain.Programme{ID: demandProgramme}, StudyYear: c.year, TeachingHours: 100},
@@ -1373,8 +1373,8 @@ func TestWhatAProgrammeQuotaMayBe(t *testing.T) {
 // costing is a home programme's load of a given number of hours, all taught in its own instances.
 func costing(p domain.Programme, hours float64) domain.TeachingLoad {
 	return domain.TeachingLoad{
-		HomeProgramme: p,
-		Shares:        []domain.TeachingLoadShare{{Programme: p, TeachingHours: hours}},
+		Programme: p,
+		Shares:    []domain.TeachingLoadShare{{HomeProgramme: p, TeachingHours: hours}},
 	}
 }
 
@@ -1439,7 +1439,7 @@ func TestTheStudyYearLoad(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(year) != 2 || year[0].HomeProgramme.Code != "PA" || year[1].HomeProgramme.Code != "PB" {
+	if len(year) != 2 || year[0].Programme.Code != "PA" || year[1].Programme.Code != "PB" {
 		t.Fatalf("listed %+v, want PA and PB by code", year)
 	}
 	if year[0].WinterHours != 250 || year[0].SummerHours != 150 || *year[0].Remaining() != 25 {

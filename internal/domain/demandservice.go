@@ -429,6 +429,46 @@ func (s *DemandService) Change(ctx context.Context, actor principal.Actor, id uu
 	return s.store.UpdateCourseInstance(ctx, instance.ID, newTrack, programmeSemester)
 }
 
+// SetFormat writes how a cohort is taught: in a block or across the semester, and whether in
+// English. englishOverride nil returns the language to what the catalogue says.
+//
+// Judged by the assignment's rule rather than the demand's (policy.MayWriteInstanceFormat), and
+// refused with the assignment's sentinels, because that is the screen it is set on and the person
+// who asked for it is a subject group lead.
+func (s *DemandService) SetFormat(ctx context.Context, actor principal.Actor, id uuid.UUID,
+	delivery Delivery, englishOverride *bool,
+) (*CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	if _, ok := ParseDelivery(string(delivery)); !ok {
+		return nil, ErrDeliveryInvalid
+	}
+
+	instance, err := s.store.CourseInstanceByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if instance == nil {
+		return nil, ErrInstanceNotFound
+	}
+
+	subjectGroupID := uuid.Nil
+	if instance.Module.SubjectGroup != nil {
+		subjectGroupID = instance.Module.SubjectGroup.ID
+	}
+	if !policy.MayWriteInstanceFormat(actor, subjectGroupID, instance.Programme.ID,
+		instance.SemesterPhase) {
+		if !policy.MayActInSubjectGroup(actor, subjectGroupID) &&
+			!policy.MayPlanProgramme(actor, instance.Programme.ID) {
+			return nil, ErrNotYourSubject
+		}
+		return nil, ErrAssignmentPhaseClosed
+	}
+
+	return s.store.SetCourseInstanceFormat(ctx, instance.ID, delivery, englishOverride)
+}
+
 // Withdraw removes an instance that is not needed after all.
 func (s *DemandService) Withdraw(ctx context.Context, actor principal.Actor, id uuid.UUID) error {
 	instance, err := s.writable(ctx, actor, id)

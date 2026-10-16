@@ -167,21 +167,24 @@ type ComplexityRoot struct {
 	}
 
 	CourseInstance struct {
-		AlsoPlannedSeparately func(childComplexity int) int
-		BorrowedParts         func(childComplexity int) int
-		CoveredBy             func(childComplexity int) int
-		Covers                func(childComplexity int) int
-		CreatedAt             func(childComplexity int) int
-		ID                    func(childComplexity int) int
-		Module                func(childComplexity int) int
-		Note                  func(childComplexity int) int
-		Parts                 func(childComplexity int) int
-		Programme             func(childComplexity int) int
-		ProgrammeSemester     func(childComplexity int) int
-		Semester              func(childComplexity int) int
-		TeachingHours         func(childComplexity int) int
-		Track                 func(childComplexity int) int
-		UpdatedAt             func(childComplexity int) int
+		AlsoPlannedSeparately     func(childComplexity int) int
+		BorrowedParts             func(childComplexity int) int
+		CoveredBy                 func(childComplexity int) int
+		Covers                    func(childComplexity int) int
+		CreatedAt                 func(childComplexity int) int
+		Delivery                  func(childComplexity int) int
+		ID                        func(childComplexity int) int
+		Module                    func(childComplexity int) int
+		Note                      func(childComplexity int) int
+		Parts                     func(childComplexity int) int
+		Programme                 func(childComplexity int) int
+		ProgrammeSemester         func(childComplexity int) int
+		Semester                  func(childComplexity int) int
+		TaughtInEnglish           func(childComplexity int) int
+		TaughtInEnglishOverridden func(childComplexity int) int
+		TeachingHours             func(childComplexity int) int
+		Track                     func(childComplexity int) int
+		UpdatedAt                 func(childComplexity int) int
 	}
 
 	CreatedPersonalAccessToken struct {
@@ -327,6 +330,7 @@ type ComplexityRoot struct {
 		RequestInstanceCoverage       func(childComplexity int, id string, coveredBy string) int
 		RevokePersonalAccessToken     func(childComplexity int, id string) int
 		SetAssignment                 func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
+		SetCourseInstanceFormat       func(childComplexity int, id string, delivery domain.Delivery, taughtInEnglish *bool) int
 		SetDemandComplete             func(childComplexity int, semester string, programme string, complete bool) int
 		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
 		SetModulesSubjectGroup        func(childComplexity int, moduleIds []string, subjectGroup *string) int
@@ -1210,6 +1214,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CourseInstance.CreatedAt(childComplexity), true
+	case "CourseInstance.delivery":
+		if e.ComplexityRoot.CourseInstance.Delivery == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.Delivery(childComplexity), true
 	case "CourseInstance.id":
 		if e.ComplexityRoot.CourseInstance.ID == nil {
 			break
@@ -1252,6 +1262,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CourseInstance.Semester(childComplexity), true
+	case "CourseInstance.taughtInEnglish":
+		if e.ComplexityRoot.CourseInstance.TaughtInEnglish == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.TaughtInEnglish(childComplexity), true
+	case "CourseInstance.taughtInEnglishOverridden":
+		if e.ComplexityRoot.CourseInstance.TaughtInEnglishOverridden == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.TaughtInEnglishOverridden(childComplexity), true
 	case "CourseInstance.teachingHours":
 		if e.ComplexityRoot.CourseInstance.TeachingHours == nil {
 			break
@@ -2037,6 +2059,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetAssignment(childComplexity, args["instancePartId"].(string), args["personId"].(*string), args["teacherId"].(*string), args["note"].(*string), args["replacing"].(*string)), true
+	case "Mutation.setCourseInstanceFormat":
+		if e.ComplexityRoot.Mutation.SetCourseInstanceFormat == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setCourseInstanceFormat_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetCourseInstanceFormat(childComplexity, args["id"].(string), args["delivery"].(domain.Delivery), args["taughtInEnglish"].(*bool)), true
 	case "Mutation.setDemandComplete":
 		if e.ComplexityRoot.Mutation.SetDemandComplete == nil {
 			break
@@ -4578,6 +4611,28 @@ extend type Mutation {
   ): Assignment! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
+  Say how a cohort is taught: across the semester or in a block, and whether in English.
+
+  Set where the cohort is staffed, so it is bound by the assignment's rule rather than the
+  demand's: the lead of the module's subject group, the lead of the instance's study programme, or
+  the dean's office, while the semester is not ` + "`" + `FINAL` + "`" + `.
+
+  ` + "`" + `taughtInEnglish: null` + "`" + ` returns the language to the module's default in the examination
+  office's catalogue. A value equal to that default is stored as ` + "`" + `null` + "`" + ` too, so the cohort keeps
+  following the catalogue.
+
+  Refusals: ` + "`" + `INSTANCE_NOT_FOUND` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + `, ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + `.
+  """
+  setCourseInstanceFormat(
+    "The cohort."
+    id: ID!
+    "How it is taught."
+    delivery: DeliveryFormat!
+    "Whether in English, or ` + "`" + `null` + "`" + ` for the catalogue's default."
+    taughtInEnglish: Boolean
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
   Give a part back: remove an assignment.
 
   Bound by the same phase and the same responsibility as making one. A list that may be added to
@@ -5806,6 +5861,16 @@ extend type Mutation {
 # holding a scoped role, not an evaluation.
 
 """
+How a cohort's teaching is spread over the semester.
+"""
+enum DeliveryFormat {
+  "Across the semester, week by week. The default."
+  WEEKLY
+  "Concentrated in a block — a week, or a few days."
+  BLOCK
+}
+
+"""
 One module, offered in one semester, for one study programme, to one parallel cohort.
 
 **This is what gets planned, and its parts are what get assigned.** The faculty's own sentence is
@@ -5878,6 +5943,26 @@ type CourseInstance {
   it for every cohort of a module at once, like the cohort year.
   """
   note: String!
+  """
+  Whether this cohort is taught across the semester or in a block. ` + "`" + `WEEKLY` + "`" + ` unless somebody said
+  otherwise.
+
+  For the whole cohort, all of its parts. A single laboratory group that runs differently belongs
+  in the note.
+  """
+  delivery: DeliveryFormat!
+  """
+  Whether this cohort is taught in English: what somebody decided for it, else the module's
+  default language in the examination office's catalogue, else ` + "`" + `false` + "`" + `.
+  """
+  taughtInEnglish: Boolean!
+  """
+  Whether ` + "`" + `taughtInEnglish` + "`" + ` is a decision about this cohort rather than the catalogue's default.
+
+  ` + "`" + `false` + "`" + ` means the cohort follows the catalogue, and keeps following it when the catalogue
+  changes. A decision that agrees with the catalogue is not stored as one.
+  """
+  taughtInEnglishOverridden: Boolean!
   """
   The assignable units this cohort holds itself, in order.
 
@@ -6646,7 +6731,7 @@ enum ScopeArea {
   # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
   # "is this part taken", which through a token the read rule would not.
 
-  ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `,
+  ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `,
   ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
@@ -8271,6 +8356,8 @@ enum ZpaProjectionFinding {
   FREQUENCY_UNMAPPED
   "The same, for how the teaching is broken up."
   COURSE_TYPE_UNMAPPED
+  "Read as German: a default language of a module that this version does not recognise."
+  LANGUAGE_UNMAPPED
   "Folded with the lower value: the catalogue slots of one set of regulations disagree about the earliest semester."
   MIN_SEMESTER_CONFLICT
   """
@@ -8667,6 +8754,12 @@ func (ec *executionContext) childFields_CourseInstance(ctx context.Context, fiel
 		return ec.fieldContext_CourseInstance_programmeSemester(ctx, field)
 	case "note":
 		return ec.fieldContext_CourseInstance_note(ctx, field)
+	case "delivery":
+		return ec.fieldContext_CourseInstance_delivery(ctx, field)
+	case "taughtInEnglish":
+		return ec.fieldContext_CourseInstance_taughtInEnglish(ctx, field)
+	case "taughtInEnglishOverridden":
+		return ec.fieldContext_CourseInstance_taughtInEnglishOverridden(ctx, field)
 	case "parts":
 		return ec.fieldContext_CourseInstance_parts(ctx, field)
 	case "borrowedParts":

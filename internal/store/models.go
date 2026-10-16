@@ -72,6 +72,8 @@ type CourseInstance struct {
 	CoveredAcceptedBy    uuid.NullUUID
 	IsCovered            *bool
 	Note                 string
+	Delivery             string
+	TaughtInEnglish      *bool
 }
 
 type DemandCompletion struct {
@@ -79,6 +81,11 @@ type DemandCompletion struct {
 	ProgrammeID uuid.UUID
 	CompletedAt time.Time
 	CompletedBy uuid.NullUUID
+}
+
+type GuessedPart struct {
+	ID               uuid.UUID
+	CourseInstanceID uuid.UUID
 }
 
 type InstancePart struct {
@@ -93,25 +100,27 @@ type InstancePart struct {
 }
 
 type Module struct {
-	ID                   uuid.UUID
-	HomeProgrammeID      uuid.UUID
-	Name                 string
-	CourseType           string
-	CourseTypeSource     string
-	Frequency            string
-	FrequencySource      string
-	ContactHoursPerWeek  *int32
-	Credits              *int32
-	Active               bool
-	Official             bool
-	RetiredAt            pgtype.Timestamptz
-	ZpaModuleRef         *int64
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
-	ResponsibleTeacherID uuid.NullUUID
-	Source               string
-	Kind                 string
-	CreatedBy            uuid.NullUUID
+	ID                     uuid.UUID
+	HomeProgrammeID        uuid.UUID
+	Name                   string
+	CourseType             string
+	CourseTypeSource       string
+	Frequency              string
+	FrequencySource        string
+	ContactHoursPerWeek    *int32
+	Credits                *int32
+	Active                 bool
+	Official               bool
+	RetiredAt              pgtype.Timestamptz
+	ZpaModuleRef           *int64
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	ResponsibleTeacherID   uuid.NullUUID
+	Source                 string
+	Kind                   string
+	CreatedBy              uuid.NullUUID
+	TeachingLanguage       *string
+	TeachingLanguageSource string
 }
 
 type ModuleComponent struct {
@@ -224,6 +233,11 @@ type ProgrammeQuotum struct {
 	TeachingHours pgtype.Numeric
 	SetAt         time.Time
 	SetBy         uuid.NullUUID
+}
+
+type RepairedInstance struct {
+	CourseInstanceID uuid.UUID
+	Removed          int32
 }
 
 type ReviewCompletion struct {

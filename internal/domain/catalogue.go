@@ -444,6 +444,47 @@ func FrequencyPhraseMapping() (phrases, values []string) {
 	return phrases, values
 }
 
+// Language is the language a module or a cohort is taught in, as far as this program cares:
+// German or English.
+type Language string
+
+const (
+	// LanguageGerman is German, and also what a module that states no language is read as.
+	LanguageGerman Language = "DE"
+	// LanguageEnglish is English.
+	LanguageEnglish Language = "EN"
+)
+
+// languagePhrases maps the examination office's default language of a module (std_lang) to a
+// Language. Keys are case-folded: the projection compares lower(btrim(phrase)), because this is a
+// code or a single word rather than a sentence, and nothing says the source spells it one way.
+//
+// Only the codes were seen in the fixture; the words are here because a hand-maintained field is
+// where they turn up. Anything else is reported as LANGUAGE_UNMAPPED and read as German.
+var languagePhrases = map[string]Language{
+	"de":       LanguageGerman,
+	"deutsch":  LanguageGerman,
+	"german":   LanguageGerman,
+	"en":       LanguageEnglish,
+	"englisch": LanguageEnglish,
+	"english":  LanguageEnglish,
+}
+
+// LanguagePhraseMapping is FrequencyPhraseMapping for the default language.
+func LanguagePhraseMapping() (phrases, values []string) {
+	phrases = make([]string, 0, len(languagePhrases))
+	for phrase := range languagePhrases {
+		phrases = append(phrases, phrase)
+	}
+	sort.Strings(phrases)
+
+	values = make([]string, 0, len(phrases))
+	for _, phrase := range phrases {
+		values = append(values, string(languagePhrases[phrase]))
+	}
+	return phrases, values
+}
+
 // CourseTypePhraseMapping is FrequencyPhraseMapping for the course type, and exists for the
 // same reason.
 func CourseTypePhraseMapping() (phrases, values []string) {

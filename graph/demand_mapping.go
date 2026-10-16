@@ -63,6 +63,10 @@ func courseInstanceModel(i domain.CourseInstance) *model.CourseInstance {
 		Track:             i.Track,
 		ProgrammeSemester: i.ProgrammeSemester,
 		Note:              i.Note,
+		Delivery:          i.Delivery,
+		TaughtInEnglish:   i.TaughtInEnglish(),
+
+		TaughtInEnglishOverridden: i.EnglishOverride != nil,
 		// Computed here rather than in a field resolver: it is a sum over a slice that is
 		// already loaded, and a resolver would suggest it costs something to ask for.
 		TeachingHours:         i.TeachingHours(),

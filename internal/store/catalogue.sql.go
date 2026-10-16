@@ -348,6 +348,26 @@ func (q *Queries) CountUnmappedFrequencies(ctx context.Context) (CountUnmappedFr
 	return i, err
 }
 
+const countUnmappedLanguages = `-- name: CountUnmappedLanguages :one
+SELECT count(*)::integer AS count,
+       (array_agg(DISTINCT teaching_language_source))[1:20]::text[] AS sample
+FROM module
+WHERE teaching_language IS NULL AND btrim(teaching_language_source) <> ''
+`
+
+type CountUnmappedLanguagesRow struct {
+	Count  int32
+	Sample []string
+}
+
+// Became "no language stated". Same exclusion of the empty phrase as the two above.
+func (q *Queries) CountUnmappedLanguages(ctx context.Context) (CountUnmappedLanguagesRow, error) {
+	row := q.db.QueryRow(ctx, countUnmappedLanguages)
+	var i CountUnmappedLanguagesRow
+	err := row.Scan(&i.Count, &i.Sample)
+	return i, err
+}
+
 const deleteStaleModuleOfferings = `-- name: DeleteStaleModuleOfferings :execrows
 DELETE FROM module_offering o
 WHERE NOT EXISTS (
@@ -614,16 +634,22 @@ WITH frequency_map AS (
     SELECT p.phrase, v.value
     FROM unnest($3::text[]) WITH ORDINALITY AS p (phrase, n)
     JOIN unnest($4::text[]) WITH ORDINALITY AS v (value, n) ON v.n = p.n
+), language_map AS (
+    SELECT p.phrase, v.value
+    FROM unnest($5::text[]) WITH ORDINALITY AS p (phrase, n)
+    JOIN unnest($6::text[]) WITH ORDINALITY AS v (value, n) ON v.n = p.n
 )
 INSERT INTO module (home_programme_id, name, course_type, course_type_source,
-                    frequency, frequency_source, contact_hours_per_week, credits,
-                    active, official, retired_at, zpa_module_ref)
+                    frequency, frequency_source, teaching_language, teaching_language_source,
+                    contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref)
 SELECT p.id,
        COALESCE(m.name, ''),
        COALESCE(ct.value, 'DEPENDS_ON_SUBJECT'),
        COALESCE(m.course_type, ''),
        COALESCE(fr.value, 'UNKNOWN'),
        COALESCE(m.frequency, ''),
+       lm.value,
+       COALESCE(m.default_language, ''),
        m.sws,
        m.credits,
        COALESCE(m.active, true),
@@ -634,6 +660,7 @@ FROM zpa_module_v m
 JOIN programme p ON p.code = m.home_programme
 LEFT JOIN frequency_map fr ON fr.phrase = m.frequency
 LEFT JOIN course_type_map ct ON ct.phrase = m.course_type
+LEFT JOIN language_map lm ON lm.phrase = lower(btrim(m.default_language))
 ON CONFLICT (zpa_module_ref) DO UPDATE
 SET home_programme_id      = EXCLUDED.home_programme_id,
     name                   = EXCLUDED.name,
@@ -641,6 +668,8 @@ SET home_programme_id      = EXCLUDED.home_programme_id,
     course_type_source     = EXCLUDED.course_type_source,
     frequency              = EXCLUDED.frequency,
     frequency_source       = EXCLUDED.frequency_source,
+    teaching_language      = EXCLUDED.teaching_language,
+    teaching_language_source = EXCLUDED.teaching_language_source,
     contact_hours_per_week = EXCLUDED.contact_hours_per_week,
     credits                = EXCLUDED.credits,
     active                 = EXCLUDED.active,
@@ -656,6 +685,8 @@ type ProjectModulesParams struct {
 	FrequencyValues   []string
 	CourseTypePhrases []string
 	CourseTypeValues  []string
+	LanguagePhrases   []string
+	LanguageValues    []string
 }
 
 // The catalogue itself.
@@ -672,12 +703,17 @@ type ProjectModulesParams struct {
 // Modules whose home programme is absent are dropped by the inner join, which is the whole
 // mechanism — the column is NOT NULL by decision, and zpa_text() has already turned the
 // source's "None" into a real NULL. WithoutHomeProgramme below counts what fell out.
+// The language phrase is compared case-folded and trimmed, unlike the two above: it is a code
+// ("DE") or a word ("Deutsch") rather than a sentence, and its spelling is not something the
+// source has ever been seen to keep consistent.
 func (q *Queries) ProjectModules(ctx context.Context, arg ProjectModulesParams) (int64, error) {
 	result, err := q.db.Exec(ctx, projectModules,
 		arg.FrequencyPhrases,
 		arg.FrequencyValues,
 		arg.CourseTypePhrases,
 		arg.CourseTypeValues,
+		arg.LanguagePhrases,
+		arg.LanguageValues,
 	)
 	if err != nil {
 		return 0, err

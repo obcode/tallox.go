@@ -63,6 +63,8 @@ var (
 	ErrNotSharedAcrossTracks = errors.New("dieser Teil wird nicht für mehrere Züge gehalten")
 	// ErrNoSiblingTracks is asking to share a part where there is nobody to share it with.
 	ErrNoSiblingTracks = errors.New("für dieses Modul gibt es in diesem Semester nur einen Zug")
+	// ErrDeliveryInvalid is a way of teaching this build does not know.
+	ErrDeliveryInvalid = errors.New("diese Durchführungsform ist nicht gültig")
 	// ErrSameSemester is copying a semester's demand into itself.
 	ErrSameSemester = errors.New("das Quell- und das Zielsemester sind dasselbe")
 
@@ -100,6 +102,41 @@ var (
 			"keine eigenen Teile")
 )
 
+// Delivery is how a cohort's teaching is spread over the semester.
+type Delivery string
+
+const (
+	// DeliveryWeekly is teaching across the semester, week by week — what nearly every cohort
+	// is, and therefore the default.
+	DeliveryWeekly Delivery = "WEEKLY"
+	// DeliveryBlock is teaching concentrated in a block, a week or a few days.
+	DeliveryBlock Delivery = "BLOCK"
+)
+
+// AllDeliveries returns every delivery, the default first.
+func AllDeliveries() []Delivery {
+	return []Delivery{DeliveryWeekly, DeliveryBlock}
+}
+
+// ParseDelivery reports whether s is a delivery this package knows.
+func ParseDelivery(s string) (Delivery, bool) {
+	for _, d := range AllDeliveries() {
+		if string(d) == s {
+			return d, true
+		}
+	}
+	return "", false
+}
+
+// TaughtInEnglish is whether this cohort is taught in English: what somebody decided for it,
+// else what the catalogue states for the module, else no.
+func (i CourseInstance) TaughtInEnglish() bool {
+	if i.EnglishOverride != nil {
+		return *i.EnglishOverride
+	}
+	return i.CatalogueLanguage == LanguageEnglish
+}
+
 // MaxPartsPerInstance bounds one instance.
 //
 // A guard against a request that would fill a table rather than a rule about teaching: the
@@ -133,6 +170,16 @@ type CourseInstance struct {
 	// and empty for the ordinary row that needs none. Planning, not personnel data: it is read
 	// through both doors like the rest of the demand.
 	Note string
+	// Delivery is whether the cohort is taught across the semester or in a block.
+	Delivery Delivery
+	// EnglishOverride is what somebody decided about the language of this cohort, or nil where
+	// nobody did and the catalogue's default holds. Only a deviation from that default is ever
+	// stored; read TaughtInEnglish for the answer.
+	EnglishOverride *bool
+	// CatalogueLanguage is the module's default language as the examination office states it,
+	// or empty where it states none (read as German). Carried here rather than on Module because
+	// it is the one fact about the module this instance's own answer depends on.
+	CatalogueLanguage Language
 	// Parts are the assignable units this cohort holds itself, in order.
 	Parts []InstancePart
 	// BorrowedParts are the parts of a sibling cohort that are held for this one as well.
@@ -649,6 +696,10 @@ type DemandStore interface {
 	// UpdateCourseInstance writes the two editable things: the cohort and the cohort year.
 	UpdateCourseInstance(ctx context.Context, id uuid.UUID, track string,
 		programmeSemester *int) (*CourseInstance, error)
+	// SetCourseInstanceFormat writes how a cohort is taught. englishOverride nil means "as the
+	// catalogue says"; a value equal to the catalogue's is stored as nil too.
+	SetCourseInstanceFormat(ctx context.Context, id uuid.UUID, delivery Delivery,
+		englishOverride *bool) (*CourseInstance, error)
 	// DeleteCourseInstance withdraws one. Returns ErrInstanceInUse when something hangs off it.
 	DeleteCourseInstance(ctx context.Context, id uuid.UUID) error
 	// AddInstancePart appends a part — the second laboratory group, the tutorial nobody

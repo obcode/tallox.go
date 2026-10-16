@@ -270,6 +270,8 @@ enum ZpaProjectionFinding {
   FREQUENCY_UNMAPPED
   "The same, for how the teaching is broken up."
   COURSE_TYPE_UNMAPPED
+  "Read as German: a default language of a module that this version does not recognise."
+  LANGUAGE_UNMAPPED
   "Folded with the lower value: the catalogue slots of one set of regulations disagree about the earliest semester."
   MIN_SEMESTER_CONFLICT
   """

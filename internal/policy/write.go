@@ -268,6 +268,18 @@ func MayWriteAssignment(a principal.Actor, subjectGroupID, programmeID uuid.UUID
 	return MayActInSubjectGroup(a, subjectGroupID) || MayPlanProgramme(a, programmeID)
 }
 
+// MayWriteInstanceFormat is the rule for how a cohort is taught — in a block or across the
+// semester, in English or not.
+//
+// The assignment's rule, deliberately, and its own name so the decision is legible where it is
+// used. Both facts were asked for at the assignment, by the subject group lead who staffs the
+// cohort and is the one who knows that this year it runs as a block week; the programme lead,
+// whose demand it is, may say the same. Not MayWriteDemand: that would leave out exactly the
+// person who asked.
+func MayWriteInstanceFormat(a principal.Actor, subjectGroupID, programmeID uuid.UUID, phase Phase) bool {
+	return MayWriteAssignment(a, subjectGroupID, programmeID, phase)
+}
+
 // AssignmentWriteRefusal picks the sentence for a refused assignment, out of the four that can be
 // true.
 //

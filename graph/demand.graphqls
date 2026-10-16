@@ -33,6 +33,16 @@
 # holding a scoped role, not an evaluation.
 
 """
+How a cohort's teaching is spread over the semester.
+"""
+enum DeliveryFormat {
+  "Across the semester, week by week. The default."
+  WEEKLY
+  "Concentrated in a block — a week, or a few days."
+  BLOCK
+}
+
+"""
 One module, offered in one semester, for one study programme, to one parallel cohort.
 
 **This is what gets planned, and its parts are what get assigned.** The faculty's own sentence is
@@ -105,6 +115,26 @@ type CourseInstance {
   it for every cohort of a module at once, like the cohort year.
   """
   note: String!
+  """
+  Whether this cohort is taught across the semester or in a block. `WEEKLY` unless somebody said
+  otherwise.
+
+  For the whole cohort, all of its parts. A single laboratory group that runs differently belongs
+  in the note.
+  """
+  delivery: DeliveryFormat!
+  """
+  Whether this cohort is taught in English: what somebody decided for it, else the module's
+  default language in the examination office's catalogue, else `false`.
+  """
+  taughtInEnglish: Boolean!
+  """
+  Whether `taughtInEnglish` is a decision about this cohort rather than the catalogue's default.
+
+  `false` means the cohort follows the catalogue, and keeps following it when the catalogue
+  changes. A decision that agrees with the catalogue is not stored as one.
+  """
+  taughtInEnglishOverridden: Boolean!
   """
   The assignable units this cohort holds itself, in order.
 

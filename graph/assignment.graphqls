@@ -235,6 +235,28 @@ extend type Mutation {
   ): Assignment! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
+  Say how a cohort is taught: across the semester or in a block, and whether in English.
+
+  Set where the cohort is staffed, so it is bound by the assignment's rule rather than the
+  demand's: the lead of the module's subject group, the lead of the instance's study programme, or
+  the dean's office, while the semester is not `FINAL`.
+
+  `taughtInEnglish: null` returns the language to the module's default in the examination
+  office's catalogue. A value equal to that default is stored as `null` too, so the cohort keeps
+  following the catalogue.
+
+  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`.
+  """
+  setCourseInstanceFormat(
+    "The cohort."
+    id: ID!
+    "How it is taught."
+    delivery: DeliveryFormat!
+    "Whether in English, or `null` for the catalogue's default."
+    taughtInEnglish: Boolean
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
   Give a part back: remove an assignment.
 
   Bound by the same phase and the same responsibility as making one. A list that may be added to

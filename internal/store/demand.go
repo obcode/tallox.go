@@ -55,20 +55,23 @@ var _ domain.DemandStore = (*Demand)(nil)
 // column to one of them and not the others stops the build here instead of reading as null
 // forever.
 type instanceRow struct {
-	ID                uuid.UUID
-	SemesterID        uuid.UUID
-	ModuleID          uuid.UUID
-	ProgrammeID       uuid.UUID
-	Track             string
-	ProgrammeSemester *int32
-	Note              string
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	SemesterCode      string
-	SemesterPhase     string
-	ProgrammeCode     string
-	ProgrammeTitle    string
-	ProgrammeActive   bool
+	ID                     uuid.UUID
+	SemesterID             uuid.UUID
+	ModuleID               uuid.UUID
+	ProgrammeID            uuid.UUID
+	Track                  string
+	ProgrammeSemester      *int32
+	Note                   string
+	Delivery               string
+	TaughtInEnglish        *bool
+	ModuleTeachingLanguage *string
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	SemesterCode           string
+	SemesterPhase          string
+	ProgrammeCode          string
+	ProgrammeTitle         string
+	ProgrammeActive        bool
 
 	// The coverage link, read from the guest's side. All of these are null on an ordinary
 	// instance, which is almost every row.
@@ -94,6 +97,9 @@ func instanceFrom(row instanceRow) domain.CourseInstance {
 
 		ProgrammeSemester: intOrNil(row.ProgrammeSemester),
 		Note:              row.Note,
+		Delivery:          domain.Delivery(row.Delivery),
+		EnglishOverride:   row.TaughtInEnglish,
+		CatalogueLanguage: domain.Language(stringOrEmpty(row.ModuleTeachingLanguage)),
 		CoveredBy:         coverageFrom(row),
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,
@@ -530,6 +536,7 @@ func (d *Demand) CreateCourseInstance(ctx context.Context, spec domain.NewCourse
 		Track:             spec.Track,
 		ProgrammeSemester: programmeSemester,
 		Note:              spec.Note,
+		Delivery:          string(domain.DeliveryWeekly),
 		CreatedBy:         nullUUID(nonNilUUID(spec.CreatedBy)),
 	})
 	if isUniqueViolation(err) {
@@ -643,7 +650,11 @@ func (d *Demand) DuplicateCourseInstance(ctx context.Context, id uuid.UUID, trac
 		Track:             track,
 		ProgrammeSemester: source.ProgrammeSemester,
 		Note:              source.Note,
-		CreatedBy:         nullUUID(nonNilUUID(by)),
+		// The second cohort is taught the way the first one is until somebody says otherwise —
+		// the stored override, not the effective value, so the catalogue keeps its say.
+		Delivery:        source.Delivery,
+		TaughtInEnglish: source.TaughtInEnglish,
+		CreatedBy:       nullUUID(nonNilUUID(by)),
 	})
 	if isUniqueViolation(err) {
 		return nil, domain.ErrTrackTaken
@@ -689,6 +700,31 @@ func (d *Demand) UpdateCourseInstance(ctx context.Context, id uuid.UUID, track s
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot change the instance: %w", err)
+	}
+
+	instance, err := d.CourseInstanceByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if instance == nil {
+		return nil, domain.ErrInstanceNotFound
+	}
+	return instance, nil
+}
+
+// SetCourseInstanceFormat writes how a cohort is taught.
+//
+// Whether the language is stored at all is decided by the statement, against the module's row
+// in the same snapshot: a value that matches the catalogue is the catalogue's, not a decision.
+func (d *Demand) SetCourseInstanceFormat(ctx context.Context, id uuid.UUID,
+	delivery domain.Delivery, englishOverride *bool,
+) (*domain.CourseInstance, error) {
+	if err := New(d.pool).UpdateCourseInstanceFormat(ctx, UpdateCourseInstanceFormatParams{
+		ID:              id,
+		Delivery:        string(delivery),
+		TaughtInEnglish: englishOverride,
+	}); err != nil {
+		return nil, fmt.Errorf("cannot set how the instance is taught: %w", err)
 	}
 
 	instance, err := d.CourseInstanceByID(ctx, id)
@@ -1584,6 +1620,8 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 			Track:             source.Track,
 			ProgrammeSemester: source.ProgrammeSemester,
 			Note:              source.Note,
+			Delivery:          source.Delivery,
+			TaughtInEnglish:   source.TaughtInEnglish,
 			CreatedBy:         nullUUID(nonNilUUID(by)),
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -1832,6 +1870,8 @@ type heldInstance struct {
 	track             string
 	programmeSemester *int32
 	note              string
+	delivery          string
+	taughtInEnglish   *bool
 	parts             []InstancePartsForRow
 	// covered is accepted coverage: another programme holds this cohort's teaching, so it has no
 	// parts and must not be given any. Planning reports it rather than skipping it silently —
@@ -1863,6 +1903,8 @@ func heldInstances(ctx context.Context, q *Queries, semesterID, programmeID uuid
 			track:             row.Track,
 			programmeSemester: row.ProgrammeSemester,
 			note:              row.Note,
+			delivery:          row.Delivery,
+			taughtInEnglish:   row.TaughtInEnglish,
 			covered:           row.IsCovered,
 		}
 		ids = append(ids, row.ID)
@@ -2156,6 +2198,12 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 	} else if len(pc.held) > 0 {
 		note = pc.held[0].note
 	}
+	// How the row is taught, for the same reason: a cohort added to a row of block weeks is
+	// not the one that quietly runs weekly. Taken from a sibling, since a plan states neither.
+	delivery, taughtInEnglish := string(domain.DeliveryWeekly), (*bool)(nil)
+	if len(pc.held) > 0 {
+		delivery, taughtInEnglish = pc.held[0].delivery, pc.held[0].taughtInEnglish
+	}
 
 	id, err := q.InsertCourseInstance(ctx, InsertCourseInstanceParams{
 		SemesterID:        pc.semesterID,
@@ -2164,6 +2212,8 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 		Track:             want.Track,
 		ProgrammeSemester: programmeSemester,
 		Note:              note,
+		Delivery:          delivery,
+		TaughtInEnglish:   taughtInEnglish,
 		CreatedBy:         nullUUID(nonNilUUID(pc.by)),
 	})
 	if isUniqueViolation(err) {
@@ -2185,6 +2235,8 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 		track:             want.Track,
 		programmeSemester: programmeSemester,
 		note:              note,
+		delivery:          delivery,
+		taughtInEnglish:   taughtInEnglish,
 	}
 
 	// Held with another programme's event where there is one — the case the whole automatic half

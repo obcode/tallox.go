@@ -131,11 +131,14 @@ func (c *Catalogue) project(ctx context.Context, projectionID uuid.UUID) (counts
 
 	frequencyPhrases, frequencyValues := domain.FrequencyPhraseMapping()
 	courseTypePhrases, courseTypeValues := domain.CourseTypePhraseMapping()
+	languagePhrases, languageValues := domain.LanguagePhraseMapping()
 	modules, err := q.ProjectModules(ctx, ProjectModulesParams{
 		FrequencyPhrases:  frequencyPhrases,
 		FrequencyValues:   frequencyValues,
 		CourseTypePhrases: courseTypePhrases,
 		CourseTypeValues:  courseTypeValues,
+		LanguagePhrases:   languagePhrases,
+		LanguageValues:    languageValues,
 	})
 	if err != nil {
 		return done, nil, fmt.Errorf("cannot project the modules: %w", err)
@@ -236,6 +239,10 @@ func gatherNotes(ctx context.Context, q *Queries) ([]domain.CatalogueProjectionN
 			// Fach" for 23 modules, and reporting those every night would train people to
 			// ignore the line.
 			r, err := q.CountUnmappedCourseTypes(ctx, domain.DependsOnSubjectPhrase)
+			return noteRow(r), err
+		}},
+		{domain.NoteLanguageUnmapped, func() (noteRow, error) {
+			r, err := q.CountUnmappedLanguages(ctx)
 			return noteRow(r), err
 		}},
 		{domain.NoteMinSemesterConflict, func() (noteRow, error) {

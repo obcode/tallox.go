@@ -25,7 +25,13 @@ enum Phase {
   WISHES
   "The subject group leads fill the instances."
   ASSIGNMENT
-  "The plan stands. Changes from here on are corrections, not planning."
+  """
+  The programme leads go over the whole once more: the cut of the demand, who teaches what, and
+  what it costs against the quota. Everything stays writable, and stays so until the semester is
+  over — a colleague falling ill before the first lecture is handled here.
+  """
+  REVIEW
+  "The semester is over. Its plan is the record of what was taught, and nothing is written any more."
   FINAL
 }
 

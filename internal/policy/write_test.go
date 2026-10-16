@@ -311,7 +311,7 @@ Generated from internal/policy (TestWriteMatrix). Do not edit by hand:
 The rule
 --------
 
-The planning runs through four phases, and this table used to say what may be written in each. It
+The planning runs through five phases, and this table used to say what may be written in each. It
 says almost nothing now, and that is the result of a decision rather than of neglect.
 
 Read it as: **everything is open until the semester is finished.** Demand may be declared, wishes
@@ -353,12 +353,19 @@ binary cannot read into one it writes to.
 What changed, and what it cost
 ------------------------------
 
+A column arrived on 2026-10-16: REVIEW, between the assignment and the close. After the instances
+are filled the programme leads go over the whole once more, because whether external lecturers
+were found or a lead takes three cohorts themselves changes the cut of the demand — and they answer to
+the dean's office for what it costs. Every area stays open there, and stays open until the
+semester has run: FINAL is set when it is over, so a colleague falling ill before the first
+lecture is handled in REVIEW rather than by reopening a closed semester.
+
 Two rows moved on 2026-08-28, in opposite directions.
 
 **The demand closes in FINAL, where it used to stay open.** The argument for keeping it open was
 that a late instance is a correction and a refused correction happens anyway, in a spreadsheet
-outside the tool. That argument still holds — and it is now carried by the three phases before
-FINAL, all of which are open. Letting the demand alone survive the close would make FINAL mean two
+outside the tool. That argument still holds — and it is now carried by the phases before FINAL,
+all of which are open. Letting the demand alone survive the close would make FINAL mean two
 different things depending on which screen somebody is looking at.
 
 **The assignment opens from the start, where it was shut before its own phase.** That cell was

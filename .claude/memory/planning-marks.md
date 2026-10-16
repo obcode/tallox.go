@@ -54,13 +54,14 @@ Ein Modul **ohne Fachgruppe** hat keine Tür und bleibt offen. Dasselbe Argument
 ## Was die Phase noch ist
 
 Eine Anzeige — und **eine** harte Bedeutung: `FINAL` ist abgeschlossen, danach schreibt niemand
-mehr irgendetwas. Die Schreibmatrix ist dadurch fast flach und bleibt trotzdem: ein Satz mit einem
+mehr irgendetwas. Seit 2026-10-16 heißt das „das Semester ist vorbei": davor liegt `REVIEW`, in
+dem alles offen bleibt ([[programme-review]]). Die Schreibmatrix ist dadurch fast flach und bleibt trotzdem: ein Satz mit einem
 Ort zum Nachlesen schlägt drei Bedingungen, die jemand erst finden muss.
 
 **Zwei Zeilen bewegten sich dabei, in entgegengesetzte Richtungen:**
 
 - **Der Bedarf schließt jetzt in `FINAL`**, wo er offen war. Sein Argument — eine späte Instanz
-  ist eine Korrektur — tragen jetzt die drei Phasen davor. Bliebe er als einziger offen, hieße
+  ist eine Korrektur — tragen jetzt die Phasen davor. Bliebe er als einziger offen, hieße
   `FINAL` je nach Bildschirm etwas anderes.
 - **Die Zuteilung ist von Anfang an offen**, wo sie einen Tag lang vor ihrer Phase geschlossen war
   (2026-08-27). Das Windhund-Argument war: eine Instanz, die während der Wunschrunde besetzt wird,

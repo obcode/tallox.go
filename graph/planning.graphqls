@@ -49,6 +49,20 @@ type DemandCompletion {
 }
 
 """
+One study programme announcing that its review of a semester is done: after the assignment its
+lead has gone over the demand, its cut and who teaches what, and the figures stand against the
+quota as far as anybody knows today. An announcement like `DemandCompletion`; it blocks nothing.
+"""
+type ReviewCompletion {
+  "The semester it is about."
+  semester: String!
+  "The study programme whose review is done."
+  programme: Programme!
+  "When it was last said. Moves on re-announcing after a later change."
+  completedAt: Time!
+}
+
+"""
 One subject group's wish round, for one semester.
 
 Only groups somebody has decided something about appear. Absent means open.
@@ -80,6 +94,15 @@ extend type Query {
     "Four digits, a hyphen and SS or WS, for example `2029-SS`."
     semester: String!
   ): [DemandCompletion!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  Which study programmes have announced their review of a semester as done. Programmes that have
+  not are absent; readable by everybody, like the demand announcements.
+  """
+  reviewCompletions(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): [ReviewCompletion!]! @scope(area: PLANNING, verb: READ)
 
   """
   The subject groups whose wish round somebody has switched, for one semester.
@@ -114,6 +137,22 @@ extend type Mutation {
     "True to announce or refresh, false to withdraw."
     complete: Boolean!
   ): DemandCompletion @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Announce this study programme's review of a semester as done, or withdraw the announcement.
+
+  Blocks nothing: the demand and the assignment stay writable until the semester is `FINAL`, and a
+  change afterwards is what withdrawing or re-announcing is for. `complete: false` answers `null`.
+  Only the lead of that study programme and the dean's office, in any phase.
+  """
+  setReviewComplete(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "The study programme's code."
+    programme: String!
+    "True to announce or refresh, false to withdraw."
+    complete: Boolean!
+  ): ReviewCompletion @scope(area: PLANNING, verb: WRITE)
 
   """
   Open or shut one subject group's wish round for a semester.

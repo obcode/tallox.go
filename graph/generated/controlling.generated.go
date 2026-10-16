@@ -126,6 +126,176 @@ func (ec *executionContext) fieldContext_ProgrammeQuota_setAt(_ context.Context,
 	return graphql.NewScalarFieldContext("ProgrammeQuota", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _ProgrammeStudyYearLoad_homeProgramme(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeStudyYearLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeStudyYearLoad_homeProgramme(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.HomeProgramme, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Programme) graphql.Marshaler {
+			return ec.marshalNProgramme2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgramme(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeStudyYearLoad_homeProgramme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProgrammeStudyYearLoad",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Programme(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProgrammeStudyYearLoad_studyYear(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeStudyYearLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeStudyYearLoad_studyYear(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StudyYear, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeStudyYearLoad_studyYear(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeStudyYearLoad", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ProgrammeStudyYearLoad_yearlyQuota(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeStudyYearLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeStudyYearLoad_yearlyQuota(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.YearlyQuota, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *float64) graphql.Marshaler {
+			return ec.marshalOFloat2ᚖfloat64(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeStudyYearLoad_yearlyQuota(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeStudyYearLoad", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _ProgrammeStudyYearLoad_winterHours(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeStudyYearLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeStudyYearLoad_winterHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.WinterHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeStudyYearLoad_winterHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeStudyYearLoad", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _ProgrammeStudyYearLoad_summerHours(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeStudyYearLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeStudyYearLoad_summerHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SummerHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeStudyYearLoad_summerHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeStudyYearLoad", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _ProgrammeStudyYearLoad_remaining(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeStudyYearLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeStudyYearLoad_remaining(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Remaining, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *float64) graphql.Marshaler {
+			return ec.marshalOFloat2ᚖfloat64(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeStudyYearLoad_remaining(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeStudyYearLoad", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _ProgrammeStudyYearLoad_partsWithoutHours(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeStudyYearLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeStudyYearLoad_partsWithoutHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PartsWithoutHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeStudyYearLoad_partsWithoutHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeStudyYearLoad", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _ProgrammeTeachingLoad_homeProgramme(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeTeachingLoad) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -609,6 +779,74 @@ func (ec *executionContext) _ProgrammeQuota(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var programmeStudyYearLoadImplementors = []string{"ProgrammeStudyYearLoad"}
+
+func (ec *executionContext) _ProgrammeStudyYearLoad(ctx context.Context, sel ast.SelectionSet, obj *model.ProgrammeStudyYearLoad) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, programmeStudyYearLoadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ProgrammeStudyYearLoad")
+		case "homeProgramme":
+			out.Values[i] = ec._ProgrammeStudyYearLoad_homeProgramme(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "studyYear":
+			out.Values[i] = ec._ProgrammeStudyYearLoad_studyYear(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "yearlyQuota":
+			out.Values[i] = ec._ProgrammeStudyYearLoad_yearlyQuota(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "winterHours":
+			out.Values[i] = ec._ProgrammeStudyYearLoad_winterHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "summerHours":
+			out.Values[i] = ec._ProgrammeStudyYearLoad_summerHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "remaining":
+			out.Values[i] = ec._ProgrammeStudyYearLoad_remaining(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "partsWithoutHours":
+			out.Values[i] = ec._ProgrammeStudyYearLoad_partsWithoutHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var programmeTeachingLoadImplementors = []string{"ProgrammeTeachingLoad"}
 
 func (ec *executionContext) _ProgrammeTeachingLoad(ctx context.Context, sel ast.SelectionSet, obj *model.ProgrammeTeachingLoad) graphql.Marshaler {
@@ -788,6 +1026,32 @@ func (ec *executionContext) marshalNProgrammeQuota2ᚖgithubᚗcomᚋobcodeᚋta
 		return graphql.Null
 	}
 	return ec._ProgrammeQuota(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNProgrammeStudyYearLoad2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeStudyYearLoadᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ProgrammeStudyYearLoad) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNProgrammeStudyYearLoad2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeStudyYearLoad(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNProgrammeStudyYearLoad2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeStudyYearLoad(ctx context.Context, sel ast.SelectionSet, v *model.ProgrammeStudyYearLoad) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ProgrammeStudyYearLoad(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNProgrammeTeachingLoad2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeTeachingLoadᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ProgrammeTeachingLoad) graphql.Marshaler {

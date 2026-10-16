@@ -103,6 +103,84 @@ func (ec *executionContext) fieldContext_DemandCompletion_completedAt(_ context.
 	return graphql.NewScalarFieldContext("DemandCompletion", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _ReviewCompletion_semester(ctx context.Context, field graphql.CollectedField, obj *model.ReviewCompletion) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReviewCompletion_semester(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Semester, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReviewCompletion_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReviewCompletion", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ReviewCompletion_programme(ctx context.Context, field graphql.CollectedField, obj *model.ReviewCompletion) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReviewCompletion_programme(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Programme, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Programme) graphql.Marshaler {
+			return ec.marshalNProgramme2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgramme(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReviewCompletion_programme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ReviewCompletion",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Programme(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ReviewCompletion_completedAt(ctx context.Context, field graphql.CollectedField, obj *model.ReviewCompletion) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ReviewCompletion_completedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CompletedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ReviewCompletion_completedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ReviewCompletion", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
 func (ec *executionContext) _WishWindow_semester(ctx context.Context, field graphql.CollectedField, obj *model.WishWindow) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -264,6 +342,54 @@ func (ec *executionContext) _DemandCompletion(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var reviewCompletionImplementors = []string{"ReviewCompletion"}
+
+func (ec *executionContext) _ReviewCompletion(ctx context.Context, sel ast.SelectionSet, obj *model.ReviewCompletion) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, reviewCompletionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ReviewCompletion")
+		case "semester":
+			out.Values[i] = ec._ReviewCompletion_semester(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "programme":
+			out.Values[i] = ec._ReviewCompletion_programme(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completedAt":
+			out.Values[i] = ec._ReviewCompletion_completedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var wishWindowImplementors = []string{"WishWindow"}
 
 func (ec *executionContext) _WishWindow(ctx context.Context, sel ast.SelectionSet, obj *model.WishWindow) graphql.Marshaler {
@@ -347,6 +473,32 @@ func (ec *executionContext) marshalNDemandCompletion2ᚖgithubᚗcomᚋobcodeᚋ
 	return ec._DemandCompletion(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNReviewCompletion2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐReviewCompletionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ReviewCompletion) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNReviewCompletion2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐReviewCompletion(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNReviewCompletion2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐReviewCompletion(ctx context.Context, sel ast.SelectionSet, v *model.ReviewCompletion) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ReviewCompletion(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNWishWindow2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishWindow(ctx context.Context, sel ast.SelectionSet, v model.WishWindow) graphql.Marshaler {
 	return ec._WishWindow(ctx, sel, &v)
 }
@@ -382,6 +534,13 @@ func (ec *executionContext) marshalODemandCompletion2ᚖgithubᚗcomᚋobcodeᚋ
 		return graphql.Null
 	}
 	return ec._DemandCompletion(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOReviewCompletion2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐReviewCompletion(ctx context.Context, sel ast.SelectionSet, v *model.ReviewCompletion) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ReviewCompletion(ctx, sel, v)
 }
 
 // endregion ***************************** type.gotpl *****************************

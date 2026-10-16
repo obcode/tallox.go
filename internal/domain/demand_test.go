@@ -39,7 +39,9 @@ type fakeDemandStore struct {
 	plannedSemester string
 	writes          int
 	// loads is what TeachingLoad answers, quotas what the quota methods keep.
-	loads      []domain.TeachingLoad
+	loads []domain.TeachingLoad
+	// loadsOf overrides loads for one semester, for the study-year cases.
+	loadsOf    map[string][]domain.TeachingLoad
 	quotas     []domain.ProgrammeQuota
 	quotaYears []int
 }
@@ -213,7 +215,13 @@ func (f *fakeDemandStore) PlanDemand(_ context.Context, semester string, _ uuid.
 }
 
 func (f *fakeDemandStore) TeachingLoad(_ context.Context, semester string) ([]domain.TeachingLoad, error) {
-	f.plannedSemester = semester
+	if l, ok := f.loadsOf[semester]; ok {
+		return append([]domain.TeachingLoad{}, l...), nil
+	}
+	// The first semester asked about: a summer's load asks about its winter afterwards.
+	if f.plannedSemester == "" {
+		f.plannedSemester = semester
+	}
 	return append([]domain.TeachingLoad{}, f.loads...), nil
 }
 
@@ -1187,7 +1195,7 @@ func TestReadingTheTeachingLoad(t *testing.T) {
 	})
 }
 
-// The quota is a year's figure, and a semester is read against half of it. Without a quota there
+// The quota is a year's figure, and a winter is read against half of it. Without a quota there
 // is no figure at all — not zero, which would read as a programme with nothing to spend.
 func TestTheBalanceIsHalfTheYearMinusTheLoad(t *testing.T) {
 	t.Parallel()
@@ -1360,4 +1368,94 @@ func TestWhatAProgrammeQuotaMayBe(t *testing.T) {
 			t.Errorf("gave %v, want ErrStudyYearOutOfRange", err)
 		}
 	})
+}
+
+// costing is a home programme's load of a given number of hours, all taught in its own instances.
+func costing(p domain.Programme, hours float64) domain.TeachingLoad {
+	return domain.TeachingLoad{
+		HomeProgramme: p,
+		Shares:        []domain.TeachingLoadShare{{Programme: p, TeachingHours: hours}},
+	}
+}
+
+// A summer is planned after its winter has happened: what the winter spent is gone, and the
+// summer is held to what is left of the year rather than to half of it.
+func TestASummerIsReadAgainstWhatTheWinterLeft(t *testing.T) {
+	t.Parallel()
+
+	pa := domain.Programme{ID: demandProgramme, Code: "PA"}
+	pb := domain.Programme{ID: otherProgramme, Code: "PB"}
+	f := newDemandService(t, policy.PhaseDemandPlanning)
+	f.store.loadsOf = map[string][]domain.TeachingLoad{
+		"2026-WS": {costing(pa, 250)},
+		"2027-SS": {costing(pa, 150), costing(pb, 10)},
+	}
+	f.store.quotas = []domain.ProgrammeQuota{
+		{Programme: pa, StudyYear: 2026, TeachingHours: 425},
+		{Programme: pb, StudyYear: 2026, TeachingHours: 100},
+	}
+	actor := testdata.Eins.Actor(principal.KindToken, string(policy.RoleLecturer))
+
+	summer, err := f.service.TeachingLoad(t.Context(), actor, "2027-SS")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := *summer[0].SemesterQuota(); got != 175 {
+		t.Errorf("PA's summer may spend %v, want 425 − 250 = 175", got)
+	}
+	if got := *summer[0].Balance(); got != 25 {
+		t.Errorf("PA's summer balance %v, want 25", got)
+	}
+	// PB declared nothing in the winter, so the whole year is left for the summer.
+	if got := *summer[1].SemesterQuota(); got != 100 {
+		t.Errorf("PB's summer may spend %v, want the whole 100", got)
+	}
+
+	winter, err := f.service.TeachingLoad(t.Context(), actor, "2026-WS")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if winter[0].SpentInWinter != nil || *winter[0].SemesterQuota() != 212.5 {
+		t.Errorf("PA's winter may spend %v, want half the year", *winter[0].SemesterQuota())
+	}
+}
+
+// The study year puts both semesters beside the quota, and lists a programme that appears in
+// only one of them.
+func TestTheStudyYearLoad(t *testing.T) {
+	t.Parallel()
+
+	pa := domain.Programme{ID: demandProgramme, Code: "PA"}
+	pb := domain.Programme{ID: otherProgramme, Code: "PB"}
+	f := newDemandService(t, policy.PhaseDemandPlanning)
+	f.store.loadsOf = map[string][]domain.TeachingLoad{
+		"2026-WS": {costing(pb, 30), costing(pa, 250)},
+		"2027-SS": {costing(pa, 150)},
+	}
+	f.store.quotas = []domain.ProgrammeQuota{{Programme: pa, StudyYear: 2026, TeachingHours: 425}}
+	actor := testdata.Eins.Actor(principal.KindToken, string(policy.RoleLecturer))
+
+	year, err := f.service.StudyYearLoad(t.Context(), actor, 2026)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(year) != 2 || year[0].HomeProgramme.Code != "PA" || year[1].HomeProgramme.Code != "PB" {
+		t.Fatalf("listed %+v, want PA and PB by code", year)
+	}
+	if year[0].WinterHours != 250 || year[0].SummerHours != 150 || *year[0].Remaining() != 25 {
+		t.Errorf("PA: winter %v, summer %v, remaining %v; want 250, 150, 25",
+			year[0].WinterHours, year[0].SummerHours, year[0].Remaining())
+	}
+	if year[1].Remaining() != nil || year[1].SummerHours != 0 {
+		t.Errorf("PB without a quota has %v remaining and %v in the summer", year[1].Remaining(),
+			year[1].SummerHours)
+	}
+
+	if _, err := f.service.StudyYearLoad(t.Context(), actor, 2090); !errors.Is(err,
+		domain.ErrStudyYearOutOfRange) {
+		t.Errorf("a year nobody plans gave %v", err)
+	}
+	if _, err := f.service.StudyYearLoad(t.Context(), principal.Actor{}, 2026); err == nil {
+		t.Error("an anonymous actor read the study year")
+	}
 }

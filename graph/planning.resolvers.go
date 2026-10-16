@@ -27,6 +27,19 @@ func (r *mutationResolver) SetDemandComplete(ctx context.Context, semester strin
 	return demandCompletionModel(*announced), nil
 }
 
+// SetReviewComplete is the resolver for the setReviewComplete field.
+func (r *mutationResolver) SetReviewComplete(ctx context.Context, semester string, programme string, complete bool) (*model.ReviewCompletion, error) {
+	actor := principal.From(ctx)
+	announced, err := r.Marks.SetReviewComplete(ctx, actor, semester, programme, complete)
+	if err != nil {
+		return nil, planningMarkError(actor, err)
+	}
+	if announced == nil {
+		return nil, nil
+	}
+	return reviewCompletionModel(*announced), nil
+}
+
 // SetWishWindow is the resolver for the setWishWindow field.
 func (r *mutationResolver) SetWishWindow(ctx context.Context, semester string, subjectGroupID string, open bool) (*model.WishWindow, error) {
 	groupID, err := parseID(subjectGroupID)
@@ -50,6 +63,20 @@ func (r *queryResolver) DemandCompletions(ctx context.Context, semester string) 
 		return nil, planningMarkError(actor, err)
 	}
 	return demandCompletionModels(list), nil
+}
+
+// ReviewCompletions is the resolver for the reviewCompletions field.
+func (r *queryResolver) ReviewCompletions(ctx context.Context, semester string) ([]*model.ReviewCompletion, error) {
+	actor := principal.From(ctx)
+	list, err := r.Marks.ReviewCompletions(ctx, actor, semester)
+	if err != nil {
+		return nil, planningMarkError(actor, err)
+	}
+	out := make([]*model.ReviewCompletion, 0, len(list))
+	for _, c := range list {
+		out = append(out, reviewCompletionModel(c))
+	}
+	return out, nil
 }
 
 // WishWindows is the resolver for the wishWindows field.

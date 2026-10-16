@@ -59,7 +59,12 @@ Compare-and-Set und nicht Read-then-Write:
   nichts sagt, kann nichts überschreiben. Das ist die sichere Richtung als Default.
 - Ist sie weggewandert: `ASSIGNMENT_MOVED_ON`, dasselbe Muster wie `AdvanceSemesterPhase`.
 
-## Die Phasen: zu **vor** der Zuteilungsphase
+## Die Phasen
+
+**Überholt (Stand 2026-10-16):** Die Zuteilung ist seit 2026-08-28 in jeder Phase außer `FINAL`
+offen ([[planning-marks]]), und `FINAL` schließt sie. Für die Krankheitsvertretung vor
+Semesterbeginn gibt es seit 2026-10-16 die Phase `REVIEW`; `FINAL` wird erst gesetzt, wenn das
+Semester vorbei ist ([[programme-review]]). Der Rest dieses Abschnitts ist der Stand von 2026-08-27:
 
 Die einzige Zeile der Schreibmatrix, die **früh** schließt statt spät. `DEMAND_PLANNING` und
 `WISHES` sind zu, weil eine Instanz, die während der Wunschphase schon besetzt ist, genau das

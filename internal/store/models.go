@@ -226,6 +226,13 @@ type ProgrammeQuotum struct {
 	SetBy         uuid.NullUUID
 }
 
+type ReviewCompletion struct {
+	SemesterID  uuid.UUID
+	ProgrammeID uuid.UUID
+	CompletedAt time.Time
+	CompletedBy uuid.NullUUID
+}
+
 type Semester struct {
 	ID                     uuid.UUID
 	Code                   string

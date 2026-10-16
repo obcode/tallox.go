@@ -110,7 +110,7 @@ enum ScopeArea {
 
   Fields: `semesters`, `semester`, `planningSemester`, `programmes`, `programme`, `modules`,
   `module`, `teachers`,
-  `courseInstances`, `courseInstance`, `teachingLoad`, `programmeQuotas`, `setProgrammeQuota`,
+  `courseInstances`, `courseInstance`, `teachingLoad`, `studyYearLoad`, `programmeQuotas`, `setProgrammeQuota`,
   `advanceSemesterPhase`, `setPlanningSemester`,
   `publishWishes`, `publishAssignments`,
   # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
@@ -130,6 +130,7 @@ enum ScopeArea {
   `requestInstanceCoverage`, `acceptInstanceCoverage`, `releaseInstanceCoverage`,
   `copyDemandFromSemester`, `planDemand`,
   `demandCompletions`, `wishWindows`, `setDemandComplete`, `setWishWindow`,
+  `reviewCompletions`, `setReviewComplete`,
   `subjectGroups`, `subjectGroup`, `mySubjectGroups`, `modulesWithoutSubjectGroup`,
   `subjectGroupsWithoutLead`, `setMySubjectGroups`, `setModulesSubjectGroup`.
   """

@@ -89,139 +89,169 @@ Role                Door         Responsible for  Phase            Wishes       
 (not signed in)     —            —                DEMAND_PLANNING  unpublished  no    no       no       no       no access
 (not signed in)     —            —                WISHES           unpublished  no    no       no       no       no access
 (not signed in)     —            —                ASSIGNMENT       unpublished  no    no       no       no       no access
+(not signed in)     —            —                REVIEW           unpublished  no    no       no       no       no access
 (not signed in)     —            —                FINAL            unpublished  no    no       no       no       no access
 (not signed in)     —            —                DEMAND_PLANNING  published    no    no       no       no       no access
 (not signed in)     —            —                WISHES           published    no    no       no       no       no access
 (not signed in)     —            —                ASSIGNMENT       published    no    no       no       no       no access
+(not signed in)     —            —                REVIEW           published    no    no       no       no       no access
 (not signed in)     —            —                FINAL            published    no    no       no       no       no access
 
 
 LECTURER            interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 LECTURER            interactive  —                WISHES           unpublished  yes   no       no       no       own only
 LECTURER            interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+LECTURER            interactive  —                REVIEW           unpublished  yes   no       no       no       own only
 LECTURER            interactive  —                FINAL            unpublished  yes   no       no       no       own only
 LECTURER            interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 LECTURER            interactive  —                WISHES           published    yes   yes      yes      yes      all
 LECTURER            interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
+LECTURER            interactive  —                REVIEW           published    yes   yes      yes      yes      all
 LECTURER            interactive  —                FINAL            published    yes   yes      yes      yes      all
 
 LECTURER            token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 LECTURER            token        —                WISHES           unpublished  yes   no       no       no       own only
 LECTURER            token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+LECTURER            token        —                REVIEW           unpublished  yes   no       no       no       own only
 LECTURER            token        —                FINAL            unpublished  yes   no       no       no       own only
 LECTURER            token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 LECTURER            token        —                WISHES           published    yes   yes      yes      yes      all
 LECTURER            token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
+LECTURER            token        —                REVIEW           published    yes   yes      yes      yes      all
 LECTURER            token        —                FINAL            published    yes   yes      yes      yes      all
 
 
 SUBJECT_GROUP_LEAD  interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  interactive  —                WISHES           unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  interactive  —                REVIEW           unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  interactive  —                FINAL            unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  interactive  —                WISHES           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  interactive  —                REVIEW           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  interactive  —                FINAL            published    yes   yes      yes      yes      all
 
 SUBJECT_GROUP_LEAD  interactive  group 1          DEMAND_PLANNING  unpublished  yes   no       yes      no       own + scoped
 SUBJECT_GROUP_LEAD  interactive  group 1          WISHES           unpublished  yes   no       yes      no       own + scoped
 SUBJECT_GROUP_LEAD  interactive  group 1          ASSIGNMENT       unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  interactive  group 1          REVIEW           unpublished  yes   no       yes      no       own + scoped
 SUBJECT_GROUP_LEAD  interactive  group 1          FINAL            unpublished  yes   no       yes      no       own + scoped
 SUBJECT_GROUP_LEAD  interactive  group 1          DEMAND_PLANNING  published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  interactive  group 1          WISHES           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  interactive  group 1          ASSIGNMENT       published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  interactive  group 1          REVIEW           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  interactive  group 1          FINAL            published    yes   yes      yes      yes      all
 
 SUBJECT_GROUP_LEAD  token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        —                WISHES           unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        —                REVIEW           unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        —                FINAL            unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  token        —                WISHES           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  token        —                REVIEW           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  token        —                FINAL            published    yes   yes      yes      yes      all
 
 SUBJECT_GROUP_LEAD  token        group 1          DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        group 1          WISHES           unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        group 1          ASSIGNMENT       unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        group 1          REVIEW           unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        group 1          FINAL            unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        group 1          DEMAND_PLANNING  published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  token        group 1          WISHES           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  token        group 1          ASSIGNMENT       published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  token        group 1          REVIEW           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  token        group 1          FINAL            published    yes   yes      yes      yes      all
 
 
 PROGRAMME_LEAD      interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      interactive  —                WISHES           unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      interactive  —                REVIEW           unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      interactive  —                FINAL            unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      interactive  —                WISHES           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      interactive  —                REVIEW           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      interactive  —                FINAL            published    yes   yes      yes      yes      all
 
 PROGRAMME_LEAD      interactive  programme 1      DEMAND_PLANNING  unpublished  yes   yes      no       no       own + scoped
 PROGRAMME_LEAD      interactive  programme 1      WISHES           unpublished  yes   yes      no       no       own + scoped
 PROGRAMME_LEAD      interactive  programme 1      ASSIGNMENT       unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      interactive  programme 1      REVIEW           unpublished  yes   yes      no       no       own + scoped
 PROGRAMME_LEAD      interactive  programme 1      FINAL            unpublished  yes   yes      no       no       own + scoped
 PROGRAMME_LEAD      interactive  programme 1      DEMAND_PLANNING  published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      interactive  programme 1      WISHES           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      interactive  programme 1      ASSIGNMENT       published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      interactive  programme 1      REVIEW           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      interactive  programme 1      FINAL            published    yes   yes      yes      yes      all
 
 PROGRAMME_LEAD      token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        —                WISHES           unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        —                REVIEW           unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        —                FINAL            unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      token        —                WISHES           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      token        —                REVIEW           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      token        —                FINAL            published    yes   yes      yes      yes      all
 
 PROGRAMME_LEAD      token        programme 1      DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        programme 1      WISHES           unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        programme 1      ASSIGNMENT       unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        programme 1      REVIEW           unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        programme 1      FINAL            unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        programme 1      DEMAND_PLANNING  published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      token        programme 1      WISHES           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      token        programme 1      ASSIGNMENT       published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      token        programme 1      REVIEW           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      token        programme 1      FINAL            published    yes   yes      yes      yes      all
 
 
 DEANS_OFFICE        interactive  —                DEMAND_PLANNING  unpublished  yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                WISHES           unpublished  yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                ASSIGNMENT       unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                REVIEW           unpublished  yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                FINAL            unpublished  yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                WISHES           published    yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                REVIEW           published    yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                FINAL            published    yes   yes      yes      yes      all
 
 DEANS_OFFICE        token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 DEANS_OFFICE        token        —                WISHES           unpublished  yes   no       no       no       own only
 DEANS_OFFICE        token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+DEANS_OFFICE        token        —                REVIEW           unpublished  yes   no       no       no       own only
 DEANS_OFFICE        token        —                FINAL            unpublished  yes   no       no       no       own only
 DEANS_OFFICE        token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 DEANS_OFFICE        token        —                WISHES           published    yes   yes      yes      yes      all
 DEANS_OFFICE        token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
+DEANS_OFFICE        token        —                REVIEW           published    yes   yes      yes      yes      all
 DEANS_OFFICE        token        —                FINAL            published    yes   yes      yes      yes      all
 
 
 ADMIN               interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 ADMIN               interactive  —                WISHES           unpublished  yes   no       no       no       own only
 ADMIN               interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+ADMIN               interactive  —                REVIEW           unpublished  yes   no       no       no       own only
 ADMIN               interactive  —                FINAL            unpublished  yes   no       no       no       own only
 ADMIN               interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 ADMIN               interactive  —                WISHES           published    yes   yes      yes      yes      all
 ADMIN               interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
+ADMIN               interactive  —                REVIEW           published    yes   yes      yes      yes      all
 ADMIN               interactive  —                FINAL            published    yes   yes      yes      yes      all
 
 ADMIN               token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 ADMIN               token        —                WISHES           unpublished  yes   no       no       no       own only
 ADMIN               token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+ADMIN               token        —                REVIEW           unpublished  yes   no       no       no       own only
 ADMIN               token        —                FINAL            unpublished  yes   no       no       no       own only
 ADMIN               token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 ADMIN               token        —                WISHES           published    yes   yes      yes      yes      all
 ADMIN               token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
+ADMIN               token        —                REVIEW           published    yes   yes      yes      yes      all
 ADMIN               token        —                FINAL            published    yes   yes      yes      yes      all

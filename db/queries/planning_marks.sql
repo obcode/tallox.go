@@ -114,3 +114,30 @@ WHERE w.id = sqlc.arg(id)::uuid;
 -- name: ProgrammeIDByCode :one
 -- The id behind a code somebody named. For the permission check, which asks about ids.
 SELECT id FROM programme WHERE code = sqlc.arg(code)::text;
+
+-- name: ReviewCompletionsOfSemester :many
+-- Which study programmes have announced their review as done, for one semester. The twin of
+-- DemandCompletionsOfSemester, and public for the same reason.
+SELECT rc.semester_id, rc.programme_id, rc.completed_at, rc.completed_by,
+       prog.code AS programme_code, prog.title AS programme_title
+FROM review_completion rc
+JOIN programme prog ON prog.id = rc.programme_id
+JOIN semester s ON s.id = rc.semester_id
+WHERE s.code = sqlc.arg(semester)::text
+ORDER BY prog.code;
+
+-- name: AnnounceReviewComplete :one
+-- Announce the review as done, or re-announce after a later change. The timestamp moves.
+INSERT INTO review_completion (semester_id, programme_id, completed_by)
+SELECT s.id, pr.id, sqlc.narg('completed_by')::uuid
+  FROM semester s, programme pr
+ WHERE s.code = sqlc.arg(semester)::text AND pr.code = sqlc.arg(programme)::text
+ON CONFLICT (semester_id, programme_id) DO UPDATE
+   SET completed_at = now(), completed_by = EXCLUDED.completed_by
+RETURNING semester_id, programme_id, completed_at, completed_by;
+
+-- name: WithdrawReviewComplete :execrows
+-- Take it back: the review is open again, which is the same state as never having announced it.
+DELETE FROM review_completion
+ WHERE semester_id = (SELECT id FROM semester WHERE code = sqlc.arg(semester)::text)
+   AND programme_id = (SELECT id FROM programme WHERE code = sqlc.arg(programme)::text);

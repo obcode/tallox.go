@@ -338,6 +338,7 @@ type ComplexityRoot struct {
 		SetPlanningSemester           func(childComplexity int, code string) int
 		SetProgrammePlanningStatus    func(childComplexity int, code string, status domain.ProgrammeStatus) int
 		SetProgrammeQuota             func(childComplexity int, programme string, studyYear int, teachingHours *float64) int
+		SetReviewComplete             func(childComplexity int, semester string, programme string, complete bool) int
 		SetSubjectGroupActive         func(childComplexity int, id string, active bool) int
 		SetSubjectGroupLeads          func(childComplexity int, id string, personIds []string) int
 		SetSubjectGroupMembers        func(childComplexity int, id string, personIds []string) int
@@ -396,6 +397,16 @@ type ComplexityRoot struct {
 		TeachingHours func(childComplexity int) int
 	}
 
+	ProgrammeStudyYearLoad struct {
+		HomeProgramme     func(childComplexity int) int
+		PartsWithoutHours func(childComplexity int) int
+		Remaining         func(childComplexity int) int
+		StudyYear         func(childComplexity int) int
+		SummerHours       func(childComplexity int) int
+		WinterHours       func(childComplexity int) int
+		YearlyQuota       func(childComplexity int) int
+	}
+
 	ProgrammeTeachingLoad struct {
 		Balance           func(childComplexity int) int
 		FwpHours          func(childComplexity int) int
@@ -438,10 +449,12 @@ type ComplexityRoot struct {
 		Programme                  func(childComplexity int, code string) int
 		ProgrammeQuotas            func(childComplexity int, studyYear int) int
 		Programmes                 func(childComplexity int, includeUnplanned bool) int
+		ReviewCompletions          func(childComplexity int, semester string) int
 		RoleGrants                 func(childComplexity int, personID string) int
 		Semester                   func(childComplexity int, code string) int
 		Semesters                  func(childComplexity int) int
 		Session                    func(childComplexity int) int
+		StudyYearLoad              func(childComplexity int, studyYear int) int
 		SubjectGroup               func(childComplexity int, id string) int
 		SubjectGroups              func(childComplexity int, includeInactive *bool) int
 		SubjectGroupsWithoutLead   func(childComplexity int) int
@@ -463,6 +476,12 @@ type ComplexityRoot struct {
 		Mail     func(childComplexity int) int
 		Reason   func(childComplexity int) int
 		TokenID  func(childComplexity int) int
+	}
+
+	ReviewCompletion struct {
+		CompletedAt func(childComplexity int) int
+		Programme   func(childComplexity int) int
+		Semester    func(childComplexity int) int
 	}
 
 	RoleGrant struct {
@@ -2139,6 +2158,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetProgrammeQuota(childComplexity, args["programme"].(string), args["studyYear"].(int), args["teachingHours"].(*float64)), true
+	case "Mutation.setReviewComplete":
+		if e.ComplexityRoot.Mutation.SetReviewComplete == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setReviewComplete_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetReviewComplete(childComplexity, args["semester"].(string), args["programme"].(string), args["complete"].(bool)), true
 	case "Mutation.setSubjectGroupActive":
 		if e.ComplexityRoot.Mutation.SetSubjectGroupActive == nil {
 			break
@@ -2455,6 +2485,49 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProgrammeQuota.TeachingHours(childComplexity), true
+
+	case "ProgrammeStudyYearLoad.homeProgramme":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.HomeProgramme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.HomeProgramme(childComplexity), true
+	case "ProgrammeStudyYearLoad.partsWithoutHours":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.PartsWithoutHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.PartsWithoutHours(childComplexity), true
+	case "ProgrammeStudyYearLoad.remaining":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.Remaining == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.Remaining(childComplexity), true
+	case "ProgrammeStudyYearLoad.studyYear":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.StudyYear == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.StudyYear(childComplexity), true
+	case "ProgrammeStudyYearLoad.summerHours":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.SummerHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.SummerHours(childComplexity), true
+	case "ProgrammeStudyYearLoad.winterHours":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.WinterHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.WinterHours(childComplexity), true
+	case "ProgrammeStudyYearLoad.yearlyQuota":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.YearlyQuota == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.YearlyQuota(childComplexity), true
 
 	case "ProgrammeTeachingLoad.balance":
 		if e.ComplexityRoot.ProgrammeTeachingLoad.Balance == nil {
@@ -2781,6 +2854,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Programmes(childComplexity, args["includeUnplanned"].(bool)), true
+	case "Query.reviewCompletions":
+		if e.ComplexityRoot.Query.ReviewCompletions == nil {
+			break
+		}
+
+		args, err := ec.field_Query_reviewCompletions_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ReviewCompletions(childComplexity, args["semester"].(string)), true
 	case "Query.roleGrants":
 		if e.ComplexityRoot.Query.RoleGrants == nil {
 			break
@@ -2815,6 +2899,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Session(childComplexity), true
+	case "Query.studyYearLoad":
+		if e.ComplexityRoot.Query.StudyYearLoad == nil {
+			break
+		}
+
+		args, err := ec.field_Query_studyYearLoad_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.StudyYearLoad(childComplexity, args["studyYear"].(int)), true
 	case "Query.subjectGroup":
 		if e.ComplexityRoot.Query.SubjectGroup == nil {
 			break
@@ -2974,6 +3069,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.RefusedSignIn.TokenID(childComplexity), true
+
+	case "ReviewCompletion.completedAt":
+		if e.ComplexityRoot.ReviewCompletion.CompletedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReviewCompletion.CompletedAt(childComplexity), true
+	case "ReviewCompletion.programme":
+		if e.ComplexityRoot.ReviewCompletion.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReviewCompletion.Programme(childComplexity), true
+	case "ReviewCompletion.semester":
+		if e.ComplexityRoot.ReviewCompletion.Semester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReviewCompletion.Semester(childComplexity), true
 
 	case "RoleGrant.expiresAt":
 		if e.ComplexityRoot.RoleGrant.ExpiresAt == nil {
@@ -5527,14 +5641,42 @@ type ProgrammeTeachingLoad {
   entered it — see ` + "`" + `ProgrammeQuota` + "`" + `. ` + "`" + `null` + "`" + ` when nothing has been entered, which is not zero.
   """
   yearlyQuota: Float
-  "Half of ` + "`" + `yearlyQuota` + "`" + `: the share one semester may spend. ` + "`" + `null` + "`" + ` without a quota."
+  """
+  What this semester may spend of ` + "`" + `yearlyQuota` + "`" + `. A winter: half of it, because its summer is
+  still to come. A summer: what the winter of the same study year left — ` + "`" + `yearlyQuota` + "`" + ` minus that
+  winter's ` + "`" + `teachingHours` + "`" + ` — because what the winter spent is spent. ` + "`" + `null` + "`" + ` without a quota.
+  """
   semesterQuota: Float
   """
   ` + "`" + `semesterQuota` + "`" + ` minus ` + "`" + `teachingHours` + "`" + `. Negative: the programme spends more than it has.
   Positive: there is room, for another elective or for a programme that needs more than its own.
-  ` + "`" + `null` + "`" + ` without a quota.
+  For a summer this is what is left of the study year. ` + "`" + `null` + "`" + ` without a quota.
   """
   balance: Float
+}
+
+"""
+One home programme's study year: the quota, what the winter costs and what the summer costs.
+
+The view a programme lead plans against: is there room for another elective this year. The
+summer counts as soon as its demand is declared, which is how a summer is played through while
+the winter is still being planned.
+"""
+type ProgrammeStudyYearLoad {
+  "The programme the modules belong to."
+  homeProgramme: Programme!
+  "The year the study year's winter semester starts in."
+  studyYear: Int!
+  "The quota entered for the study year, or ` + "`" + `null` + "`" + ` when nothing has been entered."
+  yearlyQuota: Float
+  "The teaching of the home programme's modules in the winter semester, as ` + "`" + `teachingLoad` + "`" + ` counts it."
+  winterHours: Float!
+  "The same for the summer semester that follows."
+  summerHours: Float!
+  "` + "`" + `yearlyQuota` + "`" + ` minus both semesters. Negative: the year is overspent. ` + "`" + `null` + "`" + ` without a quota."
+  remaining: Float
+  "Parts in either semester that state no hours and therefore count zero."
+  partsWithoutHours: Int!
 }
 
 """
@@ -5587,6 +5729,15 @@ extend type Query {
     "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
     semester: String!
   ): [ProgrammeTeachingLoad!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  A study year's teaching by home programme: winter and summer beside the year's quota. Every
+  programme that appears in either semester is listed, by code. Readable like ` + "`" + `teachingLoad` + "`" + `.
+  """
+  studyYearLoad(
+    "The year the study year's winter semester starts in: ` + "`" + `2026` + "`" + ` for 2026-WS and 2027-SS."
+    studyYear: Int!
+  ): [ProgrammeStudyYearLoad!]! @scope(area: PLANNING, verb: READ)
 
   """
   The quotas entered for one study year, ordered by programme code. A programme without one is
@@ -6188,9 +6339,10 @@ extend type Mutation {
   """
   Declare that a study programme needs this module in this semester, for this cohort.
 
-  Allowed for the lead of **that** programme and for the dean's office — and in every phase,
-  including ` + "`" + `FINAL` + "`" + `. An instance declared during the assignment is a correction, and corrections
-  happen; a tool that refuses one moves it into a spreadsheet passed around by mail.
+  Allowed for the lead of **that** programme and for the dean's office, in every phase up to and
+  including ` + "`" + `REVIEW` + "`" + ` — only a semester that is over (` + "`" + `FINAL` + "`" + `) refuses it. An instance declared
+  during the assignment or the review is a correction, and corrections happen; a tool that
+  refuses one moves it into a spreadsheet passed around by mail.
 
   The parts are made from the module's split, one per unit, each credited with the hours the
   split states — or from the proposal, where nobody has stated a split. A module the catalogue
@@ -6486,7 +6638,7 @@ enum ScopeArea {
 
   Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `planningSemester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `,
   ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
-  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `teachingLoad` + "`" + `, ` + "`" + `programmeQuotas` + "`" + `, ` + "`" + `setProgrammeQuota` + "`" + `,
+  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `teachingLoad` + "`" + `, ` + "`" + `studyYearLoad` + "`" + `, ` + "`" + `programmeQuotas` + "`" + `, ` + "`" + `setProgrammeQuota` + "`" + `,
   ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
   ` + "`" + `publishWishes` + "`" + `, ` + "`" + `publishAssignments` + "`" + `,
   # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
@@ -6506,6 +6658,7 @@ enum ScopeArea {
   ` + "`" + `requestInstanceCoverage` + "`" + `, ` + "`" + `acceptInstanceCoverage` + "`" + `, ` + "`" + `releaseInstanceCoverage` + "`" + `,
   ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `,
   ` + "`" + `demandCompletions` + "`" + `, ` + "`" + `wishWindows` + "`" + `, ` + "`" + `setDemandComplete` + "`" + `, ` + "`" + `setWishWindow` + "`" + `,
+  ` + "`" + `reviewCompletions` + "`" + `, ` + "`" + `setReviewComplete` + "`" + `,
   ` + "`" + `subjectGroups` + "`" + `, ` + "`" + `subjectGroup` + "`" + `, ` + "`" + `mySubjectGroups` + "`" + `, ` + "`" + `modulesWithoutSubjectGroup` + "`" + `,
   ` + "`" + `subjectGroupsWithoutLead` + "`" + `, ` + "`" + `setMySubjectGroups` + "`" + `, ` + "`" + `setModulesSubjectGroup` + "`" + `.
   """
@@ -6751,6 +6904,20 @@ type DemandCompletion {
 }
 
 """
+One study programme announcing that its review of a semester is done: after the assignment its
+lead has gone over the demand, its cut and who teaches what, and the figures stand against the
+quota as far as anybody knows today. An announcement like ` + "`" + `DemandCompletion` + "`" + `; it blocks nothing.
+"""
+type ReviewCompletion {
+  "The semester it is about."
+  semester: String!
+  "The study programme whose review is done."
+  programme: Programme!
+  "When it was last said. Moves on re-announcing after a later change."
+  completedAt: Time!
+}
+
+"""
 One subject group's wish round, for one semester.
 
 Only groups somebody has decided something about appear. Absent means open.
@@ -6782,6 +6949,15 @@ extend type Query {
     "Four digits, a hyphen and SS or WS, for example ` + "`" + `2029-SS` + "`" + `."
     semester: String!
   ): [DemandCompletion!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  Which study programmes have announced their review of a semester as done. Programmes that have
+  not are absent; readable by everybody, like the demand announcements.
+  """
+  reviewCompletions(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): [ReviewCompletion!]! @scope(area: PLANNING, verb: READ)
 
   """
   The subject groups whose wish round somebody has switched, for one semester.
@@ -6816,6 +6992,22 @@ extend type Mutation {
     "True to announce or refresh, false to withdraw."
     complete: Boolean!
   ): DemandCompletion @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Announce this study programme's review of a semester as done, or withdraw the announcement.
+
+  Blocks nothing: the demand and the assignment stay writable until the semester is ` + "`" + `FINAL` + "`" + `, and a
+  change afterwards is what withdrawing or re-announcing is for. ` + "`" + `complete: false` + "`" + ` answers ` + "`" + `null` + "`" + `.
+  Only the lead of that study programme and the dean's office, in any phase.
+  """
+  setReviewComplete(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "The study programme's code."
+    programme: String!
+    "True to announce or refresh, false to withdraw."
+    complete: Boolean!
+  ): ReviewCompletion @scope(area: PLANNING, verb: WRITE)
 
   """
   Open or shut one subject group's wish round for a semester.
@@ -6912,7 +7104,13 @@ enum Phase {
   WISHES
   "The subject group leads fill the instances."
   ASSIGNMENT
-  "The plan stands. Changes from here on are corrections, not planning."
+  """
+  The programme leads go over the whole once more: the cut of the demand, who teaches what, and
+  what it costs against the quota. Everything stays writable, and stays so until the semester is
+  over — a colleague falling ill before the first lecture is handled here.
+  """
+  REVIEW
+  "The semester is over. Its plan is the record of what was taught, and nothing is written any more."
   FINAL
 }
 
@@ -8806,6 +9004,26 @@ func (ec *executionContext) childFields_ProgrammeQuota(ctx context.Context, fiel
 	return nil, fmt.Errorf("no field named %q was found under type ProgrammeQuota", field.Name)
 }
 
+func (ec *executionContext) childFields_ProgrammeStudyYearLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "homeProgramme":
+		return ec.fieldContext_ProgrammeStudyYearLoad_homeProgramme(ctx, field)
+	case "studyYear":
+		return ec.fieldContext_ProgrammeStudyYearLoad_studyYear(ctx, field)
+	case "yearlyQuota":
+		return ec.fieldContext_ProgrammeStudyYearLoad_yearlyQuota(ctx, field)
+	case "winterHours":
+		return ec.fieldContext_ProgrammeStudyYearLoad_winterHours(ctx, field)
+	case "summerHours":
+		return ec.fieldContext_ProgrammeStudyYearLoad_summerHours(ctx, field)
+	case "remaining":
+		return ec.fieldContext_ProgrammeStudyYearLoad_remaining(ctx, field)
+	case "partsWithoutHours":
+		return ec.fieldContext_ProgrammeStudyYearLoad_partsWithoutHours(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ProgrammeStudyYearLoad", field.Name)
+}
+
 func (ec *executionContext) childFields_ProgrammeTeachingLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "homeProgramme":
@@ -8850,6 +9068,18 @@ func (ec *executionContext) childFields_RefusedSignIn(ctx context.Context, field
 		return ec.fieldContext_RefusedSignIn_lastAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type RefusedSignIn", field.Name)
+}
+
+func (ec *executionContext) childFields_ReviewCompletion(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "semester":
+		return ec.fieldContext_ReviewCompletion_semester(ctx, field)
+	case "programme":
+		return ec.fieldContext_ReviewCompletion_programme(ctx, field)
+	case "completedAt":
+		return ec.fieldContext_ReviewCompletion_completedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ReviewCompletion", field.Name)
 }
 
 func (ec *executionContext) childFields_RoleGrant(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

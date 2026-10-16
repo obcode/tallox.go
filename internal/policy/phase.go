@@ -25,7 +25,18 @@ const (
 	PhaseWishes Phase = "WISHES"
 	// PhaseAssignment is when the subject group leads fill the instances.
 	PhaseAssignment Phase = "ASSIGNMENT"
-	// PhaseFinal is when the plan stands. Changes from here on are corrections, not planning.
+	// PhaseReview is the programme leads' look at the whole after the assignment, and it lasts
+	// until the semester is over.
+	//
+	// Asked for by the faculty (2026-10-16): the programme leads answer to the dean's office for
+	// what their programme spends, and that can only be judged once the instances are filled —
+	// whether three external lecturers were found or the lead takes three cohorts themselves and
+	// merges their lectures changes the demand. So everything stays writable here, the demand,
+	// the cut of it and who teaches what, and stays so until the semester has run: a colleague
+	// who falls ill between the planning and the first lecture is a review, not a reopening.
+	PhaseReview Phase = "REVIEW"
+	// PhaseFinal is when the semester is over and its plan is the record of what was taught.
+	// Nothing is written from here on.
 	PhaseFinal Phase = "FINAL"
 )
 
@@ -38,6 +49,7 @@ func AllPhases() []Phase {
 		PhaseDemandPlanning,
 		PhaseWishes,
 		PhaseAssignment,
+		PhaseReview,
 		PhaseFinal,
 	}
 }

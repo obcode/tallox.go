@@ -73,6 +73,8 @@ type Querier interface {
 	// is, not when it was first made. That is the opposite of the publication marks, which keep their
 	// first timestamp because they record an irreversible event.
 	AnnounceDemandComplete(ctx context.Context, arg AnnounceDemandCompleteParams) (DemandCompletion, error)
+	// Announce the review as done, or re-announce after a later change. The timestamp moves.
+	AnnounceReviewComplete(ctx context.Context, arg AnnounceReviewCompleteParams) (ReviewCompletion, error)
 	// A batch, because the task this exists for is assigning 506 modules and a screen that saves one
 	// row per click is a task nobody finishes.
 	//
@@ -1059,6 +1061,9 @@ type Querier interface {
 	// Only ever called after a fetch that succeeded and returned something — the client refuses an
 	// empty result for exactly this reason. Rows are marked, never deleted.
 	RetireMissingZPAObjects(ctx context.Context, arg RetireMissingZPAObjectsParams) ([]RetireMissingZPAObjectsRow, error)
+	// Which study programmes have announced their review as done, for one semester. The twin of
+	// DemandCompletionsOfSemester, and public for the same reason.
+	ReviewCompletionsOfSemester(ctx context.Context, semester string) ([]ReviewCompletionsOfSemesterRow, error)
 	RevokeRole(ctx context.Context, arg RevokeRoleParams) error
 	// A timestamp, not a DELETE: the audit log has to keep resolving this token id afterwards.
 	// Idempotent — revoking twice keeps the first moment, which is the one that matters.
@@ -1410,6 +1415,8 @@ type Querier interface {
 	// "announced, then withdrawn" are the same state — the demand is not settled — and a table that
 	// kept the difference would be keeping something nobody reads.
 	WithdrawDemandComplete(ctx context.Context, arg WithdrawDemandCompleteParams) (int64, error)
+	// Take it back: the review is open again, which is the same state as never having announced it.
+	WithdrawReviewComplete(ctx context.Context, arg WithdrawReviewCompleteParams) (int64, error)
 	ZPAChangesByRun(ctx context.Context, runID uuid.UUID) ([]ZPAChangesByRunRow, error)
 	ZPAObjectPayload(ctx context.Context, arg ZPAObjectPayloadParams) (ZPAObjectPayloadRow, error)
 	// What is currently held for one kind: enough to decide the diff without reading the payloads.

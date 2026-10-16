@@ -31,6 +31,14 @@ func demandCompletionModels(list []domain.DemandCompletion) []*model.DemandCompl
 	return out
 }
 
+func reviewCompletionModel(c domain.ReviewCompletion) *model.ReviewCompletion {
+	return &model.ReviewCompletion{
+		Semester:    c.SemesterCode,
+		Programme:   programmeModel(c.Programme),
+		CompletedAt: c.CompletedAt,
+	}
+}
+
 func wishWindowModel(w domain.WishWindow) *model.WishWindow {
 	return &model.WishWindow{
 		Semester: w.SemesterCode,

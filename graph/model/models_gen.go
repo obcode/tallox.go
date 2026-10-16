@@ -939,6 +939,28 @@ type ProgrammeQuota struct {
 	SetAt time.Time `json:"setAt"`
 }
 
+// One home programme's study year: the quota, what the winter costs and what the summer costs.
+//
+// The view a programme lead plans against: is there room for another elective this year. The
+// summer counts as soon as its demand is declared, which is how a summer is played through while
+// the winter is still being planned.
+type ProgrammeStudyYearLoad struct {
+	// The programme the modules belong to.
+	HomeProgramme *Programme `json:"homeProgramme"`
+	// The year the study year's winter semester starts in.
+	StudyYear int `json:"studyYear"`
+	// The quota entered for the study year, or `null` when nothing has been entered.
+	YearlyQuota *float64 `json:"yearlyQuota,omitempty"`
+	// The teaching of the home programme's modules in the winter semester, as `teachingLoad` counts it.
+	WinterHours float64 `json:"winterHours"`
+	// The same for the summer semester that follows.
+	SummerHours float64 `json:"summerHours"`
+	// `yearlyQuota` minus both semesters. Negative: the year is overspent. `null` without a quota.
+	Remaining *float64 `json:"remaining,omitempty"`
+	// Parts in either semester that state no hours and therefore count zero.
+	PartsWithoutHours int `json:"partsWithoutHours"`
+}
+
 // What one programme's modules cost the faculty in a semester, wherever they are taught.
 //
 // The controlling view the faculty plans its electives against. A module's teaching counts at its
@@ -975,11 +997,13 @@ type ProgrammeTeachingLoad struct {
 	// What the programme may spend in the study year this semester belongs to, as the dean's office
 	// entered it — see `ProgrammeQuota`. `null` when nothing has been entered, which is not zero.
 	YearlyQuota *float64 `json:"yearlyQuota,omitempty"`
-	// Half of `yearlyQuota`: the share one semester may spend. `null` without a quota.
+	// What this semester may spend of `yearlyQuota`. A winter: half of it, because its summer is
+	// still to come. A summer: what the winter of the same study year left — `yearlyQuota` minus that
+	// winter's `teachingHours` — because what the winter spent is spent. `null` without a quota.
 	SemesterQuota *float64 `json:"semesterQuota,omitempty"`
 	// `semesterQuota` minus `teachingHours`. Negative: the programme spends more than it has.
 	// Positive: there is room, for another elective or for a programme that needs more than its own.
-	// `null` without a quota.
+	// For a summer this is what is left of the study year. `null` without a quota.
 	Balance *float64 `json:"balance,omitempty"`
 }
 
@@ -1010,6 +1034,18 @@ type RefusedSignIn struct {
 	Attempts int `json:"attempts"`
 	// The most recent attempt.
 	LastAt time.Time `json:"lastAt"`
+}
+
+// One study programme announcing that its review of a semester is done: after the assignment its
+// lead has gone over the demand, its cut and who teaches what, and the figures stand against the
+// quota as far as anybody knows today. An announcement like `DemandCompletion`; it blocks nothing.
+type ReviewCompletion struct {
+	// The semester it is about.
+	Semester string `json:"semester"`
+	// The study programme whose review is done.
+	Programme *Programme `json:"programme"`
+	// When it was last said. Moves on re-announcing after a later change.
+	CompletedAt time.Time `json:"completedAt"`
 }
 
 // One role grant, as stored — including one that has already expired.

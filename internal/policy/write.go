@@ -25,23 +25,24 @@ import (
 // It also makes the shape of a change small. Closing the demand after the wish phase is a
 // changed row and a golden diff somebody reads — not a condition somebody has to find first.
 //
-// # Why the demand is open in every phase today
+// # Why everything is open until the semester is over
 //
-// Decided with the faculty, and it is a decision rather than an omission. A course instance
-// declared in the middle of the assignment is a correction, and corrections happen: a colleague
-// falls ill, a cohort turns out larger than the numbers said, a module was forgotten. The tool's
-// competitor is a spreadsheet passed around by mail, and the way to lose to it is to refuse a
-// correction that the process itself permits — the correction then happens anyway, outside the
-// system, and the system's numbers become the wrong ones.
+// Decided with the faculty, twice. A course instance declared in the middle of the assignment
+// is a correction, and corrections happen: a colleague falls ill, a cohort turns out larger than
+// the numbers said, a module was forgotten. The tool's competitor is a spreadsheet passed around
+// by mail, and the way to lose to it is to refuse a correction that the process itself permits —
+// the correction then happens anyway, outside the system, and the system's numbers become the
+// wrong ones. The second time (2026-10-16) the faculty added the review: after the assignment the
+// programme leads go over the whole once more, and the cut of the demand changes with who was
+// found to teach it. That runs until the semester has run; FINAL is set when it is over.
 //
 // What protects the plan is not a closed phase but the refusal to delete something that is
 // already in use, which is enforced where it can be enforced honestly: in the database, on the
 // row.
 //
-// So the table below has one area and four open cells, and it is still worth existing. It is the
-// place the next decision lands in, and the reason the phase is already read on every write path
-// — the expensive half of a rule like this is not the condition, it is threading the phase
-// through every caller afterwards.
+// So every row of the table below has the same shape, and it is still worth existing: it is the
+// place the next decision lands in, and the reason the phase is already read on every write
+// path.
 
 // WriteArea is a part of the planning process that opens and closes as the phases advance.
 type WriteArea string
@@ -98,8 +99,10 @@ var writeMatrix = map[WriteArea]map[Phase][]Role{
 	//
 	// # What it still is
 	//
-	// The one hard meaning the phase keeps: FINAL is finished. A semester that has been closed is
-	// the record of what the faculty did, and a record that can still be edited is not one. That
+	// The one hard meaning the phase keeps: FINAL is finished — the semester is over, not merely
+	// planned; the review before it is where the plan is still worked on. A semester that has been
+	// closed is the record of what the faculty did, and a record that can still be edited is not
+	// one. That
 	// is why every row below has the same shape, and why the table is worth keeping in spite of
 	// it: the sentence "nothing may be written after the semester is closed" is one rule with one
 	// place to read it, and the next decision about when something closes lands here rather than
@@ -114,6 +117,7 @@ var writeMatrix = map[WriteArea]map[Phase][]Role{
 		PhaseDemandPlanning: {RoleProgrammeLead, RoleDeansOffice},
 		PhaseWishes:         {RoleProgrammeLead, RoleDeansOffice},
 		PhaseAssignment:     {RoleProgrammeLead, RoleDeansOffice},
+		PhaseReview:         {RoleProgrammeLead, RoleDeansOffice},
 		PhaseFinal:          nil,
 	},
 	// LECTURER alone, and that is the whole list rather than an abbreviation of it: role.go says
@@ -128,6 +132,7 @@ var writeMatrix = map[WriteArea]map[Phase][]Role{
 		PhaseDemandPlanning: {RoleLecturer},
 		PhaseWishes:         {RoleLecturer},
 		PhaseAssignment:     {RoleLecturer},
+		PhaseReview:         {RoleLecturer},
 		PhaseFinal:          nil,
 	},
 	// Open from the start, which reversed a decision taken one day earlier (2026-08-27) that shut
@@ -143,6 +148,7 @@ var writeMatrix = map[WriteArea]map[Phase][]Role{
 		PhaseDemandPlanning: {RoleSubjectGroupLead, RoleProgrammeLead, RoleDeansOffice},
 		PhaseWishes:         {RoleSubjectGroupLead, RoleProgrammeLead, RoleDeansOffice},
 		PhaseAssignment:     {RoleSubjectGroupLead, RoleProgrammeLead, RoleDeansOffice},
+		PhaseReview:         {RoleSubjectGroupLead, RoleProgrammeLead, RoleDeansOffice},
 		PhaseFinal:          nil,
 	},
 }

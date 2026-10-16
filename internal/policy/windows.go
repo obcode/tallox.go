@@ -49,6 +49,15 @@ func MayAnnounceDemandComplete(a principal.Actor, programmeID uuid.UUID) bool {
 	return MayPlanProgramme(a, programmeID)
 }
 
+// MayAnnounceReviewComplete reports whether an actor may say that a programme's review of a
+// semester is done.
+//
+// The lead of that programme and the dean's office — the people who answer for what the
+// programme spends. A function of its own for the reason MayAnnounceDemandComplete is one.
+func MayAnnounceReviewComplete(a principal.Actor, programmeID uuid.UUID) bool {
+	return MayPlanProgramme(a, programmeID)
+}
+
 // DemandCompletionRefusal picks the sentence for a refused announcement.
 func DemandCompletionRefusal(a principal.Actor, programmeID uuid.UUID) string {
 	if HoldsProgrammeLeadWithoutScope(a) {

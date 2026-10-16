@@ -101,6 +101,73 @@ func (m *PlanningMarks) WithdrawDemandComplete(ctx context.Context,
 	return rows > 0, nil
 }
 
+// ReviewCompletions returns the review announcements of one semester.
+func (m *PlanningMarks) ReviewCompletions(ctx context.Context,
+	semesterCode string) ([]domain.ReviewCompletion, error) {
+	rows, err := New(m.pool).ReviewCompletionsOfSemester(ctx, semesterCode)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the review announcements: %w", err)
+	}
+
+	out := make([]domain.ReviewCompletion, 0, len(rows))
+	for _, row := range rows {
+		completion := domain.ReviewCompletion{
+			SemesterCode: semesterCode,
+			Programme: domain.Programme{
+				ID:    row.ProgrammeID,
+				Code:  row.ProgrammeCode,
+				Title: row.ProgrammeTitle,
+			},
+			CompletedAt: row.CompletedAt,
+		}
+		if row.CompletedBy.Valid {
+			completion.CompletedBy = row.CompletedBy.UUID
+		}
+		out = append(out, completion)
+	}
+	return out, nil
+}
+
+// AnnounceReviewComplete records or refreshes one review announcement.
+func (m *PlanningMarks) AnnounceReviewComplete(ctx context.Context, semesterCode, programme string,
+	by uuid.UUID) (*domain.ReviewCompletion, error) {
+	row, err := New(m.pool).AnnounceReviewComplete(ctx, AnnounceReviewCompleteParams{
+		Semester:    semesterCode,
+		Programme:   programme,
+		CompletedBy: nullUUID(nonNilUUID(by)),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrProgrammeNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot announce the review: %w", err)
+	}
+
+	list, err := m.ReviewCompletions(ctx, semesterCode)
+	if err != nil {
+		return nil, err
+	}
+	for _, completion := range list {
+		if completion.Programme.ID == row.ProgrammeID {
+			return &completion, nil
+		}
+	}
+	return nil, domain.ErrProgrammeNotFound
+}
+
+// WithdrawReviewComplete removes one and reports whether there was one.
+func (m *PlanningMarks) WithdrawReviewComplete(ctx context.Context,
+	semesterCode, programme string) (bool, error) {
+	rows, err := New(m.pool).WithdrawReviewComplete(ctx, WithdrawReviewCompleteParams{
+		Semester:  semesterCode,
+		Programme: programme,
+	})
+	if err != nil {
+		return false, fmt.Errorf("cannot withdraw the review announcement: %w", err)
+	}
+	return rows > 0, nil
+}
+
 // WishWindows returns the subject groups somebody has decided something about.
 //
 // Not every group: an absent row is open, so this is the list of exceptions. A caller that wants

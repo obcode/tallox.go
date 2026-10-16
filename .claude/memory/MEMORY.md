@@ -19,10 +19,11 @@ Kolleg:innen — das gehört nach `tallox.dev`.
 - [Fachgruppen](subject-groups.md) — semesterunabhängig, die Leitung als Scope-Tabelle, und was Umhängen rückwirkend ändert
 - [Zuteilung](assignments.md) — person oder teacher, zwei Achsen zum Schreiben, Compare-and-Set, und drei Funde beim Bauen
 - [Deckung über Studiengänge](instance-coverage.md) — ein Bedarf, von einem anderen Studiengang gehalten: der Fremdschlüssel mit vier Invarianten, warum das Koppeln beim Planen einseitig sein darf, und die Beförderung beim Rückzug
-- [SWS-Controlling](sws-controlling.md) — `teachingLoad`: Lehr-SWS je Heimatstudiengang wie das alte Excel-Sheet, Kontingent je Studienjahr und Saldo (Hälfte), Filter `foreignHome`; Körbe offen
+- [SWS-Controlling](sws-controlling.md) — `teachingLoad`: Lehr-SWS je Heimatstudiengang wie das alte Excel-Sheet, Kontingent, Saldo (WiSe: Hälfte, SoSe: Rest nach dem WiSe), `studyYearLoad`, Filter `foreignHome`; Körbe offen
 - [Planungsmarken](planning-marks.md) — zwei Marken statt einer Phase, und warum fehlende Zeile hier offen heißt
 - [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf, und das Planungssemester
 - [Kompetenzzone](competences.md) — am Modul ohne Semester, vertraulich ohne Veröffentlichung, Mitgliedschaft als Schreibregel, Lehrende ohne Konto durch die Fachgruppenleitung
+- [Studiengangs-Review](programme-review.md) — Phase REVIEW vor FINAL, alles offen bis Semesterende, Marke „Review fertig"
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:
      eine Datei = ein Sachverhalt, Frontmatter mit name/description/metadata.type,

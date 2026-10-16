@@ -42,6 +42,30 @@ func (r *queryResolver) TeachingLoad(ctx context.Context, semester string) ([]*m
 	return out, nil
 }
 
+// StudyYearLoad is the resolver for the studyYearLoad field.
+func (r *queryResolver) StudyYearLoad(ctx context.Context, studyYear int) ([]*model.ProgrammeStudyYearLoad, error) {
+	actor := principal.From(ctx)
+
+	years, err := r.Demand.StudyYearLoad(ctx, actor, studyYear)
+	if err != nil {
+		return nil, demandUserFacing(actor, err)
+	}
+
+	out := make([]*model.ProgrammeStudyYearLoad, 0, len(years))
+	for _, y := range years {
+		out = append(out, &model.ProgrammeStudyYearLoad{
+			HomeProgramme:     programmeModel(y.HomeProgramme),
+			StudyYear:         y.StudyYear,
+			YearlyQuota:       y.YearlyQuota,
+			WinterHours:       y.WinterHours,
+			SummerHours:       y.SummerHours,
+			Remaining:         y.Remaining(),
+			PartsWithoutHours: y.PartsWithoutHours,
+		})
+	}
+	return out, nil
+}
+
 // ProgrammeQuotas is the resolver for the programmeQuotas field.
 func (r *queryResolver) ProgrammeQuotas(ctx context.Context, studyYear int) ([]*model.ProgrammeQuota, error) {
 	actor := principal.From(ctx)

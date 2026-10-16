@@ -507,6 +507,12 @@ extend type Query {
     programme: String
     "One module, across its cohorts."
     module: ID
+    """
+    Only the instances of modules another programme is home to — what a programme takes from
+    elsewhere, its electives from other programmes among them. Covered cohorts are included; they
+    cost this programme nothing and say so in `coveredBy`.
+    """
+    foreignHome: Boolean = false
   ): [CourseInstance!]! @scope(area: PLANNING, verb: READ)
 
   """

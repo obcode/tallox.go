@@ -159,6 +159,26 @@ func (q *Queries) BorrowedInstancePartsFor(ctx context.Context, instanceIds []uu
 	return items, nil
 }
 
+const clearProgrammeQuota = `-- name: ClearProgrammeQuota :execrows
+DELETE FROM programme_quota
+ WHERE study_year = $1::int
+   AND programme_id = (SELECT id FROM programme WHERE code = $2::text)
+`
+
+type ClearProgrammeQuotaParams struct {
+	StudyYear int32
+	Programme string
+}
+
+// Take a quota back. "Never entered" and "entered, then removed" are the same state.
+func (q *Queries) ClearProgrammeQuota(ctx context.Context, arg ClearProgrammeQuotaParams) (int64, error) {
+	result, err := q.db.Exec(ctx, clearProgrammeQuota, arg.StudyYear, arg.Programme)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const coupleInstanceCoverage = `-- name: CoupleInstanceCoverage :execrows
 UPDATE course_instance g
 SET covered_by_instance_id = h.id,
@@ -1006,13 +1026,15 @@ JOIN module m ON m.id = ci.module_id
 WHERE s.code = $1::text
   AND ($2::text IS NULL OR p.code = $2::text)
   AND ($3::uuid IS NULL OR ci.module_id = $3::uuid)
+  AND (NOT $4::bool OR m.home_programme_id <> ci.programme_id)
 ORDER BY ci.programme_semester NULLS LAST, (m.name = ''), m.name, ci.track, ci.id
 `
 
 type ListCourseInstancesParams struct {
-	Semester  string
-	Programme *string
-	Module    uuid.NullUUID
+	Semester    string
+	Programme   *string
+	Module      uuid.NullUUID
+	ForeignHome bool
 }
 
 type ListCourseInstancesRow struct {
@@ -1050,7 +1072,8 @@ type ListCourseInstancesRow struct {
 // neighbour: declaring an instance writes the instance and the parts made from the module's
 // split, and copying a semester's demand writes all of it or none of it. A half-copied semester
 // is worse than an uncopied one, because the person looking at it cannot tell which half.
-// The demand of a semester, optionally narrowed to one programme or one module.
+// The demand of a semester, optionally narrowed to one programme or one module, or to the
+// instances of modules another programme is home to — what a programme imports.
 //
 // The semester is addressed by its code rather than its id, the way it is everywhere outside
 // this package: the code is what a URL and a colleague's script carry.
@@ -1061,7 +1084,12 @@ type ListCourseInstancesRow struct {
 // afterwards, and selecting it here would be a second copy of the same string that could drift
 // from the one the interface shows.
 func (q *Queries) ListCourseInstances(ctx context.Context, arg ListCourseInstancesParams) ([]ListCourseInstancesRow, error) {
-	rows, err := q.db.Query(ctx, listCourseInstances, arg.Semester, arg.Programme, arg.Module)
+	rows, err := q.db.Query(ctx, listCourseInstances,
+		arg.Semester,
+		arg.Programme,
+		arg.Module,
+		arg.ForeignHome,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -1219,6 +1247,63 @@ func (q *Queries) NextInstancePartPosition(ctx context.Context, courseInstanceID
 	var position int32
 	err := row.Scan(&position)
 	return position, err
+}
+
+const programmeQuotasOfYear = `-- name: ProgrammeQuotasOfYear :many
+SELECT pq.programme_id, pq.study_year, pq.teaching_hours::float8 AS teaching_hours,
+       pq.set_at, pq.set_by,
+       p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
+       p.planning_status AS programme_planning_status
+FROM programme_quota pq
+JOIN programme p ON p.id = pq.programme_id
+WHERE pq.study_year = $1::int
+ORDER BY p.code
+`
+
+type ProgrammeQuotasOfYearRow struct {
+	ProgrammeID             uuid.UUID
+	StudyYear               int32
+	TeachingHours           float64
+	SetAt                   time.Time
+	SetBy                   uuid.NullUUID
+	ProgrammeCode           string
+	ProgrammeTitle          string
+	ProgrammeActive         bool
+	ProgrammePlanningStatus string
+}
+
+// The quotas entered for one study year, one row per programme that has one.
+//
+// Only those: a programme without a row has no quota, which the controlling shows as "no figure"
+// rather than as zero — zero would read as a programme with nothing to spend.
+func (q *Queries) ProgrammeQuotasOfYear(ctx context.Context, studyYear int32) ([]ProgrammeQuotasOfYearRow, error) {
+	rows, err := q.db.Query(ctx, programmeQuotasOfYear, studyYear)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProgrammeQuotasOfYearRow{}
+	for rows.Next() {
+		var i ProgrammeQuotasOfYearRow
+		if err := rows.Scan(
+			&i.ProgrammeID,
+			&i.StudyYear,
+			&i.TeachingHours,
+			&i.SetAt,
+			&i.SetBy,
+			&i.ProgrammeCode,
+			&i.ProgrammeTitle,
+			&i.ProgrammeActive,
+			&i.ProgrammePlanningStatus,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const releaseInstanceCoverage = `-- name: ReleaseInstanceCoverage :execrows
@@ -1431,6 +1516,52 @@ type SetInstancePartSharedParams struct {
 func (q *Queries) SetInstancePartShared(ctx context.Context, arg SetInstancePartSharedParams) error {
 	_, err := q.db.Exec(ctx, setInstancePartShared, arg.ID, arg.ServesSiblingTracks)
 	return err
+}
+
+const setProgrammeQuota = `-- name: SetProgrammeQuota :one
+INSERT INTO programme_quota (programme_id, study_year, teaching_hours, set_by)
+SELECT p.id, $1::int, $2::float8, $3::uuid
+  FROM programme p
+ WHERE p.code = $4::text
+ON CONFLICT (programme_id, study_year) DO UPDATE
+   SET teaching_hours = EXCLUDED.teaching_hours, set_at = now(), set_by = EXCLUDED.set_by
+RETURNING programme_id, study_year, teaching_hours::float8 AS teaching_hours, set_at, set_by
+`
+
+type SetProgrammeQuotaParams struct {
+	StudyYear     int32
+	TeachingHours float64
+	SetBy         uuid.NullUUID
+	Programme     string
+}
+
+type SetProgrammeQuotaRow struct {
+	ProgrammeID   uuid.UUID
+	StudyYear     int32
+	TeachingHours float64
+	SetAt         time.Time
+	SetBy         uuid.NullUUID
+}
+
+// Enter or correct one programme's quota for a study year.
+//
+// Upsert, and the timestamp moves: what a reader wants to know is how fresh the figure is.
+func (q *Queries) SetProgrammeQuota(ctx context.Context, arg SetProgrammeQuotaParams) (SetProgrammeQuotaRow, error) {
+	row := q.db.QueryRow(ctx, setProgrammeQuota,
+		arg.StudyYear,
+		arg.TeachingHours,
+		arg.SetBy,
+		arg.Programme,
+	)
+	var i SetProgrammeQuotaRow
+	err := row.Scan(
+		&i.ProgrammeID,
+		&i.StudyYear,
+		&i.TeachingHours,
+		&i.SetAt,
+		&i.SetBy,
+	)
+	return i, err
 }
 
 const sharedPartsOf = `-- name: SharedPartsOf :many

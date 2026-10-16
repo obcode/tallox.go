@@ -213,6 +213,8 @@ type Querier interface {
 	// already set would clear the mark and then set it again, moving planning_set_at and making a
 	// no-op look like a decision.
 	ClearPlanningSemester(ctx context.Context, id uuid.UUID) error
+	// Take a quota back. "Never entered" and "entered, then removed" are the same state.
+	ClearProgrammeQuota(ctx context.Context, arg ClearProgrammeQuotaParams) (int64, error)
 	ClearSubjectGroupLeads(ctx context.Context, subjectGroupID uuid.UUID) error
 	ClearSubjectGroupMembers(ctx context.Context, subjectGroupID uuid.UUID) error
 	// The person side of the membership table.
@@ -619,7 +621,8 @@ type Querier interface {
 	// neighbour: declaring an instance writes the instance and the parts made from the module's
 	// split, and copying a semester's demand writes all of it or none of it. A half-copied semester
 	// is worse than an uncopied one, because the person looking at it cannot tell which half.
-	// The demand of a semester, optionally narrowed to one programme or one module.
+	// The demand of a semester, optionally narrowed to one programme or one module, or to the
+	// instances of modules another programme is home to — what a programme imports.
 	//
 	// The semester is addressed by its code rather than its id, the way it is everywhere outside
 	// this package: the code is what a URL and a colleague's script carry.
@@ -870,6 +873,11 @@ type Querier interface {
 	ProgrammeByCode(ctx context.Context, code string) (ProgrammeByCodeRow, error)
 	// The id behind a code somebody named. For the permission check, which asks about ids.
 	ProgrammeIDByCode(ctx context.Context, code string) (uuid.UUID, error)
+	// The quotas entered for one study year, one row per programme that has one.
+	//
+	// Only those: a programme without a row has no quota, which the controlling shows as "no figure"
+	// rather than as zero — zero would read as a programme with nothing to spend.
+	ProgrammeQuotasOfYear(ctx context.Context, studyYear int32) ([]ProgrammeQuotasOfYearRow, error)
 	// Which study programmes a set of people lead.
 	//
 	// For a list of people in one statement rather than one per row, the same shape the catalogue
@@ -1124,6 +1132,10 @@ type Querier interface {
 	// code is what they mean. Returns no row for a code that names no programme, which the service
 	// turns into the ordinary "no such programme".
 	SetProgrammePlanningStatus(ctx context.Context, arg SetProgrammePlanningStatusParams) (SetProgrammePlanningStatusRow, error)
+	// Enter or correct one programme's quota for a study year.
+	//
+	// Upsert, and the timestamp moves: what a reader wants to know is how fresh the figure is.
+	SetProgrammeQuota(ctx context.Context, arg SetProgrammeQuotaParams) (SetProgrammeQuotaRow, error)
 	// Retiring, and the way back. There is no delete: a group that was split still has to render in
 	// the planning it was part of, and its module assignments are weeks of somebody's judgement.
 	//

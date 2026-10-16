@@ -218,6 +218,14 @@ type Programme struct {
 	PlanningStatusSetBy uuid.NullUUID
 }
 
+type ProgrammeQuotum struct {
+	ProgrammeID   uuid.UUID
+	StudyYear     int32
+	TeachingHours pgtype.Numeric
+	SetAt         time.Time
+	SetBy         uuid.NullUUID
+}
+
 type Semester struct {
 	ID                     uuid.UUID
 	Code                   string

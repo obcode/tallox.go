@@ -14,7 +14,6 @@ import (
 // What the demand resolvers translate with. Separate from demand.resolvers.go because gqlgen
 // rewrites that file from the schema on every generate.
 
-// courseInstanceModel reshapes an instance for the wire.
 // teachingLoadModel computes the totals here rather than in field resolvers, for the reason
 // courseInstanceModel gives: they are sums over a slice that is already loaded.
 func teachingLoadModel(l domain.TeachingLoad) *model.ProgrammeTeachingLoad {
@@ -27,6 +26,9 @@ func teachingLoadModel(l domain.TeachingLoad) *model.ProgrammeTeachingLoad {
 		FwpHours:          l.FwpHours(),
 		PartsWithoutHours: l.PartsWithoutHours(),
 		Shares:            make([]*model.TeachingLoadShare, 0, len(l.Shares)),
+		YearlyQuota:       l.YearlyQuota,
+		SemesterQuota:     l.SemesterQuota(),
+		Balance:           l.Balance(),
 	}
 	for _, s := range l.Shares {
 		out.Shares = append(out.Shares, &model.TeachingLoadShare{
@@ -41,6 +43,17 @@ func teachingLoadModel(l domain.TeachingLoad) *model.ProgrammeTeachingLoad {
 	return out
 }
 
+// programmeQuotaModel reshapes a quota for the wire.
+func programmeQuotaModel(q domain.ProgrammeQuota) *model.ProgrammeQuota {
+	return &model.ProgrammeQuota{
+		Programme:     programmeModel(q.Programme),
+		StudyYear:     q.StudyYear,
+		TeachingHours: q.TeachingHours,
+		SetAt:         q.SetAt,
+	}
+}
+
+// courseInstanceModel reshapes an instance for the wire.
 func courseInstanceModel(i domain.CourseInstance) *model.CourseInstance {
 	out := &model.CourseInstance{
 		ID:                i.ID.String(),
@@ -306,6 +319,10 @@ func demandUserFacing(actor principal.Actor, err error) error {
 		return refusal("PROGRAMME_NOT_PLANNED", err.Error())
 	case errors.Is(err, domain.ErrSameSemester):
 		return refusal("SAME_SEMESTER", err.Error())
+	case errors.Is(err, domain.ErrQuotaInvalid):
+		return refusal("QUOTA_INVALID", err.Error())
+	case errors.Is(err, domain.ErrStudyYearOutOfRange):
+		return refusal("STUDY_YEAR_OUT_OF_RANGE", err.Error())
 
 	// The semester refusals, which arrive through the same service because every demand names a
 	// semester. Same codes as the semester area uses, so that a client branches on one meaning

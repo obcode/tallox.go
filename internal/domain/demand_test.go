@@ -38,6 +38,10 @@ type fakeDemandStore struct {
 	planned         []domain.DemandEntry
 	plannedSemester string
 	writes          int
+	// loads is what TeachingLoad answers, quotas what the quota methods keep.
+	loads      []domain.TeachingLoad
+	quotas     []domain.ProgrammeQuota
+	quotaYears []int
 }
 
 func newFakeDemandStore() *fakeDemandStore {
@@ -210,7 +214,49 @@ func (f *fakeDemandStore) PlanDemand(_ context.Context, semester string, _ uuid.
 
 func (f *fakeDemandStore) TeachingLoad(_ context.Context, semester string) ([]domain.TeachingLoad, error) {
 	f.plannedSemester = semester
-	return []domain.TeachingLoad{}, nil
+	return append([]domain.TeachingLoad{}, f.loads...), nil
+}
+
+func (f *fakeDemandStore) ProgrammeQuotas(_ context.Context, studyYear int) ([]domain.ProgrammeQuota, error) {
+	f.quotaYears = append(f.quotaYears, studyYear)
+	out := []domain.ProgrammeQuota{}
+	for _, q := range f.quotas {
+		if q.StudyYear == studyYear {
+			out = append(out, q)
+		}
+	}
+	return out, nil
+}
+
+// SetProgrammeQuota knows the two planned fixture programmes and nothing else, the way the real
+// statement inserts nothing for a code that names no programme.
+func (f *fakeDemandStore) SetProgrammeQuota(_ context.Context, programme string, studyYear int,
+	hours float64, by uuid.UUID,
+) (*domain.ProgrammeQuota, error) {
+	ids := map[string]uuid.UUID{"PA": demandProgramme, "PB": otherProgramme}
+	id, ok := ids[programme]
+	if !ok {
+		return nil, nil
+	}
+	f.writes++
+	_ = f.ClearProgrammeQuota(context.Background(), programme, studyYear)
+	quota := domain.ProgrammeQuota{
+		Programme: domain.Programme{ID: id, Code: programme}, StudyYear: studyYear,
+		TeachingHours: hours, SetBy: by,
+	}
+	f.quotas = append(f.quotas, quota)
+	return &quota, nil
+}
+
+func (f *fakeDemandStore) ClearProgrammeQuota(_ context.Context, programme string, studyYear int) error {
+	kept := f.quotas[:0]
+	for _, q := range f.quotas {
+		if q.Programme.Code != programme || q.StudyYear != studyYear {
+			kept = append(kept, q)
+		}
+	}
+	f.quotas = kept
+	return nil
 }
 
 // fakeSemesterStore is the semester half, and it records what was ensured.
@@ -1137,6 +1183,181 @@ func TestReadingTheTeachingLoad(t *testing.T) {
 		_, err := f.service.TeachingLoad(t.Context(), actor, "Sommer 27")
 		if !errors.Is(err, domain.ErrSemesterCodeInvalid) {
 			t.Errorf("an invalid code gave %v, want ErrSemesterCodeInvalid", err)
+		}
+	})
+}
+
+// The quota is a year's figure, and a semester is read against half of it. Without a quota there
+// is no figure at all — not zero, which would read as a programme with nothing to spend.
+func TestTheBalanceIsHalfTheYearMinusTheLoad(t *testing.T) {
+	t.Parallel()
+
+	home := domain.Programme{ID: uuid.New(), Code: "PA"}
+	load := domain.TeachingLoad{
+		HomeProgramme: home,
+		Shares:        []domain.TeachingLoadShare{{Programme: home, TeachingHours: 184}},
+	}
+	if load.SemesterQuota() != nil || load.Balance() != nil {
+		t.Fatal("a programme without a quota has a balance")
+	}
+
+	yearly := 425.0
+	load.YearlyQuota = &yearly
+	if got := *load.SemesterQuota(); got != 212.5 {
+		t.Errorf("semester quota %v, want 212.5", got)
+	}
+	if got := *load.Balance(); got != 28.5 {
+		t.Errorf("balance %v, want 28.5", got)
+	}
+
+	small := 300.0
+	load.YearlyQuota = &small
+	if got := *load.Balance(); got != -34 {
+		t.Errorf("a programme spending more than half its year has a balance of %v, want -34", got)
+	}
+}
+
+// The teaching load carries the quota of the study year its semester belongs to: the summer is
+// read against the year that began the October before it.
+func TestTheTeachingLoadCarriesTheStudyYearsQuota(t *testing.T) {
+	t.Parallel()
+
+	for _, c := range []struct {
+		semester string
+		year     int
+	}{
+		{"2026-WS", 2026},
+		{"2027-SS", 2026},
+		{"2027-WS", 2027},
+	} {
+		t.Run(c.semester, func(t *testing.T) {
+			t.Parallel()
+			f := newDemandService(t, policy.PhaseDemandPlanning)
+			f.store.loads = []domain.TeachingLoad{
+				{HomeProgramme: domain.Programme{ID: demandProgramme, Code: "PA"}},
+				{HomeProgramme: domain.Programme{ID: otherProgramme, Code: "PB"}},
+			}
+			f.store.quotas = []domain.ProgrammeQuota{
+				{Programme: domain.Programme{ID: demandProgramme}, StudyYear: c.year, TeachingHours: 100},
+				{Programme: domain.Programme{ID: otherProgramme}, StudyYear: c.year + 1, TeachingHours: 999},
+			}
+
+			actor := testdata.Eins.Actor(principal.KindToken, string(policy.RoleLecturer))
+			loads, err := f.service.TeachingLoad(t.Context(), actor, c.semester)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if loads[0].YearlyQuota == nil || *loads[0].YearlyQuota != 100 {
+				t.Errorf("PA in %s has the quota %v, want 100", c.semester, loads[0].YearlyQuota)
+			}
+			if loads[1].YearlyQuota != nil {
+				t.Errorf("PB in %s took the quota of another study year", c.semester)
+			}
+		})
+	}
+}
+
+// Entering a quota is the dean's office's, through either door. Not the programme lead, whose
+// programme the line is drawn for, and not the administrator.
+func TestWhoSetsAProgrammeQuota(t *testing.T) {
+	t.Parallel()
+
+	hours := 425.0
+	cases := []struct {
+		name  string
+		actor principal.Actor
+		ok    bool
+	}{
+		{"the dean's office, interactively", testdata.Fuenf.Actor(principal.KindInteractive,
+			string(policy.RoleDeansOffice)), true},
+		{"the dean's office, by token", testdata.Fuenf.Actor(principal.KindToken,
+			string(policy.RoleDeansOffice)), true},
+		{"the programme lead", lead(principal.KindInteractive, demandProgramme), false},
+		{"the administrator", testdata.Sechs.Actor(principal.KindInteractive,
+			string(policy.RoleAdmin)), false},
+		{"a lecturer", testdata.Eins.Actor(principal.KindInteractive,
+			string(policy.RoleLecturer)), false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			f := newDemandService(t, policy.PhaseDemandPlanning)
+
+			quota, err := f.service.SetProgrammeQuota(t.Context(), c.actor, " pa ", 2026, &hours)
+			if !c.ok {
+				if !errors.Is(err, domain.ErrCatalogueForbidden) {
+					t.Errorf("gave %v, want ErrCatalogueForbidden", err)
+				}
+				if f.store.writes != 0 {
+					t.Error("a refused quota was written")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if quota.Programme.Code != "PA" || quota.TeachingHours != 425 || quota.SetBy != c.actor.ID {
+				t.Errorf("wrote %+v", quota)
+			}
+		})
+	}
+}
+
+func TestWhatAProgrammeQuotaMayBe(t *testing.T) {
+	t.Parallel()
+
+	dean := testdata.Fuenf.Actor(principal.KindInteractive, string(policy.RoleDeansOffice))
+	hours := func(h float64) *float64 { return &h }
+
+	cases := []struct {
+		name      string
+		programme string
+		year      int
+		hours     *float64
+		want      error
+	}{
+		{"negative", "PA", 2026, hours(-1), domain.ErrQuotaInvalid},
+		{"absurd", "PA", 2026, hours(10001), domain.ErrQuotaInvalid},
+		{"a year nobody plans", "PA", 2099, hours(10), domain.ErrStudyYearOutOfRange},
+		{"an unknown programme", "XX", 2026, hours(10), domain.ErrProgrammeNotFound},
+		{"taking back for an unknown programme", "XX", 2026, nil, domain.ErrProgrammeNotFound},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			f := newDemandService(t, policy.PhaseDemandPlanning)
+
+			_, err := f.service.SetProgrammeQuota(t.Context(), dean, c.programme, c.year, c.hours)
+			if !errors.Is(err, c.want) {
+				t.Errorf("gave %v, want %v", err, c.want)
+			}
+		})
+	}
+
+	t.Run("zero is a quota, and null takes it back", func(t *testing.T) {
+		t.Parallel()
+		f := newDemandService(t, policy.PhaseDemandPlanning)
+
+		if _, err := f.service.SetProgrammeQuota(t.Context(), dean, "PA", 2026, hours(0)); err != nil {
+			t.Fatalf("zero refused: %v", err)
+		}
+		quota, err := f.service.SetProgrammeQuota(t.Context(), dean, "PA", 2026, nil)
+		if err != nil || quota != nil {
+			t.Fatalf("taking back gave (%v, %v)", quota, err)
+		}
+		if len(f.store.quotas) != 0 {
+			t.Errorf("still there: %+v", f.store.quotas)
+		}
+	})
+
+	t.Run("reading a year nobody plans is refused too", func(t *testing.T) {
+		t.Parallel()
+		f := newDemandService(t, policy.PhaseDemandPlanning)
+
+		reader := testdata.Eins.Actor(principal.KindToken, string(policy.RoleLecturer))
+		if _, err := f.service.ProgrammeQuotas(t.Context(), reader, 1990); !errors.Is(err,
+			domain.ErrStudyYearOutOfRange) {
+			t.Errorf("gave %v, want ErrStudyYearOutOfRange", err)
 		}
 	})
 }

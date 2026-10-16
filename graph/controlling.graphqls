@@ -39,6 +39,40 @@ type ProgrammeTeachingLoad {
   programme nothing has been declared for yet.
   """
   shares: [TeachingLoadShare!]!
+  """
+  What the programme may spend in the study year this semester belongs to, as the dean's office
+  entered it — see `ProgrammeQuota`. `null` when nothing has been entered, which is not zero.
+  """
+  yearlyQuota: Float
+  "Half of `yearlyQuota`: the share one semester may spend. `null` without a quota."
+  semesterQuota: Float
+  """
+  `semesterQuota` minus `teachingHours`. Negative: the programme spends more than it has.
+  Positive: there is room, for another elective or for a programme that needs more than its own.
+  `null` without a quota.
+  """
+  balance: Float
+}
+
+"""
+What a study programme may spend on teaching in one study year.
+
+The figure comes from the faculty's capacity calculation — the teaching available to a programme,
+theses included — and is entered by the dean's office. Counted the way `teachingHours` counts:
+every laboratory and exercise group.
+
+A study year is named after the year its winter semester starts in: `2026` is `2026-WS` and
+`2027-SS`. Each of the two semesters is read against half of it.
+"""
+type ProgrammeQuota {
+  "The programme the figure is for."
+  programme: Programme!
+  "The year the study year's winter semester starts in: `2026` for 2026-WS and 2027-SS."
+  studyYear: Int!
+  "Teaching hours per week over the study year."
+  teachingHours: Float!
+  "When it was last set."
+  setAt: Time!
 }
 
 "The part of a home programme's load taught in one programme's instances."
@@ -70,4 +104,32 @@ extend type Query {
     "Four digits, a hyphen and SS or WS, for example `2027-SS`."
     semester: String!
   ): [ProgrammeTeachingLoad!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  The quotas entered for one study year, ordered by programme code. A programme without one is
+  not listed.
+  """
+  programmeQuotas(
+    "The year the study year's winter semester starts in: `2026` for 2026-WS and 2027-SS."
+    studyYear: Int!
+  ): [ProgrammeQuota!]! @scope(area: PLANNING, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Enter or correct what a study programme may spend in a study year, or take it back with
+  `teachingHours: null`. Returns the quota as it now stands, `null` once taken back.
+
+  The dean's office, which runs the capacity calculation, and through both doors: it is a number
+  corrected as often as the calculation is. Not the programme leads — the quota is the line a
+  programme is measured against.
+  """
+  setProgrammeQuota(
+    "The programme's short code. Upper-cased and trimmed for you."
+    programme: String!
+    "The year the study year's winter semester starts in."
+    studyYear: Int!
+    "Teaching hours per week over the year, between 0 and 10000. `null` takes the quota back."
+    teachingHours: Float
+  ): ProgrammeQuota @scope(area: PLANNING, verb: WRITE)
 }

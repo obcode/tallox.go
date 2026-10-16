@@ -152,6 +152,7 @@ func (d *Demand) CourseInstances(ctx context.Context, filter domain.DemandFilter
 	if filter.Module != uuid.Nil {
 		params.Module = uuid.NullUUID{UUID: filter.Module, Valid: true}
 	}
+	params.ForeignHome = filter.ForeignHome
 
 	rows, err := q.ListCourseInstances(ctx, params)
 	if err != nil {
@@ -220,6 +221,80 @@ func (d *Demand) TeachingLoad(ctx context.Context, semesterCode string) ([]domai
 		})
 	}
 	return loads, nil
+}
+
+// ProgrammeQuotas lists the quotas entered for one study year.
+func (d *Demand) ProgrammeQuotas(ctx context.Context, studyYear int) ([]domain.ProgrammeQuota, error) {
+	rows, err := New(d.pool).ProgrammeQuotasOfYear(ctx, int32(studyYear)) //nolint:gosec // bounded by the service
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the programme quotas: %w", err)
+	}
+
+	out := make([]domain.ProgrammeQuota, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, domain.ProgrammeQuota{
+			Programme: domain.Programme{
+				ID:             row.ProgrammeID,
+				Code:           row.ProgrammeCode,
+				Title:          row.ProgrammeTitle,
+				Active:         row.ProgrammeActive,
+				PlanningStatus: domain.ProgrammeStatus(row.ProgrammePlanningStatus),
+			},
+			StudyYear:     int(row.StudyYear),
+			TeachingHours: row.TeachingHours,
+			SetAt:         row.SetAt,
+			SetBy:         row.SetBy.UUID,
+		})
+	}
+	return out, nil
+}
+
+// SetProgrammeQuota enters or corrects one quota, and returns (nil, nil) for an unknown code.
+//
+// The programme comes back from a second read rather than from the upsert: the statement's
+// RETURNING can only see the row it wrote, and the caller wants the programme with it.
+func (d *Demand) SetProgrammeQuota(ctx context.Context, programme string, studyYear int,
+	hours float64, by uuid.UUID,
+) (*domain.ProgrammeQuota, error) {
+	q := New(d.pool)
+
+	params := SetProgrammeQuotaParams{
+		StudyYear:     int32(studyYear), //nolint:gosec // bounded by the service
+		TeachingHours: hours,
+		Programme:     programme,
+	}
+	if by != uuid.Nil {
+		params.SetBy = uuid.NullUUID{UUID: by, Valid: true}
+	}
+	if _, err := q.SetProgrammeQuota(ctx, params); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("cannot set the programme quota: %w", err)
+	}
+
+	quotas, err := d.ProgrammeQuotas(ctx, studyYear)
+	if err != nil {
+		return nil, err
+	}
+	for _, quota := range quotas {
+		if quota.Programme.Code == programme {
+			return &quota, nil
+		}
+	}
+	return nil, nil
+}
+
+// ClearProgrammeQuota takes one back. Nothing to take back is not an error.
+func (d *Demand) ClearProgrammeQuota(ctx context.Context, programme string, studyYear int) error {
+	_, err := New(d.pool).ClearProgrammeQuota(ctx, ClearProgrammeQuotaParams{
+		StudyYear: int32(studyYear), //nolint:gosec // bounded by the service
+		Programme: programme,
+	})
+	if err != nil {
+		return fmt.Errorf("cannot clear the programme quota: %w", err)
+	}
+	return nil
 }
 
 // CourseInstanceByID returns one instance with everything attached, or (nil, nil).

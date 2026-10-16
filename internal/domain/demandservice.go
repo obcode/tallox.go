@@ -19,6 +19,10 @@ var (
 	ErrProgrammeNotFound = errors.New("diesen Studiengang gibt es nicht")
 	// ErrProgrammeSemesterInvalid is a cohort year outside what a degree has.
 	ErrProgrammeSemesterInvalid = errors.New("das Fachsemester muss zwischen 1 und 12 liegen")
+	// ErrQuotaInvalid is a quota no capacity calculation produces.
+	ErrQuotaInvalid = errors.New("das Kontingent muss zwischen 0 und 10000 SWS liegen")
+	// ErrStudyYearOutOfRange is a study year too far from now to plan.
+	ErrStudyYearOutOfRange = errors.New("dieses Studienjahr liegt zu weit entfernt")
 	// ErrNoteTooLong is a note past what a sentence beside a row can be.
 	ErrNoteTooLong = errors.New("die Notiz darf höchstens 2000 Zeichen lang sein")
 	// ErrDuplicateEntry is the same module, or the same cohort of one, twice in one plan.
@@ -109,7 +113,95 @@ func (s *DemandService) TeachingLoad(ctx context.Context, actor principal.Actor,
 	if err != nil {
 		return nil, err
 	}
-	return s.store.TeachingLoad(ctx, semester.Code)
+	loads, err := s.store.TeachingLoad(ctx, semester.Code)
+	if err != nil {
+		return nil, err
+	}
+
+	// The quota of the study year the semester belongs to. A code that came through ByCode is
+	// well-formed, so the second result cannot be false here.
+	year, _ := StudyYear(semester.Code)
+	quotas, err := s.store.ProgrammeQuotas(ctx, year)
+	if err != nil {
+		return nil, err
+	}
+	byProgramme := make(map[uuid.UUID]float64, len(quotas))
+	for _, q := range quotas {
+		byProgramme[q.Programme.ID] = q.TeachingHours
+	}
+	for i := range loads {
+		if hours, ok := byProgramme[loads[i].HomeProgramme.ID]; ok {
+			loads[i].YearlyQuota = &hours
+		}
+	}
+	return loads, nil
+}
+
+// maxQuota bounds a quota at what no programme of this faculty comes near — a typo guard, like
+// the bound on a part's hours, not a statement about capacity.
+const maxQuota = 10000
+
+// ProgrammeQuotas lists what the programmes may spend in a study year.
+//
+// Readable by everybody who may read the demand, through both doors: it is the line the teaching
+// load is read against, and the load is readable the same way.
+func (s *DemandService) ProgrammeQuotas(ctx context.Context, actor principal.Actor,
+	studyYear int,
+) ([]ProgrammeQuota, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	if err := s.plannableYear(studyYear); err != nil {
+		return nil, err
+	}
+	return s.store.ProgrammeQuotas(ctx, studyYear)
+}
+
+// SetProgrammeQuota enters, corrects or — with nil — takes back a programme's quota for a study
+// year. Returns the quota as it now stands, or nil when it was taken back.
+func (s *DemandService) SetProgrammeQuota(ctx context.Context, actor principal.Actor,
+	programme string, studyYear int, hours *float64,
+) (*ProgrammeQuota, error) {
+	if !policy.MaySetProgrammeQuota(actor) {
+		return nil, ErrCatalogueForbidden
+	}
+	if err := s.plannableYear(studyYear); err != nil {
+		return nil, err
+	}
+	code := normaliseProgrammeCode(programme)
+
+	if hours == nil {
+		found, err := s.catalogue.ProgrammeByCode(ctx, code)
+		if err != nil {
+			return nil, err
+		}
+		if found == nil {
+			return nil, ErrProgrammeNotFound
+		}
+		return nil, s.store.ClearProgrammeQuota(ctx, code, studyYear)
+	}
+
+	if *hours < 0 || *hours > maxQuota {
+		return nil, ErrQuotaInvalid
+	}
+	quota, err := s.store.SetProgrammeQuota(ctx, code, studyYear, *hours, actor.ID)
+	if err != nil {
+		return nil, err
+	}
+	if quota == nil {
+		return nil, ErrProgrammeNotFound
+	}
+	return quota, nil
+}
+
+// plannableYear holds a study year to the reach of a plan: its winter must be a semester one
+// may plan. The same bound for the same reason — a mistyped year in a script would otherwise
+// record a figure for a year nobody will ever look at.
+func (s *DemandService) plannableYear(studyYear int) error {
+	if !IsPlannable(s.semesters.now(), SemesterCode(studyYear, TermWinter)) {
+		return ErrStudyYearOutOfRange
+	}
+	return nil
 }
 
 // Instance returns one instance, or (nil, nil).

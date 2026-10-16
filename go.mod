@@ -1,6 +1,6 @@
 module github.com/obcode/tallox.go
 
-go 1.26.6
+go 1.26.9
 
 require (
 	github.com/99designs/gqlgen v0.17.94

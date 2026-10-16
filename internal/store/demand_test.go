@@ -95,6 +95,23 @@ func moduleID(t *testing.T, s *storetest.Schema, zpaID int64) uuid.UUID {
 	return id
 }
 
+// confirmedModuleID is moduleID for a module somebody has confirmed the proposed split of — the
+// one click that makes a module plannable.
+func confirmedModuleID(t *testing.T, s *storetest.Schema, zpaID int64) uuid.UUID {
+	t.Helper()
+
+	id := moduleID(t, s, zpaID)
+	modules := store.NewModules(s.Pool)
+	module, err := modules.ModuleByID(t.Context(), id)
+	if err != nil || module == nil {
+		t.Fatalf("cannot read module %d: %v", zpaID, err)
+	}
+	if _, err := modules.SetModuleComponents(t.Context(), id, module.ProposedComponents(), uuid.Nil); err != nil {
+		t.Fatalf("cannot confirm the split of module %d: %v", zpaID, err)
+	}
+	return id
+}
+
 func (f demandFixture) declare(t *testing.T, track string) *domain.CourseInstance {
 	t.Helper()
 
@@ -656,45 +673,61 @@ func partOfKind(t *testing.T, instance *domain.CourseInstance, kind domain.Insta
 	return domain.InstancePart{}
 }
 
-// The change that makes a semester plannable in October: a module nobody has split yet is
-// declared from the proposal, and its parts are exactly the ones the interface showed.
-func TestAnInstanceCanBeDeclaredFromTheProposedSplit(t *testing.T) {
+// No instance from a guess. A module nobody has confirmed the split of is refused — by the single
+// declaration and by the planning sheet alike — and nothing is written. Taken back on 2026-10-16
+// after a "je nach Fach" module was planned as 2 × OTHER 4 + 2 × EXERCISE 2 = 12 hours instead of 6.
+func TestAnInstanceNeedsAConfirmedSplit(t *testing.T) {
 	t.Parallel()
 
 	f := newDemandFixture(t)
 	ctx := t.Context()
 
 	// The second fixture module — four hours, lecture plus exercise — and nobody has stated how
-	// they divide.
+	// they divide. There is a proposal, and it is not enough.
 	unsplit := moduleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
 
-	instance, err := f.demand.CreateCourseInstance(ctx, domain.NewCourseInstance{
+	_, err := f.demand.CreateCourseInstance(ctx, domain.NewCourseInstance{
 		SemesterID:  f.semester.ID,
 		ModuleID:    unsplit,
 		ProgrammeID: f.programme,
 	})
-	if err != nil {
-		t.Fatalf("declaring from a proposal gave %v", err)
+	if !errors.Is(err, domain.ErrModuleNotDecomposed) {
+		t.Fatalf("declaring without a confirmed split gave %v, want ErrModuleNotDecomposed", err)
 	}
 
+	plan, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(unsplit, track("", 2))}, uuid.Nil, false)
+	if err != nil {
+		t.Fatalf("planning gave %v", err)
+	}
+	if len(plan.Created) != 0 || len(plan.Refused) != 1 ||
+		plan.Refused[0].Code != "MODULE_NOT_DECOMPOSED" {
+		t.Fatalf("planning created %d and refused %+v, want one MODULE_NOT_DECOMPOSED",
+			len(plan.Created), plan.Refused)
+	}
+
+	var instances int
+	if err := f.schema.Pool.QueryRow(ctx,
+		`SELECT count(*) FROM course_instance WHERE module_id = $1`, unsplit).Scan(&instances); err != nil {
+		t.Fatalf("cannot count the instances: %v", err)
+	}
+	if instances != 0 {
+		t.Fatalf("%d instance(s) of an unconfirmed module were written", instances)
+	}
+
+	// Confirming the proposal is the repair, and then the parts are exactly the confirmed split.
+	confirmed := confirmedModuleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
+	instance, err := f.demand.CreateCourseInstance(ctx, domain.NewCourseInstance{
+		SemesterID:  f.semester.ID,
+		ModuleID:    confirmed,
+		ProgrammeID: f.programme,
+	})
+	if err != nil {
+		t.Fatalf("declaring after confirming gave %v", err)
+	}
 	if got := kinds(instance.Parts); len(got) != 2 ||
 		got[0] != domain.PartKindLecture || got[1] != domain.PartKindExercise {
-		t.Fatalf("the instance holds %v, want the proposal's lecture and exercise", got)
-	}
-	if instance.TeachingHours() != 4 {
-		t.Errorf("the instance costs %v hours, want the 4 the catalogue states",
-			instance.TeachingHours())
-	}
-
-	// And the module still says nobody has stated its split — declaring from a guess must not
-	// quietly turn the guess into the faculty's own statement.
-	var stated int
-	if err := f.schema.Pool.QueryRow(ctx,
-		`SELECT count(*) FROM module_component WHERE module_id = $1`, unsplit).Scan(&stated); err != nil {
-		t.Fatalf("cannot count the split: %v", err)
-	}
-	if stated != 0 {
-		t.Errorf("declaring wrote %d component(s) — a proposal is not a statement", stated)
+		t.Fatalf("the instance holds %v, want the confirmed lecture and exercise", got)
 	}
 }
 
@@ -802,7 +835,7 @@ func TestPlanningLeavesUnnamedModulesAlone(t *testing.T) {
 	f := newDemandFixture(t)
 	ctx := t.Context()
 
-	other := moduleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
+	other := confirmedModuleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
 
 	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme, []domain.DemandEntry{
 		planEntry(f.module, track("", 1)),
@@ -866,8 +899,8 @@ func TestGroupsMultiplyThePracticalUnitAndNothingElse(t *testing.T) {
 	f := newDemandFixture(t)
 	ctx := t.Context()
 
-	seminar := moduleID(t, f.schema, storetest.FixtureModuleTwoSlots)
-	lectureOnly := moduleID(t, f.schema, storetest.FixtureModuleWithoutName)
+	seminar := confirmedModuleID(t, f.schema, storetest.FixtureModuleTwoSlots)
+	lectureOnly := confirmedModuleID(t, f.schema, storetest.FixtureModuleWithoutName)
 
 	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme, []domain.DemandEntry{
 		planEntry(seminar, track("", 3)),
@@ -974,7 +1007,7 @@ func TestPlanningReconcilesWhatOtherPathsLeftBehind(t *testing.T) {
 	}
 
 	// A second module whose split somebody cleared after declaring it.
-	other := moduleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
+	other := confirmedModuleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
 	if _, err := f.demand.CreateCourseInstance(ctx, domain.NewCourseInstance{
 		SemesterID: f.semester.ID, ModuleID: other, ProgrammeID: f.programme,
 	}); err != nil {
@@ -1102,7 +1135,7 @@ func TestAModuleOfAnotherProgrammeCanBeDeclared(t *testing.T) {
 	ctx := t.Context()
 
 	// Its home is PZ; the demand is PA's.
-	foreign := moduleID(t, f.schema, storetest.FixtureModuleOfProgrammeZ)
+	foreign := confirmedModuleID(t, f.schema, storetest.FixtureModuleOfProgrammeZ)
 
 	instance, err := f.demand.CreateCourseInstance(ctx, domain.NewCourseInstance{
 		SemesterID:  f.semester.ID,

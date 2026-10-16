@@ -131,7 +131,7 @@ type Module struct {
 	// Kind is what it stands for — an ordinary module, or an FWP placeholder.
 	Kind ModuleKind
 	// Components is how the module's hours divide between teachable units. Empty means nobody
-	// has stated it — see EffectiveComponents, which falls back to the proposal.
+	// has stated it, and then no instance can be declared — see Plannable.
 	Components []ModuleComponent
 	// Offerings is where the module counts, across every programme and version.
 	Offerings []ModuleOffering
@@ -153,9 +153,10 @@ func (m Module) ComponentHours() (float64, bool) {
 	return total, true
 }
 
-// ProposedComponents is the split this module would get if nobody stated one.
+// ProposedComponents is the split offered for confirmation while nobody has stated one.
 //
-// Derived from the course type and the catalogue's total, on every read, and never written. See
+// Derived from the course type and the catalogue's total, on every read, and never written. No
+// instance is made from it — confirming it is what makes the module plannable. See
 // CourseType.ProposedComponents for the rule and for why the lecture always gets an even number
 // of hours.
 func (m Module) ProposedComponents() []ModuleComponent {
@@ -166,20 +167,7 @@ func (m Module) ProposedComponents() []ModuleComponent {
 	return m.CourseType.ProposedComponents(hours)
 }
 
-// EffectiveComponents is what to plan with: the stated split, or the proposal where there is none.
-//
-// The one place that decides which of the two applies. Two callers need it — the interface, which
-// renders it, and the declaration of an instance, which makes the parts from it — and if they
-// answered that question separately they would eventually answer it differently, on a screen that
-// shows one thing and a database that holds another.
-func (m Module) EffectiveComponents() []ModuleComponent {
-	if len(m.Components) > 0 {
-		return m.Components
-	}
-	return m.ProposedComponents()
-}
-
-// SplitIsEstimated reports whether what EffectiveComponents returns is a guess.
+// SplitIsEstimated reports whether a proposal is waiting to be confirmed.
 //
 // The flag the interface marks a row with. It is deliberately not "the module has no components":
 // a module the catalogue gives no hours for has neither a split nor a proposal, and calling that
@@ -188,17 +176,21 @@ func (m Module) SplitIsEstimated() bool {
 	return len(m.Components) == 0 && len(m.ProposedComponents()) > 0
 }
 
-// Plannable reports whether an instance can be declared for this module.
+// Plannable reports whether an instance can be declared for this module: whether somebody has
+// stated its split.
 //
-// True as soon as there is something to make parts from — a stated split or a proposal. Only the
-// modules the examination office gives no hours at all are left out, twelve of them in the real
-// catalogue, and for those the repair is to state the split by hand.
+// The proposal used to be enough, and that was taken back on 2026-10-16. A guess is not harmless
+// once parts are made from it: "je nach Fach" proposes one OTHER part of the module's full hours,
+// the group control multiplied that part, and when the real split was stated later the guessed
+// parts stayed behind next to the real ones — a four-hour module that cost its programme twelve.
+// Parts are made from a split somebody confirmed, so that what they are made from is the
+// faculty's statement and never the software's.
 //
 // Exposed rather than left to the caller to work out, because the same question is answered in
 // three places that must agree: the picker that offers a module, the refusal that turns one away,
 // and the transaction that writes the parts.
 func (m Module) Plannable() bool {
-	return len(m.EffectiveComponents()) > 0
+	return len(m.Components) > 0
 }
 
 // PracticalKind is the kind of part a "how many groups" figure multiplies.
@@ -206,9 +198,10 @@ func (m Module) Plannable() bool {
 // The first unit of the split that is not the lecture: the laboratory of a lecture-plus-laboratory
 // module, the exercise of a lecture-plus-exercise one, and the seminar itself where a module is
 // nothing but a seminar. A module that is only a lecture has none, and reports false — parallel
-// lectures are not what "groups" means to anybody here.
+// lectures are not what "groups" means to anybody here. A module without a stated split has none
+// either: there are no parts yet to multiply.
 func (m Module) PracticalKind() (InstancePartKind, bool) {
-	kind, _, ok := PracticalKindOf(m.EffectiveComponents())
+	kind, _, ok := PracticalKindOf(m.Components)
 	return kind, ok
 }
 

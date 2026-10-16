@@ -4958,9 +4958,8 @@ type Module {
 
   **Empty means nobody has stated it yet**, and that is a normal state rather than an error: the
   examination office publishes one total and no split, so this is the faculty's own knowledge.
-  While it is empty, ` + "`" + `proposedComponents` + "`" + ` stands in — an instance declared for such a module is
-  made from the proposal and marked as resting on a guess. Only a module the catalogue states no
-  hours for has neither, and that one cannot be declared at all.
+  While it is empty, no instance can be declared for the module (` + "`" + `plannable` + "`" + ` is false);
+  ` + "`" + `proposedComponents` + "`" + ` offers a split to confirm.
   """
   components: [ModuleComponent!]!
   "The sum of the components, or ` + "`" + `null` + "`" + ` while there are none. Compare with ` + "`" + `contactHoursPerWeek` + "`" + `."
@@ -5003,15 +5002,17 @@ type Module {
   is made of — a six-hour module is four plus two, never three plus three.
 
   Empty for a module the catalogue gives no hours for. Confirming a proposal is
-  ` + "`" + `setModuleComponents` + "`" + ` with exactly these values.
+  ` + "`" + `setModuleComponents` + "`" + ` with exactly these values. Nothing is planned with it: an instance is only
+  declared once the split is confirmed — see ` + "`" + `plannable` + "`" + `.
   """
   proposedComponents: [ComponentProposal!]!
   """
-  Whether what this module is currently planned with is a guess.
+  Whether a proposal is waiting to be confirmed.
 
-  True while ` + "`" + `components` + "`" + ` is empty and a proposal exists. It is the mark an interface puts on the
-  row, and the reason it is not simply "components is empty": a module the catalogue states no
-  hours for has neither, and a warning on that row would point at nothing to confirm.
+  True while ` + "`" + `components` + "`" + ` is empty and a proposal exists; such a module is not ` + "`" + `plannable` + "`" + ` yet.
+  It is the mark an interface puts on the row, and the reason it is not simply "components is
+  empty": a module the catalogue states no hours for has neither, and a warning on that row would
+  point at nothing to confirm.
   """
   splitIsEstimated: Boolean!
   """
@@ -5020,7 +5021,7 @@ type Module {
   The first unit of the split that is not the lecture: the laboratory of a lecture-plus-laboratory
   module, the exercise of a lecture-plus-exercise one, and the seminar of a module that is nothing
   else — those do run in parallel groups. ` + "`" + `null` + "`" + ` for a module that is only a lecture, where a
-  number of groups has nothing to multiply.
+  number of groups has nothing to multiply, and for a module whose split is not confirmed yet.
 
   Here so that an interface offering a "how many groups" control asks the same question
   ` + "`" + `planDemand` + "`" + ` answers with, rather than deriving it a second time from the split.
@@ -5029,9 +5030,10 @@ type Module {
   """
   Whether an instance can be declared for this module.
 
-  True as soon as there is something to make parts from — a stated split **or** a proposal. Only
-  the modules with no hours at all are left out, twelve in the real catalogue, and for those the
-  repair is to state the split by hand.
+  True once somebody has stated the split (` + "`" + `components` + "`" + ` is not empty). A proposal is **not**
+  enough: the parts of an instance are made from the confirmed split only, so that a guess never
+  ends up as planned teaching hours. The repair for a module that is not plannable is
+  ` + "`" + `setModuleComponents` + "`" + ` — with ` + "`" + `proposedComponents` + "`" + ` where the guess is right.
 
   Answered here rather than worked out by each caller, because the same question is asked by the
   picker that offers a module, by the refusal that turns one away, and by the transaction that
@@ -5172,9 +5174,8 @@ input ModuleFilter {
   """
   Keep only modules whose split nobody has confirmed yet — where ` + "`" + `splitIsEstimated` + "`" + ` is true.
 
-  The work list. Planning works without it, because the proposal stands in; what this filter
-  finds is where the software is guessing and a person has not yet agreed. A bounded, finishable
-  task rather than an open form.
+  The work list: these modules cannot be planned until somebody confirms their split. A bounded,
+  finishable task rather than an open form.
   """
   withoutComponents: Boolean = false
   """
@@ -5319,10 +5320,8 @@ input LocalModuleInput {
   """
   active: Boolean! = true
   """
-  The split, or omitted to let ` + "`" + `proposedComponents` + "`" + ` stand in.
-
-  Worth stating for a placeholder: a module the catalogue gives no hours for is refused with
-  ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + ` when somebody tries to declare an instance of it.
+  The split. Without it no instance can be declared of the module — that is refused with
+  ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + ` until ` + "`" + `setModuleComponents` + "`" + ` states one.
   """
   components: [ModuleComponentInput!]
 }
@@ -6101,9 +6100,8 @@ input DeclareCourseInstanceInput {
   """
   The module, by id.
 
-  The instance's parts are made from the module's split, or — while nobody has stated one — from
-  ` + "`" + `Module.proposedComponents` + "`" + `. Only a module the catalogue states no hours for has neither, and
-  that answers ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `; the repair is ` + "`" + `setModuleComponents` + "`" + `.
+  The instance's parts are made from the module's confirmed split. A module whose split nobody has
+  confirmed answers ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `; the repair is ` + "`" + `setModuleComponents` + "`" + `.
   """
   moduleId: ID!
   """
@@ -6349,8 +6347,8 @@ extend type Mutation {
   refuses one moves it into a spreadsheet passed around by mail.
 
   The parts are made from the module's split, one per unit, each credited with the hours the
-  split states — or from the proposal, where nobody has stated a split. A module the catalogue
-  gives no hours for is refused with ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `.
+  split states. A module whose split nobody has confirmed is refused with ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `
+  — the proposal is never planned with.
 
   Declaring the same cohort twice is ` + "`" + `TRACK_TAKEN` + "`" + `.
   """

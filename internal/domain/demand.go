@@ -480,19 +480,54 @@ type TeachingLoad struct {
 	// or nil when nothing has been entered. Nil is not zero: zero is a programme with nothing to
 	// spend, nil is a programme nobody has said anything about.
 	YearlyQuota *float64
+	// SpentInWinter is, for a summer semester, what the home programme's modules cost in the
+	// winter of the same study year — zero when nothing was declared there. Nil for a winter
+	// semester, which has nothing before it in its study year.
+	SpentInWinter *float64
 }
 
-// SemesterQuota is the half of the yearly quota one semester may spend, or nil without a quota.
+// SemesterQuota is what this semester may spend of the yearly quota, or nil without a quota.
 //
-// Half, and not a figure of its own: the capacity calculation states a year, and the faculty
-// plans one semester at a time against it. A winter that spends more than half leaves the summer
-// less, and that is exactly what a negative balance is there to say.
+// Two rules, one per term, and the difference is the point. A winter is planned while its summer
+// is still to come, so it is held to half the year. A summer is planned after the winter has
+// happened: what the winter spent is spent, and what remains of the year is a concrete figure
+// to stay within — not half of anything.
 func (l TeachingLoad) SemesterQuota() *float64 {
 	if l.YearlyQuota == nil {
 		return nil
 	}
+	if l.SpentInWinter != nil {
+		left := *l.YearlyQuota - *l.SpentInWinter
+		return &left
+	}
 	half := *l.YearlyQuota / 2
 	return &half
+}
+
+// StudyYearLoad is one home programme's study year: its quota, what the winter costs, what the
+// summer costs.
+//
+// The view the programme leads plan against. The quota is stated for the year, so the question
+// they ask is the year's — is there room for another elective — and the summer's demand counts
+// as soon as somebody has declared it, which is how a summer is played through while the winter
+// is being planned.
+type StudyYearLoad struct {
+	HomeProgramme Programme
+	StudyYear     int
+	YearlyQuota   *float64
+	WinterHours   float64
+	SummerHours   float64
+	// PartsWithoutHours over both semesters: non-zero means the figures are too low.
+	PartsWithoutHours int
+}
+
+// Remaining is the quota minus both semesters, or nil without a quota.
+func (y StudyYearLoad) Remaining() *float64 {
+	if y.YearlyQuota == nil {
+		return nil
+	}
+	left := *y.YearlyQuota - y.WinterHours - y.SummerHours
+	return &left
 }
 
 // Balance is the semester quota minus the load, or nil without a quota.

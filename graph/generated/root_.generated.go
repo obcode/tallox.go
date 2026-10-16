@@ -396,6 +396,16 @@ type ComplexityRoot struct {
 		TeachingHours func(childComplexity int) int
 	}
 
+	ProgrammeStudyYearLoad struct {
+		HomeProgramme     func(childComplexity int) int
+		PartsWithoutHours func(childComplexity int) int
+		Remaining         func(childComplexity int) int
+		StudyYear         func(childComplexity int) int
+		SummerHours       func(childComplexity int) int
+		WinterHours       func(childComplexity int) int
+		YearlyQuota       func(childComplexity int) int
+	}
+
 	ProgrammeTeachingLoad struct {
 		Balance           func(childComplexity int) int
 		FwpHours          func(childComplexity int) int
@@ -442,6 +452,7 @@ type ComplexityRoot struct {
 		Semester                   func(childComplexity int, code string) int
 		Semesters                  func(childComplexity int) int
 		Session                    func(childComplexity int) int
+		StudyYearLoad              func(childComplexity int, studyYear int) int
 		SubjectGroup               func(childComplexity int, id string) int
 		SubjectGroups              func(childComplexity int, includeInactive *bool) int
 		SubjectGroupsWithoutLead   func(childComplexity int) int
@@ -2456,6 +2467,49 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ProgrammeQuota.TeachingHours(childComplexity), true
 
+	case "ProgrammeStudyYearLoad.homeProgramme":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.HomeProgramme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.HomeProgramme(childComplexity), true
+	case "ProgrammeStudyYearLoad.partsWithoutHours":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.PartsWithoutHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.PartsWithoutHours(childComplexity), true
+	case "ProgrammeStudyYearLoad.remaining":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.Remaining == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.Remaining(childComplexity), true
+	case "ProgrammeStudyYearLoad.studyYear":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.StudyYear == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.StudyYear(childComplexity), true
+	case "ProgrammeStudyYearLoad.summerHours":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.SummerHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.SummerHours(childComplexity), true
+	case "ProgrammeStudyYearLoad.winterHours":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.WinterHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.WinterHours(childComplexity), true
+	case "ProgrammeStudyYearLoad.yearlyQuota":
+		if e.ComplexityRoot.ProgrammeStudyYearLoad.YearlyQuota == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeStudyYearLoad.YearlyQuota(childComplexity), true
+
 	case "ProgrammeTeachingLoad.balance":
 		if e.ComplexityRoot.ProgrammeTeachingLoad.Balance == nil {
 			break
@@ -2815,6 +2869,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Session(childComplexity), true
+	case "Query.studyYearLoad":
+		if e.ComplexityRoot.Query.StudyYearLoad == nil {
+			break
+		}
+
+		args, err := ec.field_Query_studyYearLoad_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.StudyYearLoad(childComplexity, args["studyYear"].(int)), true
 	case "Query.subjectGroup":
 		if e.ComplexityRoot.Query.SubjectGroup == nil {
 			break
@@ -5527,14 +5592,42 @@ type ProgrammeTeachingLoad {
   entered it — see ` + "`" + `ProgrammeQuota` + "`" + `. ` + "`" + `null` + "`" + ` when nothing has been entered, which is not zero.
   """
   yearlyQuota: Float
-  "Half of ` + "`" + `yearlyQuota` + "`" + `: the share one semester may spend. ` + "`" + `null` + "`" + ` without a quota."
+  """
+  What this semester may spend of ` + "`" + `yearlyQuota` + "`" + `. A winter: half of it, because its summer is
+  still to come. A summer: what the winter of the same study year left — ` + "`" + `yearlyQuota` + "`" + ` minus that
+  winter's ` + "`" + `teachingHours` + "`" + ` — because what the winter spent is spent. ` + "`" + `null` + "`" + ` without a quota.
+  """
   semesterQuota: Float
   """
   ` + "`" + `semesterQuota` + "`" + ` minus ` + "`" + `teachingHours` + "`" + `. Negative: the programme spends more than it has.
   Positive: there is room, for another elective or for a programme that needs more than its own.
-  ` + "`" + `null` + "`" + ` without a quota.
+  For a summer this is what is left of the study year. ` + "`" + `null` + "`" + ` without a quota.
   """
   balance: Float
+}
+
+"""
+One home programme's study year: the quota, what the winter costs and what the summer costs.
+
+The view a programme lead plans against: is there room for another elective this year. The
+summer counts as soon as its demand is declared, which is how a summer is played through while
+the winter is still being planned.
+"""
+type ProgrammeStudyYearLoad {
+  "The programme the modules belong to."
+  homeProgramme: Programme!
+  "The year the study year's winter semester starts in."
+  studyYear: Int!
+  "The quota entered for the study year, or ` + "`" + `null` + "`" + ` when nothing has been entered."
+  yearlyQuota: Float
+  "The teaching of the home programme's modules in the winter semester, as ` + "`" + `teachingLoad` + "`" + ` counts it."
+  winterHours: Float!
+  "The same for the summer semester that follows."
+  summerHours: Float!
+  "` + "`" + `yearlyQuota` + "`" + ` minus both semesters. Negative: the year is overspent. ` + "`" + `null` + "`" + ` without a quota."
+  remaining: Float
+  "Parts in either semester that state no hours and therefore count zero."
+  partsWithoutHours: Int!
 }
 
 """
@@ -5587,6 +5680,15 @@ extend type Query {
     "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
     semester: String!
   ): [ProgrammeTeachingLoad!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  A study year's teaching by home programme: winter and summer beside the year's quota. Every
+  programme that appears in either semester is listed, by code. Readable like ` + "`" + `teachingLoad` + "`" + `.
+  """
+  studyYearLoad(
+    "The year the study year's winter semester starts in: ` + "`" + `2026` + "`" + ` for 2026-WS and 2027-SS."
+    studyYear: Int!
+  ): [ProgrammeStudyYearLoad!]! @scope(area: PLANNING, verb: READ)
 
   """
   The quotas entered for one study year, ordered by programme code. A programme without one is
@@ -6486,7 +6588,7 @@ enum ScopeArea {
 
   Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `planningSemester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `,
   ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
-  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `teachingLoad` + "`" + `, ` + "`" + `programmeQuotas` + "`" + `, ` + "`" + `setProgrammeQuota` + "`" + `,
+  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `teachingLoad` + "`" + `, ` + "`" + `studyYearLoad` + "`" + `, ` + "`" + `programmeQuotas` + "`" + `, ` + "`" + `setProgrammeQuota` + "`" + `,
   ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
   ` + "`" + `publishWishes` + "`" + `, ` + "`" + `publishAssignments` + "`" + `,
   # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
@@ -8804,6 +8906,26 @@ func (ec *executionContext) childFields_ProgrammeQuota(ctx context.Context, fiel
 		return ec.fieldContext_ProgrammeQuota_setAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ProgrammeQuota", field.Name)
+}
+
+func (ec *executionContext) childFields_ProgrammeStudyYearLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "homeProgramme":
+		return ec.fieldContext_ProgrammeStudyYearLoad_homeProgramme(ctx, field)
+	case "studyYear":
+		return ec.fieldContext_ProgrammeStudyYearLoad_studyYear(ctx, field)
+	case "yearlyQuota":
+		return ec.fieldContext_ProgrammeStudyYearLoad_yearlyQuota(ctx, field)
+	case "winterHours":
+		return ec.fieldContext_ProgrammeStudyYearLoad_winterHours(ctx, field)
+	case "summerHours":
+		return ec.fieldContext_ProgrammeStudyYearLoad_summerHours(ctx, field)
+	case "remaining":
+		return ec.fieldContext_ProgrammeStudyYearLoad_remaining(ctx, field)
+	case "partsWithoutHours":
+		return ec.fieldContext_ProgrammeStudyYearLoad_partsWithoutHours(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ProgrammeStudyYearLoad", field.Name)
 }
 
 func (ec *executionContext) childFields_ProgrammeTeachingLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

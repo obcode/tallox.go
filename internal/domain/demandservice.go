@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode/utf8"
 
@@ -121,20 +122,113 @@ func (s *DemandService) TeachingLoad(ctx context.Context, actor principal.Actor,
 	// The quota of the study year the semester belongs to. A code that came through ByCode is
 	// well-formed, so the second result cannot be false here.
 	year, _ := StudyYear(semester.Code)
-	quotas, err := s.store.ProgrammeQuotas(ctx, year)
+	quotas, err := s.quotasByProgramme(ctx, year)
 	if err != nil {
 		return nil, err
 	}
-	byProgramme := make(map[uuid.UUID]float64, len(quotas))
-	for _, q := range quotas {
-		byProgramme[q.Programme.ID] = q.TeachingHours
+
+	// A summer is read against what the winter before it left, so it needs that winter.
+	var winter map[uuid.UUID]float64
+	if strings.HasSuffix(semester.Code, string(TermSummer)) {
+		winterLoads, err := s.store.TeachingLoad(ctx, SemesterCode(year, TermWinter))
+		if err != nil {
+			return nil, err
+		}
+		winter = hoursByProgramme(winterLoads)
 	}
+
 	for i := range loads {
-		if hours, ok := byProgramme[loads[i].HomeProgramme.ID]; ok {
+		id := loads[i].HomeProgramme.ID
+		if hours, ok := quotas[id]; ok {
 			loads[i].YearlyQuota = &hours
+		}
+		if winter != nil {
+			spent := winter[id]
+			loads[i].SpentInWinter = &spent
 		}
 	}
 	return loads, nil
+}
+
+// StudyYearLoad is a study year's teaching by home programme, winter and summer side by side
+// against the year's quota.
+//
+// Readable like the teaching load it is made of. Every programme that appears in either semester
+// is listed, in the order of its code.
+func (s *DemandService) StudyYearLoad(ctx context.Context, actor principal.Actor,
+	studyYear int,
+) ([]StudyYearLoad, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	if err := s.plannableYear(studyYear); err != nil {
+		return nil, err
+	}
+
+	winter, err := s.store.TeachingLoad(ctx, SemesterCode(studyYear, TermWinter))
+	if err != nil {
+		return nil, err
+	}
+	summer, err := s.store.TeachingLoad(ctx, SemesterCode(studyYear+1, TermSummer))
+	if err != nil {
+		return nil, err
+	}
+	quotas, err := s.quotasByProgramme(ctx, studyYear)
+	if err != nil {
+		return nil, err
+	}
+
+	byID := map[uuid.UUID]*StudyYearLoad{}
+	entry := func(p Programme) *StudyYearLoad {
+		if e, ok := byID[p.ID]; ok {
+			return e
+		}
+		e := &StudyYearLoad{HomeProgramme: p, StudyYear: studyYear}
+		if hours, ok := quotas[p.ID]; ok {
+			e.YearlyQuota = &hours
+		}
+		byID[p.ID] = e
+		return e
+	}
+	for _, l := range winter {
+		e := entry(l.HomeProgramme)
+		e.WinterHours = l.TeachingHours()
+		e.PartsWithoutHours += l.PartsWithoutHours()
+	}
+	for _, l := range summer {
+		e := entry(l.HomeProgramme)
+		e.SummerHours = l.TeachingHours()
+		e.PartsWithoutHours += l.PartsWithoutHours()
+	}
+
+	out := make([]StudyYearLoad, 0, len(byID))
+	for _, e := range byID {
+		out = append(out, *e)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].HomeProgramme.Code < out[j].HomeProgramme.Code })
+	return out, nil
+}
+
+// quotasByProgramme is a study year's quotas keyed by programme.
+func (s *DemandService) quotasByProgramme(ctx context.Context, studyYear int) (map[uuid.UUID]float64, error) {
+	quotas, err := s.store.ProgrammeQuotas(ctx, studyYear)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[uuid.UUID]float64, len(quotas))
+	for _, q := range quotas {
+		out[q.Programme.ID] = q.TeachingHours
+	}
+	return out, nil
+}
+
+// hoursByProgramme is a semester's teaching keyed by home programme.
+func hoursByProgramme(loads []TeachingLoad) map[uuid.UUID]float64 {
+	out := make(map[uuid.UUID]float64, len(loads))
+	for _, l := range loads {
+		out[l.HomeProgramme.ID] = l.TeachingHours()
+	}
+	return out
 }
 
 // maxQuota bounds a quota at what no programme of this faculty comes near — a typo guard, like

@@ -74,10 +74,11 @@ func TestTheDeansOfficeEntersAQuotaAndTheLoadReadsAgainstIt(t *testing.T) {
 			for _, l := range out.TeachingLoad {
 				switch l.HomeProgramme.Code {
 				case storetest.FixtureProgrammeA:
-					// One 2+2-hour cohort costs 4 of the 5 the summer may spend.
+					// Nothing was declared in the winter before, so the summer may spend the whole
+					// year, and one 2+2-hour cohort costs 4 of it.
 					if l.YearlyQuota == nil || *l.YearlyQuota != 10 || l.SemesterQuota == nil ||
-						*l.SemesterQuota != 5 || l.Balance == nil || *l.Balance != 1 {
-						t.Errorf("PA reads quota %v, semester %v, balance %v; want 10, 5 and 1",
+						*l.SemesterQuota != 10 || l.Balance == nil || *l.Balance != 6 {
+						t.Errorf("PA reads quota %v, semester %v, balance %v; want 10, 10 and 6",
 							l.YearlyQuota, l.SemesterQuota, l.Balance)
 					}
 				case storetest.FixtureProgrammeB:
@@ -177,6 +178,9 @@ func TestTheQuotaNeedsThePlanningScope(t *testing.T) {
 		c.Do(t, `query { programmeQuotas(studyYear: 2026) { studyYear } }`, nil),
 		policy.Scope{Area: policy.ScopeAreaPlanning, Verb: policy.ScopeVerbRead})
 	assertInsufficientScope(t,
+		c.Do(t, `query { studyYearLoad(studyYear: 2026) { studyYear } }`, nil),
+		policy.Scope{Area: policy.ScopeAreaPlanning, Verb: policy.ScopeVerbRead})
+	assertInsufficientScope(t,
 		c.Do(t, setQuotaMutation, map[string]any{"p": "PA", "y": 2026, "h": 1.0}),
 		policy.Scope{Area: policy.ScopeAreaPlanning, Verb: policy.ScopeVerbWrite})
 }
@@ -217,5 +221,80 @@ func TestTheForeignHomeFilterThroughBothDoors(t *testing.T) {
 				out.CourseInstances[0].Module.HomeProgramme.Code != storetest.FixtureProgrammeA {
 				t.Errorf("PB imports %+v, want PA's module", out.CourseInstances)
 			}
+		})
+}
+
+// The study year through the API: the winter is half the year, the summer is what the winter
+// left, and the year view puts both beside the quota — the same figures at both doors.
+func TestTheStudyYearReadsWinterAndSummerAgainstTheQuota(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}},
+		grants{testdata.Fuenf, []string{"DEANS_OFFICE"}},
+		grants{testdata.Eins, []string{"LECTURER"}})
+
+	lead := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+	lead.MustQuery(t, declareMutation, declareInput(f, storetest.FixtureProgrammeA, "2026-WS", ""), nil)
+	lead.MustQuery(t, declareMutation, declareInput(f, storetest.FixtureProgrammeA, "2027-SS", ""), nil)
+	graphqltest.New(f.handler).WithToken(testdata.Fuenf.Token).MustQuery(t, setQuotaMutation,
+		map[string]any{"p": storetest.FixtureProgrammeA, "y": 2026, "h": 10.0}, nil)
+
+	const q = `query {
+		winter: teachingLoad(semester: "2026-WS") { homeProgramme { code } semesterQuota balance }
+		summer: teachingLoad(semester: "2027-SS") { homeProgramme { code } semesterQuota balance }
+		studyYearLoad(studyYear: 2026) {
+			homeProgramme { code } yearlyQuota winterHours summerHours remaining
+		}
+	}`
+	type semesterRow struct {
+		HomeProgramme struct{ Code string }
+		SemesterQuota *float64
+		Balance       *float64
+	}
+	pick := func(rows []semesterRow) semesterRow {
+		for _, r := range rows {
+			if r.HomeProgramme.Code == storetest.FixtureProgrammeA {
+				return r
+			}
+		}
+		t.Fatalf("no row for PA in %+v", rows)
+		return semesterRow{}
+	}
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct {
+				Winter        []semesterRow
+				Summer        []semesterRow
+				StudyYearLoad []struct {
+					HomeProgramme struct{ Code string }
+					YearlyQuota   *float64
+					WinterHours   float64
+					SummerHours   float64
+					Remaining     *float64
+				}
+			}
+			c.MustQuery(t, q, nil, &out)
+
+			if w := pick(out.Winter); *w.SemesterQuota != 5 || *w.Balance != 1 {
+				t.Errorf("the winter may spend %v with %v left, want 5 and 1", *w.SemesterQuota, *w.Balance)
+			}
+			if s := pick(out.Summer); *s.SemesterQuota != 6 || *s.Balance != 2 {
+				t.Errorf("the summer may spend %v with %v left, want 10 − 4 = 6 and 2",
+					*s.SemesterQuota, *s.Balance)
+			}
+			for _, y := range out.StudyYearLoad {
+				if y.HomeProgramme.Code != storetest.FixtureProgrammeA {
+					continue
+				}
+				if y.WinterHours != 4 || y.SummerHours != 4 || y.Remaining == nil || *y.Remaining != 2 {
+					t.Errorf("PA's year: winter %v, summer %v, remaining %v; want 4, 4 and 2",
+						y.WinterHours, y.SummerHours, y.Remaining)
+				}
+				return
+			}
+			t.Errorf("the study year has no row for PA: %+v", out.StudyYearLoad)
 		})
 }

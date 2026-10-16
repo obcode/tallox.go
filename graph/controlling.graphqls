@@ -44,14 +44,42 @@ type ProgrammeTeachingLoad {
   entered it — see `ProgrammeQuota`. `null` when nothing has been entered, which is not zero.
   """
   yearlyQuota: Float
-  "Half of `yearlyQuota`: the share one semester may spend. `null` without a quota."
+  """
+  What this semester may spend of `yearlyQuota`. A winter: half of it, because its summer is
+  still to come. A summer: what the winter of the same study year left — `yearlyQuota` minus that
+  winter's `teachingHours` — because what the winter spent is spent. `null` without a quota.
+  """
   semesterQuota: Float
   """
   `semesterQuota` minus `teachingHours`. Negative: the programme spends more than it has.
   Positive: there is room, for another elective or for a programme that needs more than its own.
-  `null` without a quota.
+  For a summer this is what is left of the study year. `null` without a quota.
   """
   balance: Float
+}
+
+"""
+One home programme's study year: the quota, what the winter costs and what the summer costs.
+
+The view a programme lead plans against: is there room for another elective this year. The
+summer counts as soon as its demand is declared, which is how a summer is played through while
+the winter is still being planned.
+"""
+type ProgrammeStudyYearLoad {
+  "The programme the modules belong to."
+  homeProgramme: Programme!
+  "The year the study year's winter semester starts in."
+  studyYear: Int!
+  "The quota entered for the study year, or `null` when nothing has been entered."
+  yearlyQuota: Float
+  "The teaching of the home programme's modules in the winter semester, as `teachingLoad` counts it."
+  winterHours: Float!
+  "The same for the summer semester that follows."
+  summerHours: Float!
+  "`yearlyQuota` minus both semesters. Negative: the year is overspent. `null` without a quota."
+  remaining: Float
+  "Parts in either semester that state no hours and therefore count zero."
+  partsWithoutHours: Int!
 }
 
 """
@@ -104,6 +132,15 @@ extend type Query {
     "Four digits, a hyphen and SS or WS, for example `2027-SS`."
     semester: String!
   ): [ProgrammeTeachingLoad!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  A study year's teaching by home programme: winter and summer beside the year's quota. Every
+  programme that appears in either semester is listed, by code. Readable like `teachingLoad`.
+  """
+  studyYearLoad(
+    "The year the study year's winter semester starts in: `2026` for 2026-WS and 2027-SS."
+    studyYear: Int!
+  ): [ProgrammeStudyYearLoad!]! @scope(area: PLANNING, verb: READ)
 
   """
   The quotas entered for one study year, ordered by programme code. A programme without one is

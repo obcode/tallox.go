@@ -94,3 +94,19 @@ func TestPlannableIsBoundedInBothDirections(t *testing.T) {
 		}
 	}
 }
+
+// The summer belongs to the study year that began the October before it.
+func TestStudyYear(t *testing.T) {
+	t.Parallel()
+
+	for code, want := range map[string]int{"2026-WS": 2026, "2027-SS": 2026, "2027-WS": 2027} {
+		if got, ok := domain.StudyYear(code); !ok || got != want {
+			t.Errorf("StudyYear(%q) = %d, %v; want %d", code, got, ok, want)
+		}
+	}
+	for _, code := range []string{"", "2027", "2027-ss", "27-WS", "2027 SS"} {
+		if _, ok := domain.StudyYear(code); ok {
+			t.Errorf("StudyYear(%q) accepted a malformed code", code)
+		}
+	}
+}

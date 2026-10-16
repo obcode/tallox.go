@@ -279,7 +279,7 @@ func (r *mutationResolver) CopyDemandFromSemester(ctx context.Context, from stri
 }
 
 // CourseInstances is the resolver for the courseInstances field.
-func (r *queryResolver) CourseInstances(ctx context.Context, semester string, programme *string, module *string) ([]*model.CourseInstance, error) {
+func (r *queryResolver) CourseInstances(ctx context.Context, semester string, programme *string, module *string, foreignHome *bool) ([]*model.CourseInstance, error) {
 	actor := principal.From(ctx)
 
 	filter := domain.DemandFilter{SemesterCode: semester}
@@ -292,6 +292,9 @@ func (r *queryResolver) CourseInstances(ctx context.Context, semester string, pr
 			return nil, badRequest("MODULE_NOT_FOUND", domain.ErrModuleNotFound.Error())
 		}
 		filter.Module = id
+	}
+	if foreignHome != nil {
+		filter.ForeignHome = *foreignHome
 	}
 
 	instances, err := r.Demand.Instances(ctx, actor, filter)

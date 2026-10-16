@@ -920,6 +920,25 @@ type PolicyDecision struct {
 	Reason string `json:"reason"`
 }
 
+// What a study programme may spend on teaching in one study year.
+//
+// The figure comes from the faculty's capacity calculation — the teaching available to a programme,
+// theses included — and is entered by the dean's office. Counted the way `teachingHours` counts:
+// every laboratory and exercise group.
+//
+// A study year is named after the year its winter semester starts in: `2026` is `2026-WS` and
+// `2027-SS`. Each of the two semesters is read against half of it.
+type ProgrammeQuota struct {
+	// The programme the figure is for.
+	Programme *Programme `json:"programme"`
+	// The year the study year's winter semester starts in: `2026` for 2026-WS and 2027-SS.
+	StudyYear int `json:"studyYear"`
+	// Teaching hours per week over the study year.
+	TeachingHours float64 `json:"teachingHours"`
+	// When it was last set.
+	SetAt time.Time `json:"setAt"`
+}
+
 // What one programme's modules cost the faculty in a semester, wherever they are taught.
 //
 // The controlling view the faculty plans its electives against. A module's teaching counts at its
@@ -953,6 +972,15 @@ type ProgrammeTeachingLoad struct {
 	// The load split by the programme of the instance, ordered by its code. Empty for a planned
 	// programme nothing has been declared for yet.
 	Shares []*TeachingLoadShare `json:"shares"`
+	// What the programme may spend in the study year this semester belongs to, as the dean's office
+	// entered it — see `ProgrammeQuota`. `null` when nothing has been entered, which is not zero.
+	YearlyQuota *float64 `json:"yearlyQuota,omitempty"`
+	// Half of `yearlyQuota`: the share one semester may spend. `null` without a quota.
+	SemesterQuota *float64 `json:"semesterQuota,omitempty"`
+	// `semesterQuota` minus `teachingHours`. Negative: the programme spends more than it has.
+	// Positive: there is room, for another elective or for a programme that needs more than its own.
+	// `null` without a quota.
+	Balance *float64 `json:"balance,omitempty"`
 }
 
 // Everything that can be read.

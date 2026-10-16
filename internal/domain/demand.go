@@ -276,6 +276,9 @@ type DemandFilter struct {
 	Programme string
 	// Module keeps only the instances of one module, across cohorts. Zero for every module.
 	Module uuid.UUID
+	// ForeignHome keeps only the instances of modules another programme is home to: what a
+	// programme takes from elsewhere, the electives of a basket among them.
+	ForeignHome bool
 }
 
 // NewCourseInstance is a demand about to be declared.
@@ -473,6 +476,50 @@ type TeachingLoad struct {
 	// Shares is the load split by the programme of the instance, ordered by its code. Empty for a
 	// planned programme nothing has been declared for yet.
 	Shares []TeachingLoadShare
+	// YearlyQuota is what the dean's office entered for the study year this semester belongs to,
+	// or nil when nothing has been entered. Nil is not zero: zero is a programme with nothing to
+	// spend, nil is a programme nobody has said anything about.
+	YearlyQuota *float64
+}
+
+// SemesterQuota is the half of the yearly quota one semester may spend, or nil without a quota.
+//
+// Half, and not a figure of its own: the capacity calculation states a year, and the faculty
+// plans one semester at a time against it. A winter that spends more than half leaves the summer
+// less, and that is exactly what a negative balance is there to say.
+func (l TeachingLoad) SemesterQuota() *float64 {
+	if l.YearlyQuota == nil {
+		return nil
+	}
+	half := *l.YearlyQuota / 2
+	return &half
+}
+
+// Balance is the semester quota minus the load, or nil without a quota.
+//
+// Negative: the programme spends more than it has. Positive: there is room — for another
+// elective, or for a programme that needs more than its own.
+func (l TeachingLoad) Balance() *float64 {
+	quota := l.SemesterQuota()
+	if quota == nil {
+		return nil
+	}
+	balance := *quota - l.TeachingHours()
+	return &balance
+}
+
+// ProgrammeQuota is what a study programme may spend on teaching in one study year.
+//
+// The figure comes from the faculty's capacity calculation and is entered by the dean's office.
+// A study year is named after the year its winter semester starts in: 2026 is 2026-WS and
+// 2027-SS — see StudyYear.
+type ProgrammeQuota struct {
+	Programme     Programme
+	StudyYear     int
+	TeachingHours float64
+	// SetAt and SetBy are the last change. SetBy is uuid.Nil once that person's row is gone.
+	SetAt time.Time
+	SetBy uuid.UUID
 }
 
 // TeachingLoadShare is the part of a home programme's load taught in one programme's instances.
@@ -534,6 +581,13 @@ func (l TeachingLoad) sum(f func(TeachingLoadShare) float64) float64 {
 
 // DemandStore is the persistence the demand service needs, and nothing more.
 type DemandStore interface {
+	// ProgrammeQuotas lists the quotas entered for one study year, ordered by programme code.
+	ProgrammeQuotas(ctx context.Context, studyYear int) ([]ProgrammeQuota, error)
+	// SetProgrammeQuota enters or corrects one, and returns (nil, nil) for an unknown programme.
+	SetProgrammeQuota(ctx context.Context, programme string, studyYear int, hours float64,
+		by uuid.UUID) (*ProgrammeQuota, error)
+	// ClearProgrammeQuota takes one back. Taking back what was never entered is not an error.
+	ClearProgrammeQuota(ctx context.Context, programme string, studyYear int) error
 	// CourseInstances lists the demand, with parts, borrowed parts and modules attached.
 	CourseInstances(ctx context.Context, filter DemandFilter) ([]CourseInstance, error)
 	// CourseInstanceByID returns one instance, or (nil, nil) when there is none.

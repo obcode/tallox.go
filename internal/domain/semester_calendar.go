@@ -70,6 +70,25 @@ func SemesterCode(year int, term Term) string {
 	return fmt.Sprintf("%04d-%s", year, term)
 }
 
+// StudyYear is the study year a semester belongs to, named after the year its winter starts.
+//
+// 2026-WS and 2027-SS are both 2026: the study year runs from one October to the next
+// September, and the summer belongs to the winter before it. The faculty's capacity calculation
+// is stated for such a year. The code must be well-formed; the second result says whether it was.
+func StudyYear(code string) (int, bool) {
+	if !semesterCodePattern.MatchString(code) {
+		return 0, false
+	}
+	var year int
+	if _, err := fmt.Sscanf(code[:4], "%d", &year); err != nil {
+		return 0, false
+	}
+	if Term(code[5:]) == TermSummer {
+		year--
+	}
+	return year, true
+}
+
 // CurrentSemester is the semester the given moment falls in.
 func CurrentSemester(at time.Time) string {
 	year, term := semesterAt(at)

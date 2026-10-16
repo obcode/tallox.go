@@ -12,6 +12,20 @@ import (
 	"github.com/obcode/tallox.go/internal/principal"
 )
 
+// SetProgrammeQuota is the resolver for the setProgrammeQuota field.
+func (r *mutationResolver) SetProgrammeQuota(ctx context.Context, programme string, studyYear int, teachingHours *float64) (*model.ProgrammeQuota, error) {
+	actor := principal.From(ctx)
+
+	quota, err := r.Demand.SetProgrammeQuota(ctx, actor, programme, studyYear, teachingHours)
+	if err != nil {
+		return nil, demandUserFacing(actor, err)
+	}
+	if quota == nil {
+		return nil, nil
+	}
+	return programmeQuotaModel(*quota), nil
+}
+
 // TeachingLoad is the resolver for the teachingLoad field.
 func (r *queryResolver) TeachingLoad(ctx context.Context, semester string) ([]*model.ProgrammeTeachingLoad, error) {
 	actor := principal.From(ctx)
@@ -24,6 +38,22 @@ func (r *queryResolver) TeachingLoad(ctx context.Context, semester string) ([]*m
 	out := make([]*model.ProgrammeTeachingLoad, 0, len(loads))
 	for _, l := range loads {
 		out = append(out, teachingLoadModel(l))
+	}
+	return out, nil
+}
+
+// ProgrammeQuotas is the resolver for the programmeQuotas field.
+func (r *queryResolver) ProgrammeQuotas(ctx context.Context, studyYear int) ([]*model.ProgrammeQuota, error) {
+	actor := principal.From(ctx)
+
+	quotas, err := r.Demand.ProgrammeQuotas(ctx, actor, studyYear)
+	if err != nil {
+		return nil, demandUserFacing(actor, err)
+	}
+
+	out := make([]*model.ProgrammeQuota, 0, len(quotas))
+	for _, q := range quotas {
+		out = append(out, programmeQuotaModel(q))
 	}
 	return out, nil
 }

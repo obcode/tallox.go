@@ -8,6 +8,7 @@ import (
 	"math"
 	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/obcode/tallox.go/graph/model"
@@ -23,6 +24,107 @@ import (
 // endregion ***************************** args.gotpl *****************************
 
 // region    **************************** field.gotpl *****************************
+
+func (ec *executionContext) _ProgrammeQuota_programme(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeQuota) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeQuota_programme(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Programme, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Programme) graphql.Marshaler {
+			return ec.marshalNProgramme2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgramme(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeQuota_programme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ProgrammeQuota",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Programme(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ProgrammeQuota_studyYear(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeQuota) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeQuota_studyYear(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StudyYear, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeQuota_studyYear(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeQuota", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ProgrammeQuota_teachingHours(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeQuota) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeQuota_teachingHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TeachingHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeQuota_teachingHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeQuota", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _ProgrammeQuota_setAt(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeQuota) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeQuota_setAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SetAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeQuota_setAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeQuota", field, false, false, errors.New("field of type Time does not have child fields"))
+}
 
 func (ec *executionContext) _ProgrammeTeachingLoad_homeProgramme(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeTeachingLoad) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
@@ -226,6 +328,75 @@ func (ec *executionContext) fieldContext_ProgrammeTeachingLoad_shares(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _ProgrammeTeachingLoad_yearlyQuota(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeTeachingLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeTeachingLoad_yearlyQuota(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.YearlyQuota, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *float64) graphql.Marshaler {
+			return ec.marshalOFloat2ᚖfloat64(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeTeachingLoad_yearlyQuota(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeTeachingLoad", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _ProgrammeTeachingLoad_semesterQuota(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeTeachingLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeTeachingLoad_semesterQuota(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SemesterQuota, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *float64) graphql.Marshaler {
+			return ec.marshalOFloat2ᚖfloat64(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeTeachingLoad_semesterQuota(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeTeachingLoad", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _ProgrammeTeachingLoad_balance(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeTeachingLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeTeachingLoad_balance(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Balance, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *float64) graphql.Marshaler {
+			return ec.marshalOFloat2ᚖfloat64(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeTeachingLoad_balance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeTeachingLoad", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
 func (ec *executionContext) _TeachingLoadShare_programme(ctx context.Context, field graphql.CollectedField, obj *model.TeachingLoadShare) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -385,6 +556,59 @@ func (ec *executionContext) fieldContext_TeachingLoadShare_partsWithoutHours(_ c
 
 // region    **************************** object.gotpl ****************************
 
+var programmeQuotaImplementors = []string{"ProgrammeQuota"}
+
+func (ec *executionContext) _ProgrammeQuota(ctx context.Context, sel ast.SelectionSet, obj *model.ProgrammeQuota) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, programmeQuotaImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ProgrammeQuota")
+		case "programme":
+			out.Values[i] = ec._ProgrammeQuota_programme(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "studyYear":
+			out.Values[i] = ec._ProgrammeQuota_studyYear(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "teachingHours":
+			out.Values[i] = ec._ProgrammeQuota_teachingHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setAt":
+			out.Values[i] = ec._ProgrammeQuota_setAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var programmeTeachingLoadImplementors = []string{"ProgrammeTeachingLoad"}
 
 func (ec *executionContext) _ProgrammeTeachingLoad(ctx context.Context, sel ast.SelectionSet, obj *model.ProgrammeTeachingLoad) graphql.Marshaler {
@@ -435,6 +659,21 @@ func (ec *executionContext) _ProgrammeTeachingLoad(ctx context.Context, sel ast.
 		case "shares":
 			out.Values[i] = ec._ProgrammeTeachingLoad_shares(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "yearlyQuota":
+			out.Values[i] = ec._ProgrammeTeachingLoad_yearlyQuota(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "semesterQuota":
+			out.Values[i] = ec._ProgrammeTeachingLoad_semesterQuota(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "balance":
+			out.Values[i] = ec._ProgrammeTeachingLoad_balance(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		default:
@@ -525,6 +764,32 @@ func (ec *executionContext) _TeachingLoadShare(ctx context.Context, sel ast.Sele
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) marshalNProgrammeQuota2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeQuotaᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ProgrammeQuota) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNProgrammeQuota2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeQuota(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNProgrammeQuota2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeQuota(ctx context.Context, sel ast.SelectionSet, v *model.ProgrammeQuota) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ProgrammeQuota(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNProgrammeTeachingLoad2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeTeachingLoadᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ProgrammeTeachingLoad) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -575,6 +840,13 @@ func (ec *executionContext) marshalNTeachingLoadShare2ᚖgithubᚗcomᚋobcode�
 		return graphql.Null
 	}
 	return ec._TeachingLoadShare(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOProgrammeQuota2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeQuota(ctx context.Context, sel ast.SelectionSet, v *model.ProgrammeQuota) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ProgrammeQuota(ctx, sel, v)
 }
 
 // endregion ***************************** type.gotpl *****************************

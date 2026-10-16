@@ -337,6 +337,7 @@ type ComplexityRoot struct {
 		SetPersonRoles                func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
 		SetPlanningSemester           func(childComplexity int, code string) int
 		SetProgrammePlanningStatus    func(childComplexity int, code string, status domain.ProgrammeStatus) int
+		SetProgrammeQuota             func(childComplexity int, programme string, studyYear int, teachingHours *float64) int
 		SetSubjectGroupActive         func(childComplexity int, id string, active bool) int
 		SetSubjectGroupLeads          func(childComplexity int, id string, personIds []string) int
 		SetSubjectGroupMembers        func(childComplexity int, id string, personIds []string) int
@@ -388,15 +389,25 @@ type ComplexityRoot struct {
 		Title          func(childComplexity int) int
 	}
 
+	ProgrammeQuota struct {
+		Programme     func(childComplexity int) int
+		SetAt         func(childComplexity int) int
+		StudyYear     func(childComplexity int) int
+		TeachingHours func(childComplexity int) int
+	}
+
 	ProgrammeTeachingLoad struct {
+		Balance           func(childComplexity int) int
 		FwpHours          func(childComplexity int) int
 		FwpInstanceCount  func(childComplexity int) int
 		HomeProgramme     func(childComplexity int) int
 		InstanceCount     func(childComplexity int) int
 		OwnHours          func(childComplexity int) int
 		PartsWithoutHours func(childComplexity int) int
+		SemesterQuota     func(childComplexity int) int
 		Shares            func(childComplexity int) int
 		TeachingHours     func(childComplexity int) int
+		YearlyQuota       func(childComplexity int) int
 	}
 
 	Query struct {
@@ -407,7 +418,7 @@ type ComplexityRoot struct {
 		CompetenceMemberStatus     func(childComplexity int, subjectGroup string) int
 		Competences                func(childComplexity int, module *string, subjectGroup *string, person *string, teacher *string) int
 		CourseInstance             func(childComplexity int, id string) int
-		CourseInstances            func(childComplexity int, semester string, programme *string, module *string) int
+		CourseInstances            func(childComplexity int, semester string, programme *string, module *string, foreignHome *bool) int
 		DemandCompletions          func(childComplexity int, semester string) int
 		DiagnoseAccess             func(childComplexity int, mail string) int
 		Me                         func(childComplexity int) int
@@ -425,6 +436,7 @@ type ComplexityRoot struct {
 		Person                     func(childComplexity int, id string) int
 		PlanningSemester           func(childComplexity int) int
 		Programme                  func(childComplexity int, code string) int
+		ProgrammeQuotas            func(childComplexity int, studyYear int) int
 		Programmes                 func(childComplexity int, includeUnplanned bool) int
 		RoleGrants                 func(childComplexity int, personID string) int
 		Semester                   func(childComplexity int, code string) int
@@ -2116,6 +2128,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetProgrammePlanningStatus(childComplexity, args["code"].(string), args["status"].(domain.ProgrammeStatus)), true
+	case "Mutation.setProgrammeQuota":
+		if e.ComplexityRoot.Mutation.SetProgrammeQuota == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setProgrammeQuota_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetProgrammeQuota(childComplexity, args["programme"].(string), args["studyYear"].(int), args["teachingHours"].(*float64)), true
 	case "Mutation.setSubjectGroupActive":
 		if e.ComplexityRoot.Mutation.SetSubjectGroupActive == nil {
 			break
@@ -2408,6 +2431,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Programme.Title(childComplexity), true
 
+	case "ProgrammeQuota.programme":
+		if e.ComplexityRoot.ProgrammeQuota.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeQuota.Programme(childComplexity), true
+	case "ProgrammeQuota.setAt":
+		if e.ComplexityRoot.ProgrammeQuota.SetAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeQuota.SetAt(childComplexity), true
+	case "ProgrammeQuota.studyYear":
+		if e.ComplexityRoot.ProgrammeQuota.StudyYear == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeQuota.StudyYear(childComplexity), true
+	case "ProgrammeQuota.teachingHours":
+		if e.ComplexityRoot.ProgrammeQuota.TeachingHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeQuota.TeachingHours(childComplexity), true
+
+	case "ProgrammeTeachingLoad.balance":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.Balance == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.Balance(childComplexity), true
 	case "ProgrammeTeachingLoad.fwpHours":
 		if e.ComplexityRoot.ProgrammeTeachingLoad.FwpHours == nil {
 			break
@@ -2444,6 +2498,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProgrammeTeachingLoad.PartsWithoutHours(childComplexity), true
+	case "ProgrammeTeachingLoad.semesterQuota":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.SemesterQuota == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.SemesterQuota(childComplexity), true
 	case "ProgrammeTeachingLoad.shares":
 		if e.ComplexityRoot.ProgrammeTeachingLoad.Shares == nil {
 			break
@@ -2456,6 +2516,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProgrammeTeachingLoad.TeachingHours(childComplexity), true
+	case "ProgrammeTeachingLoad.yearlyQuota":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.YearlyQuota == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.YearlyQuota(childComplexity), true
 
 	case "Query.accessLog":
 		if e.ComplexityRoot.Query.AccessLog == nil {
@@ -2539,7 +2605,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.CourseInstances(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string)), true
+		return e.ComplexityRoot.Query.CourseInstances(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string), args["foreignHome"].(*bool)), true
 	case "Query.demandCompletions":
 		if e.ComplexityRoot.Query.DemandCompletions == nil {
 			break
@@ -2693,6 +2759,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Programme(childComplexity, args["code"].(string)), true
+	case "Query.programmeQuotas":
+		if e.ComplexityRoot.Query.ProgrammeQuotas == nil {
+			break
+		}
+
+		args, err := ec.field_Query_programmeQuotas_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ProgrammeQuotas(childComplexity, args["studyYear"].(int)), true
 	case "Query.programmes":
 		if e.ComplexityRoot.Query.Programmes == nil {
 			break
@@ -5445,6 +5522,40 @@ type ProgrammeTeachingLoad {
   programme nothing has been declared for yet.
   """
   shares: [TeachingLoadShare!]!
+  """
+  What the programme may spend in the study year this semester belongs to, as the dean's office
+  entered it — see ` + "`" + `ProgrammeQuota` + "`" + `. ` + "`" + `null` + "`" + ` when nothing has been entered, which is not zero.
+  """
+  yearlyQuota: Float
+  "Half of ` + "`" + `yearlyQuota` + "`" + `: the share one semester may spend. ` + "`" + `null` + "`" + ` without a quota."
+  semesterQuota: Float
+  """
+  ` + "`" + `semesterQuota` + "`" + ` minus ` + "`" + `teachingHours` + "`" + `. Negative: the programme spends more than it has.
+  Positive: there is room, for another elective or for a programme that needs more than its own.
+  ` + "`" + `null` + "`" + ` without a quota.
+  """
+  balance: Float
+}
+
+"""
+What a study programme may spend on teaching in one study year.
+
+The figure comes from the faculty's capacity calculation — the teaching available to a programme,
+theses included — and is entered by the dean's office. Counted the way ` + "`" + `teachingHours` + "`" + ` counts:
+every laboratory and exercise group.
+
+A study year is named after the year its winter semester starts in: ` + "`" + `2026` + "`" + ` is ` + "`" + `2026-WS` + "`" + ` and
+` + "`" + `2027-SS` + "`" + `. Each of the two semesters is read against half of it.
+"""
+type ProgrammeQuota {
+  "The programme the figure is for."
+  programme: Programme!
+  "The year the study year's winter semester starts in: ` + "`" + `2026` + "`" + ` for 2026-WS and 2027-SS."
+  studyYear: Int!
+  "Teaching hours per week over the study year."
+  teachingHours: Float!
+  "When it was last set."
+  setAt: Time!
 }
 
 "The part of a home programme's load taught in one programme's instances."
@@ -5476,6 +5587,34 @@ extend type Query {
     "Four digits, a hyphen and SS or WS, for example ` + "`" + `2027-SS` + "`" + `."
     semester: String!
   ): [ProgrammeTeachingLoad!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  The quotas entered for one study year, ordered by programme code. A programme without one is
+  not listed.
+  """
+  programmeQuotas(
+    "The year the study year's winter semester starts in: ` + "`" + `2026` + "`" + ` for 2026-WS and 2027-SS."
+    studyYear: Int!
+  ): [ProgrammeQuota!]! @scope(area: PLANNING, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Enter or correct what a study programme may spend in a study year, or take it back with
+  ` + "`" + `teachingHours: null` + "`" + `. Returns the quota as it now stands, ` + "`" + `null` + "`" + ` once taken back.
+
+  The dean's office, which runs the capacity calculation, and through both doors: it is a number
+  corrected as often as the calculation is. Not the programme leads — the quota is the line a
+  programme is measured against.
+  """
+  setProgrammeQuota(
+    "The programme's short code. Upper-cased and trimmed for you."
+    programme: String!
+    "The year the study year's winter semester starts in."
+    studyYear: Int!
+    "Teaching hours per week over the year, between 0 and 10000. ` + "`" + `null` + "`" + ` takes the quota back."
+    teachingHours: Float
+  ): ProgrammeQuota @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../demand.graphqls", Input: `# The demand: which course instances a study programme needs in a semester.
@@ -5987,6 +6126,12 @@ extend type Query {
     programme: String
     "One module, across its cohorts."
     module: ID
+    """
+    Only the instances of modules another programme is home to — what a programme takes from
+    elsewhere, its electives from other programmes among them. Covered cohorts are included; they
+    cost this programme nothing and say so in ` + "`" + `coveredBy` + "`" + `.
+    """
+    foreignHome: Boolean = false
   ): [CourseInstance!]! @scope(area: PLANNING, verb: READ)
 
   """
@@ -6341,7 +6486,8 @@ enum ScopeArea {
 
   Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `planningSemester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `,
   ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
-  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `teachingLoad` + "`" + `, ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
+  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `teachingLoad` + "`" + `, ` + "`" + `programmeQuotas` + "`" + `, ` + "`" + `setProgrammeQuota` + "`" + `,
+  ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
   ` + "`" + `publishWishes` + "`" + `, ` + "`" + `publishAssignments` + "`" + `,
   # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
   # "is this part taken", which through a token the read rule would not.
@@ -8646,6 +8792,20 @@ func (ec *executionContext) childFields_Programme(ctx context.Context, field gra
 	return nil, fmt.Errorf("no field named %q was found under type Programme", field.Name)
 }
 
+func (ec *executionContext) childFields_ProgrammeQuota(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "programme":
+		return ec.fieldContext_ProgrammeQuota_programme(ctx, field)
+	case "studyYear":
+		return ec.fieldContext_ProgrammeQuota_studyYear(ctx, field)
+	case "teachingHours":
+		return ec.fieldContext_ProgrammeQuota_teachingHours(ctx, field)
+	case "setAt":
+		return ec.fieldContext_ProgrammeQuota_setAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ProgrammeQuota", field.Name)
+}
+
 func (ec *executionContext) childFields_ProgrammeTeachingLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "homeProgramme":
@@ -8664,6 +8824,12 @@ func (ec *executionContext) childFields_ProgrammeTeachingLoad(ctx context.Contex
 		return ec.fieldContext_ProgrammeTeachingLoad_partsWithoutHours(ctx, field)
 	case "shares":
 		return ec.fieldContext_ProgrammeTeachingLoad_shares(ctx, field)
+	case "yearlyQuota":
+		return ec.fieldContext_ProgrammeTeachingLoad_yearlyQuota(ctx, field)
+	case "semesterQuota":
+		return ec.fieldContext_ProgrammeTeachingLoad_semesterQuota(ctx, field)
+	case "balance":
+		return ec.fieldContext_ProgrammeTeachingLoad_balance(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ProgrammeTeachingLoad", field.Name)
 }

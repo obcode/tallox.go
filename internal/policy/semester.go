@@ -155,3 +155,19 @@ func (p Phase) Neighbours() []Phase {
 	}
 	return out
 }
+
+// MaySetProgrammeQuota reports whether an actor may enter what a study programme may spend on
+// teaching in a study year.
+//
+// The dean's office, which runs the capacity calculation the figure comes from. The same people
+// as MayAdministerSemesters and a function of its own, because it is not the same decision: the
+// day the faculty wants the quotas kept by somebody who does not switch phases, this is the one
+// line that changes.
+//
+// Not the programme leads. The quota is the line a programme is measured against, and a line
+// the measured can move is not one. Reachable through a Personal Access Token: it is a number
+// that is corrected as often as the calculation is, and a script that enters a year's figures
+// from the calculation is the obvious way to enter them.
+func MaySetProgrammeQuota(a principal.Actor) bool {
+	return MayAdministerSemesters(a)
+}

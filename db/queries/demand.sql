@@ -11,7 +11,8 @@
 -- is worse than an uncopied one, because the person looking at it cannot tell which half.
 
 -- name: ListCourseInstances :many
--- The demand of a semester, optionally narrowed to one programme or one module.
+-- The demand of a semester, optionally narrowed to one programme or one module, or to the
+-- instances of modules another programme is home to — what a programme imports.
 --
 -- The semester is addressed by its code rather than its id, the way it is everywhere outside
 -- this package: the code is what a URL and a colleague's script carry.
@@ -37,6 +38,7 @@ JOIN module m ON m.id = ci.module_id
 WHERE s.code = sqlc.arg('semester')::text
   AND (sqlc.narg('programme')::text IS NULL OR p.code = sqlc.narg('programme')::text)
   AND (sqlc.narg('module')::uuid IS NULL OR ci.module_id = sqlc.narg('module')::uuid)
+  AND (NOT sqlc.arg('foreign_home')::bool OR m.home_programme_id <> ci.programme_id)
 ORDER BY ci.programme_semester NULLS LAST, (m.name = ''), m.name, ci.track, ci.id;
 
 -- name: CourseInstanceByID :one
@@ -666,3 +668,35 @@ LEFT JOIN load l ON l.home_programme_id = hp.id
 LEFT JOIN programme tp ON tp.id = l.programme_id
 WHERE hp.planning_status = 'PLANNED' OR l.home_programme_id IS NOT NULL
 ORDER BY hp.code, tp.code NULLS FIRST;
+
+-- name: ProgrammeQuotasOfYear :many
+-- The quotas entered for one study year, one row per programme that has one.
+--
+-- Only those: a programme without a row has no quota, which the controlling shows as "no figure"
+-- rather than as zero — zero would read as a programme with nothing to spend.
+SELECT pq.programme_id, pq.study_year, pq.teaching_hours::float8 AS teaching_hours,
+       pq.set_at, pq.set_by,
+       p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
+       p.planning_status AS programme_planning_status
+FROM programme_quota pq
+JOIN programme p ON p.id = pq.programme_id
+WHERE pq.study_year = sqlc.arg(study_year)::int
+ORDER BY p.code;
+
+-- name: SetProgrammeQuota :one
+-- Enter or correct one programme's quota for a study year.
+--
+-- Upsert, and the timestamp moves: what a reader wants to know is how fresh the figure is.
+INSERT INTO programme_quota (programme_id, study_year, teaching_hours, set_by)
+SELECT p.id, sqlc.arg(study_year)::int, sqlc.arg(teaching_hours)::float8, sqlc.narg('set_by')::uuid
+  FROM programme p
+ WHERE p.code = sqlc.arg(programme)::text
+ON CONFLICT (programme_id, study_year) DO UPDATE
+   SET teaching_hours = EXCLUDED.teaching_hours, set_at = now(), set_by = EXCLUDED.set_by
+RETURNING programme_id, study_year, teaching_hours::float8 AS teaching_hours, set_at, set_by;
+
+-- name: ClearProgrammeQuota :execrows
+-- Take a quota back. "Never entered" and "entered, then removed" are the same state.
+DELETE FROM programme_quota
+ WHERE study_year = sqlc.arg(study_year)::int
+   AND programme_id = (SELECT id FROM programme WHERE code = sqlc.arg(programme)::text);

@@ -41,7 +41,8 @@ type QueryResolver interface {
 	CompetenceMemberStatus(ctx context.Context, subjectGroup string) ([]*model.MemberCompetenceStatus, error)
 	ModulesWithoutCompetence(ctx context.Context, subjectGroup string) ([]*model.ModuleWithoutCompetence, error)
 	TeachingLoad(ctx context.Context, semester string) ([]*model.ProgrammeTeachingLoad, error)
-	CourseInstances(ctx context.Context, semester string, programme *string, module *string) ([]*model.CourseInstance, error)
+	ProgrammeQuotas(ctx context.Context, studyYear int) ([]*model.ProgrammeQuota, error)
+	CourseInstances(ctx context.Context, semester string, programme *string, module *string, foreignHome *bool) ([]*model.CourseInstance, error)
 	CourseInstance(ctx context.Context, id string) (*model.CourseInstance, error)
 	Me(ctx context.Context) (*model.Person, error)
 	DemandCompletions(ctx context.Context, semester string) ([]*model.DemandCompletion, error)
@@ -273,6 +274,14 @@ func (ec *executionContext) field_Query_courseInstances_args(ctx context.Context
 		return nil, err
 	}
 	args["module"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "foreignHome",
+		func(ctx context.Context, v any) (*bool, error) {
+			return ec.unmarshalOBoolean2ᚖbool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["foreignHome"] = arg3
 	return args, nil
 }
 
@@ -407,6 +416,20 @@ func (ec *executionContext) field_Query_person_args(ctx context.Context, rawArgs
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_programmeQuotas_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "studyYear",
+		func(ctx context.Context, v any) (int, error) {
+			return ec.unmarshalNInt2int(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["studyYear"] = arg0
 	return args, nil
 }
 
@@ -1712,6 +1735,50 @@ func (ec *executionContext) fieldContext_Query_teachingLoad(ctx context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_programmeQuotas(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_programmeQuotas(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().ProgrammeQuotas(ctx, fc.Args["studyYear"].(int))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.ProgrammeQuota) graphql.Marshaler {
+			return ec.marshalNProgrammeQuota2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeQuotaᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_programmeQuotas(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ProgrammeQuota(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_programmeQuotas_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_courseInstances(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1722,7 +1789,7 @@ func (ec *executionContext) _Query_courseInstances(ctx context.Context, field gr
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().CourseInstances(ctx, fc.Args["semester"].(string), fc.Args["programme"].(*string), fc.Args["module"].(*string))
+			return ec.Resolvers.Query().CourseInstances(ctx, fc.Args["semester"].(string), fc.Args["programme"].(*string), fc.Args["module"].(*string), fc.Args["foreignHome"].(*bool))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.CourseInstance) graphql.Marshaler {
@@ -3193,6 +3260,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_teachingLoad(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "programmeQuotas":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_programmeQuotas(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

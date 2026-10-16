@@ -38,6 +38,7 @@ type MutationResolver interface {
 	WithdrawMyCompetence(ctx context.Context, id string) (string, error)
 	SetTeacherCompetence(ctx context.Context, moduleID string, teacherID string, level domain.CompetenceLevel, note *string) (*model.Competence, error)
 	WithdrawTeacherCompetence(ctx context.Context, id string) (string, error)
+	SetProgrammeQuota(ctx context.Context, programme string, studyYear int, teachingHours *float64) (*model.ProgrammeQuota, error)
 	PlanDemand(ctx context.Context, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) (*model.DemandPlanReport, error)
 	DeclareCourseInstance(ctx context.Context, input model.DeclareCourseInstanceInput) (*model.CourseInstance, error)
 	DuplicateCourseInstance(ctx context.Context, id string, track string, sourceTrack *string) (*model.CourseInstance, error)
@@ -844,6 +845,36 @@ func (ec *executionContext) field_Mutation_setProgrammePlanningStatus_args(ctx c
 		return nil, err
 	}
 	args["status"] = arg1
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setProgrammeQuota_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "programme",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["programme"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "studyYear",
+		func(ctx context.Context, v any) (int, error) {
+			return ec.unmarshalNInt2int(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["studyYear"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "teachingHours",
+		func(ctx context.Context, v any) (*float64, error) {
+			return ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["teachingHours"] = arg2
 	return args, nil
 }
 
@@ -2118,6 +2149,50 @@ func (ec *executionContext) fieldContext_Mutation_withdrawTeacherCompetence(ctx 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_withdrawTeacherCompetence_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setProgrammeQuota(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setProgrammeQuota(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetProgrammeQuota(ctx, fc.Args["programme"].(string), fc.Args["studyYear"].(int), fc.Args["teachingHours"].(*float64))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ProgrammeQuota) graphql.Marshaler {
+			return ec.marshalOProgrammeQuota2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeQuota(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setProgrammeQuota(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ProgrammeQuota(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setProgrammeQuota_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4136,6 +4211,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 				return ec._Mutation_withdrawTeacherCompetence(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setProgrammeQuota":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setProgrammeQuota(ctx, field)
+			})
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		case "planDemand":

@@ -569,9 +569,10 @@ extend type Mutation {
   """
   Declare that a study programme needs this module in this semester, for this cohort.
 
-  Allowed for the lead of **that** programme and for the dean's office — and in every phase,
-  including `FINAL`. An instance declared during the assignment is a correction, and corrections
-  happen; a tool that refuses one moves it into a spreadsheet passed around by mail.
+  Allowed for the lead of **that** programme and for the dean's office, in every phase up to and
+  including `REVIEW` — only a semester that is over (`FINAL`) refuses it. An instance declared
+  during the assignment or the review is a correction, and corrections happen; a tool that
+  refuses one moves it into a spreadsheet passed around by mail.
 
   The parts are made from the module's split, one per unit, each credited with the hours the
   split states — or from the proposal, where nobody has stated a split. A module the catalogue

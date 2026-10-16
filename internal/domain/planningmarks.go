@@ -49,6 +49,14 @@ type DemandCompletion struct {
 	CompletedBy uuid.UUID
 }
 
+// ReviewCompletion is one study programme announcing that its review of a semester is done:
+// after the assignment, its lead has gone over the demand, its cut and who teaches what, and the
+// figures stand as far as anybody knows today.
+//
+// The same shape as DemandCompletion and the same kind of statement — an announcement that
+// blocks nothing — said at a later moment, so it is the same type under a name that says which.
+type ReviewCompletion = DemandCompletion
+
 // WishWindow is one subject group's wish round, for one semester.
 //
 // A row exists only where somebody decided something. Absent means open — see migration 18 for
@@ -91,6 +99,13 @@ type PlanningMarkStore interface {
 	) (*DemandCompletion, error)
 	// WithdrawDemandComplete removes one. Reports whether there was one.
 	WithdrawDemandComplete(ctx context.Context, semesterCode, programme string) (bool, error)
+
+	// ReviewCompletions, AnnounceReviewComplete and WithdrawReviewComplete are the same three
+	// for the review announcement.
+	ReviewCompletions(ctx context.Context, semesterCode string) ([]ReviewCompletion, error)
+	AnnounceReviewComplete(ctx context.Context, semesterCode, programme string, by uuid.UUID,
+	) (*ReviewCompletion, error)
+	WithdrawReviewComplete(ctx context.Context, semesterCode, programme string) (bool, error)
 
 	// WishWindows returns the subject groups somebody has decided something about, for one
 	// semester. Not every group: an absent row is open.
@@ -182,6 +197,58 @@ func (s *PlanningMarkService) SetDemandComplete(ctx context.Context, actor princ
 		return nil, nil
 	}
 	return s.store.AnnounceDemandComplete(ctx, semester.Code, programme, actor.ID)
+}
+
+// ReviewCompletions is which study programmes have announced their review as done.
+//
+// Readable by anybody with an account, like the demand announcements: it is where the dean's
+// office sees which programmes still have to look, and where a programme lead sees the others.
+func (s *PlanningMarkService) ReviewCompletions(ctx context.Context, actor principal.Actor,
+	semesterCode string) ([]ReviewCompletion, error) {
+	if !actor.Authenticated() {
+		return nil, ErrNotAuthenticated
+	}
+	semester, err := s.semesters.ByCode(ctx, actor, semesterCode)
+	if err != nil {
+		return nil, err
+	}
+	return s.store.ReviewCompletions(ctx, semester.Code)
+}
+
+// SetReviewComplete announces a study programme's review as done, or withdraws it.
+//
+// Not bound by the phase, for the reason SetDemandComplete gives — and announced in any phase,
+// because nothing stops a lead from saying "nothing to change" before the dean's office has
+// switched the semester into REVIEW.
+func (s *PlanningMarkService) SetReviewComplete(ctx context.Context, actor principal.Actor,
+	semesterCode, programme string, complete bool) (*ReviewCompletion, error) {
+	if !actor.Authenticated() {
+		return nil, ErrNotAuthenticated
+	}
+
+	semester, err := s.semesters.EnsureRecorded(ctx, actor, semesterCode)
+	if err != nil {
+		return nil, err
+	}
+
+	programmeID, err := s.store.ProgrammeIDByCode(ctx, programme)
+	if err != nil {
+		return nil, err
+	}
+	if programmeID == uuid.Nil {
+		return nil, ErrProgrammeNotFound
+	}
+	if !policy.MayAnnounceReviewComplete(actor, programmeID) {
+		return nil, ErrNotYourProgramme
+	}
+
+	if !complete {
+		if _, err := s.store.WithdrawReviewComplete(ctx, semester.Code, programme); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	return s.store.AnnounceReviewComplete(ctx, semester.Code, programme, actor.ID)
 }
 
 // WishWindows is which subject groups have shut their wish round, for one semester.

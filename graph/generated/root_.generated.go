@@ -338,6 +338,7 @@ type ComplexityRoot struct {
 		SetPlanningSemester           func(childComplexity int, code string) int
 		SetProgrammePlanningStatus    func(childComplexity int, code string, status domain.ProgrammeStatus) int
 		SetProgrammeQuota             func(childComplexity int, programme string, studyYear int, teachingHours *float64) int
+		SetReviewComplete             func(childComplexity int, semester string, programme string, complete bool) int
 		SetSubjectGroupActive         func(childComplexity int, id string, active bool) int
 		SetSubjectGroupLeads          func(childComplexity int, id string, personIds []string) int
 		SetSubjectGroupMembers        func(childComplexity int, id string, personIds []string) int
@@ -448,6 +449,7 @@ type ComplexityRoot struct {
 		Programme                  func(childComplexity int, code string) int
 		ProgrammeQuotas            func(childComplexity int, studyYear int) int
 		Programmes                 func(childComplexity int, includeUnplanned bool) int
+		ReviewCompletions          func(childComplexity int, semester string) int
 		RoleGrants                 func(childComplexity int, personID string) int
 		Semester                   func(childComplexity int, code string) int
 		Semesters                  func(childComplexity int) int
@@ -474,6 +476,12 @@ type ComplexityRoot struct {
 		Mail     func(childComplexity int) int
 		Reason   func(childComplexity int) int
 		TokenID  func(childComplexity int) int
+	}
+
+	ReviewCompletion struct {
+		CompletedAt func(childComplexity int) int
+		Programme   func(childComplexity int) int
+		Semester    func(childComplexity int) int
 	}
 
 	RoleGrant struct {
@@ -2150,6 +2158,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetProgrammeQuota(childComplexity, args["programme"].(string), args["studyYear"].(int), args["teachingHours"].(*float64)), true
+	case "Mutation.setReviewComplete":
+		if e.ComplexityRoot.Mutation.SetReviewComplete == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setReviewComplete_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetReviewComplete(childComplexity, args["semester"].(string), args["programme"].(string), args["complete"].(bool)), true
 	case "Mutation.setSubjectGroupActive":
 		if e.ComplexityRoot.Mutation.SetSubjectGroupActive == nil {
 			break
@@ -2835,6 +2854,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Programmes(childComplexity, args["includeUnplanned"].(bool)), true
+	case "Query.reviewCompletions":
+		if e.ComplexityRoot.Query.ReviewCompletions == nil {
+			break
+		}
+
+		args, err := ec.field_Query_reviewCompletions_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.ReviewCompletions(childComplexity, args["semester"].(string)), true
 	case "Query.roleGrants":
 		if e.ComplexityRoot.Query.RoleGrants == nil {
 			break
@@ -3039,6 +3069,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.RefusedSignIn.TokenID(childComplexity), true
+
+	case "ReviewCompletion.completedAt":
+		if e.ComplexityRoot.ReviewCompletion.CompletedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReviewCompletion.CompletedAt(childComplexity), true
+	case "ReviewCompletion.programme":
+		if e.ComplexityRoot.ReviewCompletion.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReviewCompletion.Programme(childComplexity), true
+	case "ReviewCompletion.semester":
+		if e.ComplexityRoot.ReviewCompletion.Semester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ReviewCompletion.Semester(childComplexity), true
 
 	case "RoleGrant.expiresAt":
 		if e.ComplexityRoot.RoleGrant.ExpiresAt == nil {
@@ -6290,9 +6339,10 @@ extend type Mutation {
   """
   Declare that a study programme needs this module in this semester, for this cohort.
 
-  Allowed for the lead of **that** programme and for the dean's office — and in every phase,
-  including ` + "`" + `FINAL` + "`" + `. An instance declared during the assignment is a correction, and corrections
-  happen; a tool that refuses one moves it into a spreadsheet passed around by mail.
+  Allowed for the lead of **that** programme and for the dean's office, in every phase up to and
+  including ` + "`" + `REVIEW` + "`" + ` — only a semester that is over (` + "`" + `FINAL` + "`" + `) refuses it. An instance declared
+  during the assignment or the review is a correction, and corrections happen; a tool that
+  refuses one moves it into a spreadsheet passed around by mail.
 
   The parts are made from the module's split, one per unit, each credited with the hours the
   split states — or from the proposal, where nobody has stated a split. A module the catalogue
@@ -6608,6 +6658,7 @@ enum ScopeArea {
   ` + "`" + `requestInstanceCoverage` + "`" + `, ` + "`" + `acceptInstanceCoverage` + "`" + `, ` + "`" + `releaseInstanceCoverage` + "`" + `,
   ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `,
   ` + "`" + `demandCompletions` + "`" + `, ` + "`" + `wishWindows` + "`" + `, ` + "`" + `setDemandComplete` + "`" + `, ` + "`" + `setWishWindow` + "`" + `,
+  ` + "`" + `reviewCompletions` + "`" + `, ` + "`" + `setReviewComplete` + "`" + `,
   ` + "`" + `subjectGroups` + "`" + `, ` + "`" + `subjectGroup` + "`" + `, ` + "`" + `mySubjectGroups` + "`" + `, ` + "`" + `modulesWithoutSubjectGroup` + "`" + `,
   ` + "`" + `subjectGroupsWithoutLead` + "`" + `, ` + "`" + `setMySubjectGroups` + "`" + `, ` + "`" + `setModulesSubjectGroup` + "`" + `.
   """
@@ -6853,6 +6904,20 @@ type DemandCompletion {
 }
 
 """
+One study programme announcing that its review of a semester is done: after the assignment its
+lead has gone over the demand, its cut and who teaches what, and the figures stand against the
+quota as far as anybody knows today. An announcement like ` + "`" + `DemandCompletion` + "`" + `; it blocks nothing.
+"""
+type ReviewCompletion {
+  "The semester it is about."
+  semester: String!
+  "The study programme whose review is done."
+  programme: Programme!
+  "When it was last said. Moves on re-announcing after a later change."
+  completedAt: Time!
+}
+
+"""
 One subject group's wish round, for one semester.
 
 Only groups somebody has decided something about appear. Absent means open.
@@ -6884,6 +6949,15 @@ extend type Query {
     "Four digits, a hyphen and SS or WS, for example ` + "`" + `2029-SS` + "`" + `."
     semester: String!
   ): [DemandCompletion!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  Which study programmes have announced their review of a semester as done. Programmes that have
+  not are absent; readable by everybody, like the demand announcements.
+  """
+  reviewCompletions(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): [ReviewCompletion!]! @scope(area: PLANNING, verb: READ)
 
   """
   The subject groups whose wish round somebody has switched, for one semester.
@@ -6918,6 +6992,22 @@ extend type Mutation {
     "True to announce or refresh, false to withdraw."
     complete: Boolean!
   ): DemandCompletion @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Announce this study programme's review of a semester as done, or withdraw the announcement.
+
+  Blocks nothing: the demand and the assignment stay writable until the semester is ` + "`" + `FINAL` + "`" + `, and a
+  change afterwards is what withdrawing or re-announcing is for. ` + "`" + `complete: false` + "`" + ` answers ` + "`" + `null` + "`" + `.
+  Only the lead of that study programme and the dean's office, in any phase.
+  """
+  setReviewComplete(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "The study programme's code."
+    programme: String!
+    "True to announce or refresh, false to withdraw."
+    complete: Boolean!
+  ): ReviewCompletion @scope(area: PLANNING, verb: WRITE)
 
   """
   Open or shut one subject group's wish round for a semester.
@@ -7014,7 +7104,13 @@ enum Phase {
   WISHES
   "The subject group leads fill the instances."
   ASSIGNMENT
-  "The plan stands. Changes from here on are corrections, not planning."
+  """
+  The programme leads go over the whole once more: the cut of the demand, who teaches what, and
+  what it costs against the quota. Everything stays writable, and stays so until the semester is
+  over — a colleague falling ill before the first lecture is handled here.
+  """
+  REVIEW
+  "The semester is over. Its plan is the record of what was taught, and nothing is written any more."
   FINAL
 }
 
@@ -8972,6 +9068,18 @@ func (ec *executionContext) childFields_RefusedSignIn(ctx context.Context, field
 		return ec.fieldContext_RefusedSignIn_lastAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type RefusedSignIn", field.Name)
+}
+
+func (ec *executionContext) childFields_ReviewCompletion(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "semester":
+		return ec.fieldContext_ReviewCompletion_semester(ctx, field)
+	case "programme":
+		return ec.fieldContext_ReviewCompletion_programme(ctx, field)
+	case "completedAt":
+		return ec.fieldContext_ReviewCompletion_completedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ReviewCompletion", field.Name)
 }
 
 func (ec *executionContext) childFields_RoleGrant(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

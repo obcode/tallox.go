@@ -1036,6 +1036,18 @@ type RefusedSignIn struct {
 	LastAt time.Time `json:"lastAt"`
 }
 
+// One study programme announcing that its review of a semester is done: after the assignment its
+// lead has gone over the demand, its cut and who teaches what, and the figures stand against the
+// quota as far as anybody knows today. An announcement like `DemandCompletion`; it blocks nothing.
+type ReviewCompletion struct {
+	// The semester it is about.
+	Semester string `json:"semester"`
+	// The study programme whose review is done.
+	Programme *Programme `json:"programme"`
+	// When it was last said. Moves on re-announcing after a later change.
+	CompletedAt time.Time `json:"completedAt"`
+}
+
 // One role grant, as stored — including one that has already expired.
 //
 // Deliberately unfiltered, unlike `Person.roles`. "DEANS_OFFICE, granted on Tuesday by X,

@@ -54,6 +54,7 @@ type MutationResolver interface {
 	ReleaseInstanceCoverage(ctx context.Context, id string) (*model.CourseInstance, error)
 	CopyDemandFromSemester(ctx context.Context, from string, to string, programme string) (*model.CopyDemandReport, error)
 	SetDemandComplete(ctx context.Context, semester string, programme string, complete bool) (*model.DemandCompletion, error)
+	SetReviewComplete(ctx context.Context, semester string, programme string, complete bool) (*model.ReviewCompletion, error)
 	SetWishWindow(ctx context.Context, semester string, subjectGroupID string, open bool) (*model.WishWindow, error)
 	AdvanceSemesterPhase(ctx context.Context, code string, to policy.Phase) (*model.Semester, error)
 	SetPlanningSemester(ctx context.Context, code string) (*model.Semester, error)
@@ -875,6 +876,36 @@ func (ec *executionContext) field_Mutation_setProgrammeQuota_args(ctx context.Co
 		return nil, err
 	}
 	args["teachingHours"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setReviewComplete_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "semester",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["semester"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "programme",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["programme"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "complete",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["complete"] = arg2
 	return args, nil
 }
 
@@ -3041,6 +3072,50 @@ func (ec *executionContext) fieldContext_Mutation_setDemandComplete(ctx context.
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_setReviewComplete(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setReviewComplete(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetReviewComplete(ctx, fc.Args["semester"].(string), fc.Args["programme"].(string), fc.Args["complete"].(bool))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ReviewCompletion) graphql.Marshaler {
+			return ec.marshalOReviewCompletion2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐReviewCompletion(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setReviewComplete(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ReviewCompletion(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setReviewComplete_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_setWishWindow(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4321,6 +4396,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setDemandComplete":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setDemandComplete(ctx, field)
+			})
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "setReviewComplete":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setReviewComplete(ctx, field)
 			})
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++

@@ -47,7 +47,7 @@ Kapazitätsrechnung — und das Delta war Kontingent − (WiSe + SoSe). Tallox p
   Semesterzeile erzeugen.
 - **Studienjahr** heißt nach dem Jahr seines Winters: `2026` = 2026-WS + 2027-SS
   (`domain.StudyYear`).
-- `ProgrammeTeachingLoad.yearlyQuota`, `semesterQuota` (= Hälfte), `balance` (= semesterQuota −
+- `ProgrammeTeachingLoad.yearlyQuota`, `semesterQuota`, `balance` (= semesterQuota −
   teachingHours). **`null` ohne Kontingent, nicht 0** — 0 hieße „nichts zu verteilen". Gerechnet
   im Backend, damit ein PAT-Skript dieselbe Zahl bekommt wie die GUI.
 - Negativ: der Studiengang lebt über seinen Verhältnissen. Positiv: Raum für Wahlkatalog oder
@@ -58,6 +58,19 @@ Kapazitätsrechnung — und das Delta war Kontingent − (WiSe + SoSe). Tallox p
   jede:r mit Konto.
 - `teachingHours` enthält die FWP-Platzhalter — das Delta liest sich also gegen dieselbe Summe, die
   die Seite als Lehr-SWS zeigt.
+
+**Semester-Soll je Term (2026-10-16, Rückmeldung zum Plan):** im **WiSe** die Hälfte des
+Kontingents, weil das SoSe noch kommt; im **SoSe** Kontingent − Lehr-SWS des WiSe desselben
+Studienjahres, weil das verbraucht ist. Der SoSe-Saldo ist damit der Rest des Studienjahres.
+`TeachingLoad.SpentInWinter` trägt das WiSe; nil im WiSe.
+
+## Studienjahr (2026-10-16)
+
+`studyYearLoad(studyYear)`: je Heimatstudiengang Kontingent, WiSe, SoSe, Rest
+(`domain.StudyYearLoad`). Das ist die Hauptsicht der Studiengangsleitungen: „ist noch Luft für ein
+FWP". **SoSe durchspielen** heißt: den SoSe-Bedarf früh als echten Bedarf anlegen — bewusst kein
+eigenes Planspiel (entschieden 2026-10-16). Er ist öffentlich lesbar, und Wünsche darauf sind wie
+immer möglich (Wunschfenster der Fachgruppe); die Fakultät wollte das so lassen.
 
 ## Fremdmodule
 
@@ -72,7 +85,6 @@ Studiengangsleitung „was nehme ich von anderen". Gedeckte Kohorten bleiben dri
   Projektion (`ProjectModuleOfferings`) wirft ihn weg. Eigenes Vorhaben.
 - Module anderer **Fakultäten** wirken finanziell erst ab einer Mindestzahl Studierender je Modul.
   Es gibt keine Fakultätsspalte an `programme`; ungeklärt.
-- Der Blick ein Semester weiter (die zweite Hälfte des Studienjahres) — bewusst nicht.
 
 Tests: `internal/store/teaching_load_test.go` (echte PostgreSQL, sieben Fälle),
 `internal/store/programme_quota_test.go` (Upsert, Studienjahr, CHECK, Fremd-Filter),

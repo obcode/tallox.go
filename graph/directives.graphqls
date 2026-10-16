@@ -130,6 +130,7 @@ enum ScopeArea {
   `requestInstanceCoverage`, `acceptInstanceCoverage`, `releaseInstanceCoverage`,
   `copyDemandFromSemester`, `planDemand`,
   `demandCompletions`, `wishWindows`, `setDemandComplete`, `setWishWindow`,
+  `reviewCompletions`, `setReviewComplete`,
   `subjectGroups`, `subjectGroup`, `mySubjectGroups`, `modulesWithoutSubjectGroup`,
   `subjectGroupsWithoutLead`, `setMySubjectGroups`, `setModulesSubjectGroup`.
   """

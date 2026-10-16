@@ -164,8 +164,19 @@ func TestPhaseMayMoveTo(t *testing.T) {
 		{
 			name:  "out of FINAL, which is a correction and not a corruption of the record",
 			from:  policy.PhaseFinal,
-			to:    policy.PhaseAssignment,
+			to:    policy.PhaseReview,
 			allow: true,
+		},
+		{
+			name:  "from the assignment into the review",
+			from:  policy.PhaseAssignment,
+			to:    policy.PhaseReview,
+			allow: true,
+		},
+		{
+			name: "past the review straight to the close",
+			from: policy.PhaseAssignment,
+			to:   policy.PhaseFinal,
 		},
 		{
 			name: "skipping the wish phase",

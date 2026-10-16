@@ -16,6 +16,7 @@ func TestAllPhasesAreTheProcessInOrder(t *testing.T) {
 		policy.PhaseDemandPlanning,
 		policy.PhaseWishes,
 		policy.PhaseAssignment,
+		policy.PhaseReview,
 		policy.PhaseFinal,
 	}
 

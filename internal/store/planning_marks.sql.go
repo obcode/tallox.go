@@ -47,6 +47,35 @@ func (q *Queries) AnnounceDemandComplete(ctx context.Context, arg AnnounceDemand
 	return i, err
 }
 
+const announceReviewComplete = `-- name: AnnounceReviewComplete :one
+INSERT INTO review_completion (semester_id, programme_id, completed_by)
+SELECT s.id, pr.id, $1::uuid
+  FROM semester s, programme pr
+ WHERE s.code = $2::text AND pr.code = $3::text
+ON CONFLICT (semester_id, programme_id) DO UPDATE
+   SET completed_at = now(), completed_by = EXCLUDED.completed_by
+RETURNING semester_id, programme_id, completed_at, completed_by
+`
+
+type AnnounceReviewCompleteParams struct {
+	CompletedBy uuid.NullUUID
+	Semester    string
+	Programme   string
+}
+
+// Announce the review as done, or re-announce after a later change. The timestamp moves.
+func (q *Queries) AnnounceReviewComplete(ctx context.Context, arg AnnounceReviewCompleteParams) (ReviewCompletion, error) {
+	row := q.db.QueryRow(ctx, announceReviewComplete, arg.CompletedBy, arg.Semester, arg.Programme)
+	var i ReviewCompletion
+	err := row.Scan(
+		&i.SemesterID,
+		&i.ProgrammeID,
+		&i.CompletedAt,
+		&i.CompletedBy,
+	)
+	return i, err
+}
+
 const demandCompletionsOfSemester = `-- name: DemandCompletionsOfSemester :many
 
 SELECT dc.semester_id, dc.programme_id, dc.completed_at, dc.completed_by,
@@ -119,6 +148,54 @@ func (q *Queries) ProgrammeIDByCode(ctx context.Context, code string) (uuid.UUID
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const reviewCompletionsOfSemester = `-- name: ReviewCompletionsOfSemester :many
+SELECT rc.semester_id, rc.programme_id, rc.completed_at, rc.completed_by,
+       prog.code AS programme_code, prog.title AS programme_title
+FROM review_completion rc
+JOIN programme prog ON prog.id = rc.programme_id
+JOIN semester s ON s.id = rc.semester_id
+WHERE s.code = $1::text
+ORDER BY prog.code
+`
+
+type ReviewCompletionsOfSemesterRow struct {
+	SemesterID     uuid.UUID
+	ProgrammeID    uuid.UUID
+	CompletedAt    time.Time
+	CompletedBy    uuid.NullUUID
+	ProgrammeCode  string
+	ProgrammeTitle string
+}
+
+// Which study programmes have announced their review as done, for one semester. The twin of
+// DemandCompletionsOfSemester, and public for the same reason.
+func (q *Queries) ReviewCompletionsOfSemester(ctx context.Context, semester string) ([]ReviewCompletionsOfSemesterRow, error) {
+	rows, err := q.db.Query(ctx, reviewCompletionsOfSemester, semester)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ReviewCompletionsOfSemesterRow{}
+	for rows.Next() {
+		var i ReviewCompletionsOfSemesterRow
+		if err := rows.Scan(
+			&i.SemesterID,
+			&i.ProgrammeID,
+			&i.CompletedAt,
+			&i.CompletedBy,
+			&i.ProgrammeCode,
+			&i.ProgrammeTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const setWishWindow = `-- name: SetWishWindow :one
@@ -315,6 +392,26 @@ type WithdrawDemandCompleteParams struct {
 // kept the difference would be keeping something nobody reads.
 func (q *Queries) WithdrawDemandComplete(ctx context.Context, arg WithdrawDemandCompleteParams) (int64, error) {
 	result, err := q.db.Exec(ctx, withdrawDemandComplete, arg.Semester, arg.Programme)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const withdrawReviewComplete = `-- name: WithdrawReviewComplete :execrows
+DELETE FROM review_completion
+ WHERE semester_id = (SELECT id FROM semester WHERE code = $1::text)
+   AND programme_id = (SELECT id FROM programme WHERE code = $2::text)
+`
+
+type WithdrawReviewCompleteParams struct {
+	Semester  string
+	Programme string
+}
+
+// Take it back: the review is open again, which is the same state as never having announced it.
+func (q *Queries) WithdrawReviewComplete(ctx context.Context, arg WithdrawReviewCompleteParams) (int64, error) {
+	result, err := q.db.Exec(ctx, withdrawReviewComplete, arg.Semester, arg.Programme)
 	if err != nil {
 		return 0, err
 	}

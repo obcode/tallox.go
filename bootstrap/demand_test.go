@@ -107,6 +107,13 @@ func demandHandler(t *testing.T, scoped map[string][]string, people ...grants) d
 	}, uuid.Nil); err != nil {
 		t.Fatalf("cannot state the module's split: %v", err)
 	}
+	// The foreign module is declared from its confirmed split; without one it is not plannable.
+	if _, err := modules.SetModuleComponents(t.Context(), fixture.foreign, []domain.ModuleComponent{
+		{Kind: domain.PartKindLecture, TeachingHours: 2, Position: 0},
+		{Kind: domain.PartKindLab, TeachingHours: 2, Position: 1},
+	}, uuid.Nil); err != nil {
+		t.Fatalf("cannot state the foreign module's split: %v", err)
+	}
 
 	fixture.schema = s
 	fixture.handler = bootstrap.Handler(bootstrap.Options{
@@ -291,9 +298,39 @@ func TestTheDeansOfficeDeclaresForEveryProgramme(t *testing.T) {
 		})
 }
 
-// What is left of the precondition: a module the examination office states no hours for. A
-// module whose split nobody has stated is declared from the proposal — the estimate is good
-// enough to plan with — but zero hours cannot be divided into anything.
+// The precondition, by name: no instance of a module whose split nobody has confirmed. Both
+// shapes of it — a module with a proposal waiting, and one the examination office states no hours
+// for — answer the same code, because the repair is the same: state the split.
+func TestAnUnconfirmedSplitIsRefusedByName(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
+
+	var unconfirmed uuid.UUID
+	if err := f.schema.Pool.QueryRow(t.Context(),
+		`SELECT id FROM module WHERE zpa_module_ref = $1`,
+		storetest.FixtureModuleDutyDiffers).Scan(&unconfirmed); err != nil {
+		t.Fatalf("cannot find the unconfirmed module: %v", err)
+	}
+
+	inTheBrowser(t, f.handler, testdata.Vier.Mail,
+		func(t *testing.T, c *graphqltest.Client) {
+			resp := c.Do(t, declareMutation, map[string]any{"in": map[string]any{
+				"semester":  "2027-SS",
+				"programme": storetest.FixtureProgrammeA,
+				"moduleId":  unconfirmed.String(),
+			}})
+			if code := errorCode(t, resp); code != "MODULE_NOT_DECOMPOSED" {
+				t.Errorf("a module with only a proposed split was refused with %s, "+
+					"want MODULE_NOT_DECOMPOSED", code)
+			}
+		})
+}
+
+// The other shape of the same refusal: a module the examination office states no hours for has
+// not even a proposal to confirm.
 func TestAModuleWithoutHoursIsRefusedByName(t *testing.T) {
 	t.Parallel()
 

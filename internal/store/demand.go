@@ -449,19 +449,15 @@ func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.Cour
 // looks like — one built by the writer, one by the reader — and the two would drift on the first
 // field somebody adds to a query without adding it to the other.
 
-// effectiveComponents is what an instance's parts are made from: the split somebody stated, or
-// the proposal derived from the catalogue where nobody has.
+// statedComponents is what an instance's parts are made from: the split somebody confirmed.
 //
 // Read inside the caller's transaction, because "this module has no split" and "this module had
 // no split a moment ago" are different statements and only the first one is true when it is read
 // in the transaction that writes the parts.
 //
-// The fall back to a proposal is what makes a semester plannable in October rather than after
-// somebody has typed 500 splits. It is the same proposal the API shows and marks as a guess, so
-// an instance declared from it holds exactly the parts the screen promised. Only a module the
-// examination office states no hours for is left with nothing — twelve in the real catalogue,
-// and for those ErrModuleNotDecomposed still says what to repair.
-func effectiveComponents(ctx context.Context, q *Queries, moduleID uuid.UUID) ([]domain.ModuleComponent, error) {
+// No fall back to the proposal any more — see domain.Module.Plannable for why. A module without a
+// confirmed split is ErrModuleNotDecomposed, which says what to repair.
+func statedComponents(ctx context.Context, q *Queries, moduleID uuid.UUID) ([]domain.ModuleComponent, error) {
 	rows, err := q.ModuleComponentsFor(ctx, []uuid.UUID{moduleID})
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the module's split: %w", err)
@@ -479,22 +475,12 @@ func effectiveComponents(ctx context.Context, q *Queries, moduleID uuid.UUID) ([
 		return out, nil
 	}
 
-	module, err := q.ModuleByID(ctx, moduleID)
-	if errors.Is(err, pgx.ErrNoRows) {
+	if _, err := q.ModuleByID(ctx, moduleID); errors.Is(err, pgx.ErrNoRows) {
 		return nil, domain.ErrModuleNotFound
-	}
-	if err != nil {
+	} else if err != nil {
 		return nil, fmt.Errorf("cannot read the module: %w", err)
 	}
-
-	proposed := domain.Module{
-		CourseType:          domain.CourseType(module.CourseType),
-		ContactHoursPerWeek: intOrNil(module.ContactHoursPerWeek),
-	}.ProposedComponents()
-	if len(proposed) == 0 {
-		return nil, domain.ErrModuleNotDecomposed
-	}
-	return proposed, nil
+	return nil, domain.ErrModuleNotDecomposed
 }
 
 // CreateCourseInstance declares an instance and makes its parts from the module's split.
@@ -516,7 +502,7 @@ func (d *Demand) CreateCourseInstance(ctx context.Context, spec domain.NewCourse
 
 	q := New(tx)
 
-	components, err := effectiveComponents(ctx, q, spec.ModuleID)
+	components, err := statedComponents(ctx, q, spec.ModuleID)
 	if err != nil {
 		return nil, err
 	}
@@ -1442,7 +1428,7 @@ func (d *Demand) ReleaseInstanceCoverage(ctx context.Context, guestID uuid.UUID)
 	}
 
 	if wasAccepted {
-		components, err := effectiveComponents(ctx, q, guest.ModuleID)
+		components, err := statedComponents(ctx, q, guest.ModuleID)
 		if err != nil {
 			return nil, err
 		}
@@ -2123,7 +2109,7 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 ) (*heldInstance, error) {
 	q := New(tx)
 
-	components, err := effectiveComponents(ctx, q, pc.entry.ModuleID)
+	components, err := statedComponents(ctx, q, pc.entry.ModuleID)
 	if err != nil {
 		// Both of these cost the row and not the screen. A module that vanished between the load
 		// and the save is somebody else's deletion, not this caller's mistake — and it must not
@@ -2305,7 +2291,7 @@ func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.Deman
 		return nil
 	}
 
-	components, err := effectiveComponents(ctx, q, instance.moduleID)
+	components, err := statedComponents(ctx, q, instance.moduleID)
 	if err != nil {
 		// A module with nothing to make parts from was already reported where it was created;
 		// an existing cohort of one simply keeps what it has.

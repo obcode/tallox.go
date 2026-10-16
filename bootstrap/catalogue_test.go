@@ -983,8 +983,8 @@ func TestTheTeacherListNeedsAnAccount(t *testing.T) {
 
 // The proposal, through both doors.
 //
-// It is not a convenience of the interface: an instance may be declared from it, so a script has
-// to be able to see the same guess the browser shows — and to see that it is one.
+// A script has to see the same guess the browser offers for confirmation — and that the module is
+// not plannable until somebody confirms it: no instance is made from a guess (since 2026-10-16).
 func TestAModuleWithoutAStatedSplitCarriesAProposal(t *testing.T) {
 	t.Parallel()
 
@@ -1029,10 +1029,10 @@ func TestAModuleWithoutAStatedSplitCarriesAProposal(t *testing.T) {
 				t.Fatalf("the fixture module has a stated split; this test is about the one that "+
 					"has none: %+v", m.Components)
 			}
-			if !m.SplitIsEstimated || !m.Plannable {
-				t.Errorf("estimated=%v plannable=%v, want both true — a four-hour module with a "+
-					"laboratory has a proposal, and an instance may be declared from it",
-					m.SplitIsEstimated, m.Plannable)
+			if !m.SplitIsEstimated || m.Plannable {
+				t.Errorf("estimated=%v plannable=%v, want estimated and not plannable — a four-hour "+
+					"module with a laboratory has a proposal, and nothing is declared from it until "+
+					"somebody confirms it", m.SplitIsEstimated, m.Plannable)
 			}
 			if len(m.ProposedComponents) != 2 ||
 				m.ProposedComponents[0].Kind != "LECTURE" || m.ProposedComponents[0].TeachingHours != 2 ||

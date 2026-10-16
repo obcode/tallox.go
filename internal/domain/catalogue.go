@@ -348,11 +348,12 @@ func ParseInstancePartKind(s string) (InstancePartKind, bool) {
 // # What it is for
 //
 // The examination office publishes one total and no split, so every division of it is a guess.
-// The guess is good enough to plan with — an instance declared from it holds the right number of
-// parts and very nearly the right hours — and it is marked as a guess everywhere it is shown, so
-// that confirming it stays a deliberate act. What it is never is a stored value: nothing writes
-// these to module_component without a person saying so, which is the property that makes that
-// table trustworthy.
+// The guess is a starting point for the person who states the split — usually right, and one
+// click to confirm — and it is marked as a guess everywhere it is shown, so that confirming it
+// stays a deliberate act. What it is never is a stored value, and nothing is planned with it:
+// parts are made from module_component only, which nothing writes without a person saying so.
+// That is the property that makes that table trustworthy, and see Module.Plannable for what
+// planning with the guess cost.
 //
 // # The rule, and why the lecture is always even
 //

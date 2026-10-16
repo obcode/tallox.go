@@ -493,9 +493,8 @@ type DeclareCourseInstanceInput struct {
 	Programme string `json:"programme"`
 	// The module, by id.
 	//
-	// The instance's parts are made from the module's split, or — while nobody has stated one — from
-	// `Module.proposedComponents`. Only a module the catalogue states no hours for has neither, and
-	// that answers `MODULE_NOT_DECOMPOSED`; the repair is `setModuleComponents`.
+	// The instance's parts are made from the module's confirmed split. A module whose split nobody has
+	// confirmed answers `MODULE_NOT_DECOMPOSED`; the repair is `setModuleComponents`.
 	ModuleID string `json:"moduleId"`
 	// The parallel cohort, or empty for a module that runs once. One to three characters, upper-cased
 	// and trimmed for you.
@@ -712,10 +711,8 @@ type LocalModuleInput struct {
 	// There is no delete and there will not be one: instances point at a module, and later wishes
 	// will point at their parts. This is how a course nobody needs any more is retired.
 	Active bool `json:"active"`
-	// The split, or omitted to let `proposedComponents` stand in.
-	//
-	// Worth stating for a placeholder: a module the catalogue gives no hours for is refused with
-	// `MODULE_NOT_DECOMPOSED` when somebody tries to declare an instance of it.
+	// The split. Without it no instance can be declared of the module — that is refused with
+	// `MODULE_NOT_DECOMPOSED` until `setModuleComponents` states one.
 	Components []*ModuleComponentInput `json:"components,omitempty"`
 }
 
@@ -774,9 +771,8 @@ type ModuleFilter struct {
 	Responsible *string `json:"responsible,omitempty"`
 	// Keep only modules whose split nobody has confirmed yet — where `splitIsEstimated` is true.
 	//
-	// The work list. Planning works without it, because the proposal stands in; what this filter
-	// finds is where the software is guessing and a person has not yet agreed. A bounded, finishable
-	// task rather than an open form.
+	// The work list: these modules cannot be planned until somebody confirms their split. A bounded,
+	// finishable task rather than an open form.
 	WithoutComponents *bool `json:"withoutComponents,omitempty"`
 	// Keep only modules that are in no subject group yet.
 	//

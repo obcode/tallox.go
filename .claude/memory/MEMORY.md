@@ -24,6 +24,7 @@ Kolleg:innen — das gehört nach `tallox.dev`.
 - [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf, und das Planungssemester
 - [Kompetenzzone](competences.md) — am Modul ohne Semester, vertraulich ohne Veröffentlichung, Mitgliedschaft als Schreibregel, Lehrende ohne Konto durch die Fachgruppenleitung
 - [Studiengangs-Review](programme-review.md) — Phase REVIEW vor FINAL, alles offen bis Semesterende, Marke „Review fertig"
+- [Block und Englisch je Zug](instance-format.md) — Override gegen den ZPA-Default, Schreibregel der Zuteilung, Mitnahmepfade
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:
      eine Datei = ein Sachverhalt, Frontmatter mit name/description/metadata.type,

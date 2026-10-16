@@ -517,6 +517,75 @@ func (ec *executionContext) fieldContext_CourseInstance_note(_ context.Context, 
 	return graphql.NewScalarFieldContext("CourseInstance", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _CourseInstance_delivery(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CourseInstance_delivery(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Delivery, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v domain.Delivery) graphql.Marshaler {
+			return ec.marshalNDeliveryFormat2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐDelivery(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CourseInstance_delivery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CourseInstance", field, false, false, errors.New("field of type DeliveryFormat does not have child fields"))
+}
+
+func (ec *executionContext) _CourseInstance_taughtInEnglish(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CourseInstance_taughtInEnglish(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TaughtInEnglish, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CourseInstance_taughtInEnglish(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CourseInstance", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _CourseInstance_taughtInEnglishOverridden(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CourseInstance_taughtInEnglishOverridden(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TaughtInEnglishOverridden, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CourseInstance_taughtInEnglishOverridden(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CourseInstance", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _CourseInstance_parts(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1850,6 +1919,21 @@ func (ec *executionContext) _CourseInstance(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "delivery":
+			out.Values[i] = ec._CourseInstance_delivery(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "taughtInEnglish":
+			out.Values[i] = ec._CourseInstance_taughtInEnglish(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "taughtInEnglishOverridden":
+			out.Values[i] = ec._CourseInstance_taughtInEnglishOverridden(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "parts":
 			out.Values[i] = ec._CourseInstance_parts(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -2298,6 +2382,23 @@ func (ec *executionContext) marshalNCourseInstance2ᚖgithubᚗcomᚋobcodeᚋta
 func (ec *executionContext) unmarshalNDeclareCourseInstanceInput2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDeclareCourseInstanceInput(ctx context.Context, v any) (model.DeclareCourseInstanceInput, error) {
 	res, err := ec.unmarshalInputDeclareCourseInstanceInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNDeliveryFormat2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐDelivery(ctx context.Context, v any) (domain.Delivery, error) {
+	tmp, err := graphql.UnmarshalString(v)
+	res := domain.Delivery(tmp)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDeliveryFormat2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐDelivery(ctx context.Context, sel ast.SelectionSet, v domain.Delivery) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalString(string(v))
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) marshalNDemandChange2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandChangeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DemandChange) graphql.Marshaler {

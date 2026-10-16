@@ -23,7 +23,8 @@
 -- afterwards, and selecting it here would be a second copy of the same string that could drift
 -- from the one the interface shows.
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
-       ci.note, ci.created_at, ci.updated_at,
+       ci.note, ci.delivery, ci.taught_in_english, m.teaching_language AS module_teaching_language,
+       ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
        ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
@@ -43,7 +44,8 @@ ORDER BY ci.programme_semester NULLS LAST, (m.name = ''), m.name, ci.track, ci.i
 
 -- name: CourseInstanceByID :one
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
-       ci.note, ci.created_at, ci.updated_at,
+       ci.note, ci.delivery, ci.taught_in_english, m.teaching_language AS module_teaching_language,
+       ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
        ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
@@ -54,6 +56,7 @@ JOIN semester s ON s.id = ci.semester_id
 JOIN programme p ON p.id = ci.programme_id
 LEFT JOIN course_instance host ON host.id = ci.covered_by_instance_id
 LEFT JOIN programme cov ON cov.id = ci.covered_by_programme_id
+JOIN module m ON m.id = ci.module_id
 WHERE ci.id = $1;
 
 -- name: CourseInstanceByPartID :one
@@ -63,7 +66,8 @@ WHERE ci.id = $1;
 -- whether this actor may write this programme's demand in this phase, and both halves of that
 -- come off the instance.
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
-       ci.note, ci.created_at, ci.updated_at,
+       ci.note, ci.delivery, ci.taught_in_english, m.teaching_language AS module_teaching_language,
+       ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
        ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
@@ -75,6 +79,7 @@ JOIN semester s ON s.id = ci.semester_id
 JOIN programme p ON p.id = ci.programme_id
 LEFT JOIN course_instance host ON host.id = ci.covered_by_instance_id
 LEFT JOIN programme cov ON cov.id = ci.covered_by_programme_id
+JOIN module m ON m.id = ci.module_id
 WHERE ip.id = $1;
 
 -- name: InstancePartsFor :many
@@ -314,8 +319,9 @@ WHERE o.module_id = $1
 -- worth naming, and the demand is not confidential, so naming it leaks nothing. The copy path is
 -- the one place that wants a conflict to be a no-op, and it uses the statement below.
 INSERT INTO course_instance (semester_id, module_id, programme_id, track, programme_semester,
-                             note, created_by)
-VALUES ($1, $2, $3, $4, sqlc.narg('programme_semester'), sqlc.arg('note'), sqlc.narg('created_by'))
+                             note, delivery, taught_in_english, created_by)
+VALUES ($1, $2, $3, $4, sqlc.narg('programme_semester'), sqlc.arg('note'), sqlc.arg('delivery'),
+        sqlc.narg('taught_in_english'), sqlc.narg('created_by'))
 RETURNING id;
 
 -- name: InsertCourseInstanceIfAbsent :one
@@ -326,8 +332,9 @@ RETURNING id;
 -- a cohort year somebody has since corrected in the target semester — a copy must never silently
 -- undo work in the semester it is copying into.
 INSERT INTO course_instance (semester_id, module_id, programme_id, track, programme_semester,
-                             note, created_by)
-VALUES ($1, $2, $3, $4, sqlc.narg('programme_semester'), sqlc.arg('note'), sqlc.narg('created_by'))
+                             note, delivery, taught_in_english, created_by)
+VALUES ($1, $2, $3, $4, sqlc.narg('programme_semester'), sqlc.arg('note'), sqlc.arg('delivery'),
+        sqlc.narg('taught_in_english'), sqlc.narg('created_by'))
 ON CONFLICT (semester_id, module_id, programme_id, track) DO NOTHING
 RETURNING id;
 
@@ -354,6 +361,22 @@ UPDATE course_instance
 SET note = $2,
     updated_at = now()
 WHERE id = $1;
+
+-- name: UpdateCourseInstanceFormat :exec
+-- How a cohort is taught: in a block or across the semester, and whether in English.
+--
+-- On its own for the same reason as the note: nothing else that writes a cohort has these to
+-- state. The language is stored only where it differs from what the catalogue says for the
+-- module — NULLIF turns "English, and the catalogue says English" into "as the catalogue says",
+-- so that a later correction of the catalogue still reaches this cohort. A NULL argument is the
+-- explicit "as the catalogue says".
+UPDATE course_instance ci
+SET delivery = sqlc.arg('delivery'),
+    taught_in_english = NULLIF(sqlc.narg('taught_in_english')::boolean,
+                               COALESCE(m.teaching_language = 'EN', false)),
+    updated_at = now()
+FROM module m
+WHERE ci.id = sqlc.arg('id') AND m.id = ci.module_id;
 
 -- name: DeleteCourseInstance :execrows
 -- Withdraw an instance. Its parts go with it; anything else pointing at it stops it.
@@ -420,8 +443,8 @@ SELECT EXISTS (
 -- Addressed by semester id rather than by code, unlike the list above, because both callers
 -- already hold the semester as a row: looking it up again by code inside the transaction would be
 -- a second chance to disagree about which semester is meant.
-SELECT ci.id, ci.module_id, ci.track, ci.programme_semester, ci.note,
-       (ci.covered_accepted_at IS NOT NULL)::boolean AS is_covered
+SELECT ci.id, ci.module_id, ci.track, ci.programme_semester, ci.note, ci.delivery,
+       ci.taught_in_english, (ci.covered_accepted_at IS NOT NULL)::boolean AS is_covered
 FROM course_instance ci
 WHERE ci.semester_id = $1
   AND ci.programme_id = $2

@@ -70,6 +70,9 @@ const (
 	NoteFrequencyUnmapped ProjectionNoteCode = "FREQUENCY_UNMAPPED"
 	// NoteCourseTypeUnmapped is the same for how the teaching is broken up.
 	NoteCourseTypeUnmapped ProjectionNoteCode = "COURSE_TYPE_UNMAPPED"
+	// NoteLanguageUnmapped is the same for the default language. Became "no language stated",
+	// which a cohort reads as German.
+	NoteLanguageUnmapped ProjectionNoteCode = "LANGUAGE_UNMAPPED"
 	// NoteMinSemesterConflict is a module whose catalogue slots within one set of regulations
 	// disagree about the earliest semester. Folded with the lowest.
 	NoteMinSemesterConflict ProjectionNoteCode = "MIN_SEMESTER_CONFLICT"
@@ -100,6 +103,7 @@ func AllProjectionNoteCodes() []ProjectionNoteCode {
 		NoteTeacherWithoutMail,
 		NoteFrequencyUnmapped,
 		NoteCourseTypeUnmapped,
+		NoteLanguageUnmapped,
 		NoteMinSemesterConflict,
 		NoteDutyConflict,
 	}

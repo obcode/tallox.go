@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/google/uuid"
@@ -2258,4 +2259,126 @@ func TestANoteBesideTheRowFollowsItsCohorts(t *testing.T) {
 		t.Fatalf("copying gave %v", err)
 	}
 	expect("einmalig doppelt")
+}
+
+// How a cohort is taught follows it the way the note does — into a cohort added to the row, into
+// a duplicate, into next year's copy — while the language stays a deviation from the catalogue
+// rather than a copy of it.
+func TestHowACohortIsTaughtFollowsItsCohorts(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	type taught struct {
+		delivery   domain.Delivery
+		english    bool
+		overridden bool
+	}
+	read := func() []taught {
+		t.Helper()
+		out := []taught{}
+		for _, i := range f.instances(t) {
+			out = append(out, taught{i.Delivery, i.TaughtInEnglish(), i.EnglishOverride != nil})
+		}
+		return out
+	}
+	expect := func(want ...taught) {
+		t.Helper()
+		if got := read(); !slices.Equal(got, want) {
+			t.Fatalf("the cohorts are taught %+v, want %+v", got, want)
+		}
+	}
+	weekly := taught{domain.DeliveryWeekly, false, false}
+	blockInEnglish := taught{domain.DeliveryBlock, true, true}
+	yes, no := true, false
+
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("A", 1))}, uuid.Nil, false); err != nil {
+		t.Fatalf("planning gave %v", err)
+	}
+	// Nobody said anything: across the semester, and German because the fixture's catalogue
+	// says DE.
+	expect(weekly)
+
+	instances := f.instances(t)
+	if _, err := f.demand.SetCourseInstanceFormat(ctx, instances[0].ID, domain.DeliveryBlock,
+		&yes); err != nil {
+		t.Fatalf("setting the format gave %v", err)
+	}
+	expect(blockInEnglish)
+
+	// A cohort added to the row arrives taught the way its sibling is.
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("A", 1), track("B", 1))},
+		uuid.Nil, false); err != nil {
+		t.Fatalf("adding a cohort gave %v", err)
+	}
+	expect(blockInEnglish, blockInEnglish)
+
+	// So does a duplicate.
+	if _, err := f.demand.DuplicateCourseInstance(ctx, f.instances(t)[1].ID, "C", "",
+		uuid.Nil); err != nil {
+		t.Fatalf("duplicating gave %v", err)
+	}
+	expect(blockInEnglish, blockInEnglish, blockInEnglish)
+
+	// "German" for a module the catalogue already calls German is not a decision: it is stored
+	// as none, so the cohort keeps following the catalogue.
+	instances = f.instances(t)
+	if _, err := f.demand.SetCourseInstanceFormat(ctx, instances[2].ID, domain.DeliveryWeekly,
+		&no); err != nil {
+		t.Fatalf("resetting by value gave %v", err)
+	}
+	expect(blockInEnglish, blockInEnglish, weekly)
+
+	// And when the catalogue changes, the cohorts that follow it change with it while the ones
+	// somebody decided about keep the decision.
+	if _, err := f.schema.Pool.Exec(ctx,
+		`UPDATE module SET teaching_language = 'EN' WHERE id = $1`, f.module); err != nil {
+		t.Fatalf("cannot change the catalogue: %v", err)
+	}
+	// The first two were decided while the catalogue said otherwise; that the catalogue now
+	// agrees does not turn the decision back into a default.
+	expect(blockInEnglish, blockInEnglish, taught{domain.DeliveryWeekly, true, false})
+	if _, err := f.demand.SetCourseInstanceFormat(ctx, instances[2].ID, domain.DeliveryWeekly,
+		&no); err != nil {
+		t.Fatalf("overriding the catalogue gave %v", err)
+	}
+	expect(blockInEnglish, blockInEnglish, taught{domain.DeliveryWeekly, false, true})
+
+	// nil hands the language back to the catalogue.
+	if _, err := f.demand.SetCourseInstanceFormat(ctx, instances[2].ID, domain.DeliveryWeekly,
+		nil); err != nil {
+		t.Fatalf("handing back gave %v", err)
+	}
+	expect(blockInEnglish, blockInEnglish, taught{domain.DeliveryWeekly, true, false})
+
+	// A copy from the previous semester brings both along.
+	if _, err := f.schema.Pool.Exec(ctx,
+		`UPDATE module SET teaching_language = 'DE' WHERE id = $1`, f.module); err != nil {
+		t.Fatalf("cannot change the catalogue back: %v", err)
+	}
+	if _, err := f.demand.PlanDemand(ctx, f.previous.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("", 1))}, uuid.Nil, false); err != nil {
+		t.Fatalf("planning last semester gave %v", err)
+	}
+	last, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+		SemesterCode: f.previous.Code, Programme: storetest.FixtureProgrammeA,
+	})
+	if err != nil || len(last) != 1 {
+		t.Fatalf("cannot read last semester: %v (%d)", err, len(last))
+	}
+	if _, err := f.demand.SetCourseInstanceFormat(ctx, last[0].ID, domain.DeliveryBlock,
+		&yes); err != nil {
+		t.Fatalf("setting last semester's format gave %v", err)
+	}
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module)}, uuid.Nil, false); err != nil {
+		t.Fatalf("emptying this semester gave %v", err)
+	}
+	if _, err := f.demand.CopyDemand(ctx, f.previous, f.semester, f.programme, uuid.Nil); err != nil {
+		t.Fatalf("copying gave %v", err)
+	}
+	expect(blockInEnglish)
 }

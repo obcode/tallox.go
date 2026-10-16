@@ -434,3 +434,30 @@ func writeRow(cells ...string) string {
 	b.WriteString("\n")
 	return b.String()
 }
+
+// How a cohort is taught is the assignment's rule by decision, not by accident: it is set where
+// the cohort is staffed, by the person who staffs it. If the two ever need to differ, this is the
+// test to change on purpose.
+func TestInstanceFormatFollowsTheAssignmentRule(t *testing.T) {
+	t.Parallel()
+
+	actors := []principal.Actor{principal.Anonymous}
+	for _, role := range policy.AllRoles() {
+		for _, kind := range []principal.Kind{principal.KindInteractive, principal.KindToken} {
+			actors = append(actors, testdata.Drei.Actor(kind, string(role)))
+		}
+		actors = append(actors, headOf(testdata.Drei, principal.KindInteractive, groupOne))
+	}
+
+	for _, a := range actors {
+		for _, phase := range policy.AllPhases() {
+			for _, group := range []uuid.UUID{groupOne, groupTwo, uuid.Nil} {
+				want := policy.MayWriteAssignment(a, group, uuid.Nil, phase)
+				if got := policy.MayWriteInstanceFormat(a, group, uuid.Nil, phase); got != want {
+					t.Errorf("%v in %s for group %s: format %v, assignment %v",
+						a.Roles, phase, group, got, want)
+				}
+			}
+		}
+	}
+}

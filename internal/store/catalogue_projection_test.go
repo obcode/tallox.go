@@ -1018,3 +1018,61 @@ func TestLocalModulesDoNotAppearInTheProjectionReport(t *testing.T) {
 			"reported as a finding of the import", inactiveBefore, inactiveAfter)
 	}
 }
+
+// The module's default language comes from std_lang, case-folded, and anything the mapping does
+// not know becomes "no language stated" and a report line naming the phrase — the same contract
+// as the two vocabularies above, because a cohort reads a missing language as German and nobody
+// would otherwise notice that an English module is being offered as a German one.
+func TestProjectionMapsTheDefaultLanguage(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	storetest.SeedZPACatalogue(t, s)
+	ctx := t.Context()
+
+	setLanguage := func(module int64, phrase string) {
+		t.Helper()
+		if _, err := s.Pool.Exec(ctx,
+			`UPDATE zpa_object SET payload = jsonb_set(payload, '{std_lang}', to_jsonb($2::text))
+			  WHERE kind = 'MODULE' AND zpa_id = $1`, module, phrase); err != nil {
+			t.Fatalf("cannot set the language: %v", err)
+		}
+	}
+	language := func(module int64) (*string, string) {
+		t.Helper()
+		var mapped *string
+		var source string
+		if err := s.Pool.QueryRow(ctx,
+			`SELECT teaching_language, teaching_language_source FROM module WHERE zpa_module_ref = $1`,
+			module).Scan(&mapped, &source); err != nil {
+			t.Fatalf("cannot read the module: %v", err)
+		}
+		return mapped, source
+	}
+
+	setLanguage(storetest.FixtureModuleOrdinary, " Englisch ")
+	setLanguage(storetest.FixtureModuleUnknownVocabulary, "Klingonisch")
+	result := project(t, s)
+
+	if got, _ := language(storetest.FixtureModuleOrdinary); got == nil || *got != string(domain.LanguageEnglish) {
+		t.Errorf("\" Englisch \" became %v, want EN", got)
+	}
+	if got, _ := language(storetest.FixtureModuleWithoutHours); got == nil || *got != string(domain.LanguageGerman) {
+		t.Errorf("DE became %v, want DE", got)
+	}
+	got, source := language(storetest.FixtureModuleUnknownVocabulary)
+	if got != nil {
+		t.Errorf("an unrecognised language became %s rather than none", *got)
+	}
+	if source != "Klingonisch" {
+		t.Errorf("the phrase was not kept: %q", source)
+	}
+
+	n := note(result, domain.NoteLanguageUnmapped)
+	if n == nil {
+		t.Fatal("LANGUAGE_UNMAPPED is not reported, so the phrase fell to German silently")
+	}
+	if !slices.Contains(n.Sample, "Klingonisch") || n.Count != 1 {
+		t.Errorf("LANGUAGE_UNMAPPED reports %d / %v, want exactly the one phrase", n.Count, n.Sample)
+	}
+}

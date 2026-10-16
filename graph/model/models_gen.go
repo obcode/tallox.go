@@ -413,6 +413,20 @@ type CourseInstance struct {
 	// data, and readable through both doors like the rest of the demand. The planning table writes
 	// it for every cohort of a module at once, like the cohort year.
 	Note string `json:"note"`
+	// Whether this cohort is taught across the semester or in a block. `WEEKLY` unless somebody said
+	// otherwise.
+	//
+	// For the whole cohort, all of its parts. A single laboratory group that runs differently belongs
+	// in the note.
+	Delivery domain.Delivery `json:"delivery"`
+	// Whether this cohort is taught in English: what somebody decided for it, else the module's
+	// default language in the examination office's catalogue, else `false`.
+	TaughtInEnglish bool `json:"taughtInEnglish"`
+	// Whether `taughtInEnglish` is a decision about this cohort rather than the catalogue's default.
+	//
+	// `false` means the cohort follows the catalogue, and keeps following it when the catalogue
+	// changes. A decision that agrees with the catalogue is not stored as one.
+	TaughtInEnglishOverridden bool `json:"taughtInEnglishOverridden"`
 	// The assignable units this cohort holds itself, in order.
 	//
 	// Made from the module's split when the instance is declared — one part per unit — and edited

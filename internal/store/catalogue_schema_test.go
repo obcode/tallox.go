@@ -893,3 +893,16 @@ func TestAProgrammeHasAtMostOneCoveredCohortOfAModule(t *testing.T) {
 		t.Errorf("a second cohort that holds its own teaching was refused: %v", err)
 	}
 }
+
+func TestDatabaseAndDomainAgreeOnDeliveries(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	known := make([]string, 0, len(domain.AllDeliveries()))
+	for _, d := range domain.AllDeliveries() {
+		known = append(known, string(d))
+	}
+	assertVocabulariesAgree(t, constraintDef(t, s, "course_instance_delivery_is_known"), known,
+		func(v string) bool { _, ok := domain.ParseDelivery(v); return ok })
+}

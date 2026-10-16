@@ -125,6 +125,16 @@ func (f *fakeDemandStore) UpdateCourseInstance(ctx context.Context, id uuid.UUID
 	return instance, nil
 }
 
+func (f *fakeDemandStore) SetCourseInstanceFormat(ctx context.Context, id uuid.UUID,
+	delivery domain.Delivery, englishOverride *bool,
+) (*domain.CourseInstance, error) {
+	f.writes++
+	instance, _ := f.CourseInstanceByID(ctx, id)
+	instance.Delivery = delivery
+	instance.EnglishOverride = englishOverride
+	return instance, nil
+}
+
 func (f *fakeDemandStore) DeleteCourseInstance(_ context.Context, id uuid.UUID) error {
 	f.writes++
 	delete(f.instances, id)

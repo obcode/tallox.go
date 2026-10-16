@@ -355,6 +355,8 @@ type Querier interface {
 	// be in, and eleven modules are in it — burying the genuinely new phrases under them would
 	// defeat the purpose of the line.
 	CountUnmappedFrequencies(ctx context.Context) (CountUnmappedFrequenciesRow, error)
+	// Became "no language stated". Same exclusion of the empty phrase as the two above.
+	CountUnmappedLanguages(ctx context.Context) (CountUnmappedLanguagesRow, error)
 	// Hold this cohort's demand with another programme's event, from the moment it is declared.
 	//
 	// Both timestamps at once, and that is the difference between the two ways in. Declaring a cohort
@@ -921,6 +923,9 @@ type Querier interface {
 	// Modules whose home programme is absent are dropped by the inner join, which is the whole
 	// mechanism — the column is NOT NULL by decision, and zpa_text() has already turned the
 	// source's "None" into a real NULL. WithoutHomeProgramme below counts what fell out.
+	// The language phrase is compared case-folded and trimmed, unlike the two above: it is a code
+	// ("DE") or a word ("Deutsch") rather than a sentence, and its spelling is not something the
+	// source has ever been seen to keep consistent.
 	ProjectModules(ctx context.Context, arg ProjectModulesParams) (int64, error)
 	// The module catalogue, projected out of the cached payloads.
 	//
@@ -1300,6 +1305,14 @@ type Querier interface {
 	// this instance, it is a different instance — and its parts, and later its wishes, belong to the
 	// one that was declared.
 	UpdateCourseInstance(ctx context.Context, arg UpdateCourseInstanceParams) error
+	// How a cohort is taught: in a block or across the semester, and whether in English.
+	//
+	// On its own for the same reason as the note: nothing else that writes a cohort has these to
+	// state. The language is stored only where it differs from what the catalogue says for the
+	// module — NULLIF turns "English, and the catalogue says English" into "as the catalogue says",
+	// so that a later correction of the catalogue still reaches this cohort. A NULL argument is the
+	// explicit "as the catalogue says".
+	UpdateCourseInstanceFormat(ctx context.Context, arg UpdateCourseInstanceFormatParams) error
 	// The note beside a row, on its own rather than as a third column of UpdateCourseInstance.
 	//
 	// Renaming a cohort and duplicating one both go through UpdateCourseInstance and have no note to

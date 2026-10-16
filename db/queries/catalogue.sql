@@ -110,16 +110,22 @@ WITH frequency_map AS (
     SELECT p.phrase, v.value
     FROM unnest(sqlc.arg(course_type_phrases)::text[]) WITH ORDINALITY AS p (phrase, n)
     JOIN unnest(sqlc.arg(course_type_values)::text[]) WITH ORDINALITY AS v (value, n) ON v.n = p.n
+), language_map AS (
+    SELECT p.phrase, v.value
+    FROM unnest(sqlc.arg(language_phrases)::text[]) WITH ORDINALITY AS p (phrase, n)
+    JOIN unnest(sqlc.arg(language_values)::text[]) WITH ORDINALITY AS v (value, n) ON v.n = p.n
 )
 INSERT INTO module (home_programme_id, name, course_type, course_type_source,
-                    frequency, frequency_source, contact_hours_per_week, credits,
-                    active, official, retired_at, zpa_module_ref)
+                    frequency, frequency_source, teaching_language, teaching_language_source,
+                    contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref)
 SELECT p.id,
        COALESCE(m.name, ''),
        COALESCE(ct.value, 'DEPENDS_ON_SUBJECT'),
        COALESCE(m.course_type, ''),
        COALESCE(fr.value, 'UNKNOWN'),
        COALESCE(m.frequency, ''),
+       lm.value,
+       COALESCE(m.default_language, ''),
        m.sws,
        m.credits,
        COALESCE(m.active, true),
@@ -130,6 +136,10 @@ FROM zpa_module_v m
 JOIN programme p ON p.code = m.home_programme
 LEFT JOIN frequency_map fr ON fr.phrase = m.frequency
 LEFT JOIN course_type_map ct ON ct.phrase = m.course_type
+-- The language phrase is compared case-folded and trimmed, unlike the two above: it is a code
+-- ("DE") or a word ("Deutsch") rather than a sentence, and its spelling is not something the
+-- source has ever been seen to keep consistent.
+LEFT JOIN language_map lm ON lm.phrase = lower(btrim(m.default_language))
 ON CONFLICT (zpa_module_ref) DO UPDATE
 SET home_programme_id      = EXCLUDED.home_programme_id,
     name                   = EXCLUDED.name,
@@ -137,6 +147,8 @@ SET home_programme_id      = EXCLUDED.home_programme_id,
     course_type_source     = EXCLUDED.course_type_source,
     frequency              = EXCLUDED.frequency,
     frequency_source       = EXCLUDED.frequency_source,
+    teaching_language      = EXCLUDED.teaching_language,
+    teaching_language_source = EXCLUDED.teaching_language_source,
     contact_hours_per_week = EXCLUDED.contact_hours_per_week,
     credits                = EXCLUDED.credits,
     active                 = EXCLUDED.active,
@@ -359,6 +371,13 @@ FROM module
 WHERE course_type = 'DEPENDS_ON_SUBJECT'
   AND course_type_source <> ''
   AND course_type_source <> sqlc.arg(depends_on_subject_phrase)::text;
+
+-- name: CountUnmappedLanguages :one
+-- Became "no language stated". Same exclusion of the empty phrase as the two above.
+SELECT count(*)::integer AS count,
+       (array_agg(DISTINCT teaching_language_source))[1:20]::text[] AS sample
+FROM module
+WHERE teaching_language IS NULL AND btrim(teaching_language_source) <> '';
 
 -- name: CountMinSemesterConflicts :one
 -- Folded with min(). Two real pairs are in this state, and both are a module sitting in an

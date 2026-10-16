@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/obcode/tallox.go/graph/model"
@@ -62,6 +63,28 @@ func (r *mutationResolver) SetAssignment(ctx context.Context, instancePartID str
 		return nil, assignmentError(err)
 	}
 	return assignmentModel(*assignment), nil
+}
+
+// SetCourseInstanceFormat is the resolver for the setCourseInstanceFormat field.
+func (r *mutationResolver) SetCourseInstanceFormat(ctx context.Context, id string, delivery domain.Delivery, taughtInEnglish *bool) (*model.CourseInstance, error) {
+	actor := principal.From(ctx)
+
+	instanceID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, badRequest("INSTANCE_NOT_FOUND", domain.ErrInstanceNotFound.Error())
+	}
+
+	instance, err := r.Demand.SetFormat(ctx, actor, instanceID, delivery, taughtInEnglish)
+	switch {
+	case err == nil:
+		return courseInstanceModel(*instance), nil
+	case errors.Is(err, domain.ErrNotYourSubject), errors.Is(err, domain.ErrAssignmentPhaseClosed):
+		// The assignment's refusals, because it is the assignment's rule.
+		return nil, assignmentError(err)
+	case errors.Is(err, domain.ErrDeliveryInvalid):
+		return nil, refusal("DELIVERY_INVALID", err.Error())
+	}
+	return nil, demandUserFacing(actor, err)
 }
 
 // ClearAssignment is the resolver for the clearAssignment field.

@@ -218,7 +218,8 @@ func (q *Queries) CoupleInstanceCoverage(ctx context.Context, arg CoupleInstance
 
 const courseInstanceByID = `-- name: CourseInstanceByID :one
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
-       ci.note, ci.created_at, ci.updated_at,
+       ci.note, ci.delivery, ci.taught_in_english, m.teaching_language AS module_teaching_language,
+       ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
        ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
@@ -229,6 +230,7 @@ JOIN semester s ON s.id = ci.semester_id
 JOIN programme p ON p.id = ci.programme_id
 LEFT JOIN course_instance host ON host.id = ci.covered_by_instance_id
 LEFT JOIN programme cov ON cov.id = ci.covered_by_programme_id
+JOIN module m ON m.id = ci.module_id
 WHERE ci.id = $1
 `
 
@@ -240,6 +242,9 @@ type CourseInstanceByIDRow struct {
 	Track                      string
 	ProgrammeSemester          *int32
 	Note                       string
+	Delivery                   string
+	TaughtInEnglish            *bool
+	ModuleTeachingLanguage     *string
 	CreatedAt                  time.Time
 	UpdatedAt                  time.Time
 	SemesterCode               string
@@ -267,6 +272,9 @@ func (q *Queries) CourseInstanceByID(ctx context.Context, id uuid.UUID) (CourseI
 		&i.Track,
 		&i.ProgrammeSemester,
 		&i.Note,
+		&i.Delivery,
+		&i.TaughtInEnglish,
+		&i.ModuleTeachingLanguage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SemesterCode,
@@ -287,7 +295,8 @@ func (q *Queries) CourseInstanceByID(ctx context.Context, id uuid.UUID) (CourseI
 
 const courseInstanceByPartID = `-- name: CourseInstanceByPartID :one
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
-       ci.note, ci.created_at, ci.updated_at,
+       ci.note, ci.delivery, ci.taught_in_english, m.teaching_language AS module_teaching_language,
+       ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
        ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
@@ -299,6 +308,7 @@ JOIN semester s ON s.id = ci.semester_id
 JOIN programme p ON p.id = ci.programme_id
 LEFT JOIN course_instance host ON host.id = ci.covered_by_instance_id
 LEFT JOIN programme cov ON cov.id = ci.covered_by_programme_id
+JOIN module m ON m.id = ci.module_id
 WHERE ip.id = $1
 `
 
@@ -310,6 +320,9 @@ type CourseInstanceByPartIDRow struct {
 	Track                      string
 	ProgrammeSemester          *int32
 	Note                       string
+	Delivery                   string
+	TaughtInEnglish            *bool
+	ModuleTeachingLanguage     *string
 	CreatedAt                  time.Time
 	UpdatedAt                  time.Time
 	SemesterCode               string
@@ -342,6 +355,9 @@ func (q *Queries) CourseInstanceByPartID(ctx context.Context, id uuid.UUID) (Cou
 		&i.Track,
 		&i.ProgrammeSemester,
 		&i.Note,
+		&i.Delivery,
+		&i.TaughtInEnglish,
+		&i.ModuleTeachingLanguage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SemesterCode,
@@ -361,8 +377,8 @@ func (q *Queries) CourseInstanceByPartID(ctx context.Context, id uuid.UUID) (Cou
 }
 
 const courseInstancesOfProgramme = `-- name: CourseInstancesOfProgramme :many
-SELECT ci.id, ci.module_id, ci.track, ci.programme_semester, ci.note,
-       (ci.covered_accepted_at IS NOT NULL)::boolean AS is_covered
+SELECT ci.id, ci.module_id, ci.track, ci.programme_semester, ci.note, ci.delivery,
+       ci.taught_in_english, (ci.covered_accepted_at IS NOT NULL)::boolean AS is_covered
 FROM course_instance ci
 WHERE ci.semester_id = $1
   AND ci.programme_id = $2
@@ -380,6 +396,8 @@ type CourseInstancesOfProgrammeRow struct {
 	Track             string
 	ProgrammeSemester *int32
 	Note              string
+	Delivery          string
+	TaughtInEnglish   *bool
 	IsCovered         bool
 }
 
@@ -403,6 +421,8 @@ func (q *Queries) CourseInstancesOfProgramme(ctx context.Context, arg CourseInst
 			&i.Track,
 			&i.ProgrammeSemester,
 			&i.Note,
+			&i.Delivery,
+			&i.TaughtInEnglish,
 			&i.IsCovered,
 		); err != nil {
 			return nil, err
@@ -815,8 +835,9 @@ func (q *Queries) HostCandidatesFor(ctx context.Context, id uuid.UUID) ([]HostCa
 
 const insertCourseInstance = `-- name: InsertCourseInstance :one
 INSERT INTO course_instance (semester_id, module_id, programme_id, track, programme_semester,
-                             note, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+                             note, delivery, taught_in_english, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7,
+        $8, $9)
 RETURNING id
 `
 
@@ -827,6 +848,8 @@ type InsertCourseInstanceParams struct {
 	Track             string
 	ProgrammeSemester *int32
 	Note              string
+	Delivery          string
+	TaughtInEnglish   *bool
 	CreatedBy         uuid.NullUUID
 }
 
@@ -843,6 +866,8 @@ func (q *Queries) InsertCourseInstance(ctx context.Context, arg InsertCourseInst
 		arg.Track,
 		arg.ProgrammeSemester,
 		arg.Note,
+		arg.Delivery,
+		arg.TaughtInEnglish,
 		arg.CreatedBy,
 	)
 	var id uuid.UUID
@@ -852,8 +877,9 @@ func (q *Queries) InsertCourseInstance(ctx context.Context, arg InsertCourseInst
 
 const insertCourseInstanceIfAbsent = `-- name: InsertCourseInstanceIfAbsent :one
 INSERT INTO course_instance (semester_id, module_id, programme_id, track, programme_semester,
-                             note, created_by)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+                             note, delivery, taught_in_english, created_by)
+VALUES ($1, $2, $3, $4, $5, $6, $7,
+        $8, $9)
 ON CONFLICT (semester_id, module_id, programme_id, track) DO NOTHING
 RETURNING id
 `
@@ -865,6 +891,8 @@ type InsertCourseInstanceIfAbsentParams struct {
 	Track             string
 	ProgrammeSemester *int32
 	Note              string
+	Delivery          string
+	TaughtInEnglish   *bool
 	CreatedBy         uuid.NullUUID
 }
 
@@ -882,6 +910,8 @@ func (q *Queries) InsertCourseInstanceIfAbsent(ctx context.Context, arg InsertCo
 		arg.Track,
 		arg.ProgrammeSemester,
 		arg.Note,
+		arg.Delivery,
+		arg.TaughtInEnglish,
 		arg.CreatedBy,
 	)
 	var id uuid.UUID
@@ -1011,7 +1041,8 @@ func (q *Queries) InstancePartsOfKindExist(ctx context.Context, arg InstancePart
 const listCourseInstances = `-- name: ListCourseInstances :many
 
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
-       ci.note, ci.created_at, ci.updated_at,
+       ci.note, ci.delivery, ci.taught_in_english, m.teaching_language AS module_teaching_language,
+       ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
        ci.covered_by_instance_id, ci.covered_requested_at, ci.covered_accepted_at,
@@ -1045,6 +1076,9 @@ type ListCourseInstancesRow struct {
 	Track                      string
 	ProgrammeSemester          *int32
 	Note                       string
+	Delivery                   string
+	TaughtInEnglish            *bool
+	ModuleTeachingLanguage     *string
 	CreatedAt                  time.Time
 	UpdatedAt                  time.Time
 	SemesterCode               string
@@ -1105,6 +1139,9 @@ func (q *Queries) ListCourseInstances(ctx context.Context, arg ListCourseInstanc
 			&i.Track,
 			&i.ProgrammeSemester,
 			&i.Note,
+			&i.Delivery,
+			&i.TaughtInEnglish,
+			&i.ModuleTeachingLanguage,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.SemesterCode,
@@ -1763,6 +1800,34 @@ type UpdateCourseInstanceParams struct {
 // one that was declared.
 func (q *Queries) UpdateCourseInstance(ctx context.Context, arg UpdateCourseInstanceParams) error {
 	_, err := q.db.Exec(ctx, updateCourseInstance, arg.ID, arg.Track, arg.ProgrammeSemester)
+	return err
+}
+
+const updateCourseInstanceFormat = `-- name: UpdateCourseInstanceFormat :exec
+UPDATE course_instance ci
+SET delivery = $1,
+    taught_in_english = NULLIF($2::boolean,
+                               COALESCE(m.teaching_language = 'EN', false)),
+    updated_at = now()
+FROM module m
+WHERE ci.id = $3 AND m.id = ci.module_id
+`
+
+type UpdateCourseInstanceFormatParams struct {
+	Delivery        string
+	TaughtInEnglish *bool
+	ID              uuid.UUID
+}
+
+// How a cohort is taught: in a block or across the semester, and whether in English.
+//
+// On its own for the same reason as the note: nothing else that writes a cohort has these to
+// state. The language is stored only where it differs from what the catalogue says for the
+// module — NULLIF turns "English, and the catalogue says English" into "as the catalogue says",
+// so that a later correction of the catalogue still reaches this cohort. A NULL argument is the
+// explicit "as the catalogue says".
+func (q *Queries) UpdateCourseInstanceFormat(ctx context.Context, arg UpdateCourseInstanceFormatParams) error {
+	_, err := q.db.Exec(ctx, updateCourseInstanceFormat, arg.Delivery, arg.TaughtInEnglish, arg.ID)
 	return err
 }
 

@@ -99,6 +99,59 @@ func (r *mutationResolver) ClearAssignment(ctx context.Context, id string) (stri
 	return id, nil
 }
 
+// DivideInstancePart is the resolver for the divideInstancePart field.
+func (r *mutationResolver) DivideInstancePart(ctx context.Context, id string, teachingHours float64) (*model.CourseInstance, error) {
+	actor := principal.From(ctx)
+
+	partID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, badRequest("PART_NOT_FOUND", domain.ErrPartNotFound.Error())
+	}
+
+	instance, err := r.Demand.DividePart(ctx, actor, partID, teachingHours)
+	if err != nil {
+		return nil, partArrangementError(actor, err)
+	}
+	return courseInstanceModel(*instance), nil
+}
+
+// RejoinInstancePart is the resolver for the rejoinInstancePart field.
+func (r *mutationResolver) RejoinInstancePart(ctx context.Context, id string) (*model.CourseInstance, error) {
+	actor := principal.From(ctx)
+
+	partID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, badRequest("PART_NOT_FOUND", domain.ErrPartNotFound.Error())
+	}
+
+	instance, err := r.Demand.RejoinPart(ctx, actor, partID)
+	if err != nil {
+		return nil, partArrangementError(actor, err)
+	}
+	return courseInstanceModel(*instance), nil
+}
+
+// SetInstancePartTaughtBy is the resolver for the setInstancePartTaughtBy field.
+func (r *mutationResolver) SetInstancePartTaughtBy(ctx context.Context, id string, faculty *string) (*model.CourseInstance, error) {
+	actor := principal.From(ctx)
+
+	partID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, badRequest("PART_NOT_FOUND", domain.ErrPartNotFound.Error())
+	}
+
+	name := ""
+	if faculty != nil {
+		name = *faculty
+	}
+
+	instance, err := r.Demand.SetPartTaughtBy(ctx, actor, partID, name)
+	if err != nil {
+		return nil, partArrangementError(actor, err)
+	}
+	return courseInstanceModel(*instance), nil
+}
+
 // MyAssignments is the resolver for the myAssignments field.
 func (r *queryResolver) MyAssignments(ctx context.Context, semester *string) ([]*model.Assignment, error) {
 	// A missing semester is every semester, not a refused query: these are the caller's own rows,

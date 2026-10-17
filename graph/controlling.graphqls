@@ -15,7 +15,8 @@ programme pays for is other programmes' modules is the import figure.
 
 Teaching hours: the sum over the parts of every instance, by the rule `CourseInstance.teachingHours`
 states. A four-hour module with a lecture and three laboratory groups costs eight; a lecture held
-once for two cohorts counts once; a cohort covered by another programme's event costs nothing.
+once for two cohorts counts once; a cohort covered by another programme's event costs nothing; a
+part another faculty teaches is not ours and is reported as `externalHours` instead.
 Not `Module.contactHoursPerWeek`, which is what a student attends and is not a teaching load.
 """
 type ProgrammeTeachingLoad {
@@ -39,6 +40,13 @@ type ProgrammeTeachingLoad {
   is too low, not that the semester is light.
   """
   partsWithoutHours: Int!
+  """
+  What other faculties teach in the programme's instances — parts with `InstancePart.taughtBy`.
+  **Not** in `teachingHours` or any other figure here, because it is not this faculty's teaching;
+  reported beside it for the dean's office, who asks how much of what our students attend
+  somebody else gives.
+  """
+  externalHours: Float!
   """
   The load split by the home programme of the modules, ordered by its code. Empty for a planned
   programme nothing has been declared for yet.
@@ -122,6 +130,8 @@ type TeachingLoadShare {
   fwpHours: Float!
   "Parts among them that state no hours and therefore count zero."
   partsWithoutHours: Int!
+  "What other faculties teach in those instances, beside `teachingHours` rather than in it."
+  externalHours: Float!
 }
 
 extend type Query {

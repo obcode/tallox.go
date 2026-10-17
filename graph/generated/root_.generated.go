@@ -235,10 +235,12 @@ type ComplexityRoot struct {
 	}
 
 	InstancePart struct {
+		DividedFrom        func(childComplexity int) int
 		ID                 func(childComplexity int) int
 		Kind               func(childComplexity int) int
 		Position           func(childComplexity int) int
 		SharedAcrossTracks func(childComplexity int) int
+		TaughtBy           func(childComplexity int) int
 		TeachingHours      func(childComplexity int) int
 	}
 
@@ -318,11 +320,13 @@ type ComplexityRoot struct {
 		CreatePersonalAccessToken     func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput) int
 		CreateSubjectGroup            func(childComplexity int, code string, name string) int
 		DeclareCourseInstance         func(childComplexity int, input model.DeclareCourseInstanceInput) int
+		DivideInstancePart            func(childComplexity int, id string, teachingHours float64) int
 		DuplicateCourseInstance       func(childComplexity int, id string, track string, sourceTrack *string) int
 		PlanDemand                    func(childComplexity int, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) int
 		ProjectZpaCatalogue           func(childComplexity int) int
 		PublishAssignments            func(childComplexity int, code string) int
 		PublishWishes                 func(childComplexity int, code string) int
+		RejoinInstancePart            func(childComplexity int, id string) int
 		ReleaseInstanceCoverage       func(childComplexity int, id string) int
 		RemoveInstancePart            func(childComplexity int, id string) int
 		RenamePerson                  func(childComplexity int, id string, name string) int
@@ -332,6 +336,7 @@ type ComplexityRoot struct {
 		SetAssignment                 func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
 		SetCourseInstanceFormat       func(childComplexity int, id string, delivery domain.Delivery, taughtInEnglish *bool) int
 		SetDemandComplete             func(childComplexity int, semester string, programme string, complete bool) int
+		SetInstancePartTaughtBy       func(childComplexity int, id string, faculty *string) int
 		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
 		SetModulesSubjectGroup        func(childComplexity int, moduleIds []string, subjectGroup *string) int
 		SetMyCompetence               func(childComplexity int, moduleID string, level domain.CompetenceLevel, note *string) int
@@ -413,6 +418,7 @@ type ComplexityRoot struct {
 
 	ProgrammeTeachingLoad struct {
 		Balance           func(childComplexity int) int
+		ExternalHours     func(childComplexity int) int
 		FwpHours          func(childComplexity int) int
 		FwpInstanceCount  func(childComplexity int) int
 		InstanceCount     func(childComplexity int) int
@@ -566,6 +572,7 @@ type ComplexityRoot struct {
 	}
 
 	TeachingLoadShare struct {
+		ExternalHours     func(childComplexity int) int
 		FwpHours          func(childComplexity int) int
 		FwpInstanceCount  func(childComplexity int) int
 		HomeProgramme     func(childComplexity int) int
@@ -1473,6 +1480,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.InstanceCoverage.RequestedAt(childComplexity), true
 
+	case "InstancePart.dividedFrom":
+		if e.ComplexityRoot.InstancePart.DividedFrom == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InstancePart.DividedFrom(childComplexity), true
 	case "InstancePart.id":
 		if e.ComplexityRoot.InstancePart.ID == nil {
 			break
@@ -1497,6 +1510,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.InstancePart.SharedAcrossTracks(childComplexity), true
+	case "InstancePart.taughtBy":
+		if e.ComplexityRoot.InstancePart.TaughtBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.InstancePart.TaughtBy(childComplexity), true
 	case "InstancePart.teachingHours":
 		if e.ComplexityRoot.InstancePart.TeachingHours == nil {
 			break
@@ -1932,6 +1951,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DeclareCourseInstance(childComplexity, args["input"].(model.DeclareCourseInstanceInput)), true
+	case "Mutation.divideInstancePart":
+		if e.ComplexityRoot.Mutation.DivideInstancePart == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_divideInstancePart_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DivideInstancePart(childComplexity, args["id"].(string), args["teachingHours"].(float64)), true
 	case "Mutation.duplicateCourseInstance":
 		if e.ComplexityRoot.Mutation.DuplicateCourseInstance == nil {
 			break
@@ -1982,6 +2012,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.PublishWishes(childComplexity, args["code"].(string)), true
+	case "Mutation.rejoinInstancePart":
+		if e.ComplexityRoot.Mutation.RejoinInstancePart == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_rejoinInstancePart_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.RejoinInstancePart(childComplexity, args["id"].(string)), true
 	case "Mutation.releaseInstanceCoverage":
 		if e.ComplexityRoot.Mutation.ReleaseInstanceCoverage == nil {
 			break
@@ -2081,6 +2122,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetDemandComplete(childComplexity, args["semester"].(string), args["programme"].(string), args["complete"].(bool)), true
+	case "Mutation.setInstancePartTaughtBy":
+		if e.ComplexityRoot.Mutation.SetInstancePartTaughtBy == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setInstancePartTaughtBy_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetInstancePartTaughtBy(childComplexity, args["id"].(string), args["faculty"].(*string)), true
 	case "Mutation.setModuleComponents":
 		if e.ComplexityRoot.Mutation.SetModuleComponents == nil {
 			break
@@ -2568,6 +2620,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProgrammeTeachingLoad.Balance(childComplexity), true
+	case "ProgrammeTeachingLoad.externalHours":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.ExternalHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.ExternalHours(childComplexity), true
 	case "ProgrammeTeachingLoad.fwpHours":
 		if e.ComplexityRoot.ProgrammeTeachingLoad.FwpHours == nil {
 			break
@@ -3431,6 +3489,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.TeacherAccount.Teacher(childComplexity), true
 
+	case "TeachingLoadShare.externalHours":
+		if e.ComplexityRoot.TeachingLoadShare.ExternalHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TeachingLoadShare.ExternalHours(childComplexity), true
 	case "TeachingLoadShare.fwpHours":
 		if e.ComplexityRoot.TeachingLoadShare.FwpHours == nil {
 			break
@@ -4593,7 +4657,7 @@ extend type Mutation {
   responsible for neither the subject nor the programme, ` + "`" + `PART_ALREADY_ASSIGNED` + "`" + ` when you believed
   a part was free and it is not, ` + "`" + `ASSIGNMENT_MOVED_ON` + "`" + ` when the assignment you named is no longer
   the one there, ` + "`" + `ASSIGNEE_INVALID` + "`" + ` for neither or both ids, ` + "`" + `ASSIGNEE_NOT_FOUND` + "`" + ` for one that
-  does not resolve.
+  does not resolve, ` + "`" + `PART_TAUGHT_ELSEWHERE` + "`" + ` for a part another faculty teaches.
   """
   setAssignment(
     "The part to fill."
@@ -4642,6 +4706,59 @@ extend type Mutation {
   assignment" and "that one is not yours" — deliberately the same answer.
   """
   clearAssignment(id: ID!): ID! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Cut a piece off a part: the same kind, ` + "`" + `teachingHours` + "`" + ` of its hours, and the part keeps the
+  rest.
+
+  The way to split teaching between two people, or between this faculty and another one. A
+  lecture of 4 becomes 2 and 2; dividing again cuts from the same undivided part, so any split is
+  a few calls. The instance's hours do not change, and the piece is staffed like any other part.
+  It is not a laboratory group: the number of groups the demand plans counts undivided parts only.
+
+  An assignment on the part stays on it, and the person on it is credited with what is left —
+  the same as correcting a part's hours.
+
+  Bound by the assignment's rule, like ` + "`" + `setCourseInstanceFormat` + "`" + `: it is arranged where the
+  instance is staffed.
+
+  Refusals: ` + "`" + `PART_NOT_FOUND` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + `, ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + `, ` + "`" + `PART_INVALID` + "`" + ` when
+  the part states no hours or ` + "`" + `teachingHours` + "`" + ` is not strictly between 0 and them,
+  ` + "`" + `PART_TAUGHT_ELSEWHERE` + "`" + ` for a part another faculty teaches — hand it back first.
+  """
+  divideInstancePart(
+    "The part to cut from. A piece names its undivided part, and the cut is made there."
+    id: ID!
+    "The hours of the new piece."
+    teachingHours: Float!
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Put a piece back: its hours return to the part it was cut from, and the piece is gone.
+
+  Refusals: ` + "`" + `PART_NOT_FOUND` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + `, ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + `, ` + "`" + `PART_NOT_DIVIDED` + "`" + `
+  for a part that is not a piece, ` + "`" + `PART_ASSIGNED` + "`" + ` while somebody holds the piece.
+  """
+  rejoinInstancePart(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Say that another faculty teaches this part — ` + "`" + `"FK 04"` + "`" + ` — or, with ` + "`" + `null` + "`" + `, that we do again.
+
+  Such a part is not ours to staff: it cannot be assigned, it is not counted in the programme's
+  teaching load (` + "`" + `ProgrammeTeachingLoad.externalHours` + "`" + ` instead), and an instance whose every part
+  is taught elsewhere cannot be wished for. Usually a piece cut off with ` + "`" + `divideInstancePart` + "`" + `.
+
+  Free text, at most 80 characters, trimmed; empty is the same as ` + "`" + `null` + "`" + `.
+
+  Refusals: ` + "`" + `PART_NOT_FOUND` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + `, ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + `, ` + "`" + `PART_ASSIGNED` + "`" + `
+  while somebody of ours holds it, ` + "`" + `TAUGHT_BY_TOO_LONG` + "`" + `.
+  """
+  setInstancePartTaughtBy(
+    "The part."
+    id: ID!
+    "Who teaches it, or ` + "`" + `null` + "`" + ` for this faculty."
+    faculty: String
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../catalogue.graphqls", Input: `# The module catalogue: study programmes, their examination regulations, and the modules that
@@ -5665,7 +5782,8 @@ programme pays for is other programmes' modules is the import figure.
 
 Teaching hours: the sum over the parts of every instance, by the rule ` + "`" + `CourseInstance.teachingHours` + "`" + `
 states. A four-hour module with a lecture and three laboratory groups costs eight; a lecture held
-once for two cohorts counts once; a cohort covered by another programme's event costs nothing.
+once for two cohorts counts once; a cohort covered by another programme's event costs nothing; a
+part another faculty teaches is not ours and is reported as ` + "`" + `externalHours` + "`" + ` instead.
 Not ` + "`" + `Module.contactHoursPerWeek` + "`" + `, which is what a student attends and is not a teaching load.
 """
 type ProgrammeTeachingLoad {
@@ -5689,6 +5807,13 @@ type ProgrammeTeachingLoad {
   is too low, not that the semester is light.
   """
   partsWithoutHours: Int!
+  """
+  What other faculties teach in the programme's instances — parts with ` + "`" + `InstancePart.taughtBy` + "`" + `.
+  **Not** in ` + "`" + `teachingHours` + "`" + ` or any other figure here, because it is not this faculty's teaching;
+  reported beside it for the dean's office, who asks how much of what our students attend
+  somebody else gives.
+  """
+  externalHours: Float!
   """
   The load split by the home programme of the modules, ordered by its code. Empty for a planned
   programme nothing has been declared for yet.
@@ -5772,6 +5897,8 @@ type TeachingLoadShare {
   fwpHours: Float!
   "Parts among them that state no hours and therefore count zero."
   partsWithoutHours: Int!
+  "What other faculties teach in those instances, beside ` + "`" + `teachingHours` + "`" + ` rather than in it."
+  externalHours: Float!
 }
 
 extend type Query {
@@ -6063,6 +6190,23 @@ type InstancePart {
   the faculty's hours look smaller than they are until somebody noticed.
   """
   sharedAcrossTracks: Boolean!
+  """
+  The part this one was cut from with ` + "`" + `divideInstancePart` + "`" + `, or ` + "`" + `null` + "`" + ` for an undivided part.
+
+  Always the undivided part, never another piece. A piece is a part in its own right — staffed,
+  published and counted like any other — but it is not a group: the demand's group count leaves
+  it out.
+  """
+  dividedFrom: ID
+  """
+  The other faculty that teaches this part, as somebody typed it (` + "`" + `"FK 04"` + "`" + `), or ` + "`" + `null` + "`" + ` when it
+  is ours.
+
+  Such a part is not staffed here, not counted in the teaching load (see
+  ` + "`" + `ProgrammeTeachingLoad.externalHours` + "`" + `), and an instance made only of such parts is not wished
+  for. Set with ` + "`" + `setInstancePartTaughtBy` + "`" + `.
+  """
+  taughtBy: String
 }
 
 """
@@ -6736,6 +6880,11 @@ enum ScopeArea {
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
+
+  # Dividing a part and handing it to another faculty are @interactiveOnly like setAssignment:
+  # both answer PART_ASSIGNED, which says whether somebody holds the part.
+
+  ` + "`" + `divideInstancePart` + "`" + `, ` + "`" + `rejoinInstancePart` + "`" + `, ` + "`" + `setInstancePartTaughtBy` + "`" + `,
 
   # The coverage handshake is here and is @interactiveOnly for the same reason setAssignment is:
   # agreeing can answer ` + "`" + `PART_ASSIGNED` + "`" + `, which says a part of the asking cohort is already filled.
@@ -8063,6 +8212,10 @@ extend type Mutation {
   added to but not corrected is worse than a closed one, so both are the same decision about when
   the window is open.
 
+  ` + "`" + `INSTANCE_TAUGHT_ELSEWHERE` + "`" + ` for an instance every part of which another faculty teaches
+  (` + "`" + `InstancePart.taughtBy` + "`" + `): there is nothing in it to want. An instance only partly taught
+  elsewhere is wished for as usual, and the note says which half.
+
   Reachable through both doors, unlike the demand: this is your own data.
   """
   setWish(
@@ -8886,6 +9039,10 @@ func (ec *executionContext) childFields_InstancePart(ctx context.Context, field 
 		return ec.fieldContext_InstancePart_teachingHours(ctx, field)
 	case "sharedAcrossTracks":
 		return ec.fieldContext_InstancePart_sharedAcrossTracks(ctx, field)
+	case "dividedFrom":
+		return ec.fieldContext_InstancePart_dividedFrom(ctx, field)
+	case "taughtBy":
+		return ec.fieldContext_InstancePart_taughtBy(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type InstancePart", field.Name)
 }
@@ -9134,6 +9291,8 @@ func (ec *executionContext) childFields_ProgrammeTeachingLoad(ctx context.Contex
 		return ec.fieldContext_ProgrammeTeachingLoad_fwpHours(ctx, field)
 	case "partsWithoutHours":
 		return ec.fieldContext_ProgrammeTeachingLoad_partsWithoutHours(ctx, field)
+	case "externalHours":
+		return ec.fieldContext_ProgrammeTeachingLoad_externalHours(ctx, field)
 	case "shares":
 		return ec.fieldContext_ProgrammeTeachingLoad_shares(ctx, field)
 	case "yearlyQuota":
@@ -9344,6 +9503,8 @@ func (ec *executionContext) childFields_TeachingLoadShare(ctx context.Context, f
 		return ec.fieldContext_TeachingLoadShare_fwpHours(ctx, field)
 	case "partsWithoutHours":
 		return ec.fieldContext_TeachingLoadShare_partsWithoutHours(ctx, field)
+	case "externalHours":
+		return ec.fieldContext_TeachingLoadShare_externalHours(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type TeachingLoadShare", field.Name)
 }

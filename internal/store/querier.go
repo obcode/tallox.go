@@ -54,6 +54,11 @@ type Querier interface {
 	// an address here and silently dropped every refused token — which is the half an administrator
 	// most wants to see, because a token being tried repeatedly is what a leaked one looks like.
 	AccessLogRefusedSignIns(ctx context.Context, arg AccessLogRefusedSignInsParams) ([]AccessLogRefusedSignInsRow, error)
+	// Move hours onto or off a part, in numeric rather than in float: what dividing takes off one part
+	// and puts on the other has to add up to the cent, or the instance's figure drifts by a rounding.
+	// A part with no hours stated is treated as zero, which only rejoining can meet: dividing refuses
+	// such a part.
+	AddInstancePartHours(ctx context.Context, arg AddInstancePartHoursParams) error
 	// The foreign key to person_role is what refuses a lead who does not hold the role. The service
 	// checks first so that the ordinary case gets a sentence; this is the race the constraint closes.
 	AddSubjectGroupLead(ctx context.Context, arg AddSubjectGroupLeadParams) error
@@ -546,7 +551,8 @@ type Querier interface {
 	// the interface would show a run in progress that nothing is progressing. The cutoff is passed
 	// in rather than hard-coded here so the caller's reasoning about it stays in Go.
 	FailAbandonedZPASyncRuns(ctx context.Context, olderThan time.Time) ([]uuid.UUID, error)
-	// Fill a part that nobody holds. Returns no row if somebody already does.
+	// Fill a part that nobody holds. Returns no row if somebody already does, or if another faculty
+	// teaches it.
 	//
 	// ON CONFLICT DO NOTHING rather than an upsert, and that is the compare-and-set half of this
 	// file. A caller who names no assignment to replace is saying "I believe this part is free", so
@@ -555,6 +561,12 @@ type Querier interface {
 	// would leave believing they had decided it.
 	//
 	// Two roles may write this row since 2026-08-27, so this is not a theoretical case.
+	//
+	// And only a part this faculty teaches (migration 29). A part another faculty gives has nobody
+	// here to hold it, and the condition is in the statement rather than in Go for the reason the
+	// conflict clause is: the part can be handed away between the check and the insert. FOR SHARE is
+	// what makes that true — it waits for LockInstancePart, and after the wait PostgreSQL re-reads the
+	// row and drops it if it is no longer ours, so the insert finds nothing to insert.
 	FillInstancePart(ctx context.Context, arg FillInstancePartParams) (uuid.UUID, error)
 	FinishCatalogueProjection(ctx context.Context, arg FinishCatalogueProjectionParams) (FinishCatalogueProjectionRow, error)
 	FinishZPASyncRun(ctx context.Context, arg FinishZPASyncRunParams) (ZpaSyncRun, error)
@@ -585,6 +597,8 @@ type Querier interface {
 	// undo work in the semester it is copying into.
 	InsertCourseInstanceIfAbsent(ctx context.Context, arg InsertCourseInstanceIfAbsentParams) (uuid.UUID, error)
 	InsertInstancePart(ctx context.Context, arg InsertInstancePartParams) (uuid.UUID, error)
+	// A part cut off another one, or copied as such. divided_from_id names the undivided part.
+	InsertInstancePiece(ctx context.Context, arg InsertInstancePieceParams) (uuid.UUID, error)
 	// A course the faculty enters itself: not in the examination office's catalogue, or not yet.
 	//
 	// No zpa_module_ref, and the constraint says so rather than this statement — see migration 11.
@@ -595,7 +609,16 @@ type Querier interface {
 	// One instance by what identifies it, for a copy that has to find next year's counterpart of a
 	// row it only knows by last year's id.
 	InstanceByIdentity(ctx context.Context, arg InstanceByIdentityParams) (uuid.UUID, error)
+	InstancePartHasPieces(ctx context.Context, id uuid.UUID) (bool, error)
+	// Read after LockInstancePart, in the same transaction: a new statement sees what committed while
+	// it waited for the lock, which is the whole reason this is a second statement.
+	InstancePartIsAssigned(ctx context.Context, instancePartID uuid.UUID) (bool, error)
+	// Who else teaches a part, read when a fill came back empty: the two reasons it can are different
+	// sentences. NULL for ours.
+	InstancePartTaughtBy(ctx context.Context, id uuid.UUID) (*string, error)
 	// The parts of a set of instances, in one statement.
+	// A piece takes the position of the part it was cut from, so it is listed right behind it, in the
+	// order the pieces were cut.
 	InstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]InstancePartsForRow, error)
 	// Whether a cohort already has a part of this kind, so that undoing a merge does not give it two.
 	InstancePartsOfKindExist(ctx context.Context, arg InstancePartsOfKindExistParams) (bool, error)
@@ -754,6 +777,13 @@ type Querier interface {
 	// Callers lock in id order. Locking them in the order the request names them is how two
 	// simultaneous handshakes between the same pair deadlock.
 	LockInstanceForCoverage(ctx context.Context, id uuid.UUID) (LockInstanceForCoverageRow, error)
+	// One part, locked against the two writes that must not interleave with dividing it or handing it
+	// to another faculty: an assignment arriving on it, and a second division of the same part.
+	//
+	// FOR UPDATE rather than FOR NO KEY UPDATE, because what it has to exclude is FillInstancePart,
+	// which takes FOR SHARE; the foreign key check of an assignment only takes FOR KEY SHARE, and that
+	// alone would let a fill slip past a part that is just being given away.
+	LockInstancePart(ctx context.Context, id uuid.UUID) (LockInstancePartRow, error)
 	// The codes ProjectProgrammes had to leave out, so the report can name them.
 	MalformedProgrammeCodes(ctx context.Context) ([]string, error)
 	// Make this semester the one being planned.
@@ -832,6 +862,10 @@ type Querier interface {
 	// by the policy rather than by an empty row. What it exposes is the phase and two ids of a part
 	// whose id the caller already had.
 	PartWriteContext(ctx context.Context, instancePartID uuid.UUID) (PartWriteContextRow, error)
+	// Whether merging a kind across cohorts would throw away an arrangement somebody made: a part cut
+	// in two, or one another faculty teaches. Sharing deletes the siblings' parts of that kind, and
+	// either fact would go with them without anybody being told.
+	PartsOfKindAreDividedOrElsewhere(ctx context.Context, arg PartsOfKindAreDividedOrElsewhereParams) (bool, error)
 	// Joined to the teacher list like ListPeople, so that one person and the list agree about the
 	// name a list is sorted by. Not so for PersonByMail above: that one authenticates every request
 	// on the browser door, and a join it has no use for does not belong on that path.
@@ -1125,6 +1159,7 @@ type Querier interface {
 	// No confidentiality question: the demand is explicitly not confidential, unlike the wish.
 	SeparatelyPlannedInstancesFor(ctx context.Context, instanceIds []uuid.UUID) ([]SeparatelyPlannedInstancesForRow, error)
 	SetInstancePartShared(ctx context.Context, arg SetInstancePartSharedParams) error
+	SetInstancePartTaughtBy(ctx context.Context, arg SetInstancePartTaughtByParams) error
 	// Deactivation is how a leaver loses access to everything at once, tokens included.
 	//
 	// The guard against deactivating the last administrator is not here. It cannot be: it depends
@@ -1163,6 +1198,9 @@ type Querier interface {
 	// What a promotion has to hand back before it hands the rows to another programme: the flag means
 	// "serves the other cohorts of my programme", and it would go on meaning that in the programme the
 	// rows land in.
+	//
+	// One row per undivided part, with the hours of its pieces added back (migration 29): a sibling
+	// that gets its own lecture back gets the whole lecture, not whichever piece sorted first.
 	SharedPartsOf(ctx context.Context, courseInstanceID uuid.UUID) ([]SharedPartsOfRow, error)
 	// The other parallel cohorts of one instance's module, in the same semester and programme.
 	SiblingInstanceIDs(ctx context.Context, id uuid.UUID) ([]uuid.UUID, error)
@@ -1269,6 +1307,12 @@ type Querier interface {
 	// Parts with no hours stated count zero and are counted, so that an unfinished split cannot pass
 	// for a light semester.
 	//
+	// A part another faculty teaches (instance_part.taught_by, migration 29) is not this faculty's
+	// teaching and stays out of every figure above. Its hours come along as external_hours, beside
+	// the rest rather than subtracted from it: "how much of what our students attend does somebody
+	// else give" is a question the dean's office asks, and a part without hours that is not ours to
+	// state is not an unfinished split.
+	//
 	// Every planned programme is listed even with nothing declared — a programme that has not started
 	// is the row the dean's office is looking for — and any other programme only when its instances
 	// hold teaching here.
@@ -1299,6 +1343,8 @@ type Querier interface {
 	// Delete-then-insert rather than a diff: what is being replaced is one statement about who leads
 	// what, and inside a transaction nobody reads the empty moment in between.
 	UnassignProgrammes(ctx context.Context, arg UnassignProgrammesParams) error
+	// The pieces of a shared part are shared too, and stop being shared with it.
+	UnsharePartsOfInstance(ctx context.Context, courseInstanceID uuid.UUID) error
 	// The two things about an instance that are editable: which cohort it is, and which year.
 	//
 	// The module, the programme and the semester are not. Changing one of those is not an edit of
@@ -1381,8 +1427,14 @@ type Querier interface {
 	// subject group has no window, and a subject group nobody has decided anything about has no row.
 	// Both are open, which is the rule — closing is the intervention. See migration 18 for why this
 	// one direction is the opposite of every other default in the schema.
+	//
+	// taught_elsewhere is an instance every part of which another faculty gives (migration 29): there
+	// is nothing here to want. Some parts elsewhere and some ours is an ordinary instance — the wish is
+	// for the instance, and the note says which half. A covered cohort holds no parts at all and is
+	// not elsewhere by this; its teaching is ours, in another programme.
 	WishWriteContext(ctx context.Context, instanceID uuid.UUID) (WishWriteContextRow, error)
-	// The same, reached from a wish rather than from an instance. For withdrawing one.
+	// The same, reached from a wish rather than from an instance. For withdrawing one — which stays
+	// possible on an instance taught elsewhere, so a wish from before the arrangement can be taken back.
 	WishWriteContextByWishID(ctx context.Context, id uuid.UUID) (WishWriteContextByWishIDRow, error)
 	// Wishes: one person's interest in one course instance.
 	//

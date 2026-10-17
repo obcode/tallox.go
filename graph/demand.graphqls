@@ -235,6 +235,23 @@ type InstancePart {
   the faculty's hours look smaller than they are until somebody noticed.
   """
   sharedAcrossTracks: Boolean!
+  """
+  The part this one was cut from with `divideInstancePart`, or `null` for an undivided part.
+
+  Always the undivided part, never another piece. A piece is a part in its own right — staffed,
+  published and counted like any other — but it is not a group: the demand's group count leaves
+  it out.
+  """
+  dividedFrom: ID
+  """
+  The other faculty that teaches this part, as somebody typed it (`"FK 04"`), or `null` when it
+  is ours.
+
+  Such a part is not staffed here, not counted in the teaching load (see
+  `ProgrammeTeachingLoad.externalHours`), and an instance made only of such parts is not wished
+  for. Set with `setInstancePartTaughtBy`.
+  """
+  taughtBy: String
 }
 
 """

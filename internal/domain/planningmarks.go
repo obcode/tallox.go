@@ -34,6 +34,13 @@ var (
 	ErrWishWindowClosed = errors.New(
 		"die Wunschphase dieser Fachgruppe ist derzeit geschlossen")
 
+	// ErrInstanceTaughtElsewhere is a wish for an instance another faculty teaches entirely.
+	//
+	// Not a leak: it says something about the instance — which the demand shows to everybody —
+	// and nothing about anybody's interest in it.
+	ErrInstanceTaughtElsewhere = errors.New(
+		"diese Lehrveranstaltung hält vollständig eine andere Fakultät")
+
 	// ErrNotYourSubjectGroup is somebody trying to switch a window that is not theirs.
 	ErrNotYourSubjectGroup = errors.New("für diese Fachgruppe sind Sie nicht zuständig")
 )
@@ -85,6 +92,9 @@ type WishWriteContext struct {
 	// WindowOpen is whether this subject is taking entries. True when nobody has said otherwise,
 	// and true for a module in no subject group at all.
 	WindowOpen bool
+	// TaughtElsewhere is an instance every part of which another faculty teaches
+	// (InstancePart.TaughtBy). There is nothing in it for anybody here to want.
+	TaughtElsewhere bool
 }
 
 // Found reports whether the instance exists.

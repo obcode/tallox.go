@@ -147,6 +147,10 @@ extend type Mutation {
   added to but not corrected is worse than a closed one, so both are the same decision about when
   the window is open.
 
+  `INSTANCE_TAUGHT_ELSEWHERE` for an instance every part of which another faculty teaches
+  (`InstancePart.taughtBy`): there is nothing in it to want. An instance only partly taught
+  elsewhere is wished for as usual, and the note says which half.
+
   Reachable through both doors, unlike the demand: this is your own data.
   """
   setWish(

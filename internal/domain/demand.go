@@ -63,6 +63,20 @@ var (
 	ErrNotSharedAcrossTracks = errors.New("dieser Teil wird nicht für mehrere Züge gehalten")
 	// ErrNoSiblingTracks is asking to share a part where there is nobody to share it with.
 	ErrNoSiblingTracks = errors.New("für dieses Modul gibt es in diesem Semester nur einen Zug")
+	// ErrPartTaughtElsewhere is a part another faculty teaches, asked to be staffed or divided.
+	// The repair is to hand it back first, which the sentence says.
+	ErrPartTaughtElsewhere = errors.New(
+		"diesen Teil hält eine andere Fakultät — bitte zuerst zurücknehmen")
+	// ErrPartDivided is an operation that would lose a division somebody made: removing a part
+	// that has pieces, changing its kind, sharing or un-sharing it across cohorts. Rejoin the
+	// pieces first.
+	ErrPartDivided = errors.New(
+		"dieser Teil ist aufgeteilt oder wird von einer anderen Fakultät gehalten — bitte zuerst " +
+			"wieder zusammenführen")
+	// ErrPartNotDivided is rejoining a part that is not a piece of another one.
+	ErrPartNotDivided = errors.New("dieser Teil ist nicht abgetrennt")
+	// ErrTaughtByTooLong mirrors instance_part_taught_by_is_trimmed.
+	ErrTaughtByTooLong = errors.New("die Angabe zur anderen Fakultät ist zu lang")
 	// ErrDeliveryInvalid is a way of teaching this build does not know.
 	ErrDeliveryInvalid = errors.New("diese Durchführungsform ist nicht gültig")
 	// ErrSameSemester is copying a semester's demand into itself.
@@ -266,7 +280,22 @@ type InstancePart struct {
 	// SharedAcrossTracks is instance_part.serves_sibling_tracks: this part is held once and
 	// serves the other cohorts of the same module too.
 	SharedAcrossTracks bool
+	// DividedFrom is the undivided part this one was cut from, or uuid.Nil for an undivided part.
+	// A piece is staffed and counted like any other part, but it is not a group.
+	DividedFrom uuid.UUID
+	// TaughtBy is the other faculty that teaches this part, empty when it is ours. Such a part is
+	// not staffed here and not in the teaching load.
+	TaughtBy string
 }
+
+// IsPiece reports whether the part was cut off another one.
+func (p InstancePart) IsPiece() bool { return p.DividedFrom != uuid.Nil }
+
+// TaughtElsewhere reports whether another faculty teaches the part.
+func (p InstancePart) TaughtElsewhere() bool { return p.TaughtBy != "" }
+
+// MaxTaughtByLength mirrors instance_part_taught_by_is_trimmed.
+const MaxTaughtByLength = 80
 
 // BorrowedPart is a part held by another cohort, seen from the cohort it is held for.
 type BorrowedPart struct {
@@ -619,6 +648,9 @@ type TeachingLoadShare struct {
 	// PartsWithoutHours counts the parts that state no hours and therefore count zero. Non-zero
 	// means the total is too low, not that the semester is light.
 	PartsWithoutHours int
+	// ExternalHours is what another faculty teaches in these instances (InstancePart.TaughtBy).
+	// Not in TeachingHours or any figure above: it is not this faculty's teaching.
+	ExternalHours float64
 }
 
 // TeachingHours is the whole load of the programme.
@@ -657,6 +689,12 @@ func (l TeachingLoad) FwpHours() float64 {
 // PartsWithoutHours is the number of parts that count zero because nobody stated their hours.
 func (l TeachingLoad) PartsWithoutHours() int {
 	return int(l.sum(func(s TeachingLoadShare) float64 { return float64(s.PartsWithoutHours) }))
+}
+
+// ExternalHours is what other faculties teach in the programme's instances. Beside the load, never
+// in it.
+func (l TeachingLoad) ExternalHours() float64 {
+	return l.sum(func(s TeachingLoadShare) float64 { return s.ExternalHours })
 }
 
 func (l TeachingLoad) sum(f func(TeachingLoadShare) float64) float64 {
@@ -711,6 +749,16 @@ type DemandStore interface {
 		hours *float64) (*CourseInstance, error)
 	// DeleteInstancePart removes one. Returns ErrInstanceInUse when something hangs off it.
 	DeleteInstancePart(ctx context.Context, partID uuid.UUID) (*CourseInstance, error)
+	// DivideInstancePart cuts hours off a part into a new piece of the same kind; the undivided
+	// part keeps the rest. Returns ErrPartInvalid when the part states no hours or hours is not
+	// strictly below them, ErrPartTaughtElsewhere for a part another faculty teaches.
+	DivideInstancePart(ctx context.Context, partID uuid.UUID, hours float64) (*CourseInstance, error)
+	// RejoinInstancePart gives a piece's hours back to its undivided part and removes it.
+	// Returns ErrPartNotDivided for a part that is no piece, ErrPartAssigned while it is staffed.
+	RejoinInstancePart(ctx context.Context, partID uuid.UUID) (*CourseInstance, error)
+	// SetInstancePartTaughtBy says another faculty teaches a part, or with "" that we do.
+	// Returns ErrPartAssigned while somebody of ours holds it.
+	SetInstancePartTaughtBy(ctx context.Context, partID uuid.UUID, faculty string) (*CourseInstance, error)
 	// ShareInstancePartAcrossTracks marks a part as held for the sibling cohorts too and
 	// removes their own parts of that kind, in one transaction.
 	ShareInstancePartAcrossTracks(ctx context.Context, partID uuid.UUID) (*CourseInstance, error)

@@ -97,6 +97,8 @@ type InstancePart struct {
 	ServesSiblingTracks bool
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
+	DividedFromID       uuid.NullUUID
+	TaughtBy            *string
 }
 
 type Module struct {

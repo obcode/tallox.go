@@ -84,10 +84,13 @@ WHERE ip.id = $1;
 
 -- name: InstancePartsFor :many
 -- The parts of a set of instances, in one statement.
-SELECT id, course_instance_id, kind, position, teaching_hours, serves_sibling_tracks
+SELECT id, course_instance_id, kind, position, teaching_hours, serves_sibling_tracks,
+       divided_from_id, taught_by
 FROM instance_part
 WHERE course_instance_id = ANY (sqlc.arg(instance_ids)::uuid[])
-ORDER BY course_instance_id, position, id;
+-- A piece takes the position of the part it was cut from, so it is listed right behind it, in the
+-- order the pieces were cut.
+ORDER BY course_instance_id, position, divided_from_id IS NOT NULL, created_at, id;
 
 -- name: BorrowedInstancePartsFor :many
 -- The parts another cohort holds for this one — within the programme, and across programmes.
@@ -117,7 +120,8 @@ ORDER BY course_instance_id, position, id;
 SELECT me.id AS for_instance_id,
        sib.track AS from_track,
        NULL::text AS from_programme_code,
-       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks
+       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks,
+       p.divided_from_id, p.taught_by
 FROM course_instance me
 JOIN course_instance sib
   ON sib.semester_id = me.semester_id
@@ -133,7 +137,8 @@ UNION ALL
 SELECT me.id AS for_instance_id,
        host.track AS from_track,
        hp.code AS from_programme_code,
-       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks
+       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks,
+       p.divided_from_id, p.taught_by
 FROM course_instance me
 JOIN course_instance host ON host.id = me.covered_by_instance_id
 JOIN programme hp ON hp.id = host.programme_id
@@ -147,7 +152,8 @@ UNION ALL
 SELECT me.id AS for_instance_id,
        hsib.track AS from_track,
        hp.code AS from_programme_code,
-       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks
+       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks,
+       p.divided_from_id, p.taught_by
 FROM course_instance me
 JOIN course_instance host ON host.id = me.covered_by_instance_id
 JOIN course_instance hsib
@@ -419,6 +425,65 @@ WHERE id = $1;
 -- name: DeleteInstancePart :execrows
 DELETE FROM instance_part WHERE id = $1;
 
+-- name: LockInstancePart :one
+-- One part, locked against the two writes that must not interleave with dividing it or handing it
+-- to another faculty: an assignment arriving on it, and a second division of the same part.
+--
+-- FOR UPDATE rather than FOR NO KEY UPDATE, because what it has to exclude is FillInstancePart,
+-- which takes FOR SHARE; the foreign key check of an assignment only takes FOR KEY SHARE, and that
+-- alone would let a fill slip past a part that is just being given away.
+SELECT id, course_instance_id, kind, position, teaching_hours, serves_sibling_tracks,
+       divided_from_id, taught_by
+FROM instance_part
+WHERE id = $1
+FOR UPDATE;
+
+-- name: InsertInstancePiece :one
+-- A part cut off another one, or copied as such. divided_from_id names the undivided part.
+INSERT INTO instance_part (course_instance_id, kind, position, teaching_hours,
+                           serves_sibling_tracks, divided_from_id, taught_by)
+VALUES ($1, $2, $3, sqlc.narg('teaching_hours'), $4, sqlc.narg('divided_from_id'),
+        sqlc.narg('taught_by'))
+RETURNING id;
+
+-- name: AddInstancePartHours :exec
+-- Move hours onto or off a part, in numeric rather than in float: what dividing takes off one part
+-- and puts on the other has to add up to the cent, or the instance's figure drifts by a rounding.
+-- A part with no hours stated is treated as zero, which only rejoining can meet: dividing refuses
+-- such a part.
+UPDATE instance_part
+SET teaching_hours = COALESCE(teaching_hours, 0) + sqlc.arg(delta)::numeric,
+    updated_at = now()
+WHERE id = $1;
+
+-- name: InstancePartIsAssigned :one
+-- Read after LockInstancePart, in the same transaction: a new statement sees what committed while
+-- it waited for the lock, which is the whole reason this is a second statement.
+SELECT EXISTS (SELECT 1 FROM assignment WHERE instance_part_id = $1)::boolean AS assigned;
+
+-- name: InstancePartHasPieces :one
+SELECT EXISTS (
+    SELECT 1 FROM instance_part WHERE divided_from_id = sqlc.arg(id)::uuid
+)::boolean AS has_pieces;
+
+-- name: SetInstancePartTaughtBy :exec
+UPDATE instance_part
+SET taught_by = sqlc.narg('taught_by'),
+    updated_at = now()
+WHERE id = $1;
+
+-- name: PartsOfKindAreDividedOrElsewhere :one
+-- Whether merging a kind across cohorts would throw away an arrangement somebody made: a part cut
+-- in two, or one another faculty teaches. Sharing deletes the siblings' parts of that kind, and
+-- either fact would go with them without anybody being told.
+SELECT EXISTS (
+    SELECT 1 FROM instance_part p
+    WHERE p.course_instance_id = ANY (sqlc.arg(instance_ids)::uuid[])
+      AND p.kind = sqlc.arg('kind')::text
+      AND (p.divided_from_id IS NOT NULL OR p.taught_by IS NOT NULL
+           OR EXISTS (SELECT 1 FROM instance_part c WHERE c.divided_from_id = p.id))
+)::boolean AS exists;
+
 -- name: DeleteInstancePartsOfKind :execrows
 -- The other half of merging a part across the parallel cohorts: the siblings' own copies of it
 -- go away, because from now on this one is held for them too.
@@ -612,10 +677,23 @@ WHERE g.covered_by_instance_id = sqlc.arg(from_instance)::uuid
 -- What a promotion has to hand back before it hands the rows to another programme: the flag means
 -- "serves the other cohorts of my programme", and it would go on meaning that in the programme the
 -- rows land in.
-SELECT id, kind, teaching_hours
-FROM instance_part
-WHERE course_instance_id = $1 AND serves_sibling_tracks
-ORDER BY position, id;
+--
+-- One row per undivided part, with the hours of its pieces added back (migration 29): a sibling
+-- that gets its own lecture back gets the whole lecture, not whichever piece sorted first.
+SELECT p.id, p.kind,
+       (CASE WHEN p.teaching_hours IS NULL THEN NULL
+             ELSE p.teaching_hours + COALESCE((SELECT SUM(c.teaching_hours) FROM instance_part c
+                                               WHERE c.divided_from_id = p.id), 0)
+        END)::numeric AS teaching_hours
+FROM instance_part p
+WHERE p.course_instance_id = $1 AND p.serves_sibling_tracks AND p.divided_from_id IS NULL
+ORDER BY p.position, p.id;
+
+-- name: UnsharePartsOfInstance :exec
+-- The pieces of a shared part are shared too, and stop being shared with it.
+UPDATE instance_part
+SET serves_sibling_tracks = false, updated_at = now()
+WHERE course_instance_id = $1 AND serves_sibling_tracks;
 
 -- name: SeparatelyPlannedInstancesFor :many
 -- The same offering, declared by another programme and held there rather than here.
@@ -665,17 +743,27 @@ ORDER BY me.id, p.code, o.track, o.id;
 -- Parts with no hours stated count zero and are counted, so that an unfinished split cannot pass
 -- for a light semester.
 --
+-- A part another faculty teaches (instance_part.taught_by, migration 29) is not this faculty's
+-- teaching and stays out of every figure above. Its hours come along as external_hours, beside
+-- the rest rather than subtracted from it: "how much of what our students attend does somebody
+-- else give" is a question the dean's office asks, and a part without hours that is not ours to
+-- state is not an unfinished split.
+--
 -- Every planned programme is listed even with nothing declared — a programme that has not started
 -- is the row the dean's office is looking for — and any other programme only when its instances
 -- hold teaching here.
 WITH load AS (
     SELECT ci.programme_id, m.home_programme_id,
-           COALESCE(SUM(ip.teaching_hours), 0)::float8 AS hours,
+           COALESCE(SUM(ip.teaching_hours) FILTER (WHERE ip.taught_by IS NULL), 0)::float8 AS hours,
            COUNT(DISTINCT ci.id)::int AS instances,
            (COUNT(DISTINCT ci.id) FILTER (WHERE m.kind = 'FWP_PLACEHOLDER'))::int AS fwp_instances,
-           COALESCE(SUM(ip.teaching_hours) FILTER (WHERE m.kind = 'FWP_PLACEHOLDER'), 0)::float8
+           COALESCE(SUM(ip.teaching_hours)
+                    FILTER (WHERE m.kind = 'FWP_PLACEHOLDER' AND ip.taught_by IS NULL), 0)::float8
                AS fwp_hours,
-           (COUNT(ip.id) FILTER (WHERE ip.teaching_hours IS NULL))::int AS parts_without_hours
+           (COUNT(ip.id) FILTER (WHERE ip.teaching_hours IS NULL AND ip.taught_by IS NULL))::int
+               AS parts_without_hours,
+           COALESCE(SUM(ip.teaching_hours) FILTER (WHERE ip.taught_by IS NOT NULL), 0)::float8
+               AS external_hours
     FROM course_instance ci
     JOIN semester s ON s.id = ci.semester_id
     JOIN module m ON m.id = ci.module_id
@@ -691,7 +779,8 @@ SELECT p.id AS programme_id, p.code AS programme_code, p.title AS programme_titl
        COALESCE(l.instances, 0)::int AS instances,
        COALESCE(l.fwp_instances, 0)::int AS fwp_instances,
        COALESCE(l.fwp_hours, 0)::float8 AS fwp_hours,
-       COALESCE(l.parts_without_hours, 0)::int AS parts_without_hours
+       COALESCE(l.parts_without_hours, 0)::int AS parts_without_hours,
+       COALESCE(l.external_hours, 0)::float8 AS external_hours
 FROM programme p
 LEFT JOIN load l ON l.programme_id = p.id
 LEFT JOIN programme hp ON hp.id = l.home_programme_id

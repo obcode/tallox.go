@@ -253,7 +253,8 @@ func wishWriteContextFrom(row WishWriteContextRow) domain.WishWriteContext {
 			Code:  row.Code,
 			Phase: policy.Phase(row.Phase),
 		},
-		WindowOpen: row.WishWindowOpen,
+		WindowOpen:      row.WishWindowOpen,
+		TaughtElsewhere: row.TaughtElsewhere,
 	}
 	if row.WishesPublishedAt.Valid {
 		out.Semester.WishesPublishedAt = row.WishesPublishedAt.Time

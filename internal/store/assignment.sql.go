@@ -419,26 +419,30 @@ func (q *Queries) ClearAssignment(ctx context.Context, id uuid.UUID) (int64, err
 
 const fillInstancePart = `-- name: FillInstancePart :one
 INSERT INTO assignment (instance_part_id, person_id, teacher_id, note, assigned_by)
-VALUES (
+SELECT
+    ip.id,
     $1::uuid,
     $2::uuid,
-    $3::uuid,
-    $4::text,
-    $5::uuid
-)
+    $3::text,
+    $4::uuid
+FROM instance_part ip
+WHERE ip.id = $5::uuid
+  AND ip.taught_by IS NULL
+FOR SHARE
 ON CONFLICT (instance_part_id) DO NOTHING
 RETURNING id
 `
 
 type FillInstancePartParams struct {
-	InstancePartID uuid.UUID
 	PersonID       uuid.NullUUID
 	TeacherID      uuid.NullUUID
 	Note           string
 	AssignedBy     uuid.NullUUID
+	InstancePartID uuid.UUID
 }
 
-// Fill a part that nobody holds. Returns no row if somebody already does.
+// Fill a part that nobody holds. Returns no row if somebody already does, or if another faculty
+// teaches it.
 //
 // ON CONFLICT DO NOTHING rather than an upsert, and that is the compare-and-set half of this
 // file. A caller who names no assignment to replace is saying "I believe this part is free", so
@@ -447,17 +451,36 @@ type FillInstancePartParams struct {
 // would leave believing they had decided it.
 //
 // Two roles may write this row since 2026-08-27, so this is not a theoretical case.
+//
+// And only a part this faculty teaches (migration 29). A part another faculty gives has nobody
+// here to hold it, and the condition is in the statement rather than in Go for the reason the
+// conflict clause is: the part can be handed away between the check and the insert. FOR SHARE is
+// what makes that true — it waits for LockInstancePart, and after the wait PostgreSQL re-reads the
+// row and drops it if it is no longer ours, so the insert finds nothing to insert.
 func (q *Queries) FillInstancePart(ctx context.Context, arg FillInstancePartParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, fillInstancePart,
-		arg.InstancePartID,
 		arg.PersonID,
 		arg.TeacherID,
 		arg.Note,
 		arg.AssignedBy,
+		arg.InstancePartID,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)
 	return id, err
+}
+
+const instancePartTaughtBy = `-- name: InstancePartTaughtBy :one
+SELECT taught_by FROM instance_part WHERE id = $1
+`
+
+// Who else teaches a part, read when a fill came back empty: the two reasons it can are different
+// sentences. NULL for ours.
+func (q *Queries) InstancePartTaughtBy(ctx context.Context, id uuid.UUID) (*string, error) {
+	row := q.db.QueryRow(ctx, instancePartTaughtBy, id)
+	var taught_by *string
+	err := row.Scan(&taught_by)
+	return taught_by, err
 }
 
 const partWriteContext = `-- name: PartWriteContext :one

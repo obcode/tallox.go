@@ -122,6 +122,11 @@ enum ScopeArea {
   `changeCourseInstance`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
 
+  # Dividing a part and handing it to another faculty are @interactiveOnly like setAssignment:
+  # both answer PART_ASSIGNED, which says whether somebody holds the part.
+
+  `divideInstancePart`, `rejoinInstancePart`, `setInstancePartTaughtBy`,
+
   # The coverage handshake is here and is @interactiveOnly for the same reason setAssignment is:
   # agreeing can answer `PART_ASSIGNED`, which says a part of the asking cohort is already filled.
   # Interactively that reveals nothing to somebody who may already read that programme's

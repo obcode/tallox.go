@@ -1563,6 +1563,52 @@ func (ec *executionContext) fieldContext_InstancePart_sharedAcrossTracks(_ conte
 	return graphql.NewScalarFieldContext("InstancePart", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _InstancePart_dividedFrom(ctx context.Context, field graphql.CollectedField, obj *model.InstancePart) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InstancePart_dividedFrom(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DividedFrom, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOID2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_InstancePart_dividedFrom(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("InstancePart", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _InstancePart_taughtBy(ctx context.Context, field graphql.CollectedField, obj *model.InstancePart) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_InstancePart_taughtBy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TaughtBy, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_InstancePart_taughtBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("InstancePart", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
@@ -2282,6 +2328,16 @@ func (ec *executionContext) _InstancePart(ctx context.Context, sel ast.Selection
 		case "sharedAcrossTracks":
 			out.Values[i] = ec._InstancePart_sharedAcrossTracks(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "dividedFrom":
+			out.Values[i] = ec._InstancePart_dividedFrom(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "taughtBy":
+			out.Values[i] = ec._InstancePart_taughtBy(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		default:

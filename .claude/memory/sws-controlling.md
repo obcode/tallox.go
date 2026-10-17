@@ -108,3 +108,7 @@ Tests: `internal/store/teaching_load_test.go` (echte PostgreSQL, sieben Fälle),
 `bootstrap/programme_quota_test.go` (wer schreibt, Verengung, Saldo durch beide Türen).
 
 Verwandt: [[instance-coverage]], [[local-modules]], [[programme-planning-status]]
+
+Seit 2026-10-17 (Migration 29) zählen Teile mit `taught_by` nicht zur Last; sie stehen als
+`externalHours` daneben, auch je Heimat-Anteil. `partsWithoutHours` zählt nur eigene Teile. Siehe
+[[divided-parts]].

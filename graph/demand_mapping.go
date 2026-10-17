@@ -3,6 +3,7 @@ package graph
 import (
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 
 	"github.com/obcode/tallox.go/graph/model"
@@ -25,6 +26,7 @@ func teachingLoadModel(l domain.TeachingLoad) *model.ProgrammeTeachingLoad {
 		FwpInstanceCount:  l.FwpInstances(),
 		FwpHours:          l.FwpHours(),
 		PartsWithoutHours: l.PartsWithoutHours(),
+		ExternalHours:     l.ExternalHours(),
 		Shares:            make([]*model.TeachingLoadShare, 0, len(l.Shares)),
 		YearlyQuota:       l.YearlyQuota,
 		SemesterQuota:     l.SemesterQuota(),
@@ -38,6 +40,7 @@ func teachingLoadModel(l domain.TeachingLoad) *model.ProgrammeTeachingLoad {
 			FwpInstanceCount:  s.FwpInstances,
 			FwpHours:          s.FwpHours,
 			PartsWithoutHours: s.PartsWithoutHours,
+			ExternalHours:     s.ExternalHours,
 		})
 	}
 	return out
@@ -152,7 +155,18 @@ func instancePartModel(p domain.InstancePart) *model.InstancePart {
 		Position:           p.Position,
 		TeachingHours:      p.TeachingHours,
 		SharedAcrossTracks: p.SharedAcrossTracks,
+		DividedFrom:        partIDOrNil(p.DividedFrom),
+		TaughtBy:           optional(p.TaughtBy),
 	}
+}
+
+// partIDOrNil is the undivided part a piece was cut from, or nil for an undivided part.
+func partIDOrNil(id uuid.UUID) *string {
+	if id == uuid.Nil {
+		return nil
+	}
+	s := id.String()
+	return &s
 }
 
 func copyReportModel(r domain.CopyReport) *model.CopyDemandReport {
@@ -294,6 +308,8 @@ func demandUserFacing(actor principal.Actor, err error) error {
 		return refusal("NO_SIBLING_TRACKS", err.Error())
 	case errors.Is(err, domain.ErrNotSharedAcrossTracks):
 		return refusal("NOT_SHARED_ACROSS_TRACKS", err.Error())
+	case errors.Is(err, domain.ErrPartDivided):
+		return refusal("PART_DIVIDED", err.Error())
 
 	// The coverage refusals. Each names its own repair, which is why they are separate codes
 	// rather than one COVERAGE_REFUSED: somebody told "that is not allowed" asks for a permission

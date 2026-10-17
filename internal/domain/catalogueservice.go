@@ -217,16 +217,18 @@ func (s *CatalogueService) SetModuleComponents(
 // validComponents checks the shape of a split and numbers its entries.
 //
 // One function for the catalogue module and the local one, so the rule cannot drift between
-// them. Three things are refused, each with the sentence a person can act on: hours outside
-// what a unit can have, a kind this build does not know, and the same kind twice. The last one
-// is the reader's problem rather than the database's — "Vorlesung 2 + Vorlesung 2" is a row
-// that says 4 hours of lecture in the only way the editor let somebody say it, and the two
-// lecture parts every instance would then get are a planning surprise waiting to happen.
+// them. Two things are refused, each with the sentence a person can act on: hours outside what a
+// unit can have, and a kind this build does not know.
+//
+// The same kind twice is allowed since 2026-10-17, and it means something: "Vorlesung 2 +
+// Vorlesung 2" is a lecture of 4 that every instance holds already divided — two people, or us
+// and another faculty (migration 29). It was refused before, when it could only have meant two
+// lectures; the instance now makes the second entry a piece of the first, so the hours, the
+// group count and the faculty's figure are what they would be for one entry of 4.
 func validComponents(components []ModuleComponent) error {
 	if len(components) > MaxComponentsPerModule {
 		return fmt.Errorf("%w: höchstens %d Teile", ErrComponentInvalid, MaxComponentsPerModule)
 	}
-	seen := make(map[InstancePartKind]bool, len(components))
 	for i := range components {
 		if components[i].TeachingHours <= 0 || components[i].TeachingHours > 20 {
 			return fmt.Errorf("%w: die SWS eines Teils müssen größer als 0 und höchstens 20 sein",
@@ -236,11 +238,6 @@ func validComponents(components []ModuleComponent) error {
 			return fmt.Errorf("%w: %q ist keine Art von Lehrveranstaltung",
 				ErrComponentInvalid, components[i].Kind)
 		}
-		if seen[components[i].Kind] {
-			return fmt.Errorf("%w: jede Art von Lehrveranstaltung darf nur einmal vorkommen — "+
-				"die SWS einer Art gehören in einen Eintrag", ErrComponentInvalid)
-		}
-		seen[components[i].Kind] = true
 		// The caller's order is the order. Positions are assigned here rather than accepted, so
 		// that a client cannot produce a gap or a collision and the unique constraint is never
 		// the thing that reports a bad request.

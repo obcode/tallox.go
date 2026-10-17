@@ -466,10 +466,11 @@ func TestASplitWithImpossibleHoursIsRefused(t *testing.T) {
 	}
 }
 
-// The same kind twice is refused by name. A beta tester who could not remove the second entry of
-// "2 lecture + 2 laboratory" saved "2 lecture + 2 lecture" instead, and every instance of that
-// module would have got two lecture parts — the sentence tells them to put the hours in one.
-func TestASplitNamesEachKindOnce(t *testing.T) {
+// The same kind twice is accepted since 2026-10-17, and keeps its entries: "2 + 2 lecture, 2 + 2
+// laboratory" is how the faculty states a module whose lecture and laboratory are each given half
+// by somebody else. It was refused before, when the only reading was two lectures; what an instance
+// makes of it is asserted in internal/store (TestASplitWithAKindTwiceMakesAPartAndItsPiece).
+func TestASplitMayNameAKindTwice(t *testing.T) {
 	t.Parallel()
 
 	f := catalogueHandler(t,
@@ -478,33 +479,32 @@ func TestASplitNamesEachKindOnce(t *testing.T) {
 
 	c := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
 
-	resp := c.Do(t, `mutation($m: ID!) {
-		setModuleComponents(moduleId: $m, components: [
-			{kind: LECTURE, teachingHours: 2}, {kind: LECTURE, teachingHours: 2}
-		]) { id }
-	}`, map[string]any{"m": f.moduleOrdinary.String()})
-	assertRefusal(t, resp, "COMPONENTS_INVALID")
-	if msg := resp.Errors[0].Message; !strings.Contains(msg, "nur einmal") {
-		t.Errorf("the refusal says %q, want it to name the repeated kind as the problem", msg)
-	}
-	graphqltest.AssertNoLeak(t, resp.Errors[0].Message, graphqltest.DatabaseNoise()...)
-
-	// Four hours of lecture is one entry, and that is accepted.
 	var out struct {
 		SetModuleComponents struct {
 			Components []struct {
 				Kind          string
 				TeachingHours float64
 			}
+			ComponentHours *float64
+			PracticalKind  *string
 		}
 	}
 	c.MustQuery(t, `mutation($m: ID!) {
-		setModuleComponents(moduleId: $m, components: [{kind: LECTURE, teachingHours: 4}]) {
-			components { kind teachingHours }
-		}
+		setModuleComponents(moduleId: $m, components: [
+			{kind: LECTURE, teachingHours: 2}, {kind: LECTURE, teachingHours: 2},
+			{kind: LAB, teachingHours: 2}, {kind: LAB, teachingHours: 2}
+		]) { components { kind teachingHours } componentHours practicalKind }
 	}`, map[string]any{"m": f.moduleOrdinary.String()}, &out)
-	if got := out.SetModuleComponents.Components; len(got) != 1 || got[0].TeachingHours != 4 {
-		t.Errorf("the split is %+v, want one lecture of four hours", got)
+
+	got := out.SetModuleComponents
+	if len(got.Components) != 4 {
+		t.Fatalf("the split is %+v, want the four entries as stated", got.Components)
+	}
+	if got.ComponentHours == nil || *got.ComponentHours != 8 {
+		t.Errorf("the split adds up to %v, want 8", got.ComponentHours)
+	}
+	if got.PracticalKind == nil || *got.PracticalKind != "LAB" {
+		t.Errorf("the groups multiply %v, want LAB", got.PracticalKind)
 	}
 }
 

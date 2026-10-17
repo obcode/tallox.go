@@ -124,3 +124,6 @@ hängen, und welches davon wäre mehr, als der Aufrufer wissen darf.
 | API (4 Wurzelfelder, Area `PLANNING`, Schreiben `@interactiveOnly`) | `graph/assignment.graphqls` |
 
 Siehe auch [[wishes]], [[subject-groups]], [[semester-and-phase]].
+
+Seit 2026-10-17 ist „den Teil teilen“ eine eigene Mutation (`divideInstancePart`), und ein Teil kann
+einer anderen Fakultät gehören (`taught_by`, nicht besetzbar) — siehe [[divided-parts]].

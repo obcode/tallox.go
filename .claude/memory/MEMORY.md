@@ -18,6 +18,7 @@ Kolleg:innen — das gehört nach `tallox.dev`.
 - [Wünsche](wishes.md) — nur selbst, kein COUNT, die zwei Geltungsbereiche, und drei Funde beim Bauen
 - [Fachgruppen](subject-groups.md) — semesterunabhängig, die Leitung als Scope-Tabelle, und was Umhängen rückwirkend ändert
 - [Zuteilung](assignments.md) — person oder teacher, zwei Achsen zum Schreiben, Compare-and-Set, und drei Funde beim Bauen
+- [Teile aufteilen, andere Fakultät](divided-parts.md) — Stück statt Anteil (Migration 29), `divided_from_id` wegen der Gruppenzahl, `taught_by` nicht besetzbar/nicht in der Last, Zuteilungsregel
 - [Deckung über Studiengänge](instance-coverage.md) — ein Bedarf, von einem anderen Studiengang gehalten: der Fremdschlüssel mit vier Invarianten, warum das Koppeln beim Planen einseitig sein darf, und die Beförderung beim Rückzug
 - [SWS-Controlling](sws-controlling.md) — `teachingLoad`: Lehr-SWS je Heimatstudiengang wie das alte Excel-Sheet, Kontingent, Saldo (WiSe: Hälfte, SoSe: Rest nach dem WiSe), `studyYearLoad`, Filter `foreignHome`; Körbe offen
 - [Planungsmarken](planning-marks.md) — zwei Marken statt einer Phase, und warum fehlende Zeile hier offen heißt

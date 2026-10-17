@@ -125,7 +125,7 @@ func demandHandler(t *testing.T, scoped map[string][]string, people ...grants) d
 		},
 		People:    domain.NewPeopleService(store.NewPeople(s.Pool), nil),
 		Planning:  planning,
-		Catalogue: domain.NewCatalogueService(modules),
+		Catalogue: domain.NewCatalogueService(modules, domain.ModuleHandbook{}),
 		Demand:    domain.NewDemandService(store.NewDemand(s.Pool, modules), modules, planning),
 	})
 	return fixture

@@ -259,6 +259,7 @@ type ComplexityRoot struct {
 		Credits             func(childComplexity int) int
 		DutyStatus          func(childComplexity int, programme string) int
 		Frequency           func(childComplexity int) int
+		HandbookURL         func(childComplexity int) int
 		HomeProgramme       func(childComplexity int) int
 		ID                  func(childComplexity int) int
 		InCatalogue         func(childComplexity int, programme string) int
@@ -1595,6 +1596,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.Frequency(childComplexity), true
+	case "Module.handbookUrl":
+		if e.ComplexityRoot.Module.HandbookURL == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.HandbookURL(childComplexity), true
 	case "Module.homeProgramme":
 		if e.ComplexityRoot.Module.HomeProgramme == nil {
 			break
@@ -5124,6 +5131,15 @@ type Module {
   changing somebody else's script rather than this schema.
   """
   zpaId: String
+  """
+  The module's page in the examination office's public module handbook, or ` + "`" + `null` + "`" + `.
+
+  ` + "`" + `null` + "`" + ` for a module the faculty entered itself, for one the examination office no longer
+  offers — its public catalogue lists the active modules only — and on an installation with no
+  connection to the examination office configured. A link to read, not an identifier: key on
+  ` + "`" + `id` + "`" + `.
+  """
+  handbookUrl: String
   """
   How the module's hours divide between teachable units — two of lecture and two of laboratory,
   say.
@@ -9096,6 +9112,8 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_retiredAt(ctx, field)
 	case "zpaId":
 		return ec.fieldContext_Module_zpaId(ctx, field)
+	case "handbookUrl":
+		return ec.fieldContext_Module_handbookUrl(ctx, field)
 	case "components":
 		return ec.fieldContext_Module_components(ctx, field)
 	case "componentHours":

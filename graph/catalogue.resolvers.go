@@ -15,6 +15,15 @@ import (
 	"github.com/obcode/tallox.go/internal/principal"
 )
 
+// HandbookURL is the resolver for the handbookUrl field.
+func (r *moduleResolver) HandbookURL(ctx context.Context, obj *model.Module) (*string, error) {
+	url, ok := r.Catalogue.HandbookURL(obj.Domain)
+	if !ok {
+		return nil, nil
+	}
+	return &url, nil
+}
+
 // DutyStatus is the resolver for the dutyStatus field.
 func (r *moduleResolver) DutyStatus(ctx context.Context, obj *model.Module, programme string) (*domain.DutyStatus, error) {
 	status, ok := obj.Domain.DutyStatus(normaliseCode(programme))

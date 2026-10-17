@@ -3,6 +3,7 @@ package bootstrap_test
 import (
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -87,7 +88,8 @@ func catalogueHandler(t *testing.T, scoped map[string][]string, people ...grants
 			People: domain.NewPeopleService(store.NewPeople(s.Pool), nil),
 			Import: domain.NewZPASyncService(
 				store.NewZPA(s.Pool), nil, nil, store.NewCatalogue(s.Pool)),
-			Catalogue: domain.NewCatalogueService(store.NewModules(s.Pool)),
+			Catalogue: domain.NewCatalogueService(store.NewModules(s.Pool),
+				domain.NewModuleHandbook(fixtureZPABaseURL)),
 		}),
 	}
 
@@ -902,6 +904,51 @@ func TestAModuleNamesItsResponsibleTeacher(t *testing.T) {
 			// an empty teacher: about one real module in thirty is in that state.
 			if unnamed == 0 {
 				t.Error("every module names somebody, so the unresolvable case is not covered")
+			}
+		})
+}
+
+// fixtureZPABaseURL is the examination office the catalogue fixture links its handbook to.
+const fixtureZPABaseURL = "https://zpa.example.org/"
+
+// A module links to its page in the public handbook — "you only see who is responsible" was the
+// complaint — and a module the examination office no longer offers does not, because that
+// catalogue lists active modules only and the link would open an empty page.
+func TestAModuleLinksToItsHandbookPage(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil, grants{testdata.Eins, []string{"LECTURER"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct {
+				Modules []struct {
+					ZpaID       *string
+					HandbookURL *string
+				}
+			}
+			c.MustQuery(t, `query($f: ModuleFilter) { modules(filter: $f) { zpaId handbookUrl } }`,
+				map[string]any{"f": map[string]any{"includeInactive": true}}, &out)
+
+			urls := map[string]*string{}
+			for _, m := range out.Modules {
+				if m.ZpaID != nil {
+					urls[*m.ZpaID] = m.HandbookURL
+				}
+			}
+
+			ordinary := urls[strconv.Itoa(storetest.FixtureModuleOrdinary)]
+			want := "https://zpa.example.org/pub/#m=" + strconv.Itoa(storetest.FixtureModuleOrdinary)
+			if ordinary == nil || *ordinary != want {
+				t.Errorf("handbookUrl of the ordinary module = %v, want %q", ordinary, want)
+			}
+
+			retired, seen := urls[strconv.Itoa(storetest.FixtureModuleRetired)]
+			if !seen {
+				t.Fatal("the inactive module is not in the list, so its case is not covered")
+			}
+			if retired != nil {
+				t.Errorf("an inactive module links to %q, want null", *retired)
 			}
 		})
 }

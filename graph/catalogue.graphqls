@@ -362,6 +362,15 @@ type Module {
   """
   zpaId: String
   """
+  The module's page in the examination office's public module handbook, or `null`.
+
+  `null` for a module the faculty entered itself, for one the examination office no longer
+  offers — its public catalogue lists the active modules only — and on an installation with no
+  connection to the examination office configured. A link to read, not an identifier: key on
+  `id`.
+  """
+  handbookUrl: String
+  """
   How the module's hours divide between teachable units — two of lecture and two of laboratory,
   say.
 

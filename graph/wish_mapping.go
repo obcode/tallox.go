@@ -65,6 +65,8 @@ func wishError(err error) error {
 		// window is one switch held by this subject group's lead, a finished semester is the end
 		// of the process and nobody's to reopen.
 		return refusal("WISH_WINDOW_CLOSED", policy.WishWindowClosedReason)
+	case errors.Is(err, domain.ErrInstanceTaughtElsewhere):
+		return refusal("INSTANCE_TAUGHT_ELSEWHERE", err.Error())
 	case errors.Is(err, domain.ErrWishNotFound):
 		return refusal("WISH_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrWishNoteTooLong):

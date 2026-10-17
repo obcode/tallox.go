@@ -44,6 +44,8 @@ type fakeDemandStore struct {
 	loadsOf    map[string][]domain.TeachingLoad
 	quotas     []domain.ProgrammeQuota
 	quotaYears []int
+	// taughtBy is the last faculty SetInstancePartTaughtBy was handed.
+	taughtBy string
 }
 
 func newFakeDemandStore() *fakeDemandStore {
@@ -157,6 +159,22 @@ func (f *fakeDemandStore) UpdateInstancePart(ctx context.Context, partID uuid.UU
 
 func (f *fakeDemandStore) DeleteInstancePart(ctx context.Context, partID uuid.UUID) (*domain.CourseInstance, error) {
 	f.writes++
+	return f.CourseInstanceByPartID(ctx, partID)
+}
+
+func (f *fakeDemandStore) DivideInstancePart(ctx context.Context, partID uuid.UUID, _ float64) (*domain.CourseInstance, error) {
+	f.writes++
+	return f.CourseInstanceByPartID(ctx, partID)
+}
+
+func (f *fakeDemandStore) RejoinInstancePart(ctx context.Context, partID uuid.UUID) (*domain.CourseInstance, error) {
+	f.writes++
+	return f.CourseInstanceByPartID(ctx, partID)
+}
+
+func (f *fakeDemandStore) SetInstancePartTaughtBy(ctx context.Context, partID uuid.UUID, faculty string) (*domain.CourseInstance, error) {
+	f.writes++
+	f.taughtBy = faculty
 	return f.CourseInstanceByPartID(ctx, partID)
 }
 
@@ -655,6 +673,114 @@ func TestPartWritesAreJudgedByTheirInstance(t *testing.T) {
 	}
 	if f.store.writes != 0 {
 		t.Errorf("%d refused call(s) wrote anyway", f.store.writes)
+	}
+}
+
+// Dividing a part and handing it to another faculty are judged by the assignment's rule, not the
+// demand's: a programme lead of another programme is not responsible, and a finished semester
+// takes nothing. The rule itself is asserted in internal/policy; this is the service asking it
+// about the right instance and answering with the assignment's sentinels.
+func TestArrangingAPartIsJudgedByTheAssignmentRule(t *testing.T) {
+	t.Parallel()
+
+	calls := func(f demandFixture, actor principal.Actor, part uuid.UUID) map[string]func() error {
+		return map[string]func() error{
+			"divide": func() error {
+				_, err := f.service.DividePart(t.Context(), actor, part, 1)
+				return err
+			},
+			"rejoin": func() error {
+				_, err := f.service.RejoinPart(t.Context(), actor, part)
+				return err
+			},
+			"taughtBy": func() error {
+				_, err := f.service.SetPartTaughtBy(t.Context(), actor, part, "FK 04")
+				return err
+			},
+		}
+	}
+
+	t.Run("another programme", func(t *testing.T) {
+		t.Parallel()
+		f := newDemandService(t, policy.PhaseAssignment)
+		instance := f.store.add(otherProgramme, policy.PhaseAssignment, 1)
+		for name, run := range calls(f, lead(principal.KindInteractive, demandProgramme), instance.Parts[0].ID) {
+			if err := run(); !errors.Is(err, domain.ErrNotYourSubject) {
+				t.Errorf("%s gave %v, want ErrNotYourSubject", name, err)
+			}
+		}
+		if f.store.writes != 0 {
+			t.Errorf("%d refused call(s) wrote anyway", f.store.writes)
+		}
+	})
+
+	t.Run("a finished semester", func(t *testing.T) {
+		t.Parallel()
+		f := newDemandService(t, policy.PhaseFinal)
+		instance := f.store.add(demandProgramme, policy.PhaseFinal, 1)
+		for name, run := range calls(f, lead(principal.KindInteractive, demandProgramme), instance.Parts[0].ID) {
+			if err := run(); !errors.Is(err, domain.ErrAssignmentPhaseClosed) {
+				t.Errorf("%s gave %v, want ErrAssignmentPhaseClosed", name, err)
+			}
+		}
+		if f.store.writes != 0 {
+			t.Errorf("%d refused call(s) wrote anyway", f.store.writes)
+		}
+	})
+
+	t.Run("the own programme, during the review", func(t *testing.T) {
+		t.Parallel()
+		f := newDemandService(t, policy.PhaseReview)
+		instance := f.store.add(demandProgramme, policy.PhaseReview, 1)
+		for name, run := range calls(f, lead(principal.KindInteractive, demandProgramme), instance.Parts[0].ID) {
+			if err := run(); err != nil {
+				t.Errorf("%s gave %v, want it written", name, err)
+			}
+		}
+	})
+
+	t.Run("a part that does not exist", func(t *testing.T) {
+		t.Parallel()
+		f := newDemandService(t, policy.PhaseAssignment)
+		for name, run := range calls(f, lead(principal.KindInteractive, demandProgramme), uuid.New()) {
+			if err := run(); !errors.Is(err, domain.ErrPartNotFound) {
+				t.Errorf("%s gave %v, want ErrPartNotFound", name, err)
+			}
+		}
+	})
+}
+
+func TestWhatIsAcceptedWhenArrangingAPart(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandService(t, policy.PhaseAssignment)
+	instance := f.store.add(demandProgramme, policy.PhaseAssignment, 1)
+	actor := lead(principal.KindInteractive, demandProgramme)
+	part := instance.Parts[0].ID
+
+	for _, hours := range []float64{0, -1, 21} {
+		if _, err := f.service.DividePart(t.Context(), actor, part, hours); !errors.Is(err, domain.ErrPartInvalid) {
+			t.Errorf("dividing off %v hours gave %v, want ErrPartInvalid", hours, err)
+		}
+	}
+
+	if _, err := f.service.SetPartTaughtBy(t.Context(), actor, part, strings.Repeat("x", 81)); !errors.Is(err, domain.ErrTaughtByTooLong) {
+		t.Errorf("81 characters gave %v, want ErrTaughtByTooLong", err)
+	}
+	// Counted in characters, like the note: a faculty's name with umlauts is not longer for it.
+	if _, err := f.service.SetPartTaughtBy(t.Context(), actor, part, strings.Repeat("ü", 80)); err != nil {
+		t.Errorf("80 characters with umlauts gave %v", err)
+	}
+	if _, err := f.service.SetPartTaughtBy(t.Context(), actor, part, "  FK 04 \n"); err != nil {
+		t.Fatal(err)
+	}
+	if f.store.taughtBy != "FK 04" {
+		t.Errorf("the store was handed %q, want it trimmed to %q", f.store.taughtBy, "FK 04")
+	}
+
+	full := f.store.add(demandProgramme, policy.PhaseAssignment, domain.MaxPartsPerInstance)
+	if _, err := f.service.DividePart(t.Context(), actor, full.Parts[0].ID, 1); !errors.Is(err, domain.ErrTooManyParts) {
+		t.Errorf("dividing a part of a full instance gave %v, want ErrTooManyParts", err)
 	}
 }
 

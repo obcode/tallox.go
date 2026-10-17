@@ -292,6 +292,11 @@ func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID
 	if !where.WindowOpen {
 		return nil, ErrWishWindowClosed
 	}
+	// Last, because it is the only refusal about the instance rather than about the moment: the
+	// phase and the window say "not now", this one says "not here".
+	if where.TaughtElsewhere {
+		return nil, ErrInstanceTaughtElsewhere
+	}
 
 	return s.store.SetWish(ctx, instanceID, actor.ID, priority, note)
 }

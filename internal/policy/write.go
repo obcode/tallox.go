@@ -280,6 +280,18 @@ func MayWriteInstanceFormat(a principal.Actor, subjectGroupID, programmeID uuid.
 	return MayWriteAssignment(a, subjectGroupID, programmeID, phase)
 }
 
+// MayDivideInstancePart is the rule for cutting a part in two and for saying that another
+// faculty teaches it.
+//
+// The assignment's rule, like MayWriteInstanceFormat and for the same reason: both were asked for
+// at the assignment, by the subject group lead who arranges with the other faculty who gives what.
+// Not MayWriteDemand, although it changes the parts — dividing keeps the instance's hours as they
+// were, so the figure the programme lead plans with does not move, and handing a part to another
+// faculty is a decision about who teaches it, which is what the assignment is.
+func MayDivideInstancePart(a principal.Actor, subjectGroupID, programmeID uuid.UUID, phase Phase) bool {
+	return MayWriteAssignment(a, subjectGroupID, programmeID, phase)
+}
+
 // AssignmentWriteRefusal picks the sentence for a refused assignment, out of the four that can be
 // true.
 //

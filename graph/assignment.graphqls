@@ -217,7 +217,7 @@ extend type Mutation {
   responsible for neither the subject nor the programme, `PART_ALREADY_ASSIGNED` when you believed
   a part was free and it is not, `ASSIGNMENT_MOVED_ON` when the assignment you named is no longer
   the one there, `ASSIGNEE_INVALID` for neither or both ids, `ASSIGNEE_NOT_FOUND` for one that
-  does not resolve.
+  does not resolve, `PART_TAUGHT_ELSEWHERE` for a part another faculty teaches.
   """
   setAssignment(
     "The part to fill."
@@ -266,4 +266,57 @@ extend type Mutation {
   assignment" and "that one is not yours" — deliberately the same answer.
   """
   clearAssignment(id: ID!): ID! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Cut a piece off a part: the same kind, `teachingHours` of its hours, and the part keeps the
+  rest.
+
+  The way to split teaching between two people, or between this faculty and another one. A
+  lecture of 4 becomes 2 and 2; dividing again cuts from the same undivided part, so any split is
+  a few calls. The instance's hours do not change, and the piece is staffed like any other part.
+  It is not a laboratory group: the number of groups the demand plans counts undivided parts only.
+
+  An assignment on the part stays on it, and the person on it is credited with what is left —
+  the same as correcting a part's hours.
+
+  Bound by the assignment's rule, like `setCourseInstanceFormat`: it is arranged where the
+  instance is staffed.
+
+  Refusals: `PART_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`, `PART_INVALID` when
+  the part states no hours or `teachingHours` is not strictly between 0 and them,
+  `PART_TAUGHT_ELSEWHERE` for a part another faculty teaches — hand it back first.
+  """
+  divideInstancePart(
+    "The part to cut from. A piece names its undivided part, and the cut is made there."
+    id: ID!
+    "The hours of the new piece."
+    teachingHours: Float!
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Put a piece back: its hours return to the part it was cut from, and the piece is gone.
+
+  Refusals: `PART_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`, `PART_NOT_DIVIDED`
+  for a part that is not a piece, `PART_ASSIGNED` while somebody holds the piece.
+  """
+  rejoinInstancePart(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Say that another faculty teaches this part — `"FK 04"` — or, with `null`, that we do again.
+
+  Such a part is not ours to staff: it cannot be assigned, it is not counted in the programme's
+  teaching load (`ProgrammeTeachingLoad.externalHours` instead), and an instance whose every part
+  is taught elsewhere cannot be wished for. Usually a piece cut off with `divideInstancePart`.
+
+  Free text, at most 80 characters, trimmed; empty is the same as `null`.
+
+  Refusals: `PART_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`, `PART_ASSIGNED`
+  while somebody of ours holds it, `TAUGHT_BY_TOO_LONG`.
+  """
+  setInstancePartTaughtBy(
+    "The part."
+    id: ID!
+    "Who teaches it, or `null` for this faculty."
+    faculty: String
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 }

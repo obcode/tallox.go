@@ -437,7 +437,8 @@ func writeRow(cells ...string) string {
 
 // How a cohort is taught is the assignment's rule by decision, not by accident: it is set where
 // the cohort is staffed, by the person who staffs it. If the two ever need to differ, this is the
-// test to change on purpose.
+// test to change on purpose. Dividing a part and handing it to another faculty follow the same
+// rule for the same reason, and are asserted in the same loop.
 func TestInstanceFormatFollowsTheAssignmentRule(t *testing.T) {
 	t.Parallel()
 
@@ -455,6 +456,10 @@ func TestInstanceFormatFollowsTheAssignmentRule(t *testing.T) {
 				want := policy.MayWriteAssignment(a, group, uuid.Nil, phase)
 				if got := policy.MayWriteInstanceFormat(a, group, uuid.Nil, phase); got != want {
 					t.Errorf("%v in %s for group %s: format %v, assignment %v",
+						a.Roles, phase, group, got, want)
+				}
+				if got := policy.MayDivideInstancePart(a, group, uuid.Nil, phase); got != want {
+					t.Errorf("%v in %s for group %s: dividing %v, assignment %v",
 						a.Roles, phase, group, got, want)
 				}
 			}

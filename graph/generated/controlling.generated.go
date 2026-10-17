@@ -466,6 +466,29 @@ func (ec *executionContext) fieldContext_ProgrammeTeachingLoad_partsWithoutHours
 	return graphql.NewScalarFieldContext("ProgrammeTeachingLoad", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _ProgrammeTeachingLoad_externalHours(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeTeachingLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ProgrammeTeachingLoad_externalHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ExternalHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ProgrammeTeachingLoad_externalHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ProgrammeTeachingLoad", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
 func (ec *executionContext) _ProgrammeTeachingLoad_shares(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeTeachingLoad) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -714,6 +737,29 @@ func (ec *executionContext) fieldContext_TeachingLoadShare_partsWithoutHours(_ c
 	return graphql.NewScalarFieldContext("TeachingLoadShare", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _TeachingLoadShare_externalHours(ctx context.Context, field graphql.CollectedField, obj *model.TeachingLoadShare) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TeachingLoadShare_externalHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ExternalHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TeachingLoadShare_externalHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TeachingLoadShare", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
@@ -894,6 +940,11 @@ func (ec *executionContext) _ProgrammeTeachingLoad(ctx context.Context, sel ast.
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "externalHours":
+			out.Values[i] = ec._ProgrammeTeachingLoad_externalHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "shares":
 			out.Values[i] = ec._ProgrammeTeachingLoad_shares(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -974,6 +1025,11 @@ func (ec *executionContext) _TeachingLoadShare(ctx context.Context, sel ast.Sele
 			}
 		case "partsWithoutHours":
 			out.Values[i] = ec._TeachingLoadShare_partsWithoutHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "externalHours":
+			out.Values[i] = ec._TeachingLoadShare_externalHours(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

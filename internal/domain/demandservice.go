@@ -469,6 +469,84 @@ func (s *DemandService) SetFormat(ctx context.Context, actor principal.Actor, id
 	return s.store.SetCourseInstanceFormat(ctx, instance.ID, delivery, englishOverride)
 }
 
+// DividePart cuts a piece of the given hours off a part — the lecture of 4 given 2 and 2, by two
+// people or by us and another faculty.
+//
+// Judged by the assignment's rule (policy.MayDivideInstancePart) and refused with its sentinels,
+// like SetFormat: it is arranged where the instance is staffed, and it leaves the instance's hours
+// as the programme lead planned them.
+func (s *DemandService) DividePart(ctx context.Context, actor principal.Actor, partID uuid.UUID,
+	hours float64,
+) (*CourseInstance, error) {
+	instance, err := s.dividablePart(ctx, actor, partID)
+	if err != nil {
+		return nil, err
+	}
+	if len(instance.Parts) >= MaxPartsPerInstance {
+		return nil, ErrTooManyParts
+	}
+	if hours <= 0 || hours > 20 {
+		return nil, ErrPartInvalid
+	}
+	return s.store.DivideInstancePart(ctx, partID, hours)
+}
+
+// RejoinPart puts a piece back into the part it was cut from.
+func (s *DemandService) RejoinPart(ctx context.Context, actor principal.Actor, partID uuid.UUID,
+) (*CourseInstance, error) {
+	if _, err := s.dividablePart(ctx, actor, partID); err != nil {
+		return nil, err
+	}
+	return s.store.RejoinInstancePart(ctx, partID)
+}
+
+// SetPartTaughtBy says which other faculty teaches a part, or with an empty name that we do.
+//
+// Trimmed here, for the reason normaliseNote gives: a field somebody cleared with a trailing space
+// is a cleared field.
+func (s *DemandService) SetPartTaughtBy(ctx context.Context, actor principal.Actor, partID uuid.UUID,
+	faculty string,
+) (*CourseInstance, error) {
+	if _, err := s.dividablePart(ctx, actor, partID); err != nil {
+		return nil, err
+	}
+	faculty = strings.TrimSpace(faculty)
+	if utf8.RuneCountInString(faculty) > MaxTaughtByLength {
+		return nil, ErrTaughtByTooLong
+	}
+	return s.store.SetInstancePartTaughtBy(ctx, partID, faculty)
+}
+
+// dividablePart reads the instance of a part and asks the assignment's rule about it.
+func (s *DemandService) dividablePart(ctx context.Context, actor principal.Actor, partID uuid.UUID,
+) (*CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+
+	instance, err := s.store.CourseInstanceByPartID(ctx, partID)
+	if err != nil {
+		return nil, err
+	}
+	if instance == nil {
+		return nil, ErrPartNotFound
+	}
+
+	subjectGroupID := uuid.Nil
+	if instance.Module.SubjectGroup != nil {
+		subjectGroupID = instance.Module.SubjectGroup.ID
+	}
+	if !policy.MayDivideInstancePart(actor, subjectGroupID, instance.Programme.ID,
+		instance.SemesterPhase) {
+		if !policy.MayActInSubjectGroup(actor, subjectGroupID) &&
+			!policy.MayPlanProgramme(actor, instance.Programme.ID) {
+			return nil, ErrNotYourSubject
+		}
+		return nil, ErrAssignmentPhaseClosed
+	}
+	return instance, nil
+}
+
 // Withdraw removes an instance that is not needed after all.
 func (s *DemandService) Withdraw(ctx context.Context, actor principal.Actor, id uuid.UUID) error {
 	instance, err := s.writable(ctx, actor, id)

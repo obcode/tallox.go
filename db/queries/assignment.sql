@@ -134,7 +134,8 @@ WHERE a.id = sqlc.arg(id)::uuid
   );
 
 -- name: FillInstancePart :one
--- Fill a part that nobody holds. Returns no row if somebody already does.
+-- Fill a part that nobody holds. Returns no row if somebody already does, or if another faculty
+-- teaches it.
 --
 -- ON CONFLICT DO NOTHING rather than an upsert, and that is the compare-and-set half of this
 -- file. A caller who names no assignment to replace is saying "I believe this part is free", so
@@ -143,14 +144,23 @@ WHERE a.id = sqlc.arg(id)::uuid
 -- would leave believing they had decided it.
 --
 -- Two roles may write this row since 2026-08-27, so this is not a theoretical case.
+--
+-- And only a part this faculty teaches (migration 29). A part another faculty gives has nobody
+-- here to hold it, and the condition is in the statement rather than in Go for the reason the
+-- conflict clause is: the part can be handed away between the check and the insert. FOR SHARE is
+-- what makes that true — it waits for LockInstancePart, and after the wait PostgreSQL re-reads the
+-- row and drops it if it is no longer ours, so the insert finds nothing to insert.
 INSERT INTO assignment (instance_part_id, person_id, teacher_id, note, assigned_by)
-VALUES (
-    sqlc.arg(instance_part_id)::uuid,
+SELECT
+    ip.id,
     sqlc.narg('person_id')::uuid,
     sqlc.narg('teacher_id')::uuid,
     sqlc.arg(note)::text,
     sqlc.narg('assigned_by')::uuid
-)
+FROM instance_part ip
+WHERE ip.id = sqlc.arg(instance_part_id)::uuid
+  AND ip.taught_by IS NULL
+FOR SHARE
 ON CONFLICT (instance_part_id) DO NOTHING
 RETURNING id;
 
@@ -172,6 +182,11 @@ SET person_id = sqlc.narg('person_id')::uuid,
 WHERE id = sqlc.arg(replacing)::uuid
   AND instance_part_id = sqlc.arg(instance_part_id)::uuid
 RETURNING id;
+
+-- name: InstancePartTaughtBy :one
+-- Who else teaches a part, read when a fill came back empty: the two reasons it can are different
+-- sentences. NULL for ours.
+SELECT taught_by FROM instance_part WHERE id = $1;
 
 -- name: ClearAssignment :execrows
 -- Give a part back. The row count is the answer: nothing cleared means it was not there.

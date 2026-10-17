@@ -137,14 +137,21 @@ func coverageFrom(row instanceRow) *domain.InstanceCoverage {
 	return coverage
 }
 
-func partFrom(id uuid.UUID, kind string, position int32, hours pgtype.Numeric, shared bool) domain.InstancePart {
-	return domain.InstancePart{
+func partFrom(id uuid.UUID, kind string, position int32, hours pgtype.Numeric, shared bool,
+	dividedFrom uuid.NullUUID, taughtBy *string,
+) domain.InstancePart {
+	part := domain.InstancePart{
 		ID:                 id,
 		Kind:               domain.InstancePartKind(kind),
 		Position:           int(position),
 		TeachingHours:      numericFloatOrNil(hours),
 		SharedAcrossTracks: shared,
+		TaughtBy:           stringOrEmpty(taughtBy),
 	}
+	if dividedFrom.Valid {
+		part.DividedFrom = dividedFrom.UUID
+	}
+	return part
 }
 
 // CourseInstances lists the demand of a semester.
@@ -224,6 +231,7 @@ func (d *Demand) TeachingLoad(ctx context.Context, semesterCode string) ([]domai
 			FwpInstances:      int(row.FwpInstances),
 			FwpHours:          row.FwpHours,
 			PartsWithoutHours: int(row.PartsWithoutHours),
+			ExternalHours:     row.ExternalHours,
 		})
 	}
 	return loads, nil
@@ -350,7 +358,8 @@ func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.Cour
 	}
 	partsByInstance := make(map[uuid.UUID][]domain.InstancePart, len(ids))
 	for _, p := range parts {
-		part := partFrom(p.ID, p.Kind, p.Position, p.TeachingHours, p.ServesSiblingTracks)
+		part := partFrom(p.ID, p.Kind, p.Position, p.TeachingHours, p.ServesSiblingTracks,
+			p.DividedFromID, p.TaughtBy)
 		partsByInstance[p.CourseInstanceID] = append(partsByInstance[p.CourseInstanceID], part)
 	}
 
@@ -360,7 +369,8 @@ func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.Cour
 	}
 	borrowedByInstance := make(map[uuid.UUID][]domain.BorrowedPart, len(ids))
 	for _, b := range borrowed {
-		part := partFrom(b.ID, b.Kind, b.Position, b.TeachingHours, b.ServesSiblingTracks)
+		part := partFrom(b.ID, b.Kind, b.Position, b.TeachingHours, b.ServesSiblingTracks,
+			b.DividedFromID, b.TaughtBy)
 		borrowedByInstance[b.ForInstanceID] = append(borrowedByInstance[b.ForInstanceID],
 			domain.BorrowedPart{
 				Part:          part,
@@ -663,21 +673,16 @@ func (d *Demand) DuplicateCourseInstance(ctx context.Context, id uuid.UUID, trac
 		return nil, fmt.Errorf("cannot declare the second cohort: %w", err)
 	}
 
-	position := int32(0)
+	// The shared parts stay with the source: they already serve the new cohort as a sibling.
+	// Their pieces are shared too, and go with them.
+	var own []InstancePartsForRow
 	for _, p := range parts {
-		if p.ServesSiblingTracks {
-			continue
+		if !p.ServesSiblingTracks {
+			own = append(own, p)
 		}
-		if _, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
-			CourseInstanceID:    newID,
-			Kind:                p.Kind,
-			Position:            position,
-			TeachingHours:       p.TeachingHours,
-			ServesSiblingTracks: false,
-		}); err != nil {
-			return nil, fmt.Errorf("cannot copy a part of the instance: %w", err)
-		}
-		position++
+	}
+	if _, err := copyParts(ctx, q, own, newID, true); err != nil {
+		return nil, fmt.Errorf("cannot copy a part of the instance: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -843,7 +848,12 @@ func (d *Demand) UpdateInstancePart(ctx context.Context, partID uuid.UUID,
 		ID:            partID,
 		Kind:          string(kind),
 		TeachingHours: numeric,
-	}); err != nil {
+	}); isForeignKeyViolation(err) {
+		// The only foreign key a part's own columns take part in is the one tying a piece to the
+		// part it was cut from, by kind: a laboratory cut in two cannot become a lecture on one
+		// side only.
+		return nil, domain.ErrPartDivided
+	} else if err != nil {
 		return nil, fmt.Errorf("cannot change the part: %w", err)
 	}
 
@@ -869,7 +879,19 @@ func (d *Demand) DeleteInstancePart(ctx context.Context, partID uuid.UUID) (*dom
 		return nil, domain.ErrPartNotFound
 	}
 
-	rows, err := New(d.pool).DeleteInstancePart(ctx, partID)
+	q := New(d.pool)
+	// A part with pieces cut off it is refused before the delete rather than read off its foreign
+	// key violation, because that violation is indistinguishable from an assignment's without
+	// naming the constraint — see isForeignKeyViolation for why that is not done.
+	hasPieces, err := q.InstancePartHasPieces(ctx, partID)
+	if err != nil {
+		return nil, fmt.Errorf("cannot check for pieces of the part: %w", err)
+	}
+	if hasPieces {
+		return nil, domain.ErrPartDivided
+	}
+
+	rows, err := q.DeleteInstancePart(ctx, partID)
 	if isForeignKeyViolation(err) {
 		// A part is pointed at by exactly one thing — an assignment — so unlike the instance
 		// above, this refusal can name what hangs off it without choosing between candidates.
@@ -885,6 +907,192 @@ func (d *Demand) DeleteInstancePart(ctx context.Context, partID uuid.UUID) (*dom
 		return nil, domain.ErrPartNotFound
 	}
 	return d.CourseInstanceByID(ctx, instance.ID)
+}
+
+// Dividing a part, and handing one to another faculty.
+//
+// Three writes on one row that each have to exclude an assignment arriving at the same moment, so
+// each takes LockInstancePart first. FillInstancePart takes FOR SHARE on the same row, which is
+// what makes the lock mean something: whichever comes second sees what the first one did.
+
+// DivideInstancePart cuts hours off a part into a new piece of the same kind.
+//
+// The hours come off the part named, and the piece names the undivided part — the part itself, or
+// the one a piece was cut from — so a lecture of 4 cut into 2 and then 1 is one part and two pieces
+// beside it, not a chain. The arithmetic is done by PostgreSQL in numeric, so the instance's
+// figure is the same afterwards to the cent.
+func (d *Demand) DivideInstancePart(ctx context.Context, partID uuid.UUID, hours float64,
+) (*domain.CourseInstance, error) {
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	part, err := q.LockInstancePart(ctx, partID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrPartNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the part: %w", err)
+	}
+	// Another faculty's part is not ours to cut. Dividing it would make two parts nobody here
+	// teaches, which is the same arrangement with more rows.
+	if part.TaughtBy != nil {
+		return nil, domain.ErrPartTaughtElsewhere
+	}
+	current := numericFloatOrNil(part.TeachingHours)
+	if current == nil || hours >= *current {
+		return nil, domain.ErrPartInvalid
+	}
+
+	cut, err := numericFrom(hours)
+	if err != nil {
+		return nil, err
+	}
+	// numericFrom rounds to the cent; what is left has to be strictly positive after that too.
+	if cutFloat := numericFloatOrNil(cut); cutFloat == nil || *cutFloat <= 0 || *cutFloat >= *current {
+		return nil, domain.ErrPartInvalid
+	}
+	negative, err := numericFrom(-hours)
+	if err != nil {
+		return nil, err
+	}
+
+	root := part.ID
+	if part.DividedFromID.Valid {
+		root = part.DividedFromID.UUID
+	}
+
+	if err := q.AddInstancePartHours(ctx, AddInstancePartHoursParams{ID: part.ID, Delta: negative}); err != nil {
+		return nil, fmt.Errorf("cannot take the hours off the part: %w", err)
+	}
+	if _, err := q.InsertInstancePiece(ctx, InsertInstancePieceParams{
+		CourseInstanceID:    part.CourseInstanceID,
+		Kind:                part.Kind,
+		Position:            part.Position,
+		ServesSiblingTracks: part.ServesSiblingTracks,
+		TeachingHours:       cut,
+		DividedFromID:       uuid.NullUUID{UUID: root, Valid: true},
+	}); err != nil {
+		return nil, fmt.Errorf("cannot cut the piece off: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+	return d.CourseInstanceByID(ctx, part.CourseInstanceID)
+}
+
+// RejoinInstancePart gives a piece's hours back to the part it was cut from, and removes it.
+//
+// Refused while somebody holds the piece: that would take teaching away from a person, which is
+// clearing an assignment and is done as one.
+func (d *Demand) RejoinInstancePart(ctx context.Context, partID uuid.UUID) (*domain.CourseInstance, error) {
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	piece, err := q.LockInstancePart(ctx, partID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrPartNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the part: %w", err)
+	}
+	if !piece.DividedFromID.Valid {
+		return nil, domain.ErrPartNotDivided
+	}
+	assigned, err := q.InstancePartIsAssigned(ctx, piece.ID)
+	if err != nil {
+		return nil, fmt.Errorf("cannot check whether the piece is staffed: %w", err)
+	}
+	if assigned {
+		return nil, domain.ErrPartAssigned
+	}
+
+	if _, err := q.LockInstancePart(ctx, piece.DividedFromID.UUID); err != nil {
+		return nil, fmt.Errorf("cannot read the part the piece was cut from: %w", err)
+	}
+
+	if piece.TeachingHours.Valid {
+		if err := q.AddInstancePartHours(ctx, AddInstancePartHoursParams{
+			ID:    piece.DividedFromID.UUID,
+			Delta: piece.TeachingHours,
+		}); hasSQLState(err, "23514") {
+			// The undivided part was corrected upwards since, and the two together would exceed
+			// what a part may credit anybody with.
+			return nil, domain.ErrPartInvalid
+		} else if err != nil {
+			return nil, fmt.Errorf("cannot give the hours back: %w", err)
+		}
+	}
+
+	if _, err := q.DeleteInstancePart(ctx, piece.ID); isForeignKeyViolation(err) {
+		return nil, domain.ErrPartAssigned
+	} else if err != nil {
+		return nil, fmt.Errorf("cannot remove the piece: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+	return d.CourseInstanceByID(ctx, piece.CourseInstanceID)
+}
+
+// SetInstancePartTaughtBy says that another faculty teaches a part, or with "" that we do again.
+//
+// Refused while somebody of ours holds it. Handing a staffed part away would leave an assignment
+// on a part that cannot be staffed, and the person on it would find out from their own list.
+func (d *Demand) SetInstancePartTaughtBy(ctx context.Context, partID uuid.UUID, faculty string,
+) (*domain.CourseInstance, error) {
+	tx, err := d.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	part, err := q.LockInstancePart(ctx, partID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrPartNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the part: %w", err)
+	}
+
+	var taughtBy *string
+	if faculty != "" {
+		assigned, err := q.InstancePartIsAssigned(ctx, part.ID)
+		if err != nil {
+			return nil, fmt.Errorf("cannot check whether the part is staffed: %w", err)
+		}
+		if assigned {
+			return nil, domain.ErrPartAssigned
+		}
+		taughtBy = &faculty
+	}
+
+	if err := q.SetInstancePartTaughtBy(ctx, SetInstancePartTaughtByParams{
+		ID:       part.ID,
+		TaughtBy: taughtBy,
+	}); hasSQLState(err, "23514") {
+		return nil, domain.ErrTaughtByTooLong
+	} else if err != nil {
+		return nil, fmt.Errorf("cannot say who teaches the part: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+	return d.CourseInstanceByID(ctx, part.CourseInstanceID)
 }
 
 // ShareInstancePartAcrossTracks makes one part serve the sibling cohorts as well.
@@ -917,6 +1125,20 @@ func (d *Demand) ShareInstancePartAcrossTracks(ctx context.Context, partID uuid.
 	}
 	if len(siblings) == 0 {
 		return nil, domain.ErrNoSiblingTracks
+	}
+
+	// Merging deletes the siblings' parts of this kind and flags only this one, so a division or
+	// another faculty's part on either side would be lost or left half-shared. Both are exceptions
+	// of an exception; undoing them first is the honest repair.
+	involved, err := q.PartsOfKindAreDividedOrElsewhere(ctx, PartsOfKindAreDividedOrElsewhereParams{
+		InstanceIds: append([]uuid.UUID{instanceID}, siblings...),
+		Kind:        kind,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot check the parts to merge: %w", err)
+	}
+	if involved {
+		return nil, domain.ErrPartDivided
 	}
 
 	if err := q.SetInstancePartShared(ctx, SetInstancePartSharedParams{
@@ -965,6 +1187,19 @@ func (d *Demand) SplitInstancePartAcrossTracks(ctx context.Context, partID uuid.
 	}
 	if !shared {
 		return nil, domain.ErrNotSharedAcrossTracks
+	}
+
+	// A shared lecture that was divided afterwards is several rows that each serve every cohort.
+	// Handing each cohort its own copy of one of them would give it a fraction of a lecture.
+	divided, err := q.PartsOfKindAreDividedOrElsewhere(ctx, PartsOfKindAreDividedOrElsewhereParams{
+		InstanceIds: []uuid.UUID{instanceID},
+		Kind:        kind,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot check the part: %w", err)
+	}
+	if divided {
+		return nil, domain.ErrPartDivided
 	}
 
 	siblings, err := q.SiblingInstanceIDs(ctx, instanceID)
@@ -1206,12 +1441,11 @@ func unshareBeforeHandover(ctx context.Context, q *Queries, hostID uuid.UUID) er
 			}
 		}
 
-		if err := q.SetInstancePartShared(ctx, SetInstancePartSharedParams{
-			ID:                  part.ID,
-			ServesSiblingTracks: false,
-		}); err != nil {
-			return fmt.Errorf("cannot stop sharing the part: %w", err)
-		}
+	}
+
+	// Every shared row at once, the pieces of a divided lecture included.
+	if err := q.UnsharePartsOfInstance(ctx, hostID); err != nil {
+		return fmt.Errorf("cannot stop sharing the parts: %w", err)
 	}
 	return nil
 }
@@ -1542,6 +1776,68 @@ func partContext(ctx context.Context, q *Queries, partID uuid.UUID) (
 	return uuid.Nil, "", pgtype.Numeric{}, false, domain.ErrPartNotFound
 }
 
+// copyParts writes parts into another instance, pieces and all.
+//
+// Two passes, because a piece names the undivided part by id and the copy's id is only known once
+// it is written. A piece whose undivided part is not among parts is left out with it.
+//
+// renumber gives the undivided parts the positions 0, 1, 2 … — a duplication starts its own list —
+// where a copy keeps them as they were. Either way a piece takes the position of its part.
+func copyParts(ctx context.Context, q *Queries, parts []InstancePartsForRow, to uuid.UUID,
+	renumber bool,
+) (int, error) {
+	created := 0
+	copied := make(map[uuid.UUID]uuid.UUID, len(parts))
+	positions := make(map[uuid.UUID]int32, len(parts))
+	next := int32(0)
+	for _, p := range parts {
+		if p.DividedFromID.Valid {
+			continue
+		}
+		position := p.Position
+		if renumber {
+			position = next
+			next++
+		}
+		id, err := q.InsertInstancePiece(ctx, InsertInstancePieceParams{
+			CourseInstanceID:    to,
+			Kind:                p.Kind,
+			Position:            position,
+			ServesSiblingTracks: p.ServesSiblingTracks,
+			TeachingHours:       p.TeachingHours,
+			TaughtBy:            p.TaughtBy,
+		})
+		if err != nil {
+			return created, err
+		}
+		copied[p.ID] = id
+		positions[p.ID] = position
+		created++
+	}
+	for _, p := range parts {
+		if !p.DividedFromID.Valid {
+			continue
+		}
+		root, ok := copied[p.DividedFromID.UUID]
+		if !ok {
+			continue
+		}
+		if _, err := q.InsertInstancePiece(ctx, InsertInstancePieceParams{
+			CourseInstanceID:    to,
+			Kind:                p.Kind,
+			Position:            positions[p.DividedFromID.UUID],
+			ServesSiblingTracks: p.ServesSiblingTracks,
+			TeachingHours:       p.TeachingHours,
+			DividedFromID:       uuid.NullUUID{UUID: root, Valid: true},
+			TaughtBy:            p.TaughtBy,
+		}); err != nil {
+			return created, err
+		}
+		created++
+	}
+	return created, nil
+}
+
 // CopyDemand declares in one semester what another one holds for the same programme.
 //
 // One transaction for the whole copy. A half-copied semester is worse than an uncopied one,
@@ -1644,22 +1940,18 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 			})
 		}
 
-		for _, p := range partsByInstance[source.ID] {
-			if _, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
-				CourseInstanceID: newID,
-				Kind:             p.Kind,
-				Position:         p.Position,
-				TeachingHours:    p.TeachingHours,
-				// Sharing is copied, unlike in a duplication: the sibling cohort is being
-				// copied too, so the lecture that was held once for both is held once for both
-				// again. Dropping the flag here would silently double the faculty's hours in
-				// every semester anybody copies.
-				ServesSiblingTracks: p.ServesSiblingTracks,
-			}); err != nil {
-				return counts, fmt.Errorf("cannot copy a part: %w", err)
-			}
-			counts.PartsCreated++
+		// Sharing is copied, unlike in a duplication: the sibling cohort is being copied too, so
+		// the lecture that was held once for both is held once for both again. Dropping the flag
+		// here would silently double the faculty's hours in every semester anybody copies.
+		//
+		// Divisions and another faculty's parts come along as well: an arrangement with another
+		// faculty is usually next year's arrangement too, and dropping it would put its hours
+		// back into this faculty's load without anybody having decided that.
+		created, err := copyParts(ctx, q, partsByInstance[source.ID], newID, false)
+		if err != nil {
+			return counts, fmt.Errorf("cannot copy a part: %w", err)
 		}
+		counts.PartsCreated += created
 	}
 
 	// Ask again, never agree again.
@@ -2358,8 +2650,15 @@ func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.Deman
 		return nil
 	}
 
+	// A piece is not a group: a laboratory cut in two between us and another faculty is still
+	// one laboratory group, and counting the piece would add a group on the next save.
+	pieced := map[uuid.UUID]bool{}
 	var groups []InstancePartsForRow
 	for _, p := range instance.parts {
+		if p.DividedFromID.Valid {
+			pieced[p.DividedFromID.UUID] = true
+			continue
+		}
 		if p.Kind == string(kind) && !p.ServesSiblingTracks {
 			groups = append(groups, p)
 		}
@@ -2398,6 +2697,19 @@ func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.Deman
 
 	for len(groups) > want {
 		last := groups[len(groups)-1]
+
+		// A group that was divided carries an arrangement — with a colleague, or with another
+		// faculty — that removing it would drop without anybody deciding to. Reported, like a
+		// staffed one.
+		if pieced[last.ID] {
+			plan.Refused = append(plan.Refused, domain.DemandRefusal{
+				ModuleID: instance.moduleID,
+				Track:    instance.track,
+				Code:     "PART_DIVIDED",
+				Reason:   domain.ErrPartDivided.Error(),
+			})
+			break
+		}
 
 		// Savepoint again, and for the same reason: a group somebody is already assigned to costs
 		// that group and not the screen.

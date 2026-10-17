@@ -200,9 +200,10 @@ func (a *Assignments) FillPart(ctx context.Context, partID uuid.UUID, who domain
 		AssignedBy:     nullUUID(nonNilUUID(by)),
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
-		// ON CONFLICT DO NOTHING returned nothing: somebody holds this part. The caller believed
-		// it was free, so this is a refusal and not a silent overwrite.
-		return uuid.Nil, domain.ErrPartAlreadyAssigned
+		// Nothing was inserted, for one of three reasons: somebody holds this part, another
+		// faculty teaches it, or it is gone. The caller believed it was free, so each is a refusal
+		// and not a silent overwrite — and they are three different repairs.
+		return uuid.Nil, a.whyNotFilled(ctx, partID)
 	}
 	// The part may have been removed between the phase check and the write.
 	if isForeignKeyViolation(err) {
@@ -212,6 +213,22 @@ func (a *Assignments) FillPart(ctx context.Context, partID uuid.UUID, who domain
 		return uuid.Nil, fmt.Errorf("cannot fill the part: %w", err)
 	}
 	return id, nil
+}
+
+// whyNotFilled tells apart the reasons a fill can come back empty. Read after the fact, so it can
+// only be wrong in the direction of a reload: whatever it says was true a moment ago.
+func (a *Assignments) whyNotFilled(ctx context.Context, partID uuid.UUID) error {
+	taughtBy, err := New(a.pool).InstancePartTaughtBy(ctx, partID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ErrPartNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("cannot read the part: %w", err)
+	}
+	if taughtBy != nil {
+		return domain.ErrPartTaughtElsewhere
+	}
+	return domain.ErrPartAlreadyAssigned
 }
 
 // ReplaceAssignment hands a part to somebody else, while the named assignment is still there.

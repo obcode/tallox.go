@@ -695,6 +695,19 @@ type InstancePart struct {
 	// holds its own teaching unless somebody says otherwise, because sharing by default would make
 	// the faculty's hours look smaller than they are until somebody noticed.
 	SharedAcrossTracks bool `json:"sharedAcrossTracks"`
+	// The part this one was cut from with `divideInstancePart`, or `null` for an undivided part.
+	//
+	// Always the undivided part, never another piece. A piece is a part in its own right — staffed,
+	// published and counted like any other — but it is not a group: the demand's group count leaves
+	// it out.
+	DividedFrom *string `json:"dividedFrom,omitempty"`
+	// The other faculty that teaches this part, as somebody typed it (`"FK 04"`), or `null` when it
+	// is ours.
+	//
+	// Such a part is not staffed here, not counted in the teaching load (see
+	// `ProgrammeTeachingLoad.externalHours`), and an instance made only of such parts is not wished
+	// for. Set with `setInstancePartTaughtBy`.
+	TaughtBy *string `json:"taughtBy,omitempty"`
 }
 
 // A course the faculty enters itself, on the way in.
@@ -987,7 +1000,8 @@ type ProgrammeStudyYearLoad struct {
 //
 // Teaching hours: the sum over the parts of every instance, by the rule `CourseInstance.teachingHours`
 // states. A four-hour module with a lecture and three laboratory groups costs eight; a lecture held
-// once for two cohorts counts once; a cohort covered by another programme's event costs nothing.
+// once for two cohorts counts once; a cohort covered by another programme's event costs nothing; a
+// part another faculty teaches is not ours and is reported as `externalHours` instead.
 // Not `Module.contactHoursPerWeek`, which is what a student attends and is not a teaching load.
 type ProgrammeTeachingLoad struct {
 	// The programme whose instances hold the teaching, and which pays for it.
@@ -1006,6 +1020,11 @@ type ProgrammeTeachingLoad struct {
 	// Parts that state no hours and therefore count zero. Anything above zero means `teachingHours`
 	// is too low, not that the semester is light.
 	PartsWithoutHours int `json:"partsWithoutHours"`
+	// What other faculties teach in the programme's instances — parts with `InstancePart.taughtBy`.
+	// **Not** in `teachingHours` or any other figure here, because it is not this faculty's teaching;
+	// reported beside it for the dean's office, who asks how much of what our students attend
+	// somebody else gives.
+	ExternalHours float64 `json:"externalHours"`
 	// The load split by the home programme of the modules, ordered by its code. Empty for a planned
 	// programme nothing has been declared for yet.
 	Shares []*TeachingLoadShare `json:"shares"`
@@ -1307,6 +1326,8 @@ type TeachingLoadShare struct {
 	FwpHours float64 `json:"fwpHours"`
 	// Parts among them that state no hours and therefore count zero.
 	PartsWithoutHours int `json:"partsWithoutHours"`
+	// What other faculties teach in those instances, beside `teachingHours` rather than in it.
+	ExternalHours float64 `json:"externalHours"`
 }
 
 // One person's interest in one course instance.

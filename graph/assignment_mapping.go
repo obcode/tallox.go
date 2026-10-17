@@ -7,6 +7,7 @@ import (
 
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/principal"
 )
 
 // The assignment area, on the way out and on the way back.
@@ -104,6 +105,8 @@ func assignmentError(err error) error {
 		return refusal("ASSIGNEE_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrAssignmentNoteTooLong):
 		return refusal("ASSIGNMENT_NOTE_TOO_LONG", err.Error())
+	case errors.Is(err, domain.ErrPartTaughtElsewhere):
+		return refusal("PART_TAUGHT_ELSEWHERE", err.Error())
 	case errors.Is(err, domain.ErrPartNotFound):
 		// Removed between the screen being rendered and the form being sent, which is the ordinary
 		// race here — the same code the demand area uses, because it is the same fact about the
@@ -117,4 +120,22 @@ func assignmentError(err error) error {
 	// mean nothing. The database noise a driver error carries never reaches here: internal/store
 	// wraps it, and graphqltest.AssertNoLeak is what says so.
 	return err
+}
+
+// partArrangementError maps the refusals of dividing a part and of handing it to another faculty.
+//
+// The assignment's sentinels for permission, because it is the assignment's rule — the same split
+// setCourseInstanceFormat makes — and the demand's for the shape of the part, because those are
+// the same facts about the same row that changeInstancePart reports.
+func partArrangementError(actor principal.Actor, err error) error {
+	switch {
+	case errors.Is(err, domain.ErrNotYourSubject), errors.Is(err, domain.ErrAssignmentPhaseClosed),
+		errors.Is(err, domain.ErrPartTaughtElsewhere):
+		return assignmentError(err)
+	case errors.Is(err, domain.ErrPartNotDivided):
+		return refusal("PART_NOT_DIVIDED", err.Error())
+	case errors.Is(err, domain.ErrTaughtByTooLong):
+		return refusal("TAUGHT_BY_TOO_LONG", err.Error())
+	}
+	return demandUserFacing(actor, err)
 }

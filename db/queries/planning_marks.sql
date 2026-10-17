@@ -86,9 +86,18 @@ RETURNING semester_id, subject_group_id, open, changed_at, changed_by;
 -- subject group has no window, and a subject group nobody has decided anything about has no row.
 -- Both are open, which is the rule — closing is the intervention. See migration 18 for why this
 -- one direction is the opposite of every other default in the schema.
+--
+-- taught_elsewhere is an instance every part of which another faculty gives (migration 29): there
+-- is nothing here to want. Some parts elsewhere and some ours is an ordinary instance — the wish is
+-- for the instance, and the note says which half. A covered cohort holds no parts at all and is
+-- not elsewhere by this; its teaching is ours, in another programme.
 SELECT s.id, s.code, s.phase, s.wishes_published_at,
        msg.subject_group_id,
-       COALESCE(ww.open, true)::boolean AS wish_window_open
+       COALESCE(ww.open, true)::boolean AS wish_window_open,
+       (EXISTS (SELECT 1 FROM instance_part ip WHERE ip.course_instance_id = ci.id)
+        AND NOT EXISTS (SELECT 1 FROM instance_part ip
+                        WHERE ip.course_instance_id = ci.id AND ip.taught_by IS NULL)
+       )::boolean AS taught_elsewhere
 FROM course_instance ci
 JOIN semester s ON s.id = ci.semester_id
 JOIN module m ON m.id = ci.module_id
@@ -98,10 +107,15 @@ LEFT JOIN wish_window ww
 WHERE ci.id = sqlc.arg(instance_id)::uuid;
 
 -- name: WishWriteContextByWishID :one
--- The same, reached from a wish rather than from an instance. For withdrawing one.
+-- The same, reached from a wish rather than from an instance. For withdrawing one — which stays
+-- possible on an instance taught elsewhere, so a wish from before the arrangement can be taken back.
 SELECT s.id, s.code, s.phase, s.wishes_published_at,
        msg.subject_group_id,
-       COALESCE(ww.open, true)::boolean AS wish_window_open
+       COALESCE(ww.open, true)::boolean AS wish_window_open,
+       (EXISTS (SELECT 1 FROM instance_part ip WHERE ip.course_instance_id = ci.id)
+        AND NOT EXISTS (SELECT 1 FROM instance_part ip
+                        WHERE ip.course_instance_id = ci.id AND ip.taught_by IS NULL)
+       )::boolean AS taught_elsewhere
 FROM wish w
 JOIN course_instance ci ON ci.id = w.course_instance_id
 JOIN semester s ON s.id = ci.semester_id

@@ -43,11 +43,33 @@ func (q *Queries) AcceptInstanceCoverage(ctx context.Context, arg AcceptInstance
 	return result.RowsAffected(), nil
 }
 
+const addInstancePartHours = `-- name: AddInstancePartHours :exec
+UPDATE instance_part
+SET teaching_hours = COALESCE(teaching_hours, 0) + $2::numeric,
+    updated_at = now()
+WHERE id = $1
+`
+
+type AddInstancePartHoursParams struct {
+	ID    uuid.UUID
+	Delta pgtype.Numeric
+}
+
+// Move hours onto or off a part, in numeric rather than in float: what dividing takes off one part
+// and puts on the other has to add up to the cent, or the instance's figure drifts by a rounding.
+// A part with no hours stated is treated as zero, which only rejoining can meet: dividing refuses
+// such a part.
+func (q *Queries) AddInstancePartHours(ctx context.Context, arg AddInstancePartHoursParams) error {
+	_, err := q.db.Exec(ctx, addInstancePartHours, arg.ID, arg.Delta)
+	return err
+}
+
 const borrowedInstancePartsFor = `-- name: BorrowedInstancePartsFor :many
 SELECT me.id AS for_instance_id,
        sib.track AS from_track,
        NULL::text AS from_programme_code,
-       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks
+       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks,
+       p.divided_from_id, p.taught_by
 FROM course_instance me
 JOIN course_instance sib
   ON sib.semester_id = me.semester_id
@@ -62,7 +84,8 @@ UNION ALL
 SELECT me.id AS for_instance_id,
        host.track AS from_track,
        hp.code AS from_programme_code,
-       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks
+       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks,
+       p.divided_from_id, p.taught_by
 FROM course_instance me
 JOIN course_instance host ON host.id = me.covered_by_instance_id
 JOIN programme hp ON hp.id = host.programme_id
@@ -75,7 +98,8 @@ UNION ALL
 SELECT me.id AS for_instance_id,
        hsib.track AS from_track,
        hp.code AS from_programme_code,
-       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks
+       p.id, p.course_instance_id, p.kind, p.position, p.teaching_hours, p.serves_sibling_tracks,
+       p.divided_from_id, p.taught_by
 FROM course_instance me
 JOIN course_instance host ON host.id = me.covered_by_instance_id
 JOIN course_instance hsib
@@ -101,6 +125,8 @@ type BorrowedInstancePartsForRow struct {
 	Position            int32
 	TeachingHours       pgtype.Numeric
 	ServesSiblingTracks bool
+	DividedFromID       uuid.NullUUID
+	TaughtBy            *string
 }
 
 // The parts another cohort holds for this one — within the programme, and across programmes.
@@ -148,6 +174,8 @@ func (q *Queries) BorrowedInstancePartsFor(ctx context.Context, instanceIds []uu
 			&i.Position,
 			&i.TeachingHours,
 			&i.ServesSiblingTracks,
+			&i.DividedFromID,
+			&i.TaughtBy,
 		); err != nil {
 			return nil, err
 		}
@@ -947,6 +975,40 @@ func (q *Queries) InsertInstancePart(ctx context.Context, arg InsertInstancePart
 	return id, err
 }
 
+const insertInstancePiece = `-- name: InsertInstancePiece :one
+INSERT INTO instance_part (course_instance_id, kind, position, teaching_hours,
+                           serves_sibling_tracks, divided_from_id, taught_by)
+VALUES ($1, $2, $3, $5, $4, $6,
+        $7)
+RETURNING id
+`
+
+type InsertInstancePieceParams struct {
+	CourseInstanceID    uuid.UUID
+	Kind                string
+	Position            int32
+	ServesSiblingTracks bool
+	TeachingHours       pgtype.Numeric
+	DividedFromID       uuid.NullUUID
+	TaughtBy            *string
+}
+
+// A part cut off another one, or copied as such. divided_from_id names the undivided part.
+func (q *Queries) InsertInstancePiece(ctx context.Context, arg InsertInstancePieceParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertInstancePiece,
+		arg.CourseInstanceID,
+		arg.Kind,
+		arg.Position,
+		arg.ServesSiblingTracks,
+		arg.TeachingHours,
+		arg.DividedFromID,
+		arg.TaughtBy,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const instanceByIdentity = `-- name: InstanceByIdentity :one
 SELECT id
 FROM course_instance
@@ -974,11 +1036,38 @@ func (q *Queries) InstanceByIdentity(ctx context.Context, arg InstanceByIdentity
 	return id, err
 }
 
+const instancePartHasPieces = `-- name: InstancePartHasPieces :one
+SELECT EXISTS (
+    SELECT 1 FROM instance_part WHERE divided_from_id = $1::uuid
+)::boolean AS has_pieces
+`
+
+func (q *Queries) InstancePartHasPieces(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, instancePartHasPieces, id)
+	var has_pieces bool
+	err := row.Scan(&has_pieces)
+	return has_pieces, err
+}
+
+const instancePartIsAssigned = `-- name: InstancePartIsAssigned :one
+SELECT EXISTS (SELECT 1 FROM assignment WHERE instance_part_id = $1)::boolean AS assigned
+`
+
+// Read after LockInstancePart, in the same transaction: a new statement sees what committed while
+// it waited for the lock, which is the whole reason this is a second statement.
+func (q *Queries) InstancePartIsAssigned(ctx context.Context, instancePartID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, instancePartIsAssigned, instancePartID)
+	var assigned bool
+	err := row.Scan(&assigned)
+	return assigned, err
+}
+
 const instancePartsFor = `-- name: InstancePartsFor :many
-SELECT id, course_instance_id, kind, position, teaching_hours, serves_sibling_tracks
+SELECT id, course_instance_id, kind, position, teaching_hours, serves_sibling_tracks,
+       divided_from_id, taught_by
 FROM instance_part
 WHERE course_instance_id = ANY ($1::uuid[])
-ORDER BY course_instance_id, position, id
+ORDER BY course_instance_id, position, divided_from_id IS NOT NULL, created_at, id
 `
 
 type InstancePartsForRow struct {
@@ -988,9 +1077,13 @@ type InstancePartsForRow struct {
 	Position            int32
 	TeachingHours       pgtype.Numeric
 	ServesSiblingTracks bool
+	DividedFromID       uuid.NullUUID
+	TaughtBy            *string
 }
 
 // The parts of a set of instances, in one statement.
+// A piece takes the position of the part it was cut from, so it is listed right behind it, in the
+// order the pieces were cut.
 func (q *Queries) InstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]InstancePartsForRow, error) {
 	rows, err := q.db.Query(ctx, instancePartsFor, instanceIds)
 	if err != nil {
@@ -1007,6 +1100,8 @@ func (q *Queries) InstancePartsFor(ctx context.Context, instanceIds []uuid.UUID)
 			&i.Position,
 			&i.TeachingHours,
 			&i.ServesSiblingTracks,
+			&i.DividedFromID,
+			&i.TaughtBy,
 		); err != nil {
 			return nil, err
 		}
@@ -1241,6 +1336,47 @@ func (q *Queries) LockInstanceForCoverage(ctx context.Context, id uuid.UUID) (Lo
 	return i, err
 }
 
+const lockInstancePart = `-- name: LockInstancePart :one
+SELECT id, course_instance_id, kind, position, teaching_hours, serves_sibling_tracks,
+       divided_from_id, taught_by
+FROM instance_part
+WHERE id = $1
+FOR UPDATE
+`
+
+type LockInstancePartRow struct {
+	ID                  uuid.UUID
+	CourseInstanceID    uuid.UUID
+	Kind                string
+	Position            int32
+	TeachingHours       pgtype.Numeric
+	ServesSiblingTracks bool
+	DividedFromID       uuid.NullUUID
+	TaughtBy            *string
+}
+
+// One part, locked against the two writes that must not interleave with dividing it or handing it
+// to another faculty: an assignment arriving on it, and a second division of the same part.
+//
+// FOR UPDATE rather than FOR NO KEY UPDATE, because what it has to exclude is FillInstancePart,
+// which takes FOR SHARE; the foreign key check of an assignment only takes FOR KEY SHARE, and that
+// alone would let a fill slip past a part that is just being given away.
+func (q *Queries) LockInstancePart(ctx context.Context, id uuid.UUID) (LockInstancePartRow, error) {
+	row := q.db.QueryRow(ctx, lockInstancePart, id)
+	var i LockInstancePartRow
+	err := row.Scan(
+		&i.ID,
+		&i.CourseInstanceID,
+		&i.Kind,
+		&i.Position,
+		&i.TeachingHours,
+		&i.ServesSiblingTracks,
+		&i.DividedFromID,
+		&i.TaughtBy,
+	)
+	return i, err
+}
+
 const moveInstancePartsTo = `-- name: MoveInstancePartsTo :execrows
 UPDATE instance_part
 SET course_instance_id = $1::uuid, updated_at = now()
@@ -1284,6 +1420,31 @@ func (q *Queries) NextInstancePartPosition(ctx context.Context, courseInstanceID
 	var position int32
 	err := row.Scan(&position)
 	return position, err
+}
+
+const partsOfKindAreDividedOrElsewhere = `-- name: PartsOfKindAreDividedOrElsewhere :one
+SELECT EXISTS (
+    SELECT 1 FROM instance_part p
+    WHERE p.course_instance_id = ANY ($1::uuid[])
+      AND p.kind = $2::text
+      AND (p.divided_from_id IS NOT NULL OR p.taught_by IS NOT NULL
+           OR EXISTS (SELECT 1 FROM instance_part c WHERE c.divided_from_id = p.id))
+)::boolean AS exists
+`
+
+type PartsOfKindAreDividedOrElsewhereParams struct {
+	InstanceIds []uuid.UUID
+	Kind        string
+}
+
+// Whether merging a kind across cohorts would throw away an arrangement somebody made: a part cut
+// in two, or one another faculty teaches. Sharing deletes the siblings' parts of that kind, and
+// either fact would go with them without anybody being told.
+func (q *Queries) PartsOfKindAreDividedOrElsewhere(ctx context.Context, arg PartsOfKindAreDividedOrElsewhereParams) (bool, error) {
+	row := q.db.QueryRow(ctx, partsOfKindAreDividedOrElsewhere, arg.InstanceIds, arg.Kind)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
 }
 
 const programmeQuotasOfYear = `-- name: ProgrammeQuotasOfYear :many
@@ -1555,6 +1716,23 @@ func (q *Queries) SetInstancePartShared(ctx context.Context, arg SetInstancePart
 	return err
 }
 
+const setInstancePartTaughtBy = `-- name: SetInstancePartTaughtBy :exec
+UPDATE instance_part
+SET taught_by = $2,
+    updated_at = now()
+WHERE id = $1
+`
+
+type SetInstancePartTaughtByParams struct {
+	ID       uuid.UUID
+	TaughtBy *string
+}
+
+func (q *Queries) SetInstancePartTaughtBy(ctx context.Context, arg SetInstancePartTaughtByParams) error {
+	_, err := q.db.Exec(ctx, setInstancePartTaughtBy, arg.ID, arg.TaughtBy)
+	return err
+}
+
 const setProgrammeQuota = `-- name: SetProgrammeQuota :one
 INSERT INTO programme_quota (programme_id, study_year, teaching_hours, set_by)
 SELECT p.id, $1::int, $2::float8, $3::uuid
@@ -1602,10 +1780,14 @@ func (q *Queries) SetProgrammeQuota(ctx context.Context, arg SetProgrammeQuotaPa
 }
 
 const sharedPartsOf = `-- name: SharedPartsOf :many
-SELECT id, kind, teaching_hours
-FROM instance_part
-WHERE course_instance_id = $1 AND serves_sibling_tracks
-ORDER BY position, id
+SELECT p.id, p.kind,
+       (CASE WHEN p.teaching_hours IS NULL THEN NULL
+             ELSE p.teaching_hours + COALESCE((SELECT SUM(c.teaching_hours) FROM instance_part c
+                                               WHERE c.divided_from_id = p.id), 0)
+        END)::numeric AS teaching_hours
+FROM instance_part p
+WHERE p.course_instance_id = $1 AND p.serves_sibling_tracks AND p.divided_from_id IS NULL
+ORDER BY p.position, p.id
 `
 
 type SharedPartsOfRow struct {
@@ -1619,6 +1801,9 @@ type SharedPartsOfRow struct {
 // What a promotion has to hand back before it hands the rows to another programme: the flag means
 // "serves the other cohorts of my programme", and it would go on meaning that in the programme the
 // rows land in.
+//
+// One row per undivided part, with the hours of its pieces added back (migration 29): a sibling
+// that gets its own lecture back gets the whole lecture, not whichever piece sorted first.
 func (q *Queries) SharedPartsOf(ctx context.Context, courseInstanceID uuid.UUID) ([]SharedPartsOfRow, error) {
 	rows, err := q.db.Query(ctx, sharedPartsOf, courseInstanceID)
 	if err != nil {
@@ -1675,12 +1860,16 @@ func (q *Queries) SiblingInstanceIDs(ctx context.Context, id uuid.UUID) ([]uuid.
 const teachingLoadByProgramme = `-- name: TeachingLoadByProgramme :many
 WITH load AS (
     SELECT ci.programme_id, m.home_programme_id,
-           COALESCE(SUM(ip.teaching_hours), 0)::float8 AS hours,
+           COALESCE(SUM(ip.teaching_hours) FILTER (WHERE ip.taught_by IS NULL), 0)::float8 AS hours,
            COUNT(DISTINCT ci.id)::int AS instances,
            (COUNT(DISTINCT ci.id) FILTER (WHERE m.kind = 'FWP_PLACEHOLDER'))::int AS fwp_instances,
-           COALESCE(SUM(ip.teaching_hours) FILTER (WHERE m.kind = 'FWP_PLACEHOLDER'), 0)::float8
+           COALESCE(SUM(ip.teaching_hours)
+                    FILTER (WHERE m.kind = 'FWP_PLACEHOLDER' AND ip.taught_by IS NULL), 0)::float8
                AS fwp_hours,
-           (COUNT(ip.id) FILTER (WHERE ip.teaching_hours IS NULL))::int AS parts_without_hours
+           (COUNT(ip.id) FILTER (WHERE ip.teaching_hours IS NULL AND ip.taught_by IS NULL))::int
+               AS parts_without_hours,
+           COALESCE(SUM(ip.teaching_hours) FILTER (WHERE ip.taught_by IS NOT NULL), 0)::float8
+               AS external_hours
     FROM course_instance ci
     JOIN semester s ON s.id = ci.semester_id
     JOIN module m ON m.id = ci.module_id
@@ -1696,7 +1885,8 @@ SELECT p.id AS programme_id, p.code AS programme_code, p.title AS programme_titl
        COALESCE(l.instances, 0)::int AS instances,
        COALESCE(l.fwp_instances, 0)::int AS fwp_instances,
        COALESCE(l.fwp_hours, 0)::float8 AS fwp_hours,
-       COALESCE(l.parts_without_hours, 0)::int AS parts_without_hours
+       COALESCE(l.parts_without_hours, 0)::int AS parts_without_hours,
+       COALESCE(l.external_hours, 0)::float8 AS external_hours
 FROM programme p
 LEFT JOIN load l ON l.programme_id = p.id
 LEFT JOIN programme hp ON hp.id = l.home_programme_id
@@ -1720,6 +1910,7 @@ type TeachingLoadByProgrammeRow struct {
 	FwpInstances            int32
 	FwpHours                float64
 	PartsWithoutHours       int32
+	ExternalHours           float64
 }
 
 // The teaching a semester's demand costs, attributed to the programme whose instances hold it.
@@ -1739,6 +1930,12 @@ type TeachingLoadByProgrammeRow struct {
 // instance, a lecture held for sibling cohorts is one part, and a covered cohort holds none.
 // Parts with no hours stated count zero and are counted, so that an unfinished split cannot pass
 // for a light semester.
+//
+// A part another faculty teaches (instance_part.taught_by, migration 29) is not this faculty's
+// teaching and stays out of every figure above. Its hours come along as external_hours, beside
+// the rest rather than subtracted from it: "how much of what our students attend does somebody
+// else give" is a question the dean's office asks, and a part without hours that is not ours to
+// state is not an unfinished split.
 //
 // Every planned programme is listed even with nothing declared — a programme that has not started
 // is the row the dean's office is looking for — and any other programme only when its instances
@@ -1768,6 +1965,7 @@ func (q *Queries) TeachingLoadByProgramme(ctx context.Context, semester string) 
 			&i.FwpInstances,
 			&i.FwpHours,
 			&i.PartsWithoutHours,
+			&i.ExternalHours,
 		); err != nil {
 			return nil, err
 		}
@@ -1777,6 +1975,18 @@ func (q *Queries) TeachingLoadByProgramme(ctx context.Context, semester string) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const unsharePartsOfInstance = `-- name: UnsharePartsOfInstance :exec
+UPDATE instance_part
+SET serves_sibling_tracks = false, updated_at = now()
+WHERE course_instance_id = $1 AND serves_sibling_tracks
+`
+
+// The pieces of a shared part are shared too, and stop being shared with it.
+func (q *Queries) UnsharePartsOfInstance(ctx context.Context, courseInstanceID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, unsharePartsOfInstance, courseInstanceID)
+	return err
 }
 
 const updateCourseInstance = `-- name: UpdateCourseInstance :exec

@@ -21,6 +21,10 @@ var (
 	ErrModuleNotFound = errors.New("dieses Modul gibt es nicht")
 	// ErrNotYourProgramme is the scoped refusal: this module is planned somewhere else.
 	ErrNotYourProgramme = errors.New("dieses Modul gehört zu einem anderen Studiengang")
+	// ErrNotYourModuleSplit is the scoped refusal of a split: neither this module's subject group
+	// nor its home programme is in reach. Separate from ErrNotYourProgramme because the split has
+	// a second axis, and the sentence has to name both.
+	ErrNotYourModuleSplit = errors.New("die SWS-Aufteilung dieses Moduls legt jemand anderes fest")
 	// ErrComponentInvalid is a split that does not describe anything — no hours, or too many.
 	ErrComponentInvalid = errors.New("die Aufteilung ist nicht gültig")
 	// ErrProgrammeStatusUnknown is a planning status this build does not know.
@@ -177,10 +181,11 @@ const MaxComponentsPerModule = 12
 //
 // # Who
 //
-// The study programme lead of the module's **home** programme, and the dean's office. Not a lead
-// in whose catalogue the module merely counts: the module is planned where it is at home — the
-// faculty's own words, "the planning of a module should sit with one programme" — and two leads
-// editing one split would disagree in the database with no rule to settle it.
+// The study programme lead of the module's **home** programme, the lead of the subject group it is
+// filed under, and the dean's office — policy.MayWriteModuleSplit. Not a lead in whose catalogue
+// the module merely counts: the module is planned where it is at home — the faculty's own words,
+// "the planning of a module should sit with one programme" — and two programme leads editing one
+// split would disagree in the database with no rule to settle it.
 //
 // # Why the whole list at once
 //
@@ -208,10 +213,14 @@ func (s *CatalogueService) SetModuleComponents(
 		return nil, ErrModuleNotFound
 	}
 
-	// The scope is checked against the module's home programme, which is the whole reason the
-	// module has to be read before the permission is decided.
-	if !policy.MayPlanProgramme(actor, module.HomeProgramme.ID) {
-		return nil, ErrNotYourProgramme
+	// The scope is checked against the module's home programme and its subject group, which is
+	// the whole reason the module has to be read before the permission is decided.
+	var group uuid.UUID
+	if module.SubjectGroup != nil {
+		group = module.SubjectGroup.ID
+	}
+	if !policy.MayWriteModuleSplit(actor, group, module.HomeProgramme.ID) {
+		return nil, ErrNotYourModuleSplit
 	}
 
 	if err := validComponents(components); err != nil {

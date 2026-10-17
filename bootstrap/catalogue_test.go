@@ -363,7 +363,7 @@ func TestOnlyTheHomeProgrammesLeadStatesASplit(t *testing.T) {
 		graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
 			func(t *testing.T, c *graphqltest.Client) {
 				resp := c.Do(t, mutation, map[string]any{"m": f.moduleElsewhere.String()})
-				assertRefusal(t, resp, "NOT_YOUR_PROGRAMME")
+				assertRefusal(t, resp, "NOT_YOUR_MODULE")
 			})
 	})
 
@@ -381,7 +381,64 @@ func TestOnlyTheHomeProgrammesLeadStatesASplit(t *testing.T) {
 		graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
 			func(t *testing.T, c *graphqltest.Client) {
 				resp := c.Do(t, mutation, map[string]any{"m": f.moduleOrdinary.String()})
-				assertRefusal(t, resp, "NOT_YOUR_PROGRAMME")
+				assertRefusal(t, resp, "NOT_YOUR_MODULE")
+			})
+	})
+}
+
+// The other axis, added on a request from the faculty: the lead of the subject group a module is
+// filed under states its split too. The case that prompted it is a person holding LECTURER and
+// SUBJECT_GROUP_LEAD and nothing else, which is the persona Drei.
+func TestTheSubjectGroupsLeadStatesASplit(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil,
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+		grants{testdata.Sechs, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}})
+
+	mine := seedGroup(t, f.schema, "SW", "Softwarefächer")
+	other := seedGroup(t, f.schema, "MA", "Mathematik")
+	if _, err := f.schema.Pool.Exec(t.Context(),
+		`INSERT INTO person_subject_group_scope (person_id, role, subject_group_id)
+		 VALUES ($1, 'SUBJECT_GROUP_LEAD', $2)`, testdata.Drei.ID(), mine); err != nil {
+		t.Fatalf("cannot scope the lead: %v", err)
+	}
+	file := func(module, group uuid.UUID) {
+		t.Helper()
+		if _, err := f.schema.Pool.Exec(t.Context(),
+			`INSERT INTO module_subject_group (module_id, subject_group_id) VALUES ($1, $2)`,
+			module, group); err != nil {
+			t.Fatalf("cannot file the module: %v", err)
+		}
+	}
+	file(f.moduleOrdinary, mine)
+	file(f.moduleElsewhere, other)
+
+	const mutation = `mutation($m: ID!) {
+		setModuleComponents(moduleId: $m, components: [{kind: LECTURE, teachingHours: 2}]) { id }
+	}`
+
+	t.Run("for a module of their group", func(t *testing.T) {
+		graphqltest.EachDoor(t, f.handler, testdata.Drei.Mail, testdata.Drei.Token,
+			func(t *testing.T, c *graphqltest.Client) {
+				var out struct{ SetModuleComponents struct{ ID string } }
+				c.MustQuery(t, mutation, map[string]any{"m": f.moduleOrdinary.String()}, &out)
+			})
+	})
+
+	t.Run("not for a module of another group", func(t *testing.T) {
+		graphqltest.EachDoor(t, f.handler, testdata.Drei.Mail, testdata.Drei.Token,
+			func(t *testing.T, c *graphqltest.Client) {
+				resp := c.Do(t, mutation, map[string]any{"m": f.moduleElsewhere.String()})
+				assertRefusal(t, resp, "NOT_YOUR_MODULE")
+			})
+	})
+
+	t.Run("a lead with no group is told what is missing", func(t *testing.T) {
+		graphqltest.EachDoor(t, f.handler, testdata.Sechs.Mail, testdata.Sechs.Token,
+			func(t *testing.T, c *graphqltest.Client) {
+				resp := c.Do(t, mutation, map[string]any{"m": f.moduleOrdinary.String()})
+				assertRefusal(t, resp, "SUBJECT_GROUP_SCOPE_MISSING")
 			})
 	})
 }

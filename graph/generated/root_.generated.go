@@ -5580,9 +5580,13 @@ extend type Mutation {
   together, and a per-entry mutation would allow a moment where a module's hours add up to
   something nobody intended.
 
-  Allowed for the study programme lead of the module's **home** programme and for the dean's
-  office. Not for a lead in whose catalogue the module merely counts — the module is planned
-  where it is at home, and two programmes editing one split would disagree in the database.
+  Allowed for the study programme lead of the module's **home** programme, for the lead of the
+  subject group the module is filed under, and for the dean's office. Not for a lead in whose
+  catalogue the module merely counts — the module is planned where it is at home, and two
+  programmes editing one split would disagree in the database.
+
+  Refused with ` + "`" + `NOT_YOUR_MODULE` + "`" + `, or with ` + "`" + `SUBJECT_GROUP_SCOPE_MISSING` + "`" + ` /
+  ` + "`" + `PROGRAMME_SCOPE_MISSING` + "`" + ` for a lead nobody has assigned a group or programme to yet.
 
   Passing an empty list clears the split, and the module falls back to ` + "`" + `proposedComponents` + "`" + ` —
   marked as a guess again. That is allowed on purpose: a split entered wrongly should be

@@ -247,6 +247,26 @@ func catalogueUserFacing(actor principal.Actor, err error) error {
 			Message:    policy.PlanningReason,
 			Extensions: map[string]any{"code": "NOT_YOUR_PROGRAMME"},
 		}
+	case errors.Is(err, domain.ErrNotYourModuleSplit):
+		// The same two "scope missing" codes as above, and a third for everybody else. Which
+		// sentence is chosen in the policy, so the code is chosen to match it.
+		switch reason := policy.ModuleSplitRefusal(actor); reason {
+		case policy.SubjectGroupScopeMissingReason:
+			return &gqlerror.Error{
+				Message:    reason,
+				Extensions: map[string]any{"code": "SUBJECT_GROUP_SCOPE_MISSING"},
+			}
+		case policy.ProgrammeScopeMissingReason:
+			return &gqlerror.Error{
+				Message:    reason,
+				Extensions: map[string]any{"code": "PROGRAMME_SCOPE_MISSING"},
+			}
+		default:
+			return &gqlerror.Error{
+				Message:    reason,
+				Extensions: map[string]any{"code": "NOT_YOUR_MODULE"},
+			}
+		}
 	case errors.Is(err, domain.ErrComponentInvalid):
 		return &gqlerror.Error{
 			Message:    err.Error(),

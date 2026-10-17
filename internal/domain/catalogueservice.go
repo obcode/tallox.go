@@ -42,12 +42,19 @@ var (
 // CatalogueService answers questions about the module catalogue and takes the one decision that
 // belongs to it: how a module's hours divide.
 type CatalogueService struct {
-	store CatalogueReader
+	store    CatalogueReader
+	handbook ModuleHandbook
 }
 
-// NewCatalogueService wires the service.
-func NewCatalogueService(store CatalogueReader) *CatalogueService {
-	return &CatalogueService{store: store}
+// NewCatalogueService wires the service. The zero handbook links nowhere.
+func NewCatalogueService(store CatalogueReader, handbook ModuleHandbook) *CatalogueService {
+	return &CatalogueService{store: store, handbook: handbook}
+}
+
+// HandbookURL is the module's page in the examination office's public handbook, if it has one.
+// See ModuleHandbook.URL for which modules do.
+func (s *CatalogueService) HandbookURL(m Module) (string, bool) {
+	return s.handbook.URL(m)
 }
 
 // Programmes lists the study programmes this faculty plans.

@@ -125,7 +125,7 @@ func wishHandler(t *testing.T, people ...grants) wishFixture {
 		},
 		People:        domain.NewPeopleService(store.NewPeople(s.Pool), nil),
 		Planning:      planning,
-		Catalogue:     domain.NewCatalogueService(modules),
+		Catalogue:     domain.NewCatalogueService(modules, domain.ModuleHandbook{}),
 		Demand:        domain.NewDemandService(store.NewDemand(s.Pool, modules), modules, planning),
 		SubjectGroups: domain.NewSubjectGroupService(store.NewSubjectGroups(s.Pool)),
 		Wishes:        domain.NewWishService(store.NewWishes(s.Pool), planning),

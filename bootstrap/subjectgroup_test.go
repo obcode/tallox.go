@@ -63,7 +63,7 @@ func subjectGroupHandler(t *testing.T, people ...grants) subjectGroupFixture {
 				Tokens: store.NewDirectory(s.Pool),
 			},
 			People:        domain.NewPeopleService(store.NewPeople(s.Pool), nil),
-			Catalogue:     domain.NewCatalogueService(modules),
+			Catalogue:     domain.NewCatalogueService(modules, domain.ModuleHandbook{}),
 			SubjectGroups: domain.NewSubjectGroupService(store.NewSubjectGroups(s.Pool)),
 		}),
 	}

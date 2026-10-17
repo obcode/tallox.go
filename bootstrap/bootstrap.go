@@ -330,7 +330,7 @@ func Serve(build buildinfo.Info) {
 	zpaCache := store.NewZPA(pool)
 	catalogueProjection := store.NewCatalogue(pool)
 	modules := store.NewModules(pool)
-	catalogue := domain.NewCatalogueService(modules)
+	catalogue := domain.NewCatalogueService(modules, domain.NewModuleHandbook(cfg.ZPA.BaseURL))
 	demand := domain.NewDemandService(store.NewDemand(pool, modules), modules, planning)
 	subjectGroups := domain.NewSubjectGroupService(store.NewSubjectGroups(pool))
 	wishes := domain.NewWishService(store.NewWishes(pool), planning)

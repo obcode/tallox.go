@@ -208,12 +208,21 @@ func (m Module) PracticalKind() (InstancePartKind, bool) {
 // PracticalKindOf is the same question asked of a split already in hand, and it also answers with
 // the hours one such unit carries.
 //
-// The store needs both when it adds a group: which kind of part, and how long it is.
+// The store needs both when it adds a group: which kind of part, and how long it is. Where the
+// split names the kind more than once — a laboratory of 2 + 2, held divided — one group is all of
+// it, so the hours are the sum: a second group is a whole second laboratory.
 func PracticalKindOf(components []ModuleComponent) (InstancePartKind, float64, bool) {
 	for _, c := range components {
-		if c.Kind != PartKindLecture {
-			return c.Kind, c.TeachingHours, true
+		if c.Kind == PartKindLecture {
+			continue
 		}
+		var hours float64
+		for _, same := range components {
+			if same.Kind == c.Kind {
+				hours += same.TeachingHours
+			}
+		}
+		return c.Kind, hours, true
 	}
 	return "", 0, false
 }

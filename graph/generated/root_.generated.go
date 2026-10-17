@@ -5244,6 +5244,11 @@ type ModuleComponent {
 
   A module with two hours of laboratory has one entry saying two, however many parallel groups
   an instance later runs — the multiplicity belongs to the instance.
+
+  A kind may appear more than once: "lecture 2 + lecture 2" is a lecture of four that every
+  instance holds **divided**, the second entry as a piece of the first (` + "`" + `InstancePart.dividedFrom` + "`" + `)
+  — two people, or this faculty and another one. It is still one unit: one lecture, and for the
+  practical kind one group, so a second group adds all of its hours.
   """
   teachingHours: Float!
   "Order within the module."

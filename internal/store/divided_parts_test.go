@@ -547,3 +547,81 @@ func TestTheWishContextKnowsAnInstanceTaughtElsewhere(t *testing.T) {
 		t.Errorf("an instance another faculty teaches entirely reads as ours")
 	}
 }
+
+// A split that names a kind twice is a part held divided in every instance (2026-10-17): the
+// second lecture of 2 is a piece of the first, not a second lecture. Both ways an instance is made
+// — declared on its own and created by a plan — and what a group then adds: a whole laboratory.
+func TestASplitWithAKindTwiceMakesAPartAndItsPiece(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+	if _, err := store.NewModules(f.schema.Pool).SetModuleComponents(ctx, f.module, []domain.ModuleComponent{
+		{Kind: domain.PartKindLecture, TeachingHours: 2, Position: 0},
+		{Kind: domain.PartKindLecture, TeachingHours: 2, Position: 1},
+		{Kind: domain.PartKindLab, TeachingHours: 2, Position: 2},
+		{Kind: domain.PartKindLab, TeachingHours: 2, Position: 3},
+	}, uuid.Nil); err != nil {
+		t.Fatal(err)
+	}
+
+	assertDivided := func(t *testing.T, what string, instance *domain.CourseInstance) {
+		t.Helper()
+		if instance.TeachingHours() != 8 {
+			t.Errorf("the %s costs %v hours, want 8", what, instance.TeachingHours())
+		}
+		for _, kind := range []domain.InstancePartKind{domain.PartKindLecture, domain.PartKindLab} {
+			var roots, pieces int
+			for _, p := range instance.Parts {
+				if p.Kind != kind {
+					continue
+				}
+				if p.IsPiece() {
+					pieces++
+					if root := partByID(t, instance, p.DividedFrom); root.Kind != kind || root.IsPiece() {
+						t.Errorf("the %s's %s piece names %+v as its part", what, kind, root)
+					}
+				} else {
+					roots++
+				}
+			}
+			if roots != 1 || pieces != 1 {
+				t.Errorf("the %s holds %d %s part(s) and %d piece(s), want one of each", what, roots, kind, pieces)
+			}
+		}
+	}
+
+	declared := f.declare(t, "A")
+	assertDivided(t, "declared cohort", declared)
+
+	plan, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("A", 1), track("B", 1))}, uuid.Nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Refused) != 0 {
+		t.Fatalf("planning refused %v", plan.Refused)
+	}
+	var planned *domain.CourseInstance
+	for _, i := range f.instances(t) {
+		if i.Track == "B" {
+			planned = &i
+		}
+	}
+	if planned == nil {
+		t.Fatal("the plan declared no cohort B")
+	}
+	assertDivided(t, "planned cohort", planned)
+
+	// One laboratory group already, as the stepper should read it; a second one is a whole
+	// laboratory of 4, not one of the two entries.
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("A", 2), track("B", 1))}, uuid.Nil, false); err != nil {
+		t.Fatal(err)
+	}
+	for _, i := range f.instances(t) {
+		if i.Track == "A" && i.TeachingHours() != 12 {
+			t.Errorf("with a second laboratory group cohort A costs %v hours, want 12", i.TeachingHours())
+		}
+	}
+}

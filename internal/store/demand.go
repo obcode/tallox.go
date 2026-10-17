@@ -499,6 +499,62 @@ func statedComponents(ctx context.Context, q *Queries, moduleID uuid.UUID) ([]do
 	return nil, domain.ErrModuleNotDecomposed
 }
 
+// partsFromSplit writes an instance's parts from a module's split.
+//
+// One part per kind, in the order the kinds first appear. A kind the split names again — a lecture
+// of 2 + 2 — becomes a piece of that part (divided_from_id) rather than a second lecture: the
+// same arrangement divideInstancePart makes, stated once for every instance of the module. So the
+// group count, the hours and the shared lecture all read it as one unit.
+//
+// skip leaves out kinds a sibling cohort already holds for this one. Positions start at 0, and a
+// piece takes the position of its part.
+func partsFromSplit(ctx context.Context, q *Queries, instanceID uuid.UUID,
+	components []domain.ModuleComponent, skip map[string]bool,
+) ([]InstancePartsForRow, error) {
+	var out []InstancePartsForRow
+	roots := map[string]InstancePartsForRow{}
+	position := int32(0)
+	for _, c := range components {
+		kind := string(c.Kind)
+		if skip[kind] {
+			continue
+		}
+		// What a lecturer is credited with starts as what the split says and is editable
+		// afterwards — the two are different quantities that merely begin equal.
+		hours, err := numericFrom(c.TeachingHours)
+		if err != nil {
+			return nil, err
+		}
+		row := InstancePartsForRow{
+			CourseInstanceID: instanceID,
+			Kind:             kind,
+			Position:         position,
+			TeachingHours:    hours,
+		}
+		if root, ok := roots[kind]; ok {
+			row.Position = root.Position
+			row.DividedFromID = uuid.NullUUID{UUID: root.ID, Valid: true}
+		}
+		id, err := q.InsertInstancePiece(ctx, InsertInstancePieceParams{
+			CourseInstanceID: instanceID,
+			Kind:             kind,
+			Position:         row.Position,
+			TeachingHours:    hours,
+			DividedFromID:    row.DividedFromID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		row.ID = id
+		if !row.DividedFromID.Valid {
+			roots[kind] = row
+			position++
+		}
+		out = append(out, row)
+	}
+	return out, nil
+}
+
 // CreateCourseInstance declares an instance and makes its parts from the module's split.
 //
 // The precondition is checked inside the transaction, not before it: "this module has no split"
@@ -573,22 +629,8 @@ func (d *Demand) CreateCourseInstance(ctx context.Context, spec domain.NewCourse
 		return d.CourseInstanceByID(ctx, id)
 	}
 
-	for i, c := range components {
-		// What a lecturer is credited with starts as what the split says and is editable
-		// afterwards — the two are different quantities that merely begin equal.
-		hours, err := numericFrom(c.TeachingHours)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
-			CourseInstanceID:    id,
-			Kind:                string(c.Kind),
-			Position:            int32(i),
-			TeachingHours:       hours,
-			ServesSiblingTracks: false,
-		}); err != nil {
-			return nil, fmt.Errorf("cannot create a part of the instance: %w", err)
-		}
+	if _, err := partsFromSplit(ctx, q, id, components, nil); err != nil {
+		return nil, fmt.Errorf("cannot create a part of the instance: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -1702,20 +1744,8 @@ func (d *Demand) ReleaseInstanceCoverage(ctx context.Context, guestID uuid.UUID)
 		if err != nil {
 			return nil, err
 		}
-		for i, c := range components {
-			hours, err := numericFrom(c.TeachingHours)
-			if err != nil {
-				return nil, err
-			}
-			if _, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
-				CourseInstanceID:    guestID,
-				Kind:                string(c.Kind),
-				Position:            int32(i),
-				TeachingHours:       hours,
-				ServesSiblingTracks: false,
-			}); err != nil {
-				return nil, fmt.Errorf("cannot give the cohort its teaching back: %w", err)
-			}
+		if _, err := partsFromSplit(ctx, q, guestID, components, nil); err != nil {
+			return nil, fmt.Errorf("cannot give the cohort its teaching back: %w", err)
 		}
 	}
 
@@ -2564,35 +2594,12 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 		}
 	}
 
-	position := int32(0)
-	for _, c := range components {
-		if shared[string(c.Kind)] {
-			// A sibling already holds this one for everybody.
-			continue
-		}
-		hours, err := numericFrom(c.TeachingHours)
-		if err != nil {
-			return nil, err
-		}
-		partID, err := q.InsertInstancePart(ctx, InsertInstancePartParams{
-			CourseInstanceID:    id,
-			Kind:                string(c.Kind),
-			Position:            position,
-			TeachingHours:       hours,
-			ServesSiblingTracks: false,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("cannot create a part of the instance: %w", err)
-		}
-		instance.parts = append(instance.parts, InstancePartsForRow{
-			ID:               partID,
-			CourseInstanceID: id,
-			Kind:             string(c.Kind),
-			Position:         position,
-			TeachingHours:    hours,
-		})
-		position++
+	// A kind a sibling already holds for everybody is left out.
+	parts, err := partsFromSplit(ctx, q, id, components, shared)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create a part of the instance: %w", err)
 	}
+	instance.parts = append(instance.parts, parts...)
 
 	plan.Created = append(plan.Created, domain.DemandChange{
 		ModuleID: pc.entry.ModuleID,

@@ -68,6 +68,24 @@ Vorlesung bekommt.
 Kopie und Duplikat übernehmen Stücke und `taught_by` (`copyParts`, zwei Durchläufe wegen der
 neuen IDs). Die Absprache mit der anderen Fakultät wiederholt sich meistens.
 
+## Mehrfach-Einträge in der Modul-Aufteilung (2026-10-17, gleicher Tag)
+
+„Vorlesung 2 + Vorlesung 2 + Praktikum 2 + Praktikum 2“ ist als Modul-Aufteilung jetzt erlaubt.
+Bis dahin galt `validComponents` mit „jede Art nur einmal“. Den Wunsch hat der Nutzer bei einem
+Modul mit 8 SWS geäußert. Die Bedeutung ist: **jede Instanz hält den Teil schon aufgeteilt.**
+`partsFromSplit` in `internal/store/demand.go` macht aus dem ersten Eintrag einer Art den Teil
+und aus jedem weiteren ein Stück davon (`divided_from_id`). Das gilt für alle drei Wege, auf
+denen Teile aus der Aufteilung entstehen: Anlegen, `createForPlan` und das Ende einer Deckung.
+
+`PracticalKindOf` summiert die Stunden einer Art. Eine zusätzliche Gruppe ist deshalb ein ganzes
+Praktikum (4 SWS) und nicht ungeteilt. Den Stepper in der GUI (`plannedHours`) rechnet das schon
+so.
+
+Abgewogen wurde: Die Sperre stammte aus dem Betatest, damals ließ sich ein Eintrag nicht
+entfernen (inzwischen geht das mit leer oder 0). Ein versehentliches „2 VL + 2 VL“ statt
+„2 VL + 2 PR“ fällt jetzt nur noch über die Warnung zur Abweichung von den ZPA-SWS auf. Der
+frühere Test `TestASplitNamesEachKindOnce` heißt jetzt `TestASplitMayNameAKindTwice`.
+
 ## Wo es liegt
 
 - `db/migrations/20261017100000_divided_and_external_parts.sql`

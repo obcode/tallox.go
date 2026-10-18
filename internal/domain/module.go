@@ -131,6 +131,9 @@ type Module struct {
 	Source ModuleSource
 	// Kind is what it stands for — an ordinary module, or an FWP placeholder.
 	Kind ModuleKind
+	// ProjectBased marks a project-based course (PBLV), which the process gives out last. The
+	// faculty's own fact: the examination office does not publish it.
+	ProjectBased bool
 	// Components is how the module's hours divide between teachable units. Empty means nobody
 	// has stated it, and then no instance can be declared — see Plannable.
 	Components []ModuleComponent
@@ -418,6 +421,9 @@ type CatalogueReader interface {
 	ModuleByID(ctx context.Context, id uuid.UUID) (*Module, error)
 	// SetModuleComponents replaces a module's split, as one statement about a set of rows.
 	SetModuleComponents(ctx context.Context, moduleID uuid.UUID, components []ModuleComponent, by uuid.UUID) (*Module, error)
+	// SetModuleProjectBased marks a module as a PBLV or takes the mark back. Returns nil for an
+	// id no module has.
+	SetModuleProjectBased(ctx context.Context, moduleID uuid.UUID, projectBased bool) (*Module, error)
 	// SetProgrammePlanningStatus records that this faculty plans a programme, or no longer
 	// does. Returns nil for a code that names no programme.
 	SetProgrammePlanningStatus(ctx context.Context, code string, status ProgrammeStatus, by uuid.UUID) (*Programme, error)

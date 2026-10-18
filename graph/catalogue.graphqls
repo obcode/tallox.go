@@ -298,6 +298,11 @@ type Module {
   """
   kind: ModuleKind!
   """
+  A project-based course (PBLV). The process gives these out last; the faculty marks them,
+  because the examination office does not say. `courseType: PROJECT` is a different thing.
+  """
+  projectBased: Boolean!
+  """
   The name, which is empty for a handful of modules.
 
   Taken from the examination office's module record, or else from an association with a set of
@@ -842,4 +847,14 @@ extend type Mutation {
     "In order. At least one entry, or none at all to clear the split."
     components: [ModuleComponentInput!]!
   ): Module! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Mark a module as a project-based course (PBLV), or take the mark back.
+
+  The process gives PBLVs out last, so that they are not snapped up as gap fillers. The examination
+  office does not publish which modules they are, so the faculty marks them, once per module. The
+  same people as `setModuleComponents`, refused the same way with `NOT_YOUR_MODULE`.
+  """
+  setModuleProjectBased(moduleId: ID!, projectBased: Boolean!): Module!
+    @scope(area: PLANNING, verb: WRITE)
 }

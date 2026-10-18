@@ -84,6 +84,7 @@ type Module struct {
 	Offerings           []*ModuleOffering   `json:"offerings"`
 	Source              domain.ModuleSource `json:"source"`
 	Kind                domain.ModuleKind   `json:"kind"`
+	ProjectBased        bool                `json:"projectBased"`
 
 	// Domain is the value this was built from, for the fields that take an argument.
 	//

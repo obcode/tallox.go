@@ -429,6 +429,10 @@ func (fakeCatalogueReader) SetModuleComponents(context.Context, uuid.UUID,
 	return nil, nil
 }
 
+func (fakeCatalogueReader) SetModuleProjectBased(context.Context, uuid.UUID, bool) (*domain.Module, error) {
+	return nil, nil
+}
+
 func (fakeCatalogueReader) CreateLocalModule(context.Context, domain.NewLocalModule, uuid.UUID,
 ) (*domain.Module, error) {
 	return nil, errors.New("not part of this test")

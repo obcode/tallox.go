@@ -79,6 +79,7 @@ func moduleModel(m domain.Module) *model.Module {
 		Offerings:           make([]*model.ModuleOffering, 0, len(m.Offerings)),
 		Source:              m.Source,
 		Kind:                m.Kind,
+		ProjectBased:        m.ProjectBased,
 		Domain:              m,
 	}
 

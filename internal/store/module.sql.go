@@ -113,7 +113,7 @@ func (q *Queries) InsertModuleComponent(ctx context.Context, arg InsertModuleCom
 const listModules = `-- name: ListModules :many
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind,
+       m.source, m.kind, m.project_based,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -196,6 +196,7 @@ type ListModulesRow struct {
 	ZpaModuleRef         *int64
 	Source               string
 	Kind                 string
+	ProjectBased         bool
 	SubjectGroupID       uuid.NullUUID
 	SubjectGroupCode     *string
 	SubjectGroupName     *string
@@ -251,6 +252,7 @@ func (q *Queries) ListModules(ctx context.Context, arg ListModulesParams) ([]Lis
 			&i.ZpaModuleRef,
 			&i.Source,
 			&i.Kind,
+			&i.ProjectBased,
 			&i.SubjectGroupID,
 			&i.SubjectGroupCode,
 			&i.SubjectGroupName,
@@ -459,7 +461,7 @@ func (q *Queries) ListTeachers(ctx context.Context, arg ListTeachersParams) ([]L
 const moduleByID = `-- name: ModuleByID :one
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind,
+       m.source, m.kind, m.project_based,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -483,6 +485,7 @@ type ModuleByIDRow struct {
 	ZpaModuleRef         *int64
 	Source               string
 	Kind                 string
+	ProjectBased         bool
 	SubjectGroupID       uuid.NullUUID
 	SubjectGroupCode     *string
 	SubjectGroupName     *string
@@ -507,6 +510,7 @@ func (q *Queries) ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, 
 		&i.ZpaModuleRef,
 		&i.Source,
 		&i.Kind,
+		&i.ProjectBased,
 		&i.SubjectGroupID,
 		&i.SubjectGroupCode,
 		&i.SubjectGroupName,
@@ -633,7 +637,7 @@ func (q *Queries) ModuleOfferingsFor(ctx context.Context, moduleIds []uuid.UUID)
 const modulesByIDs = `-- name: ModulesByIDs :many
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind,
+       m.source, m.kind, m.project_based,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -658,6 +662,7 @@ type ModulesByIDsRow struct {
 	ZpaModuleRef         *int64
 	Source               string
 	Kind                 string
+	ProjectBased         bool
 	SubjectGroupID       uuid.NullUUID
 	SubjectGroupCode     *string
 	SubjectGroupName     *string
@@ -693,6 +698,7 @@ func (q *Queries) ModulesByIDs(ctx context.Context, ids []uuid.UUID) ([]ModulesB
 			&i.ZpaModuleRef,
 			&i.Source,
 			&i.Kind,
+			&i.ProjectBased,
 			&i.SubjectGroupID,
 			&i.SubjectGroupCode,
 			&i.SubjectGroupName,
@@ -798,6 +804,26 @@ DELETE FROM module_component WHERE module_id = $1
 func (q *Queries) ReplaceModuleComponents(ctx context.Context, moduleID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, replaceModuleComponents, moduleID)
 	return err
+}
+
+const setModuleProjectBased = `-- name: SetModuleProjectBased :execrows
+UPDATE module SET project_based = $1::bool, updated_at = now()
+WHERE id = $2::uuid
+`
+
+type SetModuleProjectBasedParams struct {
+	ProjectBased bool
+	ID           uuid.UUID
+}
+
+// Mark a module as a project-based course (PBLV), or take the mark back. The faculty's own fact,
+// like the split: the import never writes this column.
+func (q *Queries) SetModuleProjectBased(ctx context.Context, arg SetModuleProjectBasedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setModuleProjectBased, arg.ProjectBased, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setProgrammePlanningStatus = `-- name: SetProgrammePlanningStatus :one

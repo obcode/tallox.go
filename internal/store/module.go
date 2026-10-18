@@ -414,6 +414,22 @@ func (m *Modules) SetModuleComponents(
 	return m.ModuleByID(ctx, moduleID)
 }
 
+// SetModuleProjectBased marks a module as a PBLV or takes the mark back.
+func (m *Modules) SetModuleProjectBased(ctx context.Context, moduleID uuid.UUID,
+	projectBased bool) (*domain.Module, error) {
+	n, err := New(m.pool).SetModuleProjectBased(ctx, SetModuleProjectBasedParams{
+		ID:           moduleID,
+		ProjectBased: projectBased,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot mark the module: %w", err)
+	}
+	if n == 0 {
+		return nil, nil
+	}
+	return m.ModuleByID(ctx, moduleID)
+}
+
 func moduleFrom(row ListModulesRow) domain.Module {
 	module := domain.Module{
 		ID:                  row.ID,
@@ -428,6 +444,7 @@ func moduleFrom(row ListModulesRow) domain.Module {
 		ZpaID:               row.ZpaModuleRef,
 		Source:              domain.ModuleSource(row.Source),
 		Kind:                domain.ModuleKind(row.Kind),
+		ProjectBased:        row.ProjectBased,
 	}
 	if row.SubjectGroupID.Valid {
 		module.SubjectGroup = &domain.SubjectGroupRef{

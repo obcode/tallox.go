@@ -1627,3 +1627,45 @@ func TestAssigningProgrammesToAPartner(t *testing.T) {
 		"id": testdata.Zwei.ID().String(), "p": []string{storetest.FixtureProgrammeA}, "r": "ADMIN",
 	}), "ROLE_NOT_PROGRAMME_SCOPED")
 }
+
+// The PBLV mark: written by the people who state the split, read by everybody, and it survives
+// the next import because the import never writes the column.
+func TestTheHomeProgrammesLeadMarksAPBLV(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		grants{testdata.Eins, []string{"LECTURER"}})
+
+	const mark = `mutation($m: ID!, $p: Boolean!) {
+		setModuleProjectBased(moduleId: $m, projectBased: $p) { projectBased }
+	}`
+	const read = `query($m: ID!) { module(id: $m) { projectBased } }`
+
+	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct{ SetModuleProjectBased struct{ ProjectBased bool } }
+			c.MustQuery(t, mark, map[string]any{"m": f.moduleOrdinary.String(), "p": true}, &out)
+			if !out.SetModuleProjectBased.ProjectBased {
+				t.Error("the module is not marked after marking it")
+			}
+		})
+
+	// Through the import: the mark is the faculty's, and a re-projection must not reset it.
+	if _, err := store.NewCatalogue(f.schema.Pool).Project(t.Context(), nil); err != nil {
+		t.Fatalf("cannot re-project: %v", err)
+	}
+	var seen struct{ Module struct{ ProjectBased bool } }
+	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).
+		MustQuery(t, read, map[string]any{"m": f.moduleOrdinary.String()}, &seen)
+	if !seen.Module.ProjectBased {
+		t.Error("a lecturer does not read the mark, or the import reset it")
+	}
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			assertRefusal(t, c.Do(t, mark, map[string]any{"m": f.moduleOrdinary.String(), "p": false}),
+				"NOT_YOUR_MODULE")
+		})
+}

@@ -160,6 +160,21 @@ func (r *mutationResolver) SetModuleComponents(ctx context.Context, moduleID str
 	return moduleModel(*module), nil
 }
 
+// SetModuleProjectBased is the resolver for the setModuleProjectBased field.
+func (r *mutationResolver) SetModuleProjectBased(ctx context.Context, moduleID string, projectBased bool) (*model.Module, error) {
+	actor := principal.From(ctx)
+
+	id, err := uuid.Parse(moduleID)
+	if err != nil {
+		return nil, badRequest("MODULE_NOT_FOUND", domain.ErrModuleNotFound.Error())
+	}
+	module, err := r.Catalogue.SetModuleProjectBased(ctx, actor, id, projectBased)
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+	return moduleModel(*module), nil
+}
+
 // Programmes is the resolver for the programmes field.
 func (r *queryResolver) Programmes(ctx context.Context, includeUnplanned bool) ([]*model.Programme, error) {
 	actor := principal.From(ctx)

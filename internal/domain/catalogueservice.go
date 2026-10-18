@@ -230,6 +230,40 @@ func (s *CatalogueService) SetModuleComponents(
 	return s.store.SetModuleComponents(ctx, moduleID, components, actor.ID)
 }
 
+// SetModuleProjectBased marks a module as a project-based course (PBLV), or takes the mark back.
+//
+// The same people as the split, by the same rule: the lead of its subject group, the lead of its
+// home programme, the dean's office. It is a fact about how the subject is taught, not a planning
+// decision about one programme.
+func (s *CatalogueService) SetModuleProjectBased(ctx context.Context, actor principal.Actor,
+	moduleID uuid.UUID, projectBased bool) (*Module, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	module, err := s.store.ModuleByID(ctx, moduleID)
+	if err != nil {
+		return nil, err
+	}
+	if module == nil {
+		return nil, ErrModuleNotFound
+	}
+	var group uuid.UUID
+	if module.SubjectGroup != nil {
+		group = module.SubjectGroup.ID
+	}
+	if !policy.MayWriteModuleSplit(actor, group, module.HomeProgramme.ID) {
+		return nil, ErrNotYourModuleSplit
+	}
+	updated, err := s.store.SetModuleProjectBased(ctx, moduleID, projectBased)
+	if err != nil {
+		return nil, err
+	}
+	if updated == nil {
+		return nil, ErrModuleNotFound
+	}
+	return updated, nil
+}
+
 // validComponents checks the shape of a split and numbers its entries.
 //
 // One function for the catalogue module and the local one, so the rule cannot drift between

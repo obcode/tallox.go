@@ -279,6 +279,7 @@ type ComplexityRoot struct {
 		Plannable           func(childComplexity int) int
 		PracticalKind       func(childComplexity int) int
 		ProgrammeSemester   func(childComplexity int, programme string) int
+		ProjectBased        func(childComplexity int) int
 		ProposedComponents  func(childComplexity int) int
 		Responsible         func(childComplexity int) int
 		RetiredAt           func(childComplexity int) int
@@ -350,6 +351,7 @@ type ComplexityRoot struct {
 		SetDesiredTeachingHours       func(childComplexity int, semester string, hours *float64, note *string) int
 		SetInstancePartTaughtBy       func(childComplexity int, id string, faculty *string) int
 		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
+		SetModuleProjectBased         func(childComplexity int, moduleID string, projectBased bool) int
 		SetModulesSubjectGroup        func(childComplexity int, moduleIds []string, subjectGroup *string) int
 		SetMyCompetence               func(childComplexity int, moduleID string, level domain.CompetenceLevel, note *string) int
 		SetMySubjectGroups            func(childComplexity int, subjectGroupIds []string) int
@@ -1728,6 +1730,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.ProgrammeSemester(childComplexity, args["programme"].(string)), true
+	case "Module.projectBased":
+		if e.ComplexityRoot.Module.ProjectBased == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.ProjectBased(childComplexity), true
 	case "Module.proposedComponents":
 		if e.ComplexityRoot.Module.ProposedComponents == nil {
 			break
@@ -2224,6 +2232,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetModuleComponents(childComplexity, args["moduleId"].(string), args["components"].([]*model.ModuleComponentInput)), true
+	case "Mutation.setModuleProjectBased":
+		if e.ComplexityRoot.Mutation.SetModuleProjectBased == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setModuleProjectBased_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetModuleProjectBased(childComplexity, args["moduleId"].(string), args["projectBased"].(bool)), true
 	case "Mutation.setModulesSubjectGroup":
 		if e.ComplexityRoot.Mutation.SetModulesSubjectGroup == nil {
 			break
@@ -5175,6 +5194,11 @@ type Module {
   """
   kind: ModuleKind!
   """
+  A project-based course (PBLV). The process gives these out last; the faculty marks them,
+  because the examination office does not say. ` + "`" + `courseType: PROJECT` + "`" + ` is a different thing.
+  """
+  projectBased: Boolean!
+  """
   The name, which is empty for a handful of modules.
 
   Taken from the examination office's module record, or else from an association with a set of
@@ -5719,6 +5743,16 @@ extend type Mutation {
     "In order. At least one entry, or none at all to clear the split."
     components: [ModuleComponentInput!]!
   ): Module! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Mark a module as a project-based course (PBLV), or take the mark back.
+
+  The process gives PBLVs out last, so that they are not snapped up as gap fillers. The examination
+  office does not publish which modules they are, so the faculty marks them, once per module. The
+  same people as ` + "`" + `setModuleComponents` + "`" + `, refused the same way with ` + "`" + `NOT_YOUR_MODULE` + "`" + `.
+  """
+  setModuleProjectBased(moduleId: ID!, projectBased: Boolean!): Module!
+    @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../competence.graphqls", Input: `# Competences: who can teach which module, and who would like to.
@@ -7023,7 +7057,7 @@ enum ScopeArea {
   # "is this part taken", which through a token the read rule would not.
 
   ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `,
-  ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
+  ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
@@ -9311,6 +9345,8 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_source(ctx, field)
 	case "kind":
 		return ec.fieldContext_Module_kind(ctx, field)
+	case "projectBased":
+		return ec.fieldContext_Module_projectBased(ctx, field)
 	case "name":
 		return ec.fieldContext_Module_name(ctx, field)
 	case "homeProgramme":

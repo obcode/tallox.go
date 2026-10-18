@@ -132,6 +132,7 @@ type Module struct {
 	CreatedBy              uuid.NullUUID
 	TeachingLanguage       *string
 	TeachingLanguageSource string
+	ProjectBased           bool
 }
 
 type ModuleComponent struct {

@@ -363,6 +363,7 @@ func (m *Modules) attach(ctx context.Context, q *Queries, modules []domain.Modul
 			IsDuty:               o.IsDuty,
 			ModuleCodes:          o.ModuleCodes,
 			Focuses:              o.Focuses,
+			Baskets:              o.Baskets,
 			MinProgrammeSemester: intOrNil(o.MinProgrammeSemester),
 		})
 	}

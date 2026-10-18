@@ -134,7 +134,7 @@ ORDER BY module_id, position;
 -- offerings are what "where does this count" means, and answering it with only the programme
 -- somebody happened to filter by would make the same module look different depending on how it
 -- was found.
-SELECT o.id, o.module_id, o.spo_id, o.is_duty, o.module_codes, o.focuses,
+SELECT o.id, o.module_id, o.spo_id, o.is_duty, o.module_codes, o.focuses, o.baskets,
        o.min_programme_semester,
        s.version AS spo_version, s.valid_from AS spo_valid_from, s.primuss_id AS spo_primuss_id,
        p.id AS programme_id, p.code AS programme_code, p.title AS programme_title,

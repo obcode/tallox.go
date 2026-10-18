@@ -22,6 +22,7 @@ type ModuleResolver interface {
 	HandbookURL(ctx context.Context, obj *model.Module) (*string, error)
 
 	DutyStatus(ctx context.Context, obj *model.Module, programme string) (*domain.DutyStatus, error)
+	Baskets(ctx context.Context, obj *model.Module, programme string) ([]string, error)
 	InCatalogue(ctx context.Context, obj *model.Module, programme string) (bool, error)
 	ProposedComponents(ctx context.Context, obj *model.Module) ([]*model.ComponentProposal, error)
 	SplitIsEstimated(ctx context.Context, obj *model.Module) (bool, error)
@@ -33,6 +34,20 @@ type ModuleResolver interface {
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
+
+func (ec *executionContext) field_Module_baskets_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "programme",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["programme"] = arg0
+	return args, nil
+}
 
 func (ec *executionContext) field_Module_dutyStatus_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
@@ -652,6 +667,50 @@ func (ec *executionContext) fieldContext_Module_dutyStatus(ctx context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Module_baskets(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Module_baskets(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Module().Baskets(ctx, obj, fc.Args["programme"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Module_baskets(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Module",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Module_baskets_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Module_inCatalogue(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1031,6 +1090,29 @@ func (ec *executionContext) _ModuleOffering_focuses(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_ModuleOffering_focuses(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleOffering", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ModuleOffering_baskets(ctx context.Context, field graphql.CollectedField, obj *model.ModuleOffering) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleOffering_baskets(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Baskets, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []string) graphql.Marshaler {
+			return ec.marshalNString2ᚕstringᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleOffering_baskets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ModuleOffering", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -2050,6 +2132,44 @@ func (ec *executionContext) _Module(ctx context.Context, sel ast.SelectionSet, o
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "baskets":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Module_baskets(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "inCatalogue":
 			field := field
 
@@ -2381,6 +2501,11 @@ func (ec *executionContext) _ModuleOffering(ctx context.Context, sel ast.Selecti
 			}
 		case "focuses":
 			out.Values[i] = ec._ModuleOffering_focuses(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "baskets":
+			out.Values[i] = ec._ModuleOffering_baskets(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

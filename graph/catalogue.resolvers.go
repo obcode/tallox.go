@@ -35,6 +35,16 @@ func (r *moduleResolver) DutyStatus(ctx context.Context, obj *model.Module, prog
 	return &status, nil
 }
 
+// Baskets is the resolver for the baskets field.
+func (r *moduleResolver) Baskets(ctx context.Context, obj *model.Module, programme string) ([]string, error) {
+	baskets := obj.Domain.Baskets(normaliseCode(programme))
+	if baskets == nil {
+		// Non-null on the wire: "in no basket of this programme" is the empty list.
+		return []string{}, nil
+	}
+	return baskets, nil
+}
+
 // InCatalogue is the resolver for the inCatalogue field.
 func (r *moduleResolver) InCatalogue(ctx context.Context, obj *model.Module, programme string) (bool, error) {
 	return obj.Domain.InCatalogue(normaliseCode(programme)), nil

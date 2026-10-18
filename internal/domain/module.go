@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -281,6 +282,32 @@ func (m Module) DutyStatus(programmeCode string) (DutyStatus, bool) {
 	}
 }
 
+// Baskets lists the catalogue slots the module sits in across one programme's versions of its
+// regulations, sorted and without repeats, or nil if it does not appear in that catalogue.
+//
+// The union over the versions, like DutyStatus: a basket renamed between two versions shows both
+// names, because both are being taught to somebody.
+func (m Module) Baskets(programmeCode string) []string {
+	seen := map[string]bool{}
+	for _, o := range m.Offerings {
+		if o.Spo.Programme.Code != programmeCode {
+			continue
+		}
+		for _, b := range o.Baskets {
+			seen[b] = true
+		}
+	}
+	if len(seen) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(seen))
+	for b := range seen {
+		out = append(out, b)
+	}
+	slices.Sort(out)
+	return out
+}
+
 // InCatalogue reports whether the module counts in any version of this programme's regulations.
 //
 // False together with a home programme of the same code is a real and common state: the module
@@ -307,12 +334,16 @@ type ModuleComponent struct {
 }
 
 // ModuleOffering is the statement that a module counts in one version of some regulations.
+//
+// Baskets names the catalogue slots the module sits in within this version — "Pflichtmodule",
+// "WPF Anwendungen des maschinellen Lernens". Display only, like ModuleCodes.
 type ModuleOffering struct {
 	ID                   uuid.UUID
 	Spo                  Spo
 	IsDuty               bool
 	ModuleCodes          []string
 	Focuses              []string
+	Baskets              []string
 	MinProgrammeSemester *int
 }
 

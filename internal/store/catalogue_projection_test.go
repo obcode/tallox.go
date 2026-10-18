@@ -253,18 +253,18 @@ func TestProjectionCollapsesTheBasketsOfOneSetOfRegulations(t *testing.T) {
 
 	project(t, s)
 
-	var codes, focuses []string
+	var codes, focuses, baskets []string
 	var isDuty bool
 	var minSemester *int32
 	var sourceRows int32
 	err := s.Pool.QueryRow(t.Context(),
-		`SELECT o.module_codes, o.focuses, o.is_duty, o.min_programme_semester, o.source_rows
+		`SELECT o.module_codes, o.focuses, o.baskets, o.is_duty, o.min_programme_semester, o.source_rows
 		   FROM module_offering o
 		   JOIN module m ON m.id = o.module_id
 		   JOIN spo s ON s.id = o.spo_id
 		  WHERE m.zpa_module_ref = $1 AND s.zpa_spo_ref = $2`,
 		storetest.FixtureModuleTwoSlots, storetest.FixtureSpoANew).
-		Scan(&codes, &focuses, &isDuty, &minSemester, &sourceRows)
+		Scan(&codes, &focuses, &baskets, &isDuty, &minSemester, &sourceRows)
 	if err != nil {
 		t.Fatalf("the two slots did not fold into one offering: %v", err)
 	}
@@ -279,6 +279,11 @@ func TestProjectionCollapsesTheBasketsOfOneSetOfRegulations(t *testing.T) {
 	if len(focuses) != 1 {
 		t.Errorf("the offering carries the specialisations %v, want exactly the one slot that "+
 			"has one", focuses)
+	}
+	// Both slots by name, sorted, so a programme lead can group electives by the basket they
+	// sit in — and a re-run that changes nothing writes the same array.
+	if want := []string{"PA: Vertiefung", "PA: Wahlpflicht"}; !slices.Equal(baskets, want) {
+		t.Errorf("the offering names the baskets %v, want %v", baskets, want)
 	}
 	if isDuty {
 		t.Error("both slots are elective and the fold made the offering compulsory")

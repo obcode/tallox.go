@@ -235,6 +235,50 @@ func TestDutyStatusAnswersAboutTheProgrammeItWasAsked(t *testing.T) {
 		})
 }
 
+// Same trap as dutyStatus: the argument has to matter. The module sits in two baskets of A's
+// regulations and in none of B's.
+func TestBasketsAnswerAboutTheProgrammeTheyWereAsked(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil, grants{testdata.Eins, []string{"LECTURER"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct {
+				Modules []struct {
+					InA       []string
+					InB       []string
+					Offerings []struct{ Baskets []string }
+				}
+			}
+			c.MustQuery(t, `query($a: String!, $b: String!) {
+				modules(filter: {search: "Modul in zwei Körben"}) {
+					inA: baskets(programme: $a)
+					inB: baskets(programme: $b)
+					offerings { baskets }
+				}
+			}`, map[string]any{
+				"a": storetest.FixtureProgrammeA,
+				"b": storetest.FixtureProgrammeB,
+			}, &out)
+
+			if len(out.Modules) != 1 {
+				t.Fatalf("found %d modules, want the one in two baskets", len(out.Modules))
+			}
+			m := out.Modules[0]
+			if want := []string{"PA: Vertiefung", "PA: Wahlpflicht"}; !slices.Equal(m.InA, want) {
+				t.Errorf("in programme A the baskets are %v, want %v", m.InA, want)
+			}
+			if m.InB == nil || len(m.InB) != 0 {
+				t.Errorf("in programme B the baskets are %v, want the empty list — the module "+
+					"is in no basket there, and the field is non-null", m.InB)
+			}
+			if len(m.Offerings) == 0 || len(m.Offerings[0].Baskets) == 0 {
+				t.Errorf("the offering does not name its baskets: %+v", m.Offerings)
+			}
+		})
+}
+
 // The demand deadline is a term, and 89 modules of the real catalogue run only in the other one.
 func TestTheFrequencyFilterKeepsWhatItSays(t *testing.T) {
 	t.Parallel()

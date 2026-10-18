@@ -558,7 +558,7 @@ func (q *Queries) ModuleComponentsFor(ctx context.Context, moduleIds []uuid.UUID
 }
 
 const moduleOfferingsFor = `-- name: ModuleOfferingsFor :many
-SELECT o.id, o.module_id, o.spo_id, o.is_duty, o.module_codes, o.focuses,
+SELECT o.id, o.module_id, o.spo_id, o.is_duty, o.module_codes, o.focuses, o.baskets,
        o.min_programme_semester,
        s.version AS spo_version, s.valid_from AS spo_valid_from, s.primuss_id AS spo_primuss_id,
        p.id AS programme_id, p.code AS programme_code, p.title AS programme_title,
@@ -577,6 +577,7 @@ type ModuleOfferingsForRow struct {
 	IsDuty               bool
 	ModuleCodes          []string
 	Focuses              []string
+	Baskets              []string
 	MinProgrammeSemester *int32
 	SpoVersion           int32
 	SpoValidFrom         pgtype.Date
@@ -609,6 +610,7 @@ func (q *Queries) ModuleOfferingsFor(ctx context.Context, moduleIds []uuid.UUID)
 			&i.IsDuty,
 			&i.ModuleCodes,
 			&i.Focuses,
+			&i.Baskets,
 			&i.MinProgrammeSemester,
 			&i.SpoVersion,
 			&i.SpoValidFrom,

@@ -147,6 +147,7 @@ type ModuleOffering struct {
 	SourceRows           int32
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+	Baskets              []string
 }
 
 type ModuleSubjectGroup struct {

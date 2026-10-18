@@ -236,6 +236,10 @@ WITH folded AS (
            -- that do repeat it across versions.
            array_remove(array_agg(DISTINCT m.module_code), NULL) AS module_codes,
            array_remove(array_agg(DISTINCT b.focus_short), NULL) AS focuses,
+           -- The slots' names, folded the same way: "WPF Anwendungen des maschinellen Lernens"
+           -- is what a programme lead groups electives by. Ordered, so a re-run that changes
+           -- nothing writes the same array.
+           array_remove(array_agg(DISTINCT b.name ORDER BY b.name), NULL) AS baskets,
            min(m.min_programme_semester) AS min_programme_semester,
            count(*)::integer AS source_rows
     FROM zpa_msba_v m
@@ -243,9 +247,10 @@ WITH folded AS (
     WHERE m.present AND m.module_id IS NOT NULL AND m.spo_id IS NOT NULL
     GROUP BY m.module_id, m.spo_id
 )
-INSERT INTO module_offering (module_id, spo_id, is_duty, module_codes, focuses,
+INSERT INTO module_offering (module_id, spo_id, is_duty, module_codes, focuses, baskets,
                              min_programme_semester, source_rows)
-SELECT mo.id, s.id, f.is_duty, f.module_codes, f.focuses, f.min_programme_semester, f.source_rows
+SELECT mo.id, s.id, f.is_duty, f.module_codes, f.focuses, f.baskets, f.min_programme_semester,
+       f.source_rows
 FROM folded f
 -- Both joins are inner, and each one drops a documented case: an association whose module was
 -- skipped for having no home programme, and an association pointing at regulations the source
@@ -257,6 +262,7 @@ ON CONFLICT (module_id, spo_id) DO UPDATE
 SET is_duty                = EXCLUDED.is_duty,
     module_codes           = EXCLUDED.module_codes,
     focuses                = EXCLUDED.focuses,
+    baskets                = EXCLUDED.baskets,
     min_programme_semester = EXCLUDED.min_programme_semester,
     source_rows            = EXCLUDED.source_rows,
     updated_at             = now();

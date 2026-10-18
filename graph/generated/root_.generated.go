@@ -252,6 +252,7 @@ type ComplexityRoot struct {
 
 	Module struct {
 		Active              func(childComplexity int) int
+		Baskets             func(childComplexity int, programme string) int
 		ComponentHours      func(childComplexity int) int
 		Components          func(childComplexity int) int
 		ContactHoursPerWeek func(childComplexity int) int
@@ -287,6 +288,7 @@ type ComplexityRoot struct {
 	}
 
 	ModuleOffering struct {
+		Baskets              func(childComplexity int) int
 		Focuses              func(childComplexity int) int
 		IsDuty               func(childComplexity int) int
 		MinProgrammeSemester func(childComplexity int) int
@@ -1549,6 +1551,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.Active(childComplexity), true
+	case "Module.baskets":
+		if e.ComplexityRoot.Module.Baskets == nil {
+			break
+		}
+
+		args, err := ec.field_Module_baskets_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Module.Baskets(childComplexity, args["programme"].(string)), true
 	case "Module.componentHours":
 		if e.ComplexityRoot.Module.ComponentHours == nil {
 			break
@@ -1740,6 +1753,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ModuleComponent.TeachingHours(childComplexity), true
 
+	case "ModuleOffering.baskets":
+		if e.ComplexityRoot.ModuleOffering.Baskets == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleOffering.Baskets(childComplexity), true
 	case "ModuleOffering.focuses":
 		if e.ComplexityRoot.ModuleOffering.Focuses == nil {
 			break
@@ -5170,6 +5189,16 @@ type Module {
     programme: String!
   ): DutyStatus
   """
+  The catalogue slots this module sits in within one programme, across every version of its
+  regulations, sorted. Empty if the module does not appear in that programme's catalogue.
+
+  A union like ` + "`" + `dutyStatus` + "`" + `: a basket renamed between two versions shows both names.
+  """
+  baskets(
+    "The programme's short code."
+    programme: String!
+  ): [String!]!
+  """
   Whether this module appears in the named programme's catalogue.
 
   ` + "`" + `false` + "`" + ` together with a ` + "`" + `homeProgramme` + "`" + ` of that programme is a real and common state — the
@@ -5295,6 +5324,11 @@ type ModuleOffering {
   moduleCodes: [String!]!
   "The specialisations whose catalogue this module sits in."
   focuses: [String!]!
+  """
+  The catalogue slots this module sits in within this version, by the examination office's name:
+  "Pflichtmodule", "WPF Anwendungen des maschinellen Lernens". Display only, never an identifier.
+  """
+  baskets: [String!]!
   """
   The earliest programme semester a student may take it in.
 
@@ -9126,6 +9160,8 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_offerings(ctx, field)
 	case "dutyStatus":
 		return ec.fieldContext_Module_dutyStatus(ctx, field)
+	case "baskets":
+		return ec.fieldContext_Module_baskets(ctx, field)
 	case "inCatalogue":
 		return ec.fieldContext_Module_inCatalogue(ctx, field)
 	case "proposedComponents":
@@ -9166,6 +9202,8 @@ func (ec *executionContext) childFields_ModuleOffering(ctx context.Context, fiel
 		return ec.fieldContext_ModuleOffering_moduleCodes(ctx, field)
 	case "focuses":
 		return ec.fieldContext_ModuleOffering_focuses(ctx, field)
+	case "baskets":
+		return ec.fieldContext_ModuleOffering_baskets(ctx, field)
 	case "minProgrammeSemester":
 		return ec.fieldContext_ModuleOffering_minProgrammeSemester(ctx, field)
 	}

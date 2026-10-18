@@ -106,6 +106,7 @@ func moduleModel(m domain.Module) *model.Module {
 			IsDuty:               o.IsDuty,
 			ModuleCodes:          o.ModuleCodes,
 			Focuses:              o.Focuses,
+			Baskets:              o.Baskets,
 			MinProgrammeSemester: o.MinProgrammeSemester,
 		})
 	}

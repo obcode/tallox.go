@@ -1,6 +1,7 @@
 package domain_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/obcode/tallox.go/internal/domain"
@@ -36,5 +37,31 @@ func TestPracticalKindOfSumsAKindNamedTwice(t *testing.T) {
 				t.Errorf("got %q, %v, %v; want %q, %v, %v", kind, hours, ok, tc.kind, tc.hours, tc.ok)
 			}
 		})
+	}
+}
+
+// Baskets folds over one programme's versions and only those: a renamed basket shows both names,
+// another programme's slots do not leak in, and a repeat is listed once.
+func TestBasketsAreTheUnionOverOneProgrammesVersions(t *testing.T) {
+	t.Parallel()
+
+	in := func(code string, baskets ...string) domain.ModuleOffering {
+		return domain.ModuleOffering{
+			Spo:     domain.Spo{Programme: domain.Programme{Code: code}},
+			Baskets: baskets,
+		}
+	}
+	m := domain.Module{Offerings: []domain.ModuleOffering{
+		in("DC", "WPF Anwendungen des maschinellen Lernens"),
+		in("DC", "WPF Maschinelles Lernen", "WPF Anwendungen des maschinellen Lernens"),
+		in("IF", "Wahlpflichtmodule"),
+	}}
+
+	want := []string{"WPF Anwendungen des maschinellen Lernens", "WPF Maschinelles Lernen"}
+	if got := m.Baskets("DC"); !slices.Equal(got, want) {
+		t.Errorf("DC has the baskets %v, want %v", got, want)
+	}
+	if got := m.Baskets("DA"); got != nil {
+		t.Errorf("a programme whose catalogue does not list the module has the baskets %v, want nil", got)
 	}
 }

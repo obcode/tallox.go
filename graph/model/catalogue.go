@@ -109,5 +109,6 @@ type ModuleOffering struct {
 	IsDuty               bool     `json:"isDuty"`
 	ModuleCodes          []string `json:"moduleCodes"`
 	Focuses              []string `json:"focuses"`
+	Baskets              []string `json:"baskets"`
 	MinProgrammeSemester *int     `json:"minProgrammeSemester,omitempty"`
 }

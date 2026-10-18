@@ -47,6 +47,22 @@ func (r *mutationResolver) WithdrawWish(ctx context.Context, id string) (string,
 	return id, nil
 }
 
+// SetDesiredTeachingHours is the resolver for the setDesiredTeachingHours field.
+func (r *mutationResolver) SetDesiredTeachingHours(ctx context.Context, semester string, hours *float64, note *string) (*model.DesiredTeachingHours, error) {
+	text := ""
+	if note != nil {
+		text = *note
+	}
+	stored, err := r.Resolver.Wishes.SetDesiredHours(ctx, principal.From(ctx), semester, hours, text)
+	if err != nil {
+		return nil, wishError(err)
+	}
+	if stored == nil {
+		return nil, nil
+	}
+	return desiredHoursModel(*stored), nil
+}
+
 // MyWishes is the resolver for the myWishes field.
 func (r *queryResolver) MyWishes(ctx context.Context, semester *string) ([]*model.Wish, error) {
 	// A missing semester is every semester, not a refused query: these are the caller's own rows,
@@ -93,4 +109,37 @@ func (r *queryResolver) Wishes(ctx context.Context, semester string, programme *
 		return nil, wishError(err)
 	}
 	return wishModels(wishes), nil
+}
+
+// MyDesiredTeachingHours is the resolver for the myDesiredTeachingHours field.
+func (r *queryResolver) MyDesiredTeachingHours(ctx context.Context, semester *string) ([]*model.DesiredTeachingHours, error) {
+	code := ""
+	if semester != nil {
+		code = *semester
+	}
+	actor := principal.From(ctx)
+	// With a semester, through the filtered read narrowed to oneself: the same path that checks
+	// the code and the ±10 year window.
+	rows, err := r.Resolver.Wishes.DesiredHours(ctx, actor, code, actor.ID)
+	if err != nil {
+		return nil, wishError(err)
+	}
+	return desiredHoursModels(rows), nil
+}
+
+// DesiredTeachingHours is the resolver for the desiredTeachingHours field.
+func (r *queryResolver) DesiredTeachingHours(ctx context.Context, semester string, person *string) ([]*model.DesiredTeachingHours, error) {
+	var who uuid.UUID
+	if person != nil {
+		id, err := parseID(*person)
+		if err != nil {
+			return nil, err
+		}
+		who = id
+	}
+	rows, err := r.Resolver.Wishes.DesiredHours(ctx, principal.From(ctx), semester, who)
+	if err != nil {
+		return nil, wishError(err)
+	}
+	return desiredHoursModels(rows), nil
 }

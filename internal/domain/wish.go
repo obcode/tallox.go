@@ -179,6 +179,8 @@ type WishStore interface {
 	// states read a moment apart is how a rule ends up describing neither.
 	// (nil, nil) when the instance is not there.
 	WishWriteContext(ctx context.Context, instanceID uuid.UUID) (WishWriteContext, error)
+
+	DesiredHoursStore
 }
 
 // SemesterReader is the part of the semester service the wish service needs: turning a code into

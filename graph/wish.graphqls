@@ -171,3 +171,71 @@ extend type Mutation {
   """
   withdrawWish(id: ID!): ID! @scope(area: WISHES, verb: WRITE)
 }
+
+"""
+How many hours a week somebody would like to teach in one semester.
+
+Stated by the person, on the wish screen, beside the wishes it belongs to. Not the teaching
+obligation and not a balance — those are the dean's office's and are not stored here. No entry
+means "not stated", which is different from `0`.
+
+Read by the person, through either door; in an interactive session also by the lead of any
+subject group the person is a member of, and by the dean's office. Never published: it is a
+statement about one's own workload, and nothing in the process needs a colleague to read it.
+"""
+type DesiredTeachingHours {
+  "The semester, as its code: `2027-SS`."
+  semester: String!
+  "Whose figure it is. Always the person who stated it."
+  person: Person!
+  "Hours a week, in half hours, from 0 to 40."
+  hours: Float!
+  "The person's own words: „gern als Block“, „Forschungssemester im Herbst“."
+  note: String!
+  "When it was last changed."
+  updatedAt: Time!
+}
+
+extend type Query {
+  """
+  Your own desired teaching hours — in one semester, or in every semester you stated one for.
+  """
+  myDesiredTeachingHours(
+    "Four digits, a hyphen and SS or WS. Omit it for every semester."
+    semester: String
+  ): [DesiredTeachingHours!]! @scope(area: WISHES, verb: READ)
+
+  """
+  The desired teaching hours of a semester, as many as you may see.
+
+  **Not an error when you may see none**, for the reason `wishes` gives: whether a colleague has
+  stated a figure is the fact the rule protects. Through a Personal Access Token this is your own
+  entry whatever your role.
+  """
+  desiredTeachingHours(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "One person's entry, by id."
+    person: ID
+  ): [DesiredTeachingHours!]! @scope(area: WISHES, verb: READ)
+}
+
+extend type Mutation {
+  """
+  State how many hours a week you would like to teach in a semester, or change it. `hours: null`
+  takes it back.
+
+  Yours only. Open until the semester is finished, `DESIRED_HOURS_PHASE_CLOSED` afterwards, in
+  both directions; when exactly the figure should freeze is still being decided.
+  `DESIRED_HOURS_OUT_OF_RANGE` for anything that is not a multiple of one half between 0 and 40.
+
+  Returns the stored entry, or `null` after taking it back.
+  """
+  setDesiredTeachingHours(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    hours: Float
+    "Up to 500 characters, or nothing at all."
+    note: String
+  ): DesiredTeachingHours @scope(area: WISHES, verb: WRITE)
+}

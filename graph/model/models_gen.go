@@ -646,6 +646,28 @@ type DemandTrackInput struct {
 	Groups int `json:"groups"`
 }
 
+// How many hours a week somebody would like to teach in one semester.
+//
+// Stated by the person, on the wish screen, beside the wishes it belongs to. Not the teaching
+// obligation and not a balance — those are the dean's office's and are not stored here. No entry
+// means "not stated", which is different from `0`.
+//
+// Read by the person, through either door; in an interactive session also by the lead of any
+// subject group the person is a member of, and by the dean's office. Never published: it is a
+// statement about one's own workload, and nothing in the process needs a colleague to read it.
+type DesiredTeachingHours struct {
+	// The semester, as its code: `2027-SS`.
+	Semester string `json:"semester"`
+	// Whose figure it is. Always the person who stated it.
+	Person *Person `json:"person"`
+	// Hours a week, in half hours, from 0 to 40.
+	Hours float64 `json:"hours"`
+	// The person's own words: „gern als Block“, „Forschungssemester im Herbst“.
+	Note string `json:"note"`
+	// When it was last changed.
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // One study programme's demand met by another study programme's event.
 //
 // The case the faculty describes as "echter Bedarf in DE, und in GS eine Art Import": both

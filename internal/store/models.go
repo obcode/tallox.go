@@ -83,6 +83,15 @@ type DemandCompletion struct {
 	CompletedBy uuid.NullUUID
 }
 
+type DesiredTeachingHour struct {
+	SemesterID uuid.UUID
+	PersonID   uuid.UUID
+	Hours      pgtype.Numeric
+	Note       string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+}
+
 type GuessedPart struct {
 	ID               uuid.UUID
 	CourseInstanceID uuid.UUID

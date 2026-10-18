@@ -30,6 +30,24 @@ func wishModel(w domain.Wish) *model.Wish {
 	}
 }
 
+func desiredHoursModel(d domain.DesiredHours) *model.DesiredTeachingHours {
+	return &model.DesiredTeachingHours{
+		Semester:  d.SemesterCode,
+		Person:    personModel(d.Person),
+		Hours:     d.Hours,
+		Note:      d.Note,
+		UpdatedAt: d.UpdatedAt,
+	}
+}
+
+func desiredHoursModels(rows []domain.DesiredHours) []*model.DesiredTeachingHours {
+	out := make([]*model.DesiredTeachingHours, 0, len(rows))
+	for _, d := range rows {
+		out = append(out, desiredHoursModel(d))
+	}
+	return out
+}
+
 func wishModels(wishes []domain.Wish) []*model.Wish {
 	out := make([]*model.Wish, 0, len(wishes))
 	for _, w := range wishes {
@@ -58,6 +76,12 @@ func wishError(err error) error {
 		return nil
 	case errors.Is(err, domain.ErrNotAuthenticated):
 		return err
+	case errors.Is(err, domain.ErrDesiredHoursPhaseClosed):
+		return refusal("DESIRED_HOURS_PHASE_CLOSED", err.Error())
+	case errors.Is(err, domain.ErrDesiredHoursOutOfRange):
+		return refusal("DESIRED_HOURS_OUT_OF_RANGE", err.Error())
+	case errors.Is(err, domain.ErrSemesterRequired):
+		return refusal("SEMESTER_REQUIRED", err.Error())
 	case errors.Is(err, domain.ErrWishPhaseClosed):
 		return refusal("WISH_PHASE_CLOSED", err.Error())
 	case errors.Is(err, domain.ErrWishWindowClosed):

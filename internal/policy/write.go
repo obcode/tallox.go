@@ -59,6 +59,9 @@ const (
 	// WriteAreaAssignment is filling the parts of a course instance: who holds the lecture, who
 	// holds each laboratory group.
 	WriteAreaAssignment WriteArea = "ASSIGNMENT"
+
+	// WriteAreaDesiredHours is stating one's own desired teaching hours for a semester.
+	WriteAreaDesiredHours WriteArea = "DESIRED_HOURS"
 )
 
 // AllWriteAreas returns every area, in the order of the planning process.
@@ -67,7 +70,7 @@ const (
 // the assignments — rather than being declared in advance, for the same reason ScopeArea gives:
 // an area with nothing behind it is a promise that somebody can read and nobody keeps.
 func AllWriteAreas() []WriteArea {
-	return []WriteArea{WriteAreaDemand, WriteAreaWishes, WriteAreaAssignment}
+	return []WriteArea{WriteAreaDemand, WriteAreaWishes, WriteAreaDesiredHours, WriteAreaAssignment}
 }
 
 // Valid reports whether a is an area this package knows.
@@ -129,6 +132,18 @@ var writeMatrix = map[WriteArea]map[Phase][]Role{
 	// entries: a wish registered afterwards would change the record of what the faculty
 	// considered without changing anything about the teaching.
 	WriteAreaWishes: {
+		PhaseDemandPlanning: {RoleLecturer},
+		PhaseWishes:         {RoleLecturer},
+		PhaseAssignment:     {RoleLecturer},
+		PhaseReview:         {RoleLecturer},
+		PhaseFinal:          nil,
+	},
+	// The wishes' shape, and deliberately its own row rather than a reuse of theirs. The kickoff
+	// asked for the figure to freeze "ab einem Punkt im Prozess", so that nobody states little and
+	// raises it later to land a special course; which point is a question for the retreat on
+	// 2026-10-27 (docs/rueckfragen-2026-10.md). Until it is answered the figure is open as long as
+	// the wishes are — and the answer is one edit to this row, not a condition to find.
+	WriteAreaDesiredHours: {
 		PhaseDemandPlanning: {RoleLecturer},
 		PhaseWishes:         {RoleLecturer},
 		PhaseAssignment:     {RoleLecturer},

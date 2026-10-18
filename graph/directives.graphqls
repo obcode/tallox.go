@@ -156,11 +156,13 @@ enum ScopeArea {
   rows.
 
   Competences are here and not under `PROFILE` because "würde ich gern halten" is a wish without a
-  semester, and confidential for the same reason.
+  semester, and confidential for the same reason. The desired teaching hours are here because
+  they are stated on the wish screen, beside the wishes they belong to.
 
   Fields: `myWishes`, `wishes`, `setWish`, `withdrawWish`, `myCompetences`, `myCompetenceStatus`,
   `competences`, `competenceMemberStatus`, `modulesWithoutCompetence`, `setMyCompetence`,
-  `withdrawMyCompetence`, `setTeacherCompetence`, `withdrawTeacherCompetence`.
+  `withdrawMyCompetence`, `setTeacherCompetence`, `withdrawTeacherCompetence`,
+  `myDesiredTeachingHours`, `desiredTeachingHours`, `setDesiredTeachingHours`.
   """
   WISHES
 

@@ -73,6 +73,7 @@ type MutationResolver interface {
 	SetSubjectGroupLeads(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error)
 	SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string) (*model.Wish, error)
 	WithdrawWish(ctx context.Context, id string) (string, error)
+	SetDesiredTeachingHours(ctx context.Context, semester string, hours *float64, note *string) (*model.DesiredTeachingHours, error)
 	SyncZpaNow(ctx context.Context) (*model.ZpaSyncRun, error)
 	ProjectZpaCatalogue(ctx context.Context) (*model.ZpaCatalogueProjection, error)
 }
@@ -718,6 +719,36 @@ func (ec *executionContext) field_Mutation_setDemandComplete_args(ctx context.Co
 		return nil, err
 	}
 	args["complete"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setDesiredTeachingHours_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "semester",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["semester"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "hours",
+		func(ctx context.Context, v any) (*float64, error) {
+			return ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["hours"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "note",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["note"] = arg2
 	return args, nil
 }
 
@@ -4156,6 +4187,50 @@ func (ec *executionContext) fieldContext_Mutation_withdrawWish(ctx context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_setDesiredTeachingHours(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setDesiredTeachingHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetDesiredTeachingHours(ctx, fc.Args["semester"].(string), fc.Args["hours"].(*float64), fc.Args["note"].(*string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DesiredTeachingHours) graphql.Marshaler {
+			return ec.marshalODesiredTeachingHours2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredTeachingHours(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setDesiredTeachingHours(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DesiredTeachingHours(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setDesiredTeachingHours_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_syncZpaNow(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4851,6 +4926,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 				return ec._Mutation_withdrawWish(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setDesiredTeachingHours":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setDesiredTeachingHours(ctx, field)
+			})
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		case "syncZpaNow":

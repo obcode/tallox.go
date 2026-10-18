@@ -27,6 +27,7 @@ Kollegium — das gehört nach `tallox.dev`.
 - [Studiengangs-Review](programme-review.md) — Phase REVIEW vor FINAL, alles offen bis Semesterende, Marke „Review fertig"
 - [Block und Englisch je Zug](instance-format.md) — Override gegen den ZPA-Default, Schreibregel der Zuteilung, Mitnahmepfade
 - [Modulhandbuch-Link](module-handbook.md) — aus zpa.baseurl abgeleitet, nur aktive ZPA-Module, kein eigener Schlüssel
+- [Wunsch-SWS](desired-hours.md) — je Person und Semester, gelesen über die Fachgruppen der Person, eigene Zeile in der Schreibmatrix für die offene Sperrfrage
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:
      eine Datei = ein Sachverhalt, Frontmatter mit name/description/metadata.type,

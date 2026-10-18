@@ -26,6 +26,130 @@ import (
 
 // region    **************************** field.gotpl *****************************
 
+func (ec *executionContext) _DesiredTeachingHours_semester(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredTeachingHours_semester(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Semester, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredTeachingHours_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DesiredTeachingHours_person(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredTeachingHours_person(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Person, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Person) graphql.Marshaler {
+			return ec.marshalNPerson2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPerson(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredTeachingHours_person(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredTeachingHours",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Person(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DesiredTeachingHours_hours(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredTeachingHours_hours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Hours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredTeachingHours_hours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _DesiredTeachingHours_note(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredTeachingHours_note(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Note, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredTeachingHours_note(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DesiredTeachingHours_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredTeachingHours_updatedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredTeachingHours_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
 func (ec *executionContext) _Wish_id(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -217,6 +341,64 @@ func (ec *executionContext) fieldContext_Wish_updatedAt(_ context.Context, field
 
 // region    **************************** object.gotpl ****************************
 
+var desiredTeachingHoursImplementors = []string{"DesiredTeachingHours"}
+
+func (ec *executionContext) _DesiredTeachingHours(ctx context.Context, sel ast.SelectionSet, obj *model.DesiredTeachingHours) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, desiredTeachingHoursImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DesiredTeachingHours")
+		case "semester":
+			out.Values[i] = ec._DesiredTeachingHours_semester(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "person":
+			out.Values[i] = ec._DesiredTeachingHours_person(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hours":
+			out.Values[i] = ec._DesiredTeachingHours_hours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "note":
+			out.Values[i] = ec._DesiredTeachingHours_note(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._DesiredTeachingHours_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var wishImplementors = []string{"Wish"}
 
 func (ec *executionContext) _Wish(ctx context.Context, sel ast.SelectionSet, obj *model.Wish) graphql.Marshaler {
@@ -289,6 +471,32 @@ func (ec *executionContext) _Wish(ctx context.Context, sel ast.SelectionSet, obj
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) marshalNDesiredTeachingHours2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredTeachingHoursᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DesiredTeachingHours) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDesiredTeachingHours2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredTeachingHours(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDesiredTeachingHours2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredTeachingHours(ctx context.Context, sel ast.SelectionSet, v *model.DesiredTeachingHours) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DesiredTeachingHours(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNWish2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWish(ctx context.Context, sel ast.SelectionSet, v model.Wish) graphql.Marshaler {
 	return ec._Wish(ctx, sel, &v)
 }
@@ -334,6 +542,13 @@ func (ec *executionContext) marshalNWishPriority2githubᚗcomᚋobcodeᚋtallox�
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalODesiredTeachingHours2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredTeachingHours(ctx context.Context, sel ast.SelectionSet, v *model.DesiredTeachingHours) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DesiredTeachingHours(ctx, sel, v)
 }
 
 // endregion ***************************** type.gotpl *****************************

@@ -199,6 +199,8 @@ type Querier interface {
 	CatalogueProjectionNotes(ctx context.Context, projectionID uuid.UUID) ([]CatalogueProjectionNotesRow, error)
 	// Give a part back. The row count is the answer: nothing cleared means it was not there.
 	ClearAssignment(ctx context.Context, id uuid.UUID) (int64, error)
+	// Take one's own figure back. No row is "not stated", which is the state this returns to.
+	ClearDesiredTeachingHours(ctx context.Context, arg ClearDesiredTeachingHoursParams) (int64, error)
 	// Taking modules out of every group, which is the same screen's other button. A module with no
 	// group is a normal state and the whole of October's work list.
 	ClearModulesSubjectGroup(ctx context.Context, moduleIds []uuid.UUID) (int64, error)
@@ -513,6 +515,20 @@ type Querier interface {
 	// that refuses writes without saying why.
 	// Which study programmes have announced their demand as settled, for one semester.
 	DemandCompletionsOfSemester(ctx context.Context, semester string) ([]DemandCompletionsOfSemesterRow, error)
+	// Desired teaching hours: what somebody would like to teach in a semester.
+	//
+	// Every read carries the filter parameters, as wish.sql and competence.sql do, and
+	// store.TestEveryDesiredHoursReadIsFiltered reads this file and insists on it:
+	//
+	//     @scope = 'all'            no restriction
+	//     @scope = 'own'            the caller's own statements
+	//     @scope = 'own_or_scoped'  their own, plus the members of the subject groups they lead
+	//     anything else             nothing at all
+	//
+	// Membership is read at query time, like a wish's subject group: moving somebody to another group
+	// changes who reads their figure, which is what "the lead of their group reads it" means.
+	// The examination office's spelling, for the one register of names (domain.PlainName).
+	DesiredTeachingHours(ctx context.Context, arg DesiredTeachingHoursParams) ([]DesiredTeachingHoursRow, error)
 	// Get this mail address a person row, creating one if there is none.
 	//
 	// The reconciliation of the protected administrators runs through here on every start, so it
@@ -1158,6 +1174,9 @@ type Querier interface {
 	//
 	// No confidentiality question: the demand is explicitly not confidential, unlike the wish.
 	SeparatelyPlannedInstancesFor(ctx context.Context, instanceIds []uuid.UUID) ([]SeparatelyPlannedInstancesForRow, error)
+	// State or change one's own figure. The semester row exists by the time this runs: the store
+	// ensures it in the same transaction, because stating a figure is a decision about the semester.
+	SetDesiredTeachingHours(ctx context.Context, arg SetDesiredTeachingHoursParams) (SetDesiredTeachingHoursRow, error)
 	SetInstancePartShared(ctx context.Context, arg SetInstancePartSharedParams) error
 	SetInstancePartTaughtBy(ctx context.Context, arg SetInstancePartTaughtByParams) error
 	// Deactivation is how a leaver loses access to everything at once, tokens included.

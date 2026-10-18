@@ -228,6 +228,14 @@ type ComplexityRoot struct {
 		Track      func(childComplexity int) int
 	}
 
+	DesiredTeachingHours struct {
+		Hours     func(childComplexity int) int
+		Note      func(childComplexity int) int
+		Person    func(childComplexity int) int
+		Semester  func(childComplexity int) int
+		UpdatedAt func(childComplexity int) int
+	}
+
 	InstanceCoverage struct {
 		AcceptedAt  func(childComplexity int) int
 		Instance    func(childComplexity int) int
@@ -339,6 +347,7 @@ type ComplexityRoot struct {
 		SetAssignment                 func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
 		SetCourseInstanceFormat       func(childComplexity int, id string, delivery domain.Delivery, taughtInEnglish *bool) int
 		SetDemandComplete             func(childComplexity int, semester string, programme string, complete bool) int
+		SetDesiredTeachingHours       func(childComplexity int, semester string, hours *float64, note *string) int
 		SetInstancePartTaughtBy       func(childComplexity int, id string, faculty *string) int
 		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
 		SetModulesSubjectGroup        func(childComplexity int, moduleIds []string, subjectGroup *string) int
@@ -444,6 +453,7 @@ type ComplexityRoot struct {
 		CourseInstance             func(childComplexity int, id string) int
 		CourseInstances            func(childComplexity int, semester string, programme *string, module *string, foreignHome *bool) int
 		DemandCompletions          func(childComplexity int, semester string) int
+		DesiredTeachingHours       func(childComplexity int, semester string, person *string) int
 		DiagnoseAccess             func(childComplexity int, mail string) int
 		Me                         func(childComplexity int) int
 		Module                     func(childComplexity int, id string) int
@@ -453,6 +463,7 @@ type ComplexityRoot struct {
 		MyAssignments              func(childComplexity int, semester *string) int
 		MyCompetenceStatus         func(childComplexity int) int
 		MyCompetences              func(childComplexity int) int
+		MyDesiredTeachingHours     func(childComplexity int, semester *string) int
 		MySubjectGroups            func(childComplexity int) int
 		MyTokens                   func(childComplexity int) int
 		MyWishes                   func(childComplexity int, semester *string) int
@@ -1464,6 +1475,37 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DemandRefusal.Track(childComplexity), true
 
+	case "DesiredTeachingHours.hours":
+		if e.ComplexityRoot.DesiredTeachingHours.Hours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredTeachingHours.Hours(childComplexity), true
+	case "DesiredTeachingHours.note":
+		if e.ComplexityRoot.DesiredTeachingHours.Note == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredTeachingHours.Note(childComplexity), true
+	case "DesiredTeachingHours.person":
+		if e.ComplexityRoot.DesiredTeachingHours.Person == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredTeachingHours.Person(childComplexity), true
+	case "DesiredTeachingHours.semester":
+		if e.ComplexityRoot.DesiredTeachingHours.Semester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredTeachingHours.Semester(childComplexity), true
+	case "DesiredTeachingHours.updatedAt":
+		if e.ComplexityRoot.DesiredTeachingHours.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredTeachingHours.UpdatedAt(childComplexity), true
+
 	case "InstanceCoverage.acceptedAt":
 		if e.ComplexityRoot.InstanceCoverage.AcceptedAt == nil {
 			break
@@ -2148,6 +2190,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetDemandComplete(childComplexity, args["semester"].(string), args["programme"].(string), args["complete"].(bool)), true
+	case "Mutation.setDesiredTeachingHours":
+		if e.ComplexityRoot.Mutation.SetDesiredTeachingHours == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setDesiredTeachingHours_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetDesiredTeachingHours(childComplexity, args["semester"].(string), args["hours"].(*float64), args["note"].(*string)), true
 	case "Mutation.setInstancePartTaughtBy":
 		if e.ComplexityRoot.Mutation.SetInstancePartTaughtBy == nil {
 			break
@@ -2807,6 +2860,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.DemandCompletions(childComplexity, args["semester"].(string)), true
+	case "Query.desiredTeachingHours":
+		if e.ComplexityRoot.Query.DesiredTeachingHours == nil {
+			break
+		}
+
+		args, err := ec.field_Query_desiredTeachingHours_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.DesiredTeachingHours(childComplexity, args["semester"].(string), args["person"].(*string)), true
 	case "Query.diagnoseAccess":
 		if e.ComplexityRoot.Query.DiagnoseAccess == nil {
 			break
@@ -2887,6 +2951,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.MyCompetences(childComplexity), true
+	case "Query.myDesiredTeachingHours":
+		if e.ComplexityRoot.Query.MyDesiredTeachingHours == nil {
+			break
+		}
+
+		args, err := ec.field_Query_myDesiredTeachingHours_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.MyDesiredTeachingHours(childComplexity, args["semester"].(*string)), true
 	case "Query.mySubjectGroups":
 		if e.ComplexityRoot.Query.MySubjectGroups == nil {
 			break
@@ -6974,11 +7049,13 @@ enum ScopeArea {
   rows.
 
   Competences are here and not under ` + "`" + `PROFILE` + "`" + ` because "würde ich gern halten" is a wish without a
-  semester, and confidential for the same reason.
+  semester, and confidential for the same reason. The desired teaching hours are here because
+  they are stated on the wish screen, beside the wishes they belong to.
 
   Fields: ` + "`" + `myWishes` + "`" + `, ` + "`" + `wishes` + "`" + `, ` + "`" + `setWish` + "`" + `, ` + "`" + `withdrawWish` + "`" + `, ` + "`" + `myCompetences` + "`" + `, ` + "`" + `myCompetenceStatus` + "`" + `,
   ` + "`" + `competences` + "`" + `, ` + "`" + `competenceMemberStatus` + "`" + `, ` + "`" + `modulesWithoutCompetence` + "`" + `, ` + "`" + `setMyCompetence` + "`" + `,
-  ` + "`" + `withdrawMyCompetence` + "`" + `, ` + "`" + `setTeacherCompetence` + "`" + `, ` + "`" + `withdrawTeacherCompetence` + "`" + `.
+  ` + "`" + `withdrawMyCompetence` + "`" + `, ` + "`" + `setTeacherCompetence` + "`" + `, ` + "`" + `withdrawTeacherCompetence` + "`" + `,
+  ` + "`" + `myDesiredTeachingHours` + "`" + `, ` + "`" + `desiredTeachingHours` + "`" + `, ` + "`" + `setDesiredTeachingHours` + "`" + `.
   """
   WISHES
 
@@ -8295,6 +8372,74 @@ extend type Mutation {
   """
   withdrawWish(id: ID!): ID! @scope(area: WISHES, verb: WRITE)
 }
+
+"""
+How many hours a week somebody would like to teach in one semester.
+
+Stated by the person, on the wish screen, beside the wishes it belongs to. Not the teaching
+obligation and not a balance — those are the dean's office's and are not stored here. No entry
+means "not stated", which is different from ` + "`" + `0` + "`" + `.
+
+Read by the person, through either door; in an interactive session also by the lead of any
+subject group the person is a member of, and by the dean's office. Never published: it is a
+statement about one's own workload, and nothing in the process needs a colleague to read it.
+"""
+type DesiredTeachingHours {
+  "The semester, as its code: ` + "`" + `2027-SS` + "`" + `."
+  semester: String!
+  "Whose figure it is. Always the person who stated it."
+  person: Person!
+  "Hours a week, in half hours, from 0 to 40."
+  hours: Float!
+  "The person's own words: „gern als Block“, „Forschungssemester im Herbst“."
+  note: String!
+  "When it was last changed."
+  updatedAt: Time!
+}
+
+extend type Query {
+  """
+  Your own desired teaching hours — in one semester, or in every semester you stated one for.
+  """
+  myDesiredTeachingHours(
+    "Four digits, a hyphen and SS or WS. Omit it for every semester."
+    semester: String
+  ): [DesiredTeachingHours!]! @scope(area: WISHES, verb: READ)
+
+  """
+  The desired teaching hours of a semester, as many as you may see.
+
+  **Not an error when you may see none**, for the reason ` + "`" + `wishes` + "`" + ` gives: whether a colleague has
+  stated a figure is the fact the rule protects. Through a Personal Access Token this is your own
+  entry whatever your role.
+  """
+  desiredTeachingHours(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "One person's entry, by id."
+    person: ID
+  ): [DesiredTeachingHours!]! @scope(area: WISHES, verb: READ)
+}
+
+extend type Mutation {
+  """
+  State how many hours a week you would like to teach in a semester, or change it. ` + "`" + `hours: null` + "`" + `
+  takes it back.
+
+  Yours only. Open until the semester is finished, ` + "`" + `DESIRED_HOURS_PHASE_CLOSED` + "`" + ` afterwards, in
+  both directions; when exactly the figure should freeze is still being decided.
+  ` + "`" + `DESIRED_HOURS_OUT_OF_RANGE` + "`" + ` for anything that is not a multiple of one half between 0 and 40.
+
+  Returns the stored entry, or ` + "`" + `null` + "`" + ` after taking it back.
+  """
+  setDesiredTeachingHours(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    hours: Float
+    "Up to 500 characters, or nothing at all."
+    note: String
+  ): DesiredTeachingHours @scope(area: WISHES, verb: WRITE)
+}
 `, BuiltIn: false},
 	{Name: "../zpa.graphqls", Input: `# The module master data import, as far as it is visible from outside.
 #
@@ -9072,6 +9217,22 @@ func (ec *executionContext) childFields_DemandRefusal(ctx context.Context, field
 		return ec.fieldContext_DemandRefusal_message(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DemandRefusal", field.Name)
+}
+
+func (ec *executionContext) childFields_DesiredTeachingHours(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "semester":
+		return ec.fieldContext_DesiredTeachingHours_semester(ctx, field)
+	case "person":
+		return ec.fieldContext_DesiredTeachingHours_person(ctx, field)
+	case "hours":
+		return ec.fieldContext_DesiredTeachingHours_hours(ctx, field)
+	case "note":
+		return ec.fieldContext_DesiredTeachingHours_note(ctx, field)
+	case "updatedAt":
+		return ec.fieldContext_DesiredTeachingHours_updatedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DesiredTeachingHours", field.Name)
 }
 
 func (ec *executionContext) childFields_InstanceCoverage(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

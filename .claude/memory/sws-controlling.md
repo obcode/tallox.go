@@ -71,7 +71,7 @@ Kapazitätsrechnung — und das Delta war Kontingent − (WiSe + SoSe). Tallox p
 - Pflege: `setProgrammeQuota` (null = zurücknehmen), nur `DEANS_OFFICE`
   (`policy.MaySetProgrammeQuota`), beide Türen. Nicht die Studiengangsleitung — die Linie, an der
   ein Studiengang gemessen wird, darf der Gemessene nicht verschieben. Lesen: `programmeQuotas`,
-  jede:r mit Konto.
+  alle mit Konto.
 - `teachingHours` enthält die FWP-Platzhalter — das Delta liest sich also gegen dieselbe Summe, die
   die Seite als Lehr-SWS zeigt.
 

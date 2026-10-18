@@ -380,7 +380,7 @@ func TestPublicationOpensTheWishesToEverybody(t *testing.T) {
 // The schema carries no count over wishes, anywhere, and this is the test that says so.
 //
 // Not "the count is filtered" — there is no count. A field answering 0 or 1 before publication is
-// a field somebody renders as a badge, and "3 Kolleg:innen haben bereits Interesse" is the
+// a field somebody renders as a badge, and "3 aus dem Kollegium haben bereits Interesse" is the
 // confidential fact with the names taken out.
 func TestNoFieldCountsWishes(t *testing.T) {
 	t.Parallel()

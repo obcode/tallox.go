@@ -144,7 +144,7 @@ sichtbar statt unsichtbar; ein Startschritt neben `reconcileProtectedAdmins` sch
 Keine rohen Payloads in der API. Ein Feld hier ist ein veröffentlichter Kontrakt, es bräuchte
 einen JSON-Skalar, und es gibt noch keinen Tallox-`Module`-Typ — ZPA-IDs zuerst zu
 veröffentlichen machte sie zu dem, worauf fremde Skripte keyen, also der `ancode`-Fehler eine
-Ebene höher. Dazu trägt `module_info.responsible` Mailadressen von Kolleg:innen.
+Ebene höher. Dazu trägt `module_info.responsible` Mailadressen aus dem Kollegium.
 
 Fläche **ADMIN**, nicht eine neue Fläche `IMPORT`: jedes Feld dort wäre für ein Token ohnehin
 unerreichbar, also ein Versprechen im Enum. `policy.MayReadZPAImport` ist die **Vereinigung von

@@ -24,7 +24,7 @@ die Liste durch den ganzen Stack, die Spalte existierte, und **niemand las beide
 | `bootstrap/scope_test.go` | Durchsetzung durch beide Türen, mit geseedeten Scopes |
 
 Flächen sind `PUBLIC`, `PROFILE`, `TOKENS`, `ADMIN`. **Neue Flächen kommen mit den Feldern, die
-sie brauchen** — eine Fläche ohne Feld dahinter ist ein Versprechen im Enum, das Kolleg:innen
+sie brauchen** — eine Fläche ohne Feld dahinter ist ein Versprechen im Enum, das alle
 per Introspection lesen können.
 
 ## Die vier Entscheidungen
@@ -95,7 +95,7 @@ hält die Ausnahme auf diese eine Fläche begrenzt.
 ## Introspection meldet keine Direktiven-*Verwendungen*
 
 Nur die Deklaration. Ein per `get-graphql-schema` geholtes Schema — also `tallox.gui/schema.graphql`
-und alles, was Kolleg:innen mit Codegen sehen — enthält die `@scope`-Definition und **keine
+und alles, was das Kollegium mit Codegen sieht — enthält die `@scope`-Definition und **keine
 einzige Annotation**. Erst nach dem Schreiben aufgefallen, an einem Satz in der
 Direktiven-Beschreibung, der genau das versprach.
 

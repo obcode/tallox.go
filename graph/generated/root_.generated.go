@@ -7017,7 +7017,7 @@ scalar Time
 """
 A role somebody holds. Everybody holds ` + "`" + `LECTURER` + "`" + `; the others come on top of it.
 
-The values are English. The interface shows the German terms the faculty uses: Dozent:in,
+The values are English. The interface shows the German terms the faculty uses: Dozierende,
 Fachgruppenleitung, Studiengangsleitung, Dekanat.
 """
 enum Role {
@@ -8116,7 +8116,7 @@ type Mutation {
 # WHAT IS DELIBERATELY MISSING
 #
 # There is no count. No ` + "`" + `wishCount` + "`" + `, no ` + "`" + `hasWishes` + "`" + `, no "how many people want this" anywhere
-# in this schema — not even a filtered one. "3 Kolleg:innen haben bereits Interesse" is the
+# in this schema — not even a filtered one. "3 aus dem Kollegium haben bereits Interesse" is the
 # confidential fact with the names taken out, and a field that answers 0 or 1 before publication
 # is a field somebody renders as a badge. Anybody who wants a number counts the rows they were
 # allowed to read.

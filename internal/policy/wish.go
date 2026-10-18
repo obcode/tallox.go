@@ -105,7 +105,7 @@ const (
 //	WishScopeAll          → no additional predicate
 //
 // The rule that makes this worth a type rather than a bool: **the same filter goes on the
-// COUNT**. "3 Kolleg:innen haben bereits Interesse" leaks the confidential information
+// COUNT**. "3 aus dem Kollegium haben bereits Interesse" leaks the confidential information
 // completely without naming anybody, so an aggregate that skips the filter is the same
 // failure as a list that skips it, only harder to notice. A filter that has to be passed
 // explicitly is one that shows up as missing in review.

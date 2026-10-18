@@ -31,7 +31,7 @@ Zwei nullable Fremdschlüssel, `CHECK (num_nonnulls(person_id, teacher_id) = 1)`
 
 Wer hier lehrt, hat nicht notwendig ein Konto und muss es nicht bekommen: sechs der 257
 ZPA-Lehrenden tragen Adressen, die `sso.hm.edu` nie behaupten wird, drei gar keine. Die
-Alternative — für jede:n eine `person`-Zeile — ist genau das, was [[teachers-are-not-users]]
+Alternative — für alle eine `person`-Zeile — ist genau das, was [[teachers-are-not-users]]
 ablehnt: `person` ist die Zugangsliste.
 
 **Kanonisiert wird auf dem Schreibweg:** wird ein `teacher` zugeteilt, der über die Mailadresse ein

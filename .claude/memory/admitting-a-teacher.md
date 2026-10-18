@@ -6,7 +6,7 @@ metadata:
 ---
 
 Gebaut am 2026-08-22 auf `feat/teacher-accounts`, für den Verwaltungsbildschirm
-`/verwaltung/personen`: ZPA-Lehrende auflisten, per Schalter zu Nutzer:innen machen, Rollen in
+`/verwaltung/personen`: ZPA-Lehrende auflisten, per Schalter zu Konten machen, Rollen in
 derselben Zeile vergeben.
 
 ## Die Oberfläche
@@ -48,7 +48,7 @@ Zeichen `teacher.full_name` war. Begründung im geteilten Memory unter `name-reg
 
 **Es ist ein Root-Feld und kein `Teacher.person`.** `graph/scope.go` liest `@scope` nur an
 Root-Feldern — an einem verschachtelten Feld würde es stillschweigend ignoriert. Und `Teacher`
-ist unter `PLANNING` für jede:n mit Konto lesbar (eine Dozentin muss sehen, wer für ein Modul
+ist unter `PLANNING` für alle mit Konto lesbar (eine Dozentin muss sehen, wer für ein Modul
 verantwortlich ist), also hätte ein Konto-Feld daran die Rollen aller hinter dieselbe Lesung
 gehängt. Siehe [[scope-enforcement]].
 

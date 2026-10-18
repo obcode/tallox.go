@@ -147,8 +147,8 @@ func TestGuardAndFilterAgree(t *testing.T) {
 // TestColleaguesSeeNothingBeforePublication is the rule the whole project rests on, stated
 // once, in its own test, under a name that says what it is.
 //
-// From the kickoff: neue Kolleg:innen sollen sich eintragen können, ohne dass es wie ein
-// Angriff auf eine alteingesessene Person wirkt. A colleague at the same level — no planning
+// From the kickoff: a newcomer must be able to register interest without it reading as an
+// attack on somebody long established. A colleague at the same level — no planning
 // role, not the dean's office — must see nothing of somebody else's entry until publication.
 func TestColleaguesSeeNothingBeforePublication(t *testing.T) {
 	t.Parallel()
@@ -163,7 +163,7 @@ func TestColleaguesSeeNothingBeforePublication(t *testing.T) {
 	filter := policy.WishVisibility(colleague, unpublished)
 	if filter.Scope != policy.WishScopeOwn {
 		t.Errorf("filter scope is %q, want %q — anything wider also widens the COUNT, and "+
-			"\"3 Kolleg:innen haben Interesse\" leaks the whole answer without a name",
+			"\"3 aus dem Kollegium haben Interesse\" leaks the whole answer without a name",
 			filter.Scope, policy.WishScopeOwn)
 	}
 	if filter.OwnerID != testdata.Zwei.ID() {

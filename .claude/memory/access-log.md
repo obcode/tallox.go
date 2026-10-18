@@ -73,7 +73,7 @@ Fehler mit einem Audit-Log daran.
 
 `policy.MayReadZPAImport` ist ADMIN ∪ DEANS_OFFICE, mit dem Argument, dass der *Bedarf*
 innerhalb der Planung entsteht. Davon überträgt sich hier nichts: das Log sagt, wann
-Kolleg:innen gearbeitet haben und von wo. `policy.MayReadAccessLog` ist deshalb ADMIN **und**
+Kolleginnen und Kollegen gearbeitet haben und von wo. `policy.MayReadAccessLog` ist deshalb ADMIN **und**
 interaktiv — dieselbe Form wie `MayAdministerPeople`. Verengen ist später nicht breaking,
 Erweitern unter Druck schon.
 

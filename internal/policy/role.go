@@ -12,7 +12,7 @@ import (
 // translates them for the people who read them. The mapping to the faculty's own vocabulary,
 // once, so that nobody has to guess it twice:
 //
-//	LECTURER            Dozent:in
+//	LECTURER            Dozierende
 //	SUBJECT_GROUP_LEAD  Fachgruppenleitung
 //	PROGRAMME_LEAD      Studiengangsleitung
 //	DEANS_OFFICE        Dekanat

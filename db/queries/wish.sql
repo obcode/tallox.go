@@ -17,7 +17,7 @@
 --
 -- WHAT IS NOT IN THIS FILE
 --
--- **There is no COUNT.** Not an oversight and not a gap to be filled: "3 Kolleg:innen haben
+-- **There is no COUNT.** Not an oversight and not a gap to be filled: "3 aus dem Kollegium haben
 -- bereits Interesse" is the confidential fact with the names taken out, and an aggregate that
 -- skipped the filter would be the same failure as a list that skipped it, only harder to notice.
 -- Anybody who wants a number counts the rows they were allowed to see. There is nothing here that

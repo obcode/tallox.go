@@ -23,7 +23,7 @@ them. The only German in the Go code is the user-facing strings the GUI shows: p
 `Reason` texts, validation messages, and the authentication refusals in `internal/auth`.
 
 The mapping between the two vocabularies is written down once, in the doc comment on
-`policy.Role`: LECTURER = Dozent:in, SUBJECT_GROUP_LEAD = Fachgruppenleitung,
+`policy.Role`: LECTURER = Dozierende, SUBJECT_GROUP_LEAD = Fachgruppenleitung,
 PROGRAMME_LEAD = Studiengangsleitung, DEANS_OFFICE = Dekanat.
 
 **This repository is public.** No hostnames, no operational detail, no names of colleagues in

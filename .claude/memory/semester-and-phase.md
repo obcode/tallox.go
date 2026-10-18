@@ -106,7 +106,7 @@ ist ein toter Link, das andere eine veraltete Seite („bitte neu laden").
 
 Anlegen steht nicht mehr in der Tabelle, weil es den Vorgang nicht mehr gibt.
 
-- **Lesen darf jede:r Angemeldete.** Die Phase ist die Antwort auf „darf ich schon Wünsche
+- **Lesen darf, wer angemeldet ist.** Die Phase ist die Antwort auf „darf ich schon Wünsche
   eintragen" — sie zu verstecken ergäbe ein Werkzeug, das Schreibzugriffe ablehnt, ohne zu sagen
   warum.
 - **ADMIN darf nicht schalten.** Dieselbe Linie wie bei den Wünschen: Betreiben ≠ Planen. Wer es
@@ -133,7 +133,7 @@ in `internal/policy` und `internal/store`.
   `List`") braucht eine Minute, bis man sie liest.
 - **Der Verb-Check im Schema-Test** verlangt READ auf Query- und WRITE auf Mutation-Feldern —
   `advanceSemesterPhase` als READ zu annotieren wäre kein Loch (die Strukturregel überschreibt
-  es), aber die Annotation ist das, woran Kolleg:innen ablesen, welchen Scope ihr Token braucht.
+  es), aber die Annotation ist das, woran das Kollegium abliest, welchen Scope ein Token braucht.
 - Die GUI-Fixtures brauchten eine **Dekanats-Persona** (`fuenf`), damit der E2E-Lauf überhaupt
   jemanden hat, der schalten darf.
 

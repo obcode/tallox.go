@@ -150,19 +150,28 @@ func (p *People) attachProgrammes(ctx context.Context, people []*domain.Person) 
 		return fmt.Errorf("cannot read the programme assignments: %w", err)
 	}
 
-	byPerson := make(map[uuid.UUID][]domain.Programme, len(ids))
+	// By role: one table holds the scopes of both programme-scoped roles, and leading a
+	// programme and following it as a partner are two different statements.
+	leads := make(map[uuid.UUID][]domain.Programme, len(ids))
+	partners := make(map[uuid.UUID][]domain.Programme, len(ids))
 	for _, row := range rows {
-		byPerson[row.PersonID] = append(byPerson[row.PersonID], domain.Programme{
+		programme := domain.Programme{
 			ID:     row.ProgrammeID,
 			Code:   row.Code,
 			Title:  row.Title,
 			Active: row.Active,
-		})
+		}
+		if row.Role == string(policy.RolePartnerReader) {
+			partners[row.PersonID] = append(partners[row.PersonID], programme)
+		} else {
+			leads[row.PersonID] = append(leads[row.PersonID], programme)
+		}
 	}
 
 	for _, person := range people {
 		if person != nil {
-			person.Programmes = byPerson[person.ID]
+			person.Programmes = leads[person.ID]
+			person.PartnerProgrammes = partners[person.ID]
 		}
 	}
 	return nil
@@ -608,8 +617,8 @@ func knownRoles(raw []string) []policy.Role {
 //
 // The codes are resolved to programmes here rather than by the caller, so that an unknown one is
 // a refusal with a name in it rather than a foreign key violation.
-func (p *People) SetPersonProgrammes(ctx context.Context, personID uuid.UUID, codes []string,
-	grantedBy uuid.UUID) error {
+func (p *People) SetPersonProgrammes(ctx context.Context, personID uuid.UUID, role policy.Role,
+	codes []string, grantedBy uuid.UUID) error {
 	tx, err := p.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot begin: %w", err)
@@ -632,7 +641,9 @@ func (p *People) SetPersonProgrammes(ctx context.Context, personID uuid.UUID, co
 		// every write against such a programme is refused for the programme's sake, whoever
 		// holds what. Refused here rather than in the service because this is the one place the
 		// row is read, and a second lookup would be a second answer to the same question.
-		if !domain.ProgrammeStatus(row.PlanningStatus).Planned() {
+		// A partner follows a programme it shares with this faculty, which may well be one the
+		// faculty does not plan itself — so only the lead is held to a planned one.
+		if role == policy.RoleProgrammeLead && !domain.ProgrammeStatus(row.PlanningStatus).Planned() {
 			return fmt.Errorf("%w: %q", domain.ErrProgrammeNotPlanned, code)
 		}
 		programmes = append(programmes, row.ID)
@@ -640,7 +651,7 @@ func (p *People) SetPersonProgrammes(ctx context.Context, personID uuid.UUID, co
 
 	if err := q.UnassignProgrammes(ctx, UnassignProgrammesParams{
 		PersonID: personID,
-		Role:     string(policy.RoleProgrammeLead),
+		Role:     string(role),
 	}); err != nil {
 		return fmt.Errorf("cannot clear the programme assignments: %w", err)
 	}
@@ -648,7 +659,7 @@ func (p *People) SetPersonProgrammes(ctx context.Context, personID uuid.UUID, co
 	for _, programme := range programmes {
 		if err := q.AssignProgramme(ctx, AssignProgrammeParams{
 			PersonID:    personID,
-			Role:        string(policy.RoleProgrammeLead),
+			Role:        string(role),
 			ProgrammeID: programme,
 			GrantedBy:   nullUUID(nonNilUUID(grantedBy)),
 		}); err != nil {

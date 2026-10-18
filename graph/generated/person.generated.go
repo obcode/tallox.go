@@ -195,6 +195,38 @@ func (ec *executionContext) fieldContext_Person_programmes(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Person_partnerProgrammes(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Person_partnerProgrammes(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.PartnerProgrammes, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.Programme) graphql.Marshaler {
+			return ec.marshalNProgramme2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Person_partnerProgrammes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Person",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Programme(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Person_subjectGroupsLed(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -283,6 +315,11 @@ func (ec *executionContext) _Person(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "programmes":
 			out.Values[i] = ec._Person_programmes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "partnerProgrammes":
+			out.Values[i] = ec._Person_partnerProgrammes(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -453,6 +490,25 @@ func (ec *executionContext) marshalORole2ᚕgithubᚗcomᚋobcodeᚋtalloxᚗgo�
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalORole2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋpolicyᚐRole(ctx context.Context, v any) (*policy.Role, error) {
+	if v == nil {
+		return nil, nil
+	}
+	tmp, err := graphql.UnmarshalString(v)
+	res := policy.Role(tmp)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalORole2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋpolicyᚐRole(ctx context.Context, sel ast.SelectionSet, v *policy.Role) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(string(*v))
+	return res
 }
 
 // endregion ***************************** type.gotpl *****************************

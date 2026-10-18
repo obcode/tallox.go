@@ -269,6 +269,9 @@ func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
+	if policy.PartnerOnly(actor) {
+		return nil, ErrPartnerWritesNothing
+	}
 	if _, ok := priority.Level(); !ok {
 		return nil, ErrWishPriorityInvalid
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -77,6 +78,10 @@ var (
 	// mistakes: setting the roles and the programmes in the wrong order, or assigning a
 	// programme to the wrong person entirely.
 	ErrNotAProgrammeLead = errors.New("this person does not hold the study programme lead role")
+	// ErrNotAPartnerReader: the same mistake for the partner faculty role.
+	ErrNotAPartnerReader = errors.New("this person does not hold the partner faculty role")
+	// ErrRoleNotProgrammeScoped: assigning programmes to a role that is not scoped by them.
+	ErrRoleNotProgrammeScoped = errors.New("this role is not scoped to study programmes")
 	// ErrGrantExpiryOutOfRange: an expiry in the past, or further out than the ceiling.
 	ErrGrantExpiryOutOfRange = fmt.Errorf(
 		"a temporary grant runs from now to at most %d days from now", MaxTemporaryGrantDays)
@@ -120,6 +125,9 @@ type Person struct {
 	// a state with consequences rather than a gap: an unassigned lead may plan nothing, and
 	// telling them that is different from telling them they are not allowed.
 	Programmes []Programme
+	// PartnerProgrammes are the study programmes this person's PARTNER_READER grant applies to —
+	// what a partner faculty reads. Empty is nothing, as for Programmes.
+	PartnerProgrammes []Programme
 	// SubjectGroupsLed are the subject groups this person's SUBJECT_GROUP_LEAD grant applies to.
 	//
 	// The same shape as Programmes and with the same reading of an empty list: empty for
@@ -188,7 +196,7 @@ type PeopleStore interface {
 	RoleGrants(ctx context.Context, personID uuid.UUID) ([]RoleGrant, error)
 	// SetPersonProgrammes replaces the study programmes one person's PROGRAMME_LEAD grant
 	// applies to. Refuses with ErrUnknownProgramme for a code no programme has.
-	SetPersonProgrammes(ctx context.Context, personID uuid.UUID, codes []string,
+	SetPersonProgrammes(ctx context.Context, personID uuid.UUID, role policy.Role, codes []string,
 		grantedBy uuid.UUID) error
 	TeacherAccounts(ctx context.Context) ([]TeacherAccount, error)
 	// TeacherAccountByID returns (nil, nil) for an id no teacher has.
@@ -419,9 +427,12 @@ func (s *PeopleService) SetRoles(ctx context.Context, actor principal.Actor,
 // the granting of access, and doing it from a long-lived token in a script would decouple it
 // from any sign-in.
 func (s *PeopleService) SetProgrammes(ctx context.Context, actor principal.Actor,
-	id uuid.UUID, codes []string) (*Person, error) {
+	id uuid.UUID, role policy.Role, codes []string) (*Person, error) {
 	if !policy.MayAdministerPeople(actor) {
 		return nil, ErrNotAdministrator
+	}
+	if role != policy.RoleProgrammeLead && role != policy.RolePartnerReader {
+		return nil, ErrRoleNotProgrammeScoped
 	}
 
 	person, err := s.Get(ctx, actor, id)
@@ -432,14 +443,10 @@ func (s *PeopleService) SetProgrammes(ctx context.Context, actor principal.Actor
 	// Refused rather than silently stored. The grant is what the scope narrows, so a scope
 	// without one is a row the database would refuse anyway — reporting it here turns a
 	// foreign-key violation into a sentence about what the caller did.
-	leads := false
-	for _, r := range person.Roles {
-		if r == policy.RoleProgrammeLead {
-			leads = true
-			break
+	if !slices.Contains(person.Roles, role) && len(codes) > 0 {
+		if role == policy.RolePartnerReader {
+			return nil, ErrNotAPartnerReader
 		}
-	}
-	if !leads && len(codes) > 0 {
 		return nil, ErrNotAProgrammeLead
 	}
 
@@ -454,7 +461,7 @@ func (s *PeopleService) SetProgrammes(ctx context.Context, actor principal.Actor
 		normalised = append(normalised, code)
 	}
 
-	if err := s.store.SetPersonProgrammes(ctx, id, normalised, actor.ID); err != nil {
+	if err := s.store.SetPersonProgrammes(ctx, id, role, normalised, actor.ID); err != nil {
 		return nil, err
 	}
 	return s.Get(ctx, actor, id)

@@ -26,7 +26,7 @@ type MutationResolver interface {
 	RenamePerson(ctx context.Context, id string, name string) (*model.Person, error)
 	SetPersonRoles(ctx context.Context, id string, roles []policy.Role, expiresAt *time.Time) (*model.Person, error)
 	SetPersonActive(ctx context.Context, id string, active bool) (*model.Person, error)
-	SetPersonProgrammes(ctx context.Context, id string, programmes []string) (*model.Person, error)
+	SetPersonProgrammes(ctx context.Context, id string, programmes []string, role *policy.Role) (*model.Person, error)
 	SetTeacherAdmitted(ctx context.Context, teacherID string, admitted bool) (*model.TeacherAccount, error)
 	SetAssignment(ctx context.Context, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) (*model.Assignment, error)
 	SetCourseInstanceFormat(ctx context.Context, id string, delivery domain.Delivery, taughtInEnglish *bool) (*model.CourseInstance, error)
@@ -903,6 +903,14 @@ func (ec *executionContext) field_Mutation_setPersonProgrammes_args(ctx context.
 		return nil, err
 	}
 	args["programmes"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "role",
+		func(ctx context.Context, v any) (*policy.Role, error) {
+			return ec.unmarshalORole2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋpolicyᚐRole(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["role"] = arg2
 	return args, nil
 }
 
@@ -1713,7 +1721,7 @@ func (ec *executionContext) _Mutation_setPersonProgrammes(ctx context.Context, f
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().SetPersonProgrammes(ctx, fc.Args["id"].(string), fc.Args["programmes"].([]string))
+			return ec.Resolvers.Mutation().SetPersonProgrammes(ctx, fc.Args["id"].(string), fc.Args["programmes"].([]string), fc.Args["role"].(*policy.Role))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next

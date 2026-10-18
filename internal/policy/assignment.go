@@ -139,6 +139,9 @@ func CanSeeAssignment(actor principal.Actor, s SemesterState, a Assignment) bool
 		return false
 	case actor.Owns(a.AssigneeID):
 		return true
+	case PartnerOnly(actor):
+		// A partner reads the published assignments of its programmes, and nothing before.
+		return s.AssignmentsPublished() && DemandReadScope(actor).Allows(a.ProgrammeID)
 	case s.AssignmentsPublished():
 		return true
 	case !actor.Interactive():
@@ -158,6 +161,19 @@ func AssignmentVisibility(actor principal.Actor, s SemesterState) AssignmentFilt
 	switch {
 	case !actor.Authenticated():
 		return AssignmentFilter{Scope: AssignmentReadScopeNone}
+	case PartnerOnly(actor):
+		if !s.AssignmentsPublished() {
+			return AssignmentFilter{Scope: AssignmentReadScopeOwn, AssigneeID: actor.ID}
+		}
+		programmes := DemandReadScope(actor)
+		if programmes.Empty() {
+			return AssignmentFilter{Scope: AssignmentReadScopeOwn, AssigneeID: actor.ID}
+		}
+		return AssignmentFilter{
+			Scope:        AssignmentReadScopeOwnOrScoped,
+			AssigneeID:   actor.ID,
+			ProgrammeIDs: programmes.IDs,
+		}
 	case s.AssignmentsPublished():
 		return AssignmentFilter{Scope: AssignmentReadScopeAll}
 	case !actor.Interactive():

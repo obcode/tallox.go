@@ -166,6 +166,11 @@ func (d *Demand) CourseInstances(ctx context.Context, filter domain.DemandFilter
 		params.Module = uuid.NullUUID{UUID: filter.Module, Valid: true}
 	}
 	params.ForeignHome = filter.ForeignHome
+	params.AllProgrammes = filter.Reach.All
+	params.ProgrammeIds = filter.Reach.IDs
+	if params.ProgrammeIds == nil {
+		params.ProgrammeIds = []uuid.UUID{}
+	}
 
 	rows, err := q.ListCourseInstances(ctx, params)
 	if err != nil {

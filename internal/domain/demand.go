@@ -355,6 +355,9 @@ type DemandFilter struct {
 	// ForeignHome keeps only the instances of modules another programme is home to: what a
 	// programme takes from elsewhere, the electives of a basket among them.
 	ForeignHome bool
+	// Reach is whose demand the caller may read, set by the service from policy.DemandReadScope —
+	// never by a caller. The zero value reads nothing, which is the safe way for it to be forgotten.
+	Reach policy.ProgrammeScope
 }
 
 // NewCourseInstance is a demand about to be declared.

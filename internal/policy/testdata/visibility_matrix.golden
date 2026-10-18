@@ -234,6 +234,29 @@ DEANS_OFFICE        token        —                REVIEW           published  
 DEANS_OFFICE        token        —                FINAL            published    yes   yes      yes      yes      all
 
 
+PARTNER_READER      interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+PARTNER_READER      interactive  —                WISHES           unpublished  yes   no       no       no       own only
+PARTNER_READER      interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+PARTNER_READER      interactive  —                REVIEW           unpublished  yes   no       no       no       own only
+PARTNER_READER      interactive  —                FINAL            unpublished  yes   no       no       no       own only
+PARTNER_READER      interactive  —                DEMAND_PLANNING  published    yes   no       no       no       own only
+PARTNER_READER      interactive  —                WISHES           published    yes   no       no       no       own only
+PARTNER_READER      interactive  —                ASSIGNMENT       published    yes   no       no       no       own only
+PARTNER_READER      interactive  —                REVIEW           published    yes   no       no       no       own only
+PARTNER_READER      interactive  —                FINAL            published    yes   no       no       no       own only
+
+PARTNER_READER      token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+PARTNER_READER      token        —                WISHES           unpublished  yes   no       no       no       own only
+PARTNER_READER      token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+PARTNER_READER      token        —                REVIEW           unpublished  yes   no       no       no       own only
+PARTNER_READER      token        —                FINAL            unpublished  yes   no       no       no       own only
+PARTNER_READER      token        —                DEMAND_PLANNING  published    yes   no       no       no       own only
+PARTNER_READER      token        —                WISHES           published    yes   no       no       no       own only
+PARTNER_READER      token        —                ASSIGNMENT       published    yes   no       no       no       own only
+PARTNER_READER      token        —                REVIEW           published    yes   no       no       no       own only
+PARTNER_READER      token        —                FINAL            published    yes   no       no       no       own only
+
+
 ADMIN               interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 ADMIN               interactive  —                WISHES           unpublished  yes   no       no       no       own only
 ADMIN               interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only

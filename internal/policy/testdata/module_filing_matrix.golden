@@ -97,5 +97,8 @@ PROGRAMME_LEAD      token         —       no          no       no       no    
 DEANS_OFFICE        interactive   —       yes         yes      yes      yes    yes    yes
 DEANS_OFFICE        token         —       no          no       no       no     no     no
 
+PARTNER_READER      interactive   —       no          no       no       no     no     no
+PARTNER_READER      token         —       no          no       no       no     no     no
+
 ADMIN               interactive   —       yes         yes      yes      yes    yes    yes
 ADMIN               token         —       no          no       no       no     no     no

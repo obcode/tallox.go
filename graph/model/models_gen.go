@@ -908,6 +908,9 @@ type Person struct {
 	// Readable through both doors, like `roles`: which programmes you may plan is the first thing a
 	// script needs to know, and on `me` it is your own data.
 	Programmes []*Programme `json:"programmes"`
+	// The study programmes this person follows as a partner faculty (`PARTNER_READER`). Empty for
+	// everybody else, and empty for a partner nobody has assigned one to — who then reads nothing.
+	PartnerProgrammes []*Programme `json:"partnerProgrammes"`
 	// The subject groups this person's subject-group leadership applies to.
 	//
 	// The same shape as `programmes` one field up, and the same two readings of an empty list: empty

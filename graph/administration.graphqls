@@ -204,6 +204,12 @@ extend type Mutation {
     id: ID!
     "Short codes, for example `[\"IF\", \"IG\"]`. Upper-cased and de-duplicated for you."
     programmes: [String!]!
+    """
+    Which grant the programmes are for: `PROGRAMME_LEAD` (the default) or `PARTNER_READER`.
+    Anything else is refused with `ROLE_NOT_PROGRAMME_SCOPED`; a partner without the role with
+    `NOT_A_PARTNER_READER`. A partner may follow a programme the faculty does not plan.
+    """
+    role: Role = PROGRAMME_LEAD
   ): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 
   """

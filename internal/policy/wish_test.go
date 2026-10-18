@@ -62,6 +62,7 @@ func everyActor() []principal.Actor {
 			scoped.RoleScopes = []principal.RoleScope{
 				{Role: string(policy.RoleProgrammeLead), ProgrammeID: programmeOne},
 				{Role: string(policy.RoleSubjectGroupLead), SubjectGroupID: groupOne},
+				{Role: string(policy.RolePartnerReader), ProgrammeID: programmeOne},
 			}
 			actors = append(actors, scoped)
 		}

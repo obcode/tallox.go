@@ -209,6 +209,9 @@ func (s *CompetenceService) SetMine(ctx context.Context, actor principal.Actor, 
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
+	if policy.PartnerOnly(actor) {
+		return nil, ErrPartnerWritesNothing
+	}
 	note, err := validCompetence(level, note)
 	if err != nil {
 		return nil, err

@@ -354,7 +354,7 @@ type ComplexityRoot struct {
 		SetMyCompetence               func(childComplexity int, moduleID string, level domain.CompetenceLevel, note *string) int
 		SetMySubjectGroups            func(childComplexity int, subjectGroupIds []string) int
 		SetPersonActive               func(childComplexity int, id string, active bool) int
-		SetPersonProgrammes           func(childComplexity int, id string, programmes []string) int
+		SetPersonProgrammes           func(childComplexity int, id string, programmes []string, role *policy.Role) int
 		SetPersonRoles                func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
 		SetPlanningSemester           func(childComplexity int, code string) int
 		SetProgrammePlanningStatus    func(childComplexity int, code string, status domain.ProgrammeStatus) int
@@ -377,14 +377,15 @@ type ComplexityRoot struct {
 	}
 
 	Person struct {
-		Active           func(childComplexity int) int
-		ID               func(childComplexity int) int
-		Mail             func(childComplexity int) int
-		Name             func(childComplexity int) int
-		Programmes       func(childComplexity int) int
-		Roles            func(childComplexity int) int
-		SortName         func(childComplexity int) int
-		SubjectGroupsLed func(childComplexity int) int
+		Active            func(childComplexity int) int
+		ID                func(childComplexity int) int
+		Mail              func(childComplexity int) int
+		Name              func(childComplexity int) int
+		PartnerProgrammes func(childComplexity int) int
+		Programmes        func(childComplexity int) int
+		Roles             func(childComplexity int) int
+		SortName          func(childComplexity int) int
+		SubjectGroupsLed  func(childComplexity int) int
 	}
 
 	PersonalAccessToken struct {
@@ -2277,7 +2278,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.SetPersonProgrammes(childComplexity, args["id"].(string), args["programmes"].([]string)), true
+		return e.ComplexityRoot.Mutation.SetPersonProgrammes(childComplexity, args["id"].(string), args["programmes"].([]string), args["role"].(*policy.Role)), true
 	case "Mutation.setPersonRoles":
 		if e.ComplexityRoot.Mutation.SetPersonRoles == nil {
 			break
@@ -2507,6 +2508,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Person.Name(childComplexity), true
+	case "Person.partnerProgrammes":
+		if e.ComplexityRoot.Person.PartnerProgrammes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Person.PartnerProgrammes(childComplexity), true
 	case "Person.programmes":
 		if e.ComplexityRoot.Person.Programmes == nil {
 			break
@@ -4510,6 +4517,12 @@ extend type Mutation {
     id: ID!
     "Short codes, for example ` + "`" + `[\"IF\", \"IG\"]` + "`" + `. Upper-cased and de-duplicated for you."
     programmes: [String!]!
+    """
+    Which grant the programmes are for: ` + "`" + `PROGRAMME_LEAD` + "`" + ` (the default) or ` + "`" + `PARTNER_READER` + "`" + `.
+    Anything else is refused with ` + "`" + `ROLE_NOT_PROGRAMME_SCOPED` + "`" + `; a partner without the role with
+    ` + "`" + `NOT_A_PARTNER_READER` + "`" + `. A partner may follow a programme the faculty does not plan.
+    """
+    role: Role = PROGRAMME_LEAD
   ): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 
   """
@@ -7140,6 +7153,12 @@ enum Role {
   PROGRAMME_LEAD
   "Reads across programmes for the import/export statistics, keeps the teaching-load traffic light."
   DEANS_OFFICE
+  """
+  A partner faculty following the study programmes it shares with this one. Held alone it reads
+  less than an ordinary account — the demand, the controlling and the published assignments of its
+  programmes, and no wishes — and writes nothing.
+  """
+  PARTNER_READER
   "Administers people, roles and tokens. Not a reader of unpublished wishes."
   ADMIN
 }
@@ -7197,6 +7216,11 @@ type Person {
   script needs to know, and on ` + "`" + `me` + "`" + ` it is your own data.
   """
   programmes: [Programme!]!
+  """
+  The study programmes this person follows as a partner faculty (` + "`" + `PARTNER_READER` + "`" + `). Empty for
+  everybody else, and empty for a partner nobody has assigned one to — who then reads nothing.
+  """
+  partnerProgrammes: [Programme!]!
   """
   The subject groups this person's subject-group leadership applies to.
 
@@ -9413,6 +9437,8 @@ func (ec *executionContext) childFields_Person(ctx context.Context, field graphq
 		return ec.fieldContext_Person_roles(ctx, field)
 	case "programmes":
 		return ec.fieldContext_Person_programmes(ctx, field)
+	case "partnerProgrammes":
+		return ec.fieldContext_Person_partnerProgrammes(ctx, field)
 	case "subjectGroupsLed":
 		return ec.fieldContext_Person_subjectGroupsLed(ctx, field)
 	}

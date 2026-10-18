@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/policy"
 	"github.com/obcode/tallox.go/internal/store"
 	"github.com/obcode/tallox.go/internal/store/storetest"
 	"github.com/obcode/tallox.go/internal/testdata"
@@ -33,6 +34,9 @@ type demandFixture struct {
 	// split and nothing can be proposed, so it is what is left of the precondition.
 	withoutHours uuid.UUID
 }
+
+// everyProgramme is the reach of an ordinary account; the partner narrowing has tests of its own.
+var everyProgramme = policy.ProgrammeScope{All: true}
 
 func newDemandFixture(t *testing.T) demandFixture {
 	t.Helper()
@@ -132,7 +136,7 @@ func (f demandFixture) declare(t *testing.T, track string) *domain.CourseInstanc
 func (f demandFixture) partsOf(t *testing.T, moduleID uuid.UUID) []domain.InstancePart {
 	t.Helper()
 
-	instances, err := f.demand.CourseInstances(t.Context(), domain.DemandFilter{
+	instances, err := f.demand.CourseInstances(t.Context(), domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: f.semester.Code, Module: moduleID,
 	})
 	if err != nil {
@@ -149,7 +153,7 @@ func (f demandFixture) partsOf(t *testing.T, moduleID uuid.UUID) []domain.Instan
 func (f demandFixture) instances(t *testing.T) []domain.CourseInstance {
 	t.Helper()
 
-	instances, err := f.demand.CourseInstances(t.Context(), domain.DemandFilter{
+	instances, err := f.demand.CourseInstances(t.Context(), domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: f.semester.Code,
 		Programme:    storetest.FixtureProgrammeA,
 	})
@@ -539,7 +543,7 @@ func TestCopyingASemesterSkipsWhatIsAlreadyDeclared(t *testing.T) {
 			"the number of laboratory groups is the decision nobody wants to enter again", counts)
 	}
 
-	copied, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+	copied, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: f.semester.Code, Programme: storetest.FixtureProgrammeA,
 	})
 	if err != nil {
@@ -599,7 +603,7 @@ func TestCopyingKeepsASharedLectureShared(t *testing.T) {
 		t.Fatalf("cannot copy the demand: %v", err)
 	}
 
-	copied, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+	copied, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: f.semester.Code, Programme: storetest.FixtureProgrammeA,
 	})
 	if err != nil {
@@ -625,7 +629,7 @@ func TestTheDemandListIsNarrowedAndCarriesEverythingAScreenNeeds(t *testing.T) {
 	f.declare(t, "A")
 	f.declare(t, "B")
 
-	all, err := f.demand.CourseInstances(ctx, domain.DemandFilter{SemesterCode: f.semester.Code})
+	all, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme, SemesterCode: f.semester.Code})
 	if err != nil {
 		t.Fatalf("cannot read the demand: %v", err)
 	}
@@ -641,7 +645,7 @@ func TestTheDemandListIsNarrowedAndCarriesEverythingAScreenNeeds(t *testing.T) {
 			"is judged against")
 	}
 
-	other, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+	other, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: f.semester.Code, Programme: storetest.FixtureProgrammeB,
 	})
 	if err != nil {
@@ -651,7 +655,7 @@ func TestTheDemandListIsNarrowedAndCarriesEverythingAScreenNeeds(t *testing.T) {
 		t.Errorf("the other programme's demand holds %d instances, want none", len(other))
 	}
 
-	byModule, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+	byModule, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: f.semester.Code, Module: f.withoutHours,
 	})
 	if err != nil {
@@ -1094,7 +1098,7 @@ func TestPlanningTheFirstDemandOfAnUntouchedSemester(t *testing.T) {
 		t.Error("the save did not record the semester it planned in")
 	}
 
-	instances, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+	instances, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: untouched, Programme: storetest.FixtureProgrammeA,
 	})
 	if err != nil {
@@ -1160,7 +1164,7 @@ func TestAModuleOfAnotherProgrammeCanBeDeclared(t *testing.T) {
 
 	// And it comes back on the programme's own demand, which is the half that makes it usable:
 	// a row nobody can see is a row nobody can take back.
-	held, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+	held, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: f.semester.Code,
 		Programme:    storetest.FixtureProgrammeA,
 	})
@@ -1297,7 +1301,7 @@ func TestAcceptingCoverageTakesTheGuestsParts(t *testing.T) {
 func (f demandFixture) allInstances(t *testing.T) []domain.CourseInstance {
 	t.Helper()
 
-	instances, err := f.demand.CourseInstances(t.Context(), domain.DemandFilter{
+	instances, err := f.demand.CourseInstances(t.Context(), domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: f.semester.Code,
 	})
 	if err != nil {
@@ -1648,7 +1652,7 @@ func TestCopyingASemesterAsksToBeCoveredAgain(t *testing.T) {
 		t.Errorf("the copy asked to be covered %d times, want 1", counts.CoverageRequested)
 	}
 
-	copied, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+	copied, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: f.previous.Code, Programme: storetest.FixtureProgrammeB,
 	})
 	if err != nil {
@@ -1825,7 +1829,7 @@ func TestCopyingDoesNotInventACoupling(t *testing.T) {
 		t.Fatalf("cannot copy the second programme: %v", err)
 	}
 
-	copied, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+	copied, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: f.previous.Code, Programme: storetest.FixtureProgrammeB,
 	})
 	if err != nil {
@@ -2363,7 +2367,7 @@ func TestHowACohortIsTaughtFollowsItsCohorts(t *testing.T) {
 		[]domain.DemandEntry{planEntry(f.module, track("", 1))}, uuid.Nil, false); err != nil {
 		t.Fatalf("planning last semester gave %v", err)
 	}
-	last, err := f.demand.CourseInstances(ctx, domain.DemandFilter{
+	last, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme,
 		SemesterCode: f.previous.Code, Programme: storetest.FixtureProgrammeA,
 	})
 	if err != nil || len(last) != 1 {

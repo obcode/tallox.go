@@ -63,5 +63,8 @@ PROGRAMME_LEAD      token        programme 1      yes   no       no       no    
 DEANS_OFFICE        interactive  —                yes   yes      yes      yes      yes      all
 DEANS_OFFICE        token        —                yes   no       no       no       no       own only
 
+PARTNER_READER      interactive  —                yes   no       no       no       no       own only
+PARTNER_READER      token        —                yes   no       no       no       no       own only
+
 ADMIN               interactive  —                yes   no       no       no       no       own only
 ADMIN               token        —                yes   no       no       no       no       own only

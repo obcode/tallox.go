@@ -8,6 +8,7 @@ import (
 
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/policy"
 )
 
 // The subject group area, on the way out and on the way back.
@@ -69,6 +70,8 @@ func subjectGroupError(err error) error {
 		// The repair is a role grant, not a different group, so it gets its own code — an
 		// administrator who reads "that group does not exist" would go looking for the group.
 		return refusal("NOT_A_SUBJECT_GROUP_LEAD", err.Error())
+	case errors.Is(err, domain.ErrPartnerWritesNothing):
+		return refusal("PARTNER_READS_ONLY", policy.PartnerReason)
 	case errors.Is(err, domain.ErrNotAuthenticated):
 		return err
 	}

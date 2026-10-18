@@ -131,6 +131,13 @@ DEANS_OFFICE        token        —                confidential   yes   no     
 DEANS_OFFICE        token        —                published      yes   yes      yes      yes      all
 
 
+PARTNER_READER      interactive  —                confidential   yes   no       no       no       own only
+PARTNER_READER      interactive  —                published      yes   no       no       no       own only
+
+PARTNER_READER      token        —                confidential   yes   no       no       no       own only
+PARTNER_READER      token        —                published      yes   no       no       no       own only
+
+
 ADMIN               interactive  —                confidential   yes   no       no       no       own only
 ADMIN               interactive  —                published      yes   yes      yes      yes      all
 

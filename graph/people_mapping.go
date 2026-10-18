@@ -22,13 +22,14 @@ import (
 // personModel reshapes a domain person for the wire.
 func personModel(p domain.Person) *model.Person {
 	out := &model.Person{
-		ID:               p.ID.String(),
-		Mail:             p.Mail,
-		Name:             p.Name,
-		Active:           p.Active,
-		Roles:            p.Roles,
-		Programmes:       make([]*model.Programme, 0, len(p.Programmes)),
-		SubjectGroupsLed: make([]*model.SubjectGroup, 0, len(p.SubjectGroupsLed)),
+		ID:                p.ID.String(),
+		Mail:              p.Mail,
+		Name:              p.Name,
+		Active:            p.Active,
+		Roles:             p.Roles,
+		Programmes:        make([]*model.Programme, 0, len(p.Programmes)),
+		PartnerProgrammes: make([]*model.Programme, 0, len(p.PartnerProgrammes)),
+		SubjectGroupsLed:  make([]*model.SubjectGroup, 0, len(p.SubjectGroupsLed)),
 	}
 	// Absent rather than empty, the same rule the catalogue follows: "the examination office
 	// publishes no such spelling for this person" is a fact, and an empty string is a value.
@@ -37,6 +38,9 @@ func personModel(p domain.Person) *model.Person {
 	}
 	for _, programme := range p.Programmes {
 		out.Programmes = append(out.Programmes, programmeModel(programme))
+	}
+	for _, programme := range p.PartnerProgrammes {
+		out.PartnerProgrammes = append(out.PartnerProgrammes, programmeModel(programme))
 	}
 	for _, group := range p.SubjectGroupsLed {
 		out.SubjectGroupsLed = append(out.SubjectGroupsLed, subjectGroupModel(group))
@@ -193,6 +197,13 @@ func peopleFacing(err error) error {
 		return refusal("PROGRAMME_NOT_PLANNED",
 			"Dieser Studiengang wird von der Fakultät nicht geplant und kann deshalb keiner "+
 				"Studiengangsleitung zugeordnet werden.")
+	case errors.Is(err, domain.ErrNotAPartnerReader):
+		return refusal("NOT_A_PARTNER_READER",
+			"Diese Person hat die Rolle Partnerfakultät nicht. Erst die Rolle vergeben, dann die "+
+				"Studiengänge zuordnen.")
+	case errors.Is(err, domain.ErrRoleNotProgrammeScoped):
+		return refusal("ROLE_NOT_PROGRAMME_SCOPED",
+			"Studiengänge lassen sich nur der Studiengangsleitung und der Partnerfakultät zuordnen.")
 	case errors.Is(err, domain.ErrNotAProgrammeLead):
 		// Its own code because the repair is specific: grant the role first. Folded into the
 		// generic refusal, an administrator would see "that did not work" for a mistake with an
@@ -261,7 +272,14 @@ func diagnose(p domain.Person) []*model.PolicyDecision {
 		// The programme assignments travel with the roles, because the rule about planning
 		// depends on both and a diagnosis built from the roles alone would report that a
 		// correctly assigned lead may plan nothing.
-		scopes := make([]principal.RoleScope, 0, len(p.Programmes)+len(p.SubjectGroupsLed))
+		scopes := make([]principal.RoleScope, 0,
+			len(p.Programmes)+len(p.PartnerProgrammes)+len(p.SubjectGroupsLed))
+		for _, programme := range p.PartnerProgrammes {
+			scopes = append(scopes, principal.RoleScope{
+				Role:        string(policy.RolePartnerReader),
+				ProgrammeID: programme.ID,
+			})
+		}
 		for _, programme := range p.Programmes {
 			scopes = append(scopes, principal.RoleScope{
 				Role:        string(policy.RoleProgrammeLead),

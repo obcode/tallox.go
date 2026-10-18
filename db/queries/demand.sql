@@ -40,6 +40,9 @@ WHERE s.code = sqlc.arg('semester')::text
   AND (sqlc.narg('programme')::text IS NULL OR p.code = sqlc.narg('programme')::text)
   AND (sqlc.narg('module')::uuid IS NULL OR ci.module_id = sqlc.narg('module')::uuid)
   AND (NOT sqlc.arg('foreign_home')::bool OR m.home_programme_id <> ci.programme_id)
+  -- Whose demand the caller reads: every programme's, unless they are a partner faculty
+  -- (policy.DemandReadScope). A WHERE clause and not a filter over the result, like every read rule.
+  AND (sqlc.arg('all_programmes')::bool OR ci.programme_id = ANY (sqlc.arg('programme_ids')::uuid[]))
 ORDER BY ci.programme_semester NULLS LAST, (m.name = ''), m.name, ci.track, ci.id;
 
 -- name: CourseInstanceByID :one

@@ -1153,14 +1153,19 @@ WHERE s.code = $1::text
   AND ($2::text IS NULL OR p.code = $2::text)
   AND ($3::uuid IS NULL OR ci.module_id = $3::uuid)
   AND (NOT $4::bool OR m.home_programme_id <> ci.programme_id)
+  -- Whose demand the caller reads: every programme's, unless they are a partner faculty
+  -- (policy.DemandReadScope). A WHERE clause and not a filter over the result, like every read rule.
+  AND ($5::bool OR ci.programme_id = ANY ($6::uuid[]))
 ORDER BY ci.programme_semester NULLS LAST, (m.name = ''), m.name, ci.track, ci.id
 `
 
 type ListCourseInstancesParams struct {
-	Semester    string
-	Programme   *string
-	Module      uuid.NullUUID
-	ForeignHome bool
+	Semester      string
+	Programme     *string
+	Module        uuid.NullUUID
+	ForeignHome   bool
+	AllProgrammes bool
+	ProgrammeIds  []uuid.UUID
 }
 
 type ListCourseInstancesRow struct {
@@ -1218,6 +1223,8 @@ func (q *Queries) ListCourseInstances(ctx context.Context, arg ListCourseInstanc
 		arg.Programme,
 		arg.Module,
 		arg.ForeignHome,
+		arg.AllProgrammes,
+		arg.ProgrammeIds,
 	)
 	if err != nil {
 		return nil, err

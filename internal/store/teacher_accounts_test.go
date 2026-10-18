@@ -202,7 +202,7 @@ func TestATeacherAccountCarriesRolesAndProgrammes(t *testing.T) {
 		uuid.Nil, time.Time{}); err != nil {
 		t.Fatalf("cannot grant: %v", err)
 	}
-	if err := people.SetPersonProgrammes(t.Context(), id,
+	if err := people.SetPersonProgrammes(t.Context(), id, policy.RoleProgrammeLead,
 		[]string{storetest.FixtureProgrammeA}, uuid.Nil); err != nil {
 		t.Fatalf("cannot assign a programme: %v", err)
 	}

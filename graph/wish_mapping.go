@@ -76,6 +76,8 @@ func wishError(err error) error {
 		return nil
 	case errors.Is(err, domain.ErrNotAuthenticated):
 		return err
+	case errors.Is(err, domain.ErrPartnerWritesNothing):
+		return refusal("PARTNER_READS_ONLY", policy.PartnerReason)
 	case errors.Is(err, domain.ErrDesiredHoursPhaseClosed):
 		return refusal("DESIRED_HOURS_PHASE_CLOSED", err.Error())
 	case errors.Is(err, domain.ErrDesiredHoursOutOfRange):

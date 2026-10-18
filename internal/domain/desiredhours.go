@@ -20,6 +20,10 @@ import (
 // may read it is internal/policy's DesiredHoursVisibility, applied inside the query.
 
 var (
+	// ErrPartnerWritesNothing is any write by an account that only follows the planning as a
+	// partner faculty. Its own sentence, because the one the write would otherwise meet — "the
+	// semester is finished" — is not true.
+	ErrPartnerWritesNothing = errors.New("a partner faculty reads the planning and writes nothing")
 	// ErrDesiredHoursOutOfRange is a figure below zero or above any teaching position.
 	ErrDesiredHoursOutOfRange = errors.New(
 		"die gewünschten SWS müssen zwischen 0 und 40 liegen, in halben Stunden")
@@ -88,6 +92,9 @@ func (s *WishService) SetDesiredHours(ctx context.Context, actor principal.Actor
 	}
 	if semesterCode == "" {
 		return nil, ErrSemesterRequired
+	}
+	if policy.PartnerOnly(actor) {
+		return nil, ErrPartnerWritesNothing
 	}
 	if hours != nil && !validDesiredHours(*hours) {
 		return nil, ErrDesiredHoursOutOfRange

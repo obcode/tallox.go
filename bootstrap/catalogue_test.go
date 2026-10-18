@@ -1580,3 +1580,50 @@ func TestAProgrammeTheFacultyDoesNotPlanCannotBeAssigned(t *testing.T) {
 			code)
 	}
 }
+
+// The partner's programmes go through the same mutation with the role named, and stay apart
+// from the programmes somebody leads: one table holds both scopes, and leading a programme and
+// following it as a partner are different statements.
+func TestAssigningProgrammesToAPartner(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t, nil,
+		grants{testdata.Sechs, []string{"LECTURER", "ADMIN"}},
+		grants{testdata.Zwei, []string{"PARTNER_READER", "PROGRAMME_LEAD"}},
+		grants{testdata.Eins, []string{"LECTURER"}})
+	admin := graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail).On(graphqltest.Browser)
+
+	const assign = `mutation($id: ID!, $p: [String!]!, $r: Role) {
+		setPersonProgrammes(id: $id, programmes: $p, role: $r) {
+			programmes { code } partnerProgrammes { code }
+		}
+	}`
+	var out struct {
+		SetPersonProgrammes struct {
+			Programmes        []struct{ Code string }
+			PartnerProgrammes []struct{ Code string }
+		}
+	}
+	admin.MustQuery(t, assign, map[string]any{
+		"id": testdata.Zwei.ID().String(), "p": []string{storetest.FixtureProgrammeB}, "r": "PARTNER_READER",
+	}, &out)
+	admin.MustQuery(t, assign, map[string]any{
+		"id": testdata.Zwei.ID().String(), "p": []string{storetest.FixtureProgrammeA}, "r": nil,
+	}, &out)
+
+	got := out.SetPersonProgrammes
+	if len(got.PartnerProgrammes) != 1 || got.PartnerProgrammes[0].Code != storetest.FixtureProgrammeB {
+		t.Errorf("the partner programmes are %v, want %s — setting the lead's replaced them",
+			got.PartnerProgrammes, storetest.FixtureProgrammeB)
+	}
+	if len(got.Programmes) != 1 || got.Programmes[0].Code != storetest.FixtureProgrammeA {
+		t.Errorf("the led programmes are %v, want %s", got.Programmes, storetest.FixtureProgrammeA)
+	}
+
+	assertRefusal(t, admin.Do(t, assign, map[string]any{
+		"id": testdata.Eins.ID().String(), "p": []string{storetest.FixtureProgrammeA}, "r": "PARTNER_READER",
+	}), "NOT_A_PARTNER_READER")
+	assertRefusal(t, admin.Do(t, assign, map[string]any{
+		"id": testdata.Zwei.ID().String(), "p": []string{storetest.FixtureProgrammeA}, "r": "ADMIN",
+	}), "ROLE_NOT_PROGRAMME_SCOPED")
+}

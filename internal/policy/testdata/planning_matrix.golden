@@ -78,5 +78,8 @@ PROGRAMME_LEAD      token         one, two    yes   yes    2 programmes
 DEANS_OFFICE        interactive   —           yes   yes    every programme
 DEANS_OFFICE        token         —           yes   yes    every programme
 
+PARTNER_READER      interactive   —           no    no     none
+PARTNER_READER      token         —           no    no     none
+
 ADMIN               interactive   —           no    no     none
 ADMIN               token         —           no    no     none

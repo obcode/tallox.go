@@ -94,7 +94,7 @@ func TestTheForeignHomeFilter(t *testing.T) {
 
 	imports := func(programme string) []domain.CourseInstance {
 		t.Helper()
-		instances, err := f.demand.CourseInstances(t.Context(), domain.DemandFilter{
+		instances, err := f.demand.CourseInstances(t.Context(), domain.DemandFilter{Reach: everyProgramme,
 			SemesterCode: f.semester.Code, Programme: programme, ForeignHome: true,
 		})
 		if err != nil {

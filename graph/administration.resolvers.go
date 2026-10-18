@@ -69,12 +69,16 @@ func (r *mutationResolver) SetPersonActive(ctx context.Context, id string, activ
 }
 
 // SetPersonProgrammes is the resolver for the setPersonProgrammes field.
-func (r *mutationResolver) SetPersonProgrammes(ctx context.Context, id string, programmes []string) (*model.Person, error) {
+func (r *mutationResolver) SetPersonProgrammes(ctx context.Context, id string, programmes []string, role *policy.Role) (*model.Person, error) {
 	personID, err := parseID(id)
 	if err != nil {
 		return nil, err
 	}
-	person, err := r.People.SetProgrammes(ctx, principal.From(ctx), personID, programmes)
+	grant := policy.RoleProgrammeLead
+	if role != nil {
+		grant = *role
+	}
+	person, err := r.People.SetProgrammes(ctx, principal.From(ctx), personID, grant, programmes)
 	if err != nil {
 		return nil, peopleFacing(err)
 	}

@@ -57,6 +57,8 @@ func competenceError(err error) error {
 		return err
 	case errors.Is(err, domain.ErrCompetenceNotFound):
 		return refusal("COMPETENCE_NOT_FOUND", err.Error())
+	case errors.Is(err, domain.ErrPartnerWritesNothing):
+		return refusal("PARTNER_READS_ONLY", policy.PartnerReason)
 	case errors.Is(err, domain.ErrCompetenceOutsideGroups):
 		return refusal("COMPETENCE_OUTSIDE_GROUPS", policy.CompetenceOutsideGroupsReason)
 	case errors.Is(err, domain.ErrCompetenceForTeacherRefused):

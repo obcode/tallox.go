@@ -16,6 +16,7 @@ import (
 //	SUBJECT_GROUP_LEAD  Fachgruppenleitung
 //	PROGRAMME_LEAD      Studiengangsleitung
 //	DEANS_OFFICE        Dekanat
+//	PARTNER_READER      Partnerfakultät
 //	ADMIN               Administration
 //
 // That table is the only German in this package, and it is here so that nobody has to
@@ -44,6 +45,13 @@ const (
 	// the teaching-load traffic light. Reads a great deal, writes almost nothing.
 	RoleDeansOffice Role = "DEANS_OFFICE"
 
+	// RolePartnerReader is somebody from a partner faculty — FK10, MUC.DAI, MUC.HEALTH, DPH —
+	// who follows the planning of the study programmes they share with this faculty. Scoped to
+	// study programmes via person_programme_scope, like PROGRAMME_LEAD, and an empty set is
+	// nothing. See DemandReadScope: held alone it narrows what the account reads to those
+	// programmes, and it writes nothing at all.
+	RolePartnerReader Role = "PARTNER_READER"
+
 	// RoleAdmin administers users, roles and tokens.
 	//
 	// Deliberately NOT a reader of unpublished wishes — see mayReadUnpublishedWishes. Running
@@ -64,6 +72,7 @@ func AllRoles() []Role {
 		RoleSubjectGroupLead,
 		RoleProgrammeLead,
 		RoleDeansOffice,
+		RolePartnerReader,
 		RoleAdmin,
 	}
 }

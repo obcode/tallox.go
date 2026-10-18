@@ -93,6 +93,7 @@ func (s *DemandService) Instances(ctx context.Context, actor principal.Actor,
 	}
 	filter.SemesterCode = semester.Code
 	filter.Programme = normaliseProgrammeCode(filter.Programme)
+	filter.Reach = policy.DemandReadScope(actor)
 
 	return s.store.CourseInstances(ctx, filter)
 }
@@ -118,6 +119,7 @@ func (s *DemandService) TeachingLoad(ctx context.Context, actor principal.Actor,
 	if err != nil {
 		return nil, err
 	}
+	loads = withinReach(actor, loads, func(l TeachingLoad) uuid.UUID { return l.Programme.ID })
 
 	// The quota of the study year the semester belongs to. A code that came through ByCode is
 	// well-formed, so the second result cannot be false here.
@@ -205,6 +207,7 @@ func (s *DemandService) StudyYearLoad(ctx context.Context, actor principal.Actor
 	for _, e := range byID {
 		out = append(out, *e)
 	}
+	out = withinReach(actor, out, func(l StudyYearLoad) uuid.UUID { return l.Programme.ID })
 	sort.Slice(out, func(i, j int) bool { return out[i].Programme.Code < out[j].Programme.Code })
 	return out, nil
 }
@@ -248,7 +251,31 @@ func (s *DemandService) ProgrammeQuotas(ctx context.Context, actor principal.Act
 	if err := s.plannableYear(studyYear); err != nil {
 		return nil, err
 	}
-	return s.store.ProgrammeQuotas(ctx, studyYear)
+	quotas, err := s.store.ProgrammeQuotas(ctx, studyYear)
+	if err != nil {
+		return nil, err
+	}
+	return withinReach(actor, quotas, func(q ProgrammeQuota) uuid.UUID { return q.Programme.ID }), nil
+}
+
+// withinReach keeps the rows of the programmes the caller reads.
+//
+// In Go and not in the query, and that is honest here in a way it would not be for the wishes:
+// each row *is* one programme's figure, keyed by it, so dropping a row is the same predicate a
+// WHERE clause on the key would be — nothing is summed across the line it draws. The figures of
+// the rows that stay are unchanged by the rows that go.
+func withinReach[T any](actor principal.Actor, rows []T, programme func(T) uuid.UUID) []T {
+	reach := policy.DemandReadScope(actor)
+	if reach.All {
+		return rows
+	}
+	out := make([]T, 0, len(rows))
+	for _, r := range rows {
+		if reach.Allows(programme(r)) {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 // SetProgrammeQuota enters, corrects or — with nil — takes back a programme's quota for a study
@@ -303,7 +330,15 @@ func (s *DemandService) Instance(ctx context.Context, actor principal.Actor, id 
 	if err := mayRead(actor); err != nil {
 		return nil, err
 	}
-	return s.store.CourseInstanceByID(ctx, id)
+	instance, err := s.store.CourseInstanceByID(ctx, id)
+	if err != nil || instance == nil {
+		return instance, err
+	}
+	// One row in hand, so the guard form: an instance outside the caller's reach is not there.
+	if !policy.DemandReadScope(actor).Allows(instance.Programme.ID) {
+		return nil, nil
+	}
+	return instance, nil
 }
 
 // DeclareInstance is a demand about to be declared, as the interface states it.
@@ -820,6 +855,8 @@ func (s *DemandService) CopyFrom(ctx context.Context, actor principal.Actor,
 	instances, err := s.store.CourseInstances(ctx, DemandFilter{
 		SemesterCode: to.Code,
 		Programme:    programme.Code,
+		// The answer to a write the caller was allowed to make: the programme's whole demand.
+		Reach: policy.ProgrammeScope{All: true},
 	})
 	if err != nil {
 		return report, err
@@ -888,6 +925,8 @@ func (s *DemandService) PlanDemand(ctx context.Context, actor principal.Actor,
 	instances, err := s.store.CourseInstances(ctx, DemandFilter{
 		SemesterCode: semester.Code,
 		Programme:    programme.Code,
+		// The answer to a write the caller was allowed to make: the programme's whole demand.
+		Reach: policy.ProgrammeScope{All: true},
 	})
 	if err != nil {
 		return plan, err

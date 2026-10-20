@@ -216,6 +216,42 @@ func TestLeadingASubjectGroupNeedsTheRole(t *testing.T) {
 	}
 }
 
+// An expired grant is not the role. Its row stays in person_role, so the composite foreign key
+// alone would store the lead — and every lookup would then filter it out again, so the screen
+// would say "saved" while the group still had nobody. The refusal has to come at the write.
+func TestAnExpiredGrantCannotLeadASubjectGroup(t *testing.T) {
+	t.Parallel()
+
+	f := subjectGroupHandler(t,
+		grants{testdata.Sechs, []string{"ADMIN"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+	)
+	group := f.create(t, "MATHE", "Mathematik")
+
+	if _, err := f.schema.Pool.Exec(t.Context(),
+		`UPDATE person_role
+		 SET granted_at = now() - interval '2 days', expires_at = now() - interval '1 day'
+		 WHERE person_id = $1 AND role = 'SUBJECT_GROUP_LEAD'`, testdata.Drei.ID()); err != nil {
+		t.Fatalf("cannot expire the grant: %v", err)
+	}
+
+	c := graphqltest.New(f.handler).AsUser(testdata.Sechs.Mail)
+	resp := c.Do(t,
+		`mutation($g: ID!, $p: [ID!]!) { setSubjectGroupLeads(id: $g, personIds: $p) { id } }`,
+		map[string]any{"g": group, "p": []string{testdata.Drei.ID().String()}})
+	assertRefusal(t, resp, "NOT_A_SUBJECT_GROUP_LEAD")
+
+	var stored int
+	if err := f.schema.Pool.QueryRow(t.Context(),
+		`SELECT count(*) FROM person_subject_group_scope WHERE person_id = $1`,
+		testdata.Drei.ID()).Scan(&stored); err != nil {
+		t.Fatalf("cannot count the scopes: %v", err)
+	}
+	if stored != 0 {
+		t.Errorf("%d subject group scope(s) stored for an expired grant", stored)
+	}
+}
+
 // Membership is not a grant, so it needs no role — and it still grants nothing, which is what the
 // policy tests assert from the other side.
 func TestMembershipNeedsNoRole(t *testing.T) {

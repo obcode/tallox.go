@@ -59,10 +59,12 @@ var (
 	ErrModuleFiledElsewhere = errors.New(
 		"Module lassen sich nur in eine Fachgruppe einsortieren, die Sie leiten — und nur, " +
 			"solange sie in keiner anderen Fachgruppe stehen")
-	// ErrNotASubjectGroupLead is assigning a group to somebody who does not hold the role.
+	// ErrNotASubjectGroupLead is assigning a group to somebody who does not hold the role, or
+	// whose grant of it has expired.
 	//
-	// The composite foreign key refuses it anyway; this turns the refusal into a sentence about
-	// what the caller did, exactly as ErrNotAProgrammeLead does one table over.
+	// Decided in the store's insert, which carries the expiry filter: the composite foreign key
+	// alone accepts an expired grant, because its row stays. This turns the refusal into a
+	// sentence about what the caller did, exactly as ErrNotAProgrammeLead does one table over.
 	ErrNotASubjectGroupLead = errors.New(
 		"diese Person hat die Rolle Fachgruppenleitung nicht")
 )

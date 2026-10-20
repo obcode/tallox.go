@@ -260,34 +260,36 @@ type ComplexityRoot struct {
 	}
 
 	Module struct {
-		Active              func(childComplexity int) int
-		Baskets             func(childComplexity int, programme string) int
-		ComponentHours      func(childComplexity int) int
-		Components          func(childComplexity int) int
-		ContactHoursPerWeek func(childComplexity int) int
-		CourseType          func(childComplexity int) int
-		Credits             func(childComplexity int) int
-		DutyStatus          func(childComplexity int, programme string) int
-		Frequency           func(childComplexity int) int
-		HandbookURL         func(childComplexity int) int
-		HomeProgramme       func(childComplexity int) int
-		ID                  func(childComplexity int) int
-		InCatalogue         func(childComplexity int, programme string) int
-		Kind                func(childComplexity int) int
-		Name                func(childComplexity int) int
-		Offerings           func(childComplexity int) int
-		Official            func(childComplexity int) int
-		Plannable           func(childComplexity int) int
-		PracticalKind       func(childComplexity int) int
-		ProgrammeSemester   func(childComplexity int, programme string) int
-		ProjectBased        func(childComplexity int) int
-		ProposedComponents  func(childComplexity int) int
-		Responsible         func(childComplexity int) int
-		RetiredAt           func(childComplexity int) int
-		Source              func(childComplexity int) int
-		SplitIsEstimated    func(childComplexity int) int
-		SubjectGroup        func(childComplexity int) int
-		ZpaID               func(childComplexity int) int
+		Active                  func(childComplexity int) int
+		Baskets                 func(childComplexity int, programme string) int
+		ComponentHours          func(childComplexity int) int
+		Components              func(childComplexity int) int
+		ContactHoursPerSemester func(childComplexity int) int
+		ContactHoursPerWeek     func(childComplexity int) int
+		CourseType              func(childComplexity int) int
+		Credits                 func(childComplexity int) int
+		DutyStatus              func(childComplexity int, programme string) int
+		Frequency               func(childComplexity int) int
+		HandbookURL             func(childComplexity int) int
+		HomeProgramme           func(childComplexity int) int
+		ID                      func(childComplexity int) int
+		InCatalogue             func(childComplexity int, programme string) int
+		Kind                    func(childComplexity int) int
+		Name                    func(childComplexity int) int
+		Offerings               func(childComplexity int) int
+		Official                func(childComplexity int) int
+		Plannable               func(childComplexity int) int
+		PracticalKind           func(childComplexity int) int
+		ProgrammeSemester       func(childComplexity int, programme string) int
+		ProjectBased            func(childComplexity int) int
+		ProposedComponents      func(childComplexity int) int
+		Responsible             func(childComplexity int) int
+		RetiredAt               func(childComplexity int) int
+		SemesterSpan            func(childComplexity int) int
+		Source                  func(childComplexity int) int
+		SplitIsEstimated        func(childComplexity int) int
+		SubjectGroup            func(childComplexity int) int
+		ZpaID                   func(childComplexity int) int
 	}
 
 	ModuleComponent struct {
@@ -374,6 +376,7 @@ type ComplexityRoot struct {
 		SetInstancePartTaughtBy       func(childComplexity int, id string, faculty *string) int
 		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
 		SetModuleProjectBased         func(childComplexity int, moduleID string, projectBased bool) int
+		SetModuleSemesterSpan         func(childComplexity int, moduleID string, semesters int) int
 		SetModulesSubjectGroup        func(childComplexity int, moduleIds []string, subjectGroup *string) int
 		SetMyCompetence               func(childComplexity int, moduleID string, level domain.CompetenceLevel, note *string) int
 		SetMySubjectGroups            func(childComplexity int, subjectGroupIds []string) int
@@ -1642,6 +1645,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.Components(childComplexity), true
+	case "Module.contactHoursPerSemester":
+		if e.ComplexityRoot.Module.ContactHoursPerSemester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.ContactHoursPerSemester(childComplexity), true
 	case "Module.contactHoursPerWeek":
 		if e.ComplexityRoot.Module.ContactHoursPerWeek == nil {
 			break
@@ -1777,6 +1786,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.RetiredAt(childComplexity), true
+	case "Module.semesterSpan":
+		if e.ComplexityRoot.Module.SemesterSpan == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.SemesterSpan(childComplexity), true
 	case "Module.source":
 		if e.ComplexityRoot.Module.Source == nil {
 			break
@@ -2346,6 +2361,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetModuleProjectBased(childComplexity, args["moduleId"].(string), args["projectBased"].(bool)), true
+	case "Mutation.setModuleSemesterSpan":
+		if e.ComplexityRoot.Mutation.SetModuleSemesterSpan == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setModuleSemesterSpan_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetModuleSemesterSpan(childComplexity, args["moduleId"].(string), args["semesters"].(int)), true
 	case "Mutation.setModulesSubjectGroup":
 		if e.ComplexityRoot.Mutation.SetModulesSubjectGroup == nil {
 			break
@@ -5317,6 +5343,18 @@ type Module {
   """
   projectBased: Boolean!
   """
+  Over how many semesters the module runs: 1, or 2 for one the examination office states with the
+  hours of both semesters added up — 8 SWS, taught 4 in the winter and 4 in the summer. Such a
+  module is planned as an instance in each semester, and its split is stated per semester. The
+  faculty marks it; the examination office does not say.
+  """
+  semesterSpan: Int!
+  """
+  What one semester of the module holds: ` + "`" + `contactHoursPerWeek` + "`" + ` over ` + "`" + `semesterSpan` + "`" + `, or ` + "`" + `null` + "`" + `
+  where the catalogue states no hours. The split is compared with this figure.
+  """
+  contactHoursPerSemester: Float
+  """
   The name, which is empty for a handful of modules.
 
   Taken from the examination office's module record, or else from an association with a set of
@@ -5901,6 +5939,17 @@ extend type Mutation {
   same people as ` + "`" + `setModuleComponents` + "`" + `, refused the same way with ` + "`" + `NOT_YOUR_MODULE` + "`" + `.
   """
   setModuleProjectBased(moduleId: ID!, projectBased: Boolean!): Module!
+    @scope(area: PLANNING, verb: WRITE)
+
+  """
+  State over how many semesters a module runs: 1, or 2.
+
+  For a module the examination office states with both semesters' hours added up. It changes what
+  the split is compared with and what is proposed for it, and no instance: such a module is planned
+  as an instance in each semester. The same people as ` + "`" + `setModuleComponents` + "`" + `, refused the same way
+  with ` + "`" + `NOT_YOUR_MODULE` + "`" + `; anything but 1 or 2 is ` + "`" + `SEMESTER_SPAN_INVALID` + "`" + `.
+  """
+  setModuleSemesterSpan(moduleId: ID!, semesters: Int!): Module!
     @scope(area: PLANNING, verb: WRITE)
 }
 
@@ -7246,7 +7295,8 @@ enum ScopeArea {
   # "is this part taken", which through a token the read rule would not.
 
   ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `,
-  ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `applyModuleSplitToInstances` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
+  ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `applyModuleSplitToInstances` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `,
+  ` + "`" + `setModuleSemesterSpan` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
@@ -9536,6 +9586,10 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_kind(ctx, field)
 	case "projectBased":
 		return ec.fieldContext_Module_projectBased(ctx, field)
+	case "semesterSpan":
+		return ec.fieldContext_Module_semesterSpan(ctx, field)
+	case "contactHoursPerSemester":
+		return ec.fieldContext_Module_contactHoursPerSemester(ctx, field)
 	case "name":
 		return ec.fieldContext_Module_name(ctx, field)
 	case "homeProgramme":

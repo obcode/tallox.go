@@ -85,6 +85,9 @@ type Module struct {
 	Source              domain.ModuleSource `json:"source"`
 	Kind                domain.ModuleKind   `json:"kind"`
 	ProjectBased        bool                `json:"projectBased"`
+	SemesterSpan        int                 `json:"semesterSpan"`
+	// ContactHoursPerSemester is the catalogue's figure over SemesterSpan.
+	ContactHoursPerSemester *float64 `json:"contactHoursPerSemester,omitempty"`
 
 	// Domain is the value this was built from, for the fields that take an argument.
 	//

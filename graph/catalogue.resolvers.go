@@ -195,6 +195,22 @@ func (r *mutationResolver) SetModuleProjectBased(ctx context.Context, moduleID s
 	return moduleModel(*module), nil
 }
 
+// SetModuleSemesterSpan is the resolver for the setModuleSemesterSpan field.
+func (r *mutationResolver) SetModuleSemesterSpan(ctx context.Context, moduleID string, semesters int) (*model.Module, error) {
+	actor := principal.From(ctx)
+
+	id, err := uuid.Parse(moduleID)
+	if err != nil {
+		return nil, badRequest("MODULE_NOT_FOUND", domain.ErrModuleNotFound.Error())
+	}
+
+	module, err := r.Catalogue.SetModuleSemesterSpan(ctx, actor, id, semesters)
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+	return moduleModel(*module), nil
+}
+
 // Leads is the resolver for the leads field.
 func (r *programmeResolver) Leads(ctx context.Context, obj *model.Programme) ([]*model.Person, error) {
 	actor := principal.From(ctx)

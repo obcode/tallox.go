@@ -64,23 +64,25 @@ func spoModel(s domain.Spo, programme *model.Programme) *model.Spo {
 // argument.
 func moduleModel(m domain.Module) *model.Module {
 	out := &model.Module{
-		ID:                  m.ID.String(),
-		Name:                m.Name,
-		HomeProgramme:       programmeModel(m.HomeProgramme),
-		SubjectGroup:        subjectGroupRefModel(m.SubjectGroup),
-		CourseType:          m.CourseType,
-		Frequency:           m.Frequency,
-		ContactHoursPerWeek: m.ContactHoursPerWeek,
-		Credits:             m.Credits,
-		Active:              m.Active,
-		Official:            m.Official,
-		RetiredAt:           m.RetiredAt,
-		Components:          make([]*model.ModuleComponent, 0, len(m.Components)),
-		Offerings:           make([]*model.ModuleOffering, 0, len(m.Offerings)),
-		Source:              m.Source,
-		Kind:                m.Kind,
-		ProjectBased:        m.ProjectBased,
-		Domain:              m,
+		ID:                      m.ID.String(),
+		Name:                    m.Name,
+		HomeProgramme:           programmeModel(m.HomeProgramme),
+		SubjectGroup:            subjectGroupRefModel(m.SubjectGroup),
+		CourseType:              m.CourseType,
+		Frequency:               m.Frequency,
+		ContactHoursPerWeek:     m.ContactHoursPerWeek,
+		Credits:                 m.Credits,
+		Active:                  m.Active,
+		Official:                m.Official,
+		RetiredAt:               m.RetiredAt,
+		Components:              make([]*model.ModuleComponent, 0, len(m.Components)),
+		Offerings:               make([]*model.ModuleOffering, 0, len(m.Offerings)),
+		Source:                  m.Source,
+		Kind:                    m.Kind,
+		ProjectBased:            m.ProjectBased,
+		SemesterSpan:            max(m.SemesterSpan, 1),
+		ContactHoursPerSemester: m.ContactHoursPerSemester(),
+		Domain:                  m,
 	}
 
 	if m.Responsible != nil {
@@ -229,6 +231,11 @@ func catalogueUserFacing(actor principal.Actor, err error) error {
 		return &gqlerror.Error{
 			Message:    domain.ErrCatalogueForbidden.Error(),
 			Extensions: map[string]any{"code": "FORBIDDEN"},
+		}
+	case errors.Is(err, domain.ErrSemesterSpanInvalid):
+		return &gqlerror.Error{
+			Message:    err.Error(),
+			Extensions: map[string]any{"code": "SEMESTER_SPAN_INVALID"},
 		}
 	case errors.Is(err, domain.ErrModuleNotFound):
 		return &gqlerror.Error{

@@ -312,6 +312,18 @@ type Module {
   """
   projectBased: Boolean!
   """
+  Over how many semesters the module runs: 1, or 2 for one the examination office states with the
+  hours of both semesters added up — 8 SWS, taught 4 in the winter and 4 in the summer. Such a
+  module is planned as an instance in each semester, and its split is stated per semester. The
+  faculty marks it; the examination office does not say.
+  """
+  semesterSpan: Int!
+  """
+  What one semester of the module holds: `contactHoursPerWeek` over `semesterSpan`, or `null`
+  where the catalogue states no hours. The split is compared with this figure.
+  """
+  contactHoursPerSemester: Float
+  """
   The name, which is empty for a handful of modules.
 
   Taken from the examination office's module record, or else from an association with a set of
@@ -896,6 +908,17 @@ extend type Mutation {
   same people as `setModuleComponents`, refused the same way with `NOT_YOUR_MODULE`.
   """
   setModuleProjectBased(moduleId: ID!, projectBased: Boolean!): Module!
+    @scope(area: PLANNING, verb: WRITE)
+
+  """
+  State over how many semesters a module runs: 1, or 2.
+
+  For a module the examination office states with both semesters' hours added up. It changes what
+  the split is compared with and what is proposed for it, and no instance: such a module is planned
+  as an instance in each semester. The same people as `setModuleComponents`, refused the same way
+  with `NOT_YOUR_MODULE`; anything but 1 or 2 is `SEMESTER_SPAN_INVALID`.
+  """
+  setModuleSemesterSpan(moduleId: ID!, semesters: Int!): Module!
     @scope(area: PLANNING, verb: WRITE)
 }
 

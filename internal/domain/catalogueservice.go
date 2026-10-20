@@ -25,6 +25,8 @@ var (
 	// nor its home programme is in reach. Separate from ErrNotYourProgramme because the split has
 	// a second axis, and the sentence has to name both.
 	ErrNotYourModuleSplit = errors.New("die SWS-Aufteilung dieses Moduls legt jemand anderes fest")
+	// ErrSemesterSpanInvalid is a module said to run over no semester, or over more than two.
+	ErrSemesterSpanInvalid = errors.New("ein Modul läuft über ein oder zwei Semester")
 	// ErrComponentInvalid is a split that does not describe anything — no hours, or too many.
 	ErrComponentInvalid = errors.New("die Aufteilung ist nicht gültig")
 	// ErrProgrammeStatusUnknown is a planning status this build does not know.
@@ -275,6 +277,46 @@ func (s *CatalogueService) SetModuleProjectBased(ctx context.Context, actor prin
 		return nil, ErrNotYourModuleSplit
 	}
 	updated, err := s.store.SetModuleProjectBased(ctx, moduleID, projectBased)
+	if err != nil {
+		return nil, err
+	}
+	if updated == nil {
+		return nil, ErrModuleNotFound
+	}
+	return updated, nil
+}
+
+// MaxSemesterSpan is the longest a module runs here. Mirrors module_semester_span_is_one_or_two.
+const MaxSemesterSpan = 2
+
+// SetModuleSemesterSpan states over how many semesters a module runs.
+//
+// The same people as the split, by the same rule — it decides what the split is compared with and
+// what is proposed for it. It changes no instance: a module over two semesters is planned as an
+// instance in each, with the split stated per semester.
+func (s *CatalogueService) SetModuleSemesterSpan(ctx context.Context, actor principal.Actor,
+	moduleID uuid.UUID, semesters int) (*Module, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	module, err := s.store.ModuleByID(ctx, moduleID)
+	if err != nil {
+		return nil, err
+	}
+	if module == nil {
+		return nil, ErrModuleNotFound
+	}
+	var group uuid.UUID
+	if module.SubjectGroup != nil {
+		group = module.SubjectGroup.ID
+	}
+	if !policy.MayWriteModuleSplit(actor, group, module.HomeProgramme.ID) {
+		return nil, ErrNotYourModuleSplit
+	}
+	if semesters < 1 || semesters > MaxSemesterSpan {
+		return nil, ErrSemesterSpanInvalid
+	}
+	updated, err := s.store.SetModuleSemesterSpan(ctx, moduleID, semesters)
 	if err != nil {
 		return nil, err
 	}

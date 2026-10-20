@@ -133,6 +133,7 @@ type Module struct {
 	TeachingLanguage       *string
 	TeachingLanguageSource string
 	ProjectBased           bool
+	SemesterSpan           int16
 }
 
 type ModuleComponent struct {

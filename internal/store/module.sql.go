@@ -113,7 +113,7 @@ func (q *Queries) InsertModuleComponent(ctx context.Context, arg InsertModuleCom
 const listModules = `-- name: ListModules :many
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind, m.project_based,
+       m.source, m.kind, m.project_based, m.semester_span,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -197,6 +197,7 @@ type ListModulesRow struct {
 	Source               string
 	Kind                 string
 	ProjectBased         bool
+	SemesterSpan         int16
 	SubjectGroupID       uuid.NullUUID
 	SubjectGroupCode     *string
 	SubjectGroupName     *string
@@ -253,6 +254,7 @@ func (q *Queries) ListModules(ctx context.Context, arg ListModulesParams) ([]Lis
 			&i.Source,
 			&i.Kind,
 			&i.ProjectBased,
+			&i.SemesterSpan,
 			&i.SubjectGroupID,
 			&i.SubjectGroupCode,
 			&i.SubjectGroupName,
@@ -461,7 +463,7 @@ func (q *Queries) ListTeachers(ctx context.Context, arg ListTeachersParams) ([]L
 const moduleByID = `-- name: ModuleByID :one
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind, m.project_based,
+       m.source, m.kind, m.project_based, m.semester_span,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -486,6 +488,7 @@ type ModuleByIDRow struct {
 	Source               string
 	Kind                 string
 	ProjectBased         bool
+	SemesterSpan         int16
 	SubjectGroupID       uuid.NullUUID
 	SubjectGroupCode     *string
 	SubjectGroupName     *string
@@ -511,6 +514,7 @@ func (q *Queries) ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, 
 		&i.Source,
 		&i.Kind,
 		&i.ProjectBased,
+		&i.SemesterSpan,
 		&i.SubjectGroupID,
 		&i.SubjectGroupCode,
 		&i.SubjectGroupName,
@@ -637,7 +641,7 @@ func (q *Queries) ModuleOfferingsFor(ctx context.Context, moduleIds []uuid.UUID)
 const modulesByIDs = `-- name: ModulesByIDs :many
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind, m.project_based,
+       m.source, m.kind, m.project_based, m.semester_span,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -663,6 +667,7 @@ type ModulesByIDsRow struct {
 	Source               string
 	Kind                 string
 	ProjectBased         bool
+	SemesterSpan         int16
 	SubjectGroupID       uuid.NullUUID
 	SubjectGroupCode     *string
 	SubjectGroupName     *string
@@ -699,6 +704,7 @@ func (q *Queries) ModulesByIDs(ctx context.Context, ids []uuid.UUID) ([]ModulesB
 			&i.Source,
 			&i.Kind,
 			&i.ProjectBased,
+			&i.SemesterSpan,
 			&i.SubjectGroupID,
 			&i.SubjectGroupCode,
 			&i.SubjectGroupName,
@@ -820,6 +826,26 @@ type SetModuleProjectBasedParams struct {
 // like the split: the import never writes this column.
 func (q *Queries) SetModuleProjectBased(ctx context.Context, arg SetModuleProjectBasedParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setModuleProjectBased, arg.ProjectBased, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setModuleSemesterSpan = `-- name: SetModuleSemesterSpan :execrows
+UPDATE module SET semester_span = $1::smallint, updated_at = now()
+WHERE id = $2::uuid
+`
+
+type SetModuleSemesterSpanParams struct {
+	SemesterSpan int16
+	ID           uuid.UUID
+}
+
+// Over how many semesters a module runs. The faculty's own fact, like the split: the import never
+// writes this column.
+func (q *Queries) SetModuleSemesterSpan(ctx context.Context, arg SetModuleSemesterSpanParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setModuleSemesterSpan, arg.SemesterSpan, arg.ID)
 	if err != nil {
 		return 0, err
 	}

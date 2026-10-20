@@ -301,3 +301,31 @@ func TestEveryCatalogueValueParsesBackFromItsStoredForm(t *testing.T) {
 		t.Error("ParseFrequency accepts a value this package does not know")
 	}
 }
+
+// A module over two semesters is proposed and compared per semester: "Wirtschaftsinformatik", 8
+// SWS in the catalogue as SU mit Übung, is planned as 2 + 2 in each semester.
+func TestAModuleOverTwoSemestersIsProposedPerSemester(t *testing.T) {
+	eight := 8
+	module := domain.Module{
+		CourseType:          domain.CourseTypeSUWithExercise,
+		ContactHoursPerWeek: &eight,
+		SemesterSpan:        2,
+	}
+
+	var total float64
+	for _, c := range module.ProposedComponents() {
+		total += c.TeachingHours
+	}
+	if total != 4 {
+		t.Errorf("the proposal adds up to %v hours, want one semester's 4", total)
+	}
+	if got := module.ContactHoursPerSemester(); got == nil || *got != 4 {
+		t.Errorf("ContactHoursPerSemester() = %v, want 4", got)
+	}
+
+	// Unset reads as one semester, so a module built without the column is an ordinary one.
+	module.SemesterSpan = 0
+	if got := module.ContactHoursPerSemester(); got == nil || *got != 8 {
+		t.Errorf("an unset span gives %v hours per semester, want the catalogue's 8", got)
+	}
+}

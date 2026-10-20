@@ -54,7 +54,7 @@ ORDER BY p.code, s.version DESC;
 -- expressed as "has both", which is what makes it a filter rather than a label.
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind, m.project_based,
+       m.source, m.kind, m.project_based, m.semester_span,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -112,7 +112,7 @@ ORDER BY (m.name = ''), m.name, m.id;
 -- name: ModuleByID :one
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind, m.project_based,
+       m.source, m.kind, m.project_based, m.semester_span,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -221,7 +221,7 @@ WHERE t.id = ANY (sqlc.arg(ids)::uuid[]);
 -- as the list, so that a screen sorted by module reads the same way in both places.
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind, m.project_based,
+       m.source, m.kind, m.project_based, m.semester_span,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -285,4 +285,10 @@ RETURNING id, code, title, active, planning_status;
 -- Mark a module as a project-based course (PBLV), or take the mark back. The faculty's own fact,
 -- like the split: the import never writes this column.
 UPDATE module SET project_based = sqlc.arg(project_based)::bool, updated_at = now()
+WHERE id = sqlc.arg(id)::uuid;
+
+-- name: SetModuleSemesterSpan :execrows
+-- Over how many semesters a module runs. The faculty's own fact, like the split: the import never
+-- writes this column.
+UPDATE module SET semester_span = sqlc.arg(semester_span)::smallint, updated_at = now()
 WHERE id = sqlc.arg(id)::uuid;

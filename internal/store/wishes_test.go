@@ -765,3 +765,33 @@ func TestTheTwoWaysToInstanceHoursAgree(t *testing.T) {
 			fromParts)
 	}
 }
+
+// A wish names the seminar it is for. The wish list renders its instance from its own columns
+// rather than through the demand's query, so the topic has to be selected there too — without it
+// "Seminar, cohort C" is all a colleague reads back of the seminar they asked for.
+func TestAWishCarriesTheTopicOfItsCohort(t *testing.T) {
+	t.Parallel()
+
+	f := newWishFixture(t)
+	ctx := t.Context()
+
+	if _, err := f.schema.Pool.Exec(ctx, `UPDATE course_instance SET topic = 'AI Fundamentals' WHERE id = $1`,
+		f.instance); err != nil {
+		t.Fatalf("cannot name the seminar: %v", err)
+	}
+	wish, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishFirstChoice, "")
+	if err != nil {
+		t.Fatalf("cannot register: %v", err)
+	}
+	if wish.Instance.Topic != "AI Fundamentals" {
+		t.Errorf("the registered wish is for %q, want AI Fundamentals", wish.Instance.Topic)
+	}
+	seen, err := f.wishes.Wishes(ctx, domain.WishQuery{SemesterCode: f.semester.Code},
+		policy.WishFilter{Scope: policy.WishScopeAll})
+	if err != nil {
+		t.Fatalf("cannot read the wishes: %v", err)
+	}
+	if len(seen) != 1 || seen[0].Instance.Topic != "AI Fundamentals" {
+		t.Errorf("the wish list reads %+v, want the one wish for AI Fundamentals", seen)
+	}
+}

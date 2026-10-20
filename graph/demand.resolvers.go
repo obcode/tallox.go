@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/obcode/tallox.go/graph/model"
@@ -118,6 +119,29 @@ func (r *mutationResolver) ChangeCourseInstance(ctx context.Context, id string, 
 		return nil, demandUserFacing(actor, err)
 	}
 	return courseInstanceModel(*instance), nil
+}
+
+// SetCourseInstanceTopic is the resolver for the setCourseInstanceTopic field.
+func (r *mutationResolver) SetCourseInstanceTopic(ctx context.Context, id string, topic string) (*model.CourseInstance, error) {
+	actor := principal.From(ctx)
+
+	instanceID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, badRequest("INSTANCE_NOT_FOUND", domain.ErrInstanceNotFound.Error())
+	}
+
+	instance, err := r.Demand.SetTopic(ctx, actor, instanceID, topic)
+	switch {
+	case err == nil:
+		return courseInstanceModel(*instance), nil
+	case errors.Is(err, domain.ErrNotYourSubject), errors.Is(err, domain.ErrAssignmentPhaseClosed):
+		// The assignment's refusals, as for the format: the demand's rule is inside the union,
+		// and its refusals would name only half of who may write this.
+		return nil, assignmentError(err)
+	case errors.Is(err, domain.ErrTopicTooLong):
+		return nil, refusal("TOPIC_TOO_LONG", err.Error())
+	}
+	return nil, demandUserFacing(actor, err)
 }
 
 // WithdrawCourseInstance is the resolver for the withdrawCourseInstance field.

@@ -29,6 +29,7 @@ Kollegium — das gehört nach `tallox.dev`.
 - [Kompetenzzone](competences.md) — am Modul ohne Semester, vertraulich ohne Veröffentlichung, Mitgliedschaft als Schreibregel, Lehrende ohne Konto durch die Fachgruppenleitung
 - [Studiengangs-Review](programme-review.md) — Phase REVIEW vor FINAL, alles offen bis Semesterende, Marke „Review fertig"
 - [Block und Englisch je Zug](instance-format.md) — Override gegen den ZPA-Default, Schreibregel der Zuteilung, Mitnahmepfade
+- [Thema je Zug (Sammelmodule)](instance-topic.md) — WI-Seminare als Züge eines ZPA-Moduls, bis 26 Züge, Schreibregel Bedarf ∪ Zuteilung, Mitnahme nur bei der Semesterkopie
 - [Modulhandbuch-Link](module-handbook.md) — aus zpa.baseurl abgeleitet, nur aktive ZPA-Module, kein eigener Schlüssel
 - [Wunsch-SWS](desired-hours.md) — je Person und Semester, gelesen über die Fachgruppen der Person, eigene Zeile in der Schreibmatrix für die offene Sperrfrage
 - [Partnerfakultät](partner-reader.md) — PARTNER_READER verengt allein gehalten auf die eigenen Studiengänge, schreibt nichts, liest keine Wünsche

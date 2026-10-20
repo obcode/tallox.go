@@ -427,6 +427,15 @@ type CourseInstance struct {
 	// `false` means the cohort follows the catalogue, and keeps following it when the catalogue
 	// changes. A decision that agrees with the catalogue is not stored as one.
 	TaughtInEnglishOverridden bool `json:"taughtInEnglishOverridden"`
+	// Which seminar this cohort is, or `null` for the ordinary cohort whose module's name says what it
+	// is.
+	//
+	// For the umbrella module the examination office holds once and the faculty runs many times a
+	// semester, each with its own title and lecturer: the seminars of a term are cohorts A, B, C … of
+	// that one module, and this is what tells them apart. Not part of the identity — it may change
+	// while the cohort stays the same. Carried over when a semester's demand is copied, not when a
+	// cohort is duplicated: a second seminar is a different one.
+	Topic *string `json:"topic,omitempty"`
 	// The assignable units this cohort holds itself, in order.
 	//
 	// Made from the module's split when the instance is declared — one part per unit — and edited

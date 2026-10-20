@@ -65,6 +65,7 @@ type instanceRow struct {
 	Delivery               string
 	TaughtInEnglish        *bool
 	ModuleTeachingLanguage *string
+	Topic                  *string
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
 	SemesterCode           string
@@ -94,6 +95,7 @@ func instanceFrom(row instanceRow) domain.CourseInstance {
 		Module:    domain.Module{ID: row.ModuleID},
 		Programme: domain.Programme{ID: row.ProgrammeID, Code: row.ProgrammeCode, Title: row.ProgrammeTitle, Active: row.ProgrammeActive},
 		Track:     row.Track,
+		Topic:     stringOrEmpty(row.Topic),
 
 		ProgrammeSemester: intOrNil(row.ProgrammeSemester),
 		Note:              row.Note,
@@ -711,7 +713,9 @@ func (d *Demand) DuplicateCourseInstance(ctx context.Context, id uuid.UUID, trac
 		// the stored override, not the effective value, so the catalogue keeps its say.
 		Delivery:        source.Delivery,
 		TaughtInEnglish: source.TaughtInEnglish,
-		CreatedBy:       nullUUID(nonNilUUID(by)),
+		// The topic is not duplicated: a second cohort of an umbrella seminar is a second
+		// seminar, and carrying the first one's title would list the same seminar twice.
+		CreatedBy: nullUUID(nonNilUUID(by)),
 	})
 	if isUniqueViolation(err) {
 		return nil, domain.ErrTrackTaken
@@ -752,6 +756,26 @@ func (d *Demand) UpdateCourseInstance(ctx context.Context, id uuid.UUID, track s
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot change the instance: %w", err)
+	}
+
+	instance, err := d.CourseInstanceByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if instance == nil {
+		return nil, domain.ErrInstanceNotFound
+	}
+	return instance, nil
+}
+
+// SetCourseInstanceTopic writes which seminar a cohort is. nil takes the topic away.
+func (d *Demand) SetCourseInstanceTopic(ctx context.Context, id uuid.UUID, topic *string,
+) (*domain.CourseInstance, error) {
+	if err := New(d.pool).UpdateCourseInstanceTopic(ctx, UpdateCourseInstanceTopicParams{
+		ID:    id,
+		Topic: topic,
+	}); err != nil {
+		return nil, fmt.Errorf("cannot set the topic of the instance: %w", err)
 	}
 
 	instance, err := d.CourseInstanceByID(ctx, id)
@@ -1953,7 +1977,10 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 			Note:              source.Note,
 			Delivery:          source.Delivery,
 			TaughtInEnglish:   source.TaughtInEnglish,
-			CreatedBy:         nullUUID(nonNilUUID(by)),
+			// The seminar a cohort was last year is the best guess for what it is this year;
+			// a topic that changed is one edit, a topic that vanished is fourteen.
+			Topic:     source.Topic,
+			CreatedBy: nullUUID(nonNilUUID(by)),
 		})
 		if errors.Is(err, pgx.ErrNoRows) {
 			// DO NOTHING returns no row: this cohort is already declared in the target, and

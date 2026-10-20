@@ -466,3 +466,33 @@ func TestInstanceFormatFollowsTheAssignmentRule(t *testing.T) {
 		}
 	}
 }
+
+// The topic of a cohort is written by whoever may write its demand or its assignment, decided
+// 2026-10-20: the programme lead names the seminars in advance so that colleagues can wish for
+// one, the subject group lead corrects a title at the staffing. Asserted as the union of the two
+// rules over every actor, phase and reach, so that narrowing either of them narrows this one
+// visibly rather than by surprise.
+func TestTheTopicOfACohortFollowsTheDemandOrTheAssignment(t *testing.T) {
+	t.Parallel()
+
+	actors := []principal.Actor{principal.Anonymous}
+	for _, role := range policy.AllRoles() {
+		for _, kind := range []principal.Kind{principal.KindInteractive, principal.KindToken} {
+			actors = append(actors, testdata.Drei.Actor(kind, string(role)))
+		}
+		actors = append(actors, headOf(testdata.Drei, principal.KindInteractive, groupOne))
+	}
+
+	for _, a := range actors {
+		for _, phase := range policy.AllPhases() {
+			for _, group := range []uuid.UUID{groupOne, groupTwo, uuid.Nil} {
+				want := policy.MayWriteDemand(a, uuid.Nil, phase) ||
+					policy.MayWriteAssignment(a, group, uuid.Nil, phase)
+				if got := policy.MayWriteInstanceTopic(a, group, uuid.Nil, phase); got != want {
+					t.Errorf("%v in %s for group %s: topic %v, demand or assignment %v",
+						a.Roles, phase, group, got, want)
+				}
+			}
+		}
+	}
+}

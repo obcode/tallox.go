@@ -1414,6 +1414,11 @@ type Querier interface {
 	// that forgot would blank it. The planning table writes the note where it writes the cohort year,
 	// and that is the only writer.
 	UpdateCourseInstanceNote(ctx context.Context, arg UpdateCourseInstanceNoteParams) error
+	// Which seminar a cohort of an umbrella module is. NULL takes the topic away.
+	//
+	// On its own for the same reason as the note and the format: nothing else that writes a cohort
+	// has a topic to state, and a statement that took one would make each of them restate it.
+	UpdateCourseInstanceTopic(ctx context.Context, arg UpdateCourseInstanceTopicParams) error
 	UpdateInstancePart(ctx context.Context, arg UpdateInstancePartParams) error
 	// Correct one, or take it out of the lists with active = false.
 	//

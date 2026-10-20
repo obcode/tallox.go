@@ -50,6 +50,7 @@ type MutationResolver interface {
 	DeclareCourseInstance(ctx context.Context, input model.DeclareCourseInstanceInput) (*model.CourseInstance, error)
 	DuplicateCourseInstance(ctx context.Context, id string, track string, sourceTrack *string) (*model.CourseInstance, error)
 	ChangeCourseInstance(ctx context.Context, id string, track string, programmeSemester *int) (*model.CourseInstance, error)
+	SetCourseInstanceTopic(ctx context.Context, id string, topic string) (*model.CourseInstance, error)
 	WithdrawCourseInstance(ctx context.Context, id string) (string, error)
 	AddInstancePart(ctx context.Context, instanceID string, kind domain.InstancePartKind, teachingHours *float64) (*model.CourseInstance, error)
 	ChangeInstancePart(ctx context.Context, id string, kind domain.InstancePartKind, teachingHours *float64) (*model.CourseInstance, error)
@@ -714,6 +715,28 @@ func (ec *executionContext) field_Mutation_setCourseInstanceFormat_args(ctx cont
 		return nil, err
 	}
 	args["taughtInEnglish"] = arg2
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setCourseInstanceTopic_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "topic",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["topic"] = arg1
 	return args, nil
 }
 
@@ -3031,6 +3054,63 @@ func (ec *executionContext) fieldContext_Mutation_changeCourseInstance(ctx conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_setCourseInstanceTopic(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setCourseInstanceTopic(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetCourseInstanceTopic(ctx, fc.Args["id"].(string), fc.Args["topic"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.InteractiveOnly == nil {
+					var zeroVal *model.CourseInstance
+					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+				}
+				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CourseInstance) graphql.Marshaler {
+			return ec.marshalNCourseInstance2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCourseInstance(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setCourseInstanceTopic(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CourseInstance(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setCourseInstanceTopic_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_withdrawCourseInstance(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4985,6 +5065,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "changeCourseInstance":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_changeCourseInstance(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setCourseInstanceTopic":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setCourseInstanceTopic(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

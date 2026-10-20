@@ -295,6 +295,18 @@ func MayWriteInstanceFormat(a principal.Actor, subjectGroupID, programmeID uuid.
 	return MayWriteAssignment(a, subjectGroupID, programmeID, phase)
 }
 
+// MayWriteInstanceTopic is the rule for the topic of a cohort — which seminar a cohort of an
+// umbrella module is.
+//
+// The union of the demand's rule and the assignment's, decided 2026-10-20. The programme lead
+// names the seminars when declaring the cohorts, because a topic nobody can read before the wish
+// round is a seminar nobody can wish for; the subject group lead who staffs the cohort may
+// correct it, because that is often where the title is settled with the lecturer. Either alone
+// would leave out one of the two people who actually write it.
+func MayWriteInstanceTopic(a principal.Actor, subjectGroupID, programmeID uuid.UUID, phase Phase) bool {
+	return MayWriteDemand(a, programmeID, phase) || MayWriteAssignment(a, subjectGroupID, programmeID, phase)
+}
+
 // MayDivideInstancePart is the rule for cutting a part in two and for saying that another
 // faculty teaches it.
 //

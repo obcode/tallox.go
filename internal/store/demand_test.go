@@ -832,6 +832,36 @@ func TestPlanningReconcilesAWholeScreen(t *testing.T) {
 	}
 }
 
+// An umbrella module — the seminar the catalogue holds once and the faculty runs fourteen times
+// a semester — is planned as one cohort per seminar. Nothing below the service may bound that
+// more tightly than the service does, or the plan is refused half-way by a constraint.
+func TestPlanningAnUmbrellaModuleAsFourteenCohorts(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+
+	tracks := make([]domain.DemandTrack, 14)
+	for i := range tracks {
+		tracks[i] = track(string(rune('A'+i)), 0)
+	}
+	plan, err := f.demand.PlanDemand(t.Context(), f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, tracks...)}, uuid.Nil, false)
+	if err != nil {
+		t.Fatalf("planning fourteen cohorts gave %v", err)
+	}
+	if len(plan.Created) != 14 {
+		t.Errorf("the plan reports %d instances created, want 14", len(plan.Created))
+	}
+
+	instances := f.instances(t)
+	if len(instances) != 14 {
+		t.Fatalf("the module runs in %d cohorts, want 14", len(instances))
+	}
+	if instances[0].Track != "A" || instances[13].Track != "N" {
+		t.Errorf("the cohorts run from %q to %q, want A to N", instances[0].Track, instances[13].Track)
+	}
+}
+
 // The property the interface's filters rest on: what is not on the screen is not in the plan, and
 // what is not in the plan is not touched.
 func TestPlanningLeavesUnnamedModulesAlone(t *testing.T) {

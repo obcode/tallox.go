@@ -79,6 +79,8 @@ var (
 	ErrTaughtByTooLong = errors.New("die Angabe zur anderen Fakultät ist zu lang")
 	// ErrDeliveryInvalid is a way of teaching this build does not know.
 	ErrDeliveryInvalid = errors.New("diese Durchführungsform ist nicht gültig")
+	// ErrTopicTooLong mirrors course_instance_topic_is_a_heading.
+	ErrTopicTooLong = errors.New("das Thema darf höchstens 120 Zeichen lang sein")
 	// ErrSameSemester is copying a semester's demand into itself.
 	ErrSameSemester = errors.New("das Quell- und das Zielsemester sind dasselbe")
 
@@ -177,6 +179,11 @@ type CourseInstance struct {
 	Programme Programme
 	// Track is the parallel cohort — the A in IF3A — and empty for a module that runs once.
 	Track string
+	// Topic is which seminar this cohort is, where the catalogue names only the umbrella module
+	// that the faculty runs many times a semester — "Green Software Engineering" as a cohort of
+	// a seminar module. Empty for nearly every cohort, whose module's name says what it is. Not
+	// part of the identity: it changes while the cohort stays the same.
+	Topic string
 	// ProgrammeSemester is which cohort year this is for, the 3 in IF3A, or nil where nobody
 	// has said and the regulations do not either.
 	ProgrammeSemester *int
@@ -427,10 +434,12 @@ type CopyReport struct {
 
 // MaxTracksPerModule bounds the cohorts of one module in one semester.
 //
-// Eight, which is the alphabet the interface offers and four times the largest thing the faculty
-// runs. A guard against a number typed into a stepper by holding down a key, not a rule about
-// teaching.
-const MaxTracksPerModule = 8
+// Twenty-six, which is the alphabet: the interface names cohorts A to Z, one letter each. A
+// cohort is not always a parallel class — an umbrella module such as a seminar that the
+// catalogue holds once and the faculty runs fourteen times a semester, each with its own topic
+// and lecturer, is planned as fourteen cohorts. So the bound is a guard against a number typed
+// into a stepper by holding down a key, not a rule about teaching.
+const MaxTracksPerModule = 26
 
 // MaxGroupsPerTrack bounds the parallel groups of one cohort.
 //
@@ -741,6 +750,8 @@ type DemandStore interface {
 	// catalogue says"; a value equal to the catalogue's is stored as nil too.
 	SetCourseInstanceFormat(ctx context.Context, id uuid.UUID, delivery Delivery,
 		englishOverride *bool) (*CourseInstance, error)
+	// SetCourseInstanceTopic writes which seminar a cohort is; nil takes the topic away.
+	SetCourseInstanceTopic(ctx context.Context, id uuid.UUID, topic *string) (*CourseInstance, error)
 	// DeleteCourseInstance withdraws one. Returns ErrInstanceInUse when something hangs off it.
 	DeleteCourseInstance(ctx context.Context, id uuid.UUID) error
 	// AddInstancePart appends a part — the second laboratory group, the tutorial nobody

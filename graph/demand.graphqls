@@ -136,6 +136,17 @@ type CourseInstance {
   """
   taughtInEnglishOverridden: Boolean!
   """
+  Which seminar this cohort is, or `null` for the ordinary cohort whose module's name says what it
+  is.
+
+  For the umbrella module the examination office holds once and the faculty runs many times a
+  semester, each with its own title and lecturer: the seminars of a term are cohorts A, B, C … of
+  that one module, and this is what tells them apart. Not part of the identity — it may change
+  while the cohort stays the same. Carried over when a semester's demand is copied, not when a
+  cohort is duplicated: a second seminar is a different one.
+  """
+  topic: String
+  """
   The assignable units this cohort holds itself, in order.
 
   Made from the module's split when the instance is declared — one part per unit — and edited
@@ -656,6 +667,25 @@ extend type Mutation {
   """
   changeCourseInstance(id: ID!, track: String!, programmeSemester: Int): CourseInstance!
     @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Name the seminar a cohort is — see `CourseInstance.topic`.
+
+  Written by whoever may write either the demand or the assignment of the cohort: the lead of
+  its study programme names the seminars in advance so that colleagues can wish for one, the lead
+  of the module's subject group may correct a title when the cohort is staffed, and the dean's
+  office may do both, while the semester is not `FINAL`.
+
+  The topic is trimmed; an empty one takes it away. At most 120 characters.
+
+  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`, `TOPIC_TOO_LONG`.
+  """
+  setCourseInstanceTopic(
+    "The cohort."
+    id: ID!
+    "Which seminar it is. Empty takes the topic away."
+    topic: String!
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
   Withdraw an instance that is not needed after all. Its parts go with it.

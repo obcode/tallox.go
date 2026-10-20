@@ -24,6 +24,7 @@
 -- from the one the interface shows.
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
        ci.note, ci.delivery, ci.taught_in_english, m.teaching_language AS module_teaching_language,
+       ci.topic,
        ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
@@ -48,6 +49,7 @@ ORDER BY ci.programme_semester NULLS LAST, (m.name = ''), m.name, ci.track, ci.i
 -- name: CourseInstanceByID :one
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
        ci.note, ci.delivery, ci.taught_in_english, m.teaching_language AS module_teaching_language,
+       ci.topic,
        ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
@@ -70,6 +72,7 @@ WHERE ci.id = $1;
 -- come off the instance.
 SELECT ci.id, ci.semester_id, ci.module_id, ci.programme_id, ci.track, ci.programme_semester,
        ci.note, ci.delivery, ci.taught_in_english, m.teaching_language AS module_teaching_language,
+       ci.topic,
        ci.created_at, ci.updated_at,
        s.code AS semester_code, s.phase AS semester_phase,
        p.code AS programme_code, p.title AS programme_title, p.active AS programme_active,
@@ -328,9 +331,9 @@ WHERE o.module_id = $1
 -- worth naming, and the demand is not confidential, so naming it leaks nothing. The copy path is
 -- the one place that wants a conflict to be a no-op, and it uses the statement below.
 INSERT INTO course_instance (semester_id, module_id, programme_id, track, programme_semester,
-                             note, delivery, taught_in_english, created_by)
+                             note, delivery, taught_in_english, topic, created_by)
 VALUES ($1, $2, $3, $4, sqlc.narg('programme_semester'), sqlc.arg('note'), sqlc.arg('delivery'),
-        sqlc.narg('taught_in_english'), sqlc.narg('created_by'))
+        sqlc.narg('taught_in_english'), sqlc.narg('topic'), sqlc.narg('created_by'))
 RETURNING id;
 
 -- name: InsertCourseInstanceIfAbsent :one
@@ -341,9 +344,9 @@ RETURNING id;
 -- a cohort year somebody has since corrected in the target semester — a copy must never silently
 -- undo work in the semester it is copying into.
 INSERT INTO course_instance (semester_id, module_id, programme_id, track, programme_semester,
-                             note, delivery, taught_in_english, created_by)
+                             note, delivery, taught_in_english, topic, created_by)
 VALUES ($1, $2, $3, $4, sqlc.narg('programme_semester'), sqlc.arg('note'), sqlc.arg('delivery'),
-        sqlc.narg('taught_in_english'), sqlc.narg('created_by'))
+        sqlc.narg('taught_in_english'), sqlc.narg('topic'), sqlc.narg('created_by'))
 ON CONFLICT (semester_id, module_id, programme_id, track) DO NOTHING
 RETURNING id;
 
@@ -386,6 +389,16 @@ SET delivery = sqlc.arg('delivery'),
     updated_at = now()
 FROM module m
 WHERE ci.id = sqlc.arg('id') AND m.id = ci.module_id;
+
+-- name: UpdateCourseInstanceTopic :exec
+-- Which seminar a cohort of an umbrella module is. NULL takes the topic away.
+--
+-- On its own for the same reason as the note and the format: nothing else that writes a cohort
+-- has a topic to state, and a statement that took one would make each of them restate it.
+UPDATE course_instance
+SET topic = sqlc.narg('topic'),
+    updated_at = now()
+WHERE id = sqlc.arg('id');
 
 -- name: DeleteCourseInstance :execrows
 -- Withdraw an instance. Its parts go with it; anything else pointing at it stops it.
@@ -512,7 +525,7 @@ SELECT EXISTS (
 -- already hold the semester as a row: looking it up again by code inside the transaction would be
 -- a second chance to disagree about which semester is meant.
 SELECT ci.id, ci.module_id, ci.track, ci.programme_semester, ci.note, ci.delivery,
-       ci.taught_in_english, (ci.covered_accepted_at IS NOT NULL)::boolean AS is_covered
+       ci.taught_in_english, ci.topic, (ci.covered_accepted_at IS NOT NULL)::boolean AS is_covered
 FROM course_instance ci
 WHERE ci.semester_id = $1
   AND ci.programme_id = $2

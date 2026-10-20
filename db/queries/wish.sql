@@ -45,7 +45,7 @@
 -- faculty has worked through its catalogue, and its wishes still belong to somebody.
 SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
-    ci.track, ci.programme_semester,
+    ci.track, ci.topic, ci.programme_semester,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
     -- query renders one row per wish, and a join to instance_part would turn each of them into
@@ -92,7 +92,7 @@ ORDER BY sem.code, m.name, ci.track, w.priority,
 -- because "it is only one row".
 SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
-    ci.track, ci.programme_semester,
+    ci.track, ci.topic, ci.programme_semester,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
     -- query renders one row per wish, and a join to instance_part would turn each of them into

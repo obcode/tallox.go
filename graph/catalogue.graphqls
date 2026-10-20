@@ -858,6 +858,37 @@ extend type Mutation {
   ): Module! @scope(area: PLANNING, verb: WRITE)
 
   """
+  Carry the module's split over to the instances that already exist.
+
+  An instance takes its parts from the split when it is declared, copied or duplicated, and keeps
+  them: what a lecturer is credited with is editable afterwards. So correcting the split changes
+  no existing instance until this is called — deliberately a step of its own, because it can
+  overwrite hours somebody set by hand, and `dryRun` shows that first.
+
+  For every instance of the module in a semester that is not `FINAL`, of every programme:
+
+  - a kind the split still names gets its hours (and its pieces, where it names a kind twice),
+    on a held part too — the person holding it teaches what the module now requires;
+  - a kind it names and the instance lacks is added; for the practical kind as many groups as
+    the instance had of the practical kind it replaces;
+  - a kind it no longer names is removed.
+
+  What is left as it was is reported in `refused`, per instance and kind: `PART_ASSIGNED` (held,
+  cannot be removed), `PART_DIVIDED` (divided otherwise than the split says, or taught by
+  another faculty), `SPLIT_LEFT_TO_PROGRAMME` (an instance whose assignments the caller cannot
+  read — nothing is removed there at all, so the answer says nothing about whether anybody holds
+  it). A cohort covered by another programme holds no parts and is skipped.
+
+  Allowed for whoever may call `setModuleComponents`. `@interactiveOnly` because it can answer
+  `PART_ASSIGNED`, like every write that can. `MODULE_NOT_DECOMPOSED` where there is no split.
+  """
+  applyModuleSplitToInstances(
+    moduleId: ID!
+    "Report what would happen and write nothing."
+    dryRun: Boolean! = false
+  ): ModuleSplitApplication! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
   Mark a module as a project-based course (PBLV), or take the mark back.
 
   The process gives PBLVs out last, so that they are not snapped up as gap fillers. The examination
@@ -866,4 +897,44 @@ extend type Mutation {
   """
   setModuleProjectBased(moduleId: ID!, projectBased: Boolean!): Module!
     @scope(area: PLANNING, verb: WRITE)
+}
+
+"""
+What carrying a split over did, or — after a dry run — what it would do.
+"""
+type ModuleSplitApplication {
+  "True when nothing was written."
+  dryRun: Boolean!
+  "Instances whose parts were rewritten, at least in part."
+  changed: [ModuleSplitChange!]!
+  "What was left as it was, one entry per instance and kind."
+  refused: [ModuleSplitRefusal!]!
+  "How many instances already followed the split."
+  unchanged: Int!
+}
+
+"""
+One instance whose parts follow the split now.
+"""
+type ModuleSplitChange {
+  "The instance as it is now — after a dry run, untouched."
+  instance: CourseInstance!
+  "Its teaching hours before, summed over its parts."
+  teachingHoursBefore: Float!
+  "And after."
+  teachingHoursAfter: Float!
+}
+
+"""
+One kind of part in one instance that was left as it was.
+"""
+type ModuleSplitRefusal {
+  "The instance the part belongs to, as it is now."
+  instance: CourseInstance!
+  "The kind of part that was left as it was."
+  kind: InstancePartKind!
+  "`PART_ASSIGNED`, `PART_DIVIDED` or `SPLIT_LEFT_TO_PROGRAMME`."
+  code: String!
+  "The sentence to show."
+  message: String!
 }

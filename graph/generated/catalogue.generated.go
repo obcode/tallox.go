@@ -1165,6 +1165,295 @@ func (ec *executionContext) fieldContext_ModuleOffering_minProgrammeSemester(_ c
 	return graphql.NewScalarFieldContext("ModuleOffering", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _ModuleSplitApplication_dryRun(ctx context.Context, field graphql.CollectedField, obj *model.ModuleSplitApplication) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleSplitApplication_dryRun(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DryRun, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleSplitApplication_dryRun(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleSplitApplication", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _ModuleSplitApplication_changed(ctx context.Context, field graphql.CollectedField, obj *model.ModuleSplitApplication) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleSplitApplication_changed(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Changed, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.ModuleSplitChange) graphql.Marshaler {
+			return ec.marshalNModuleSplitChange2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleSplitChangeᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleSplitApplication_changed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModuleSplitApplication",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ModuleSplitChange(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ModuleSplitApplication_refused(ctx context.Context, field graphql.CollectedField, obj *model.ModuleSplitApplication) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleSplitApplication_refused(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Refused, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.ModuleSplitRefusal) graphql.Marshaler {
+			return ec.marshalNModuleSplitRefusal2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleSplitRefusalᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleSplitApplication_refused(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModuleSplitApplication",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ModuleSplitRefusal(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ModuleSplitApplication_unchanged(ctx context.Context, field graphql.CollectedField, obj *model.ModuleSplitApplication) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleSplitApplication_unchanged(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Unchanged, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleSplitApplication_unchanged(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleSplitApplication", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ModuleSplitChange_instance(ctx context.Context, field graphql.CollectedField, obj *model.ModuleSplitChange) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleSplitChange_instance(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Instance, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CourseInstance) graphql.Marshaler {
+			return ec.marshalNCourseInstance2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCourseInstance(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleSplitChange_instance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModuleSplitChange",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CourseInstance(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ModuleSplitChange_teachingHoursBefore(ctx context.Context, field graphql.CollectedField, obj *model.ModuleSplitChange) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleSplitChange_teachingHoursBefore(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TeachingHoursBefore, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleSplitChange_teachingHoursBefore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleSplitChange", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _ModuleSplitChange_teachingHoursAfter(ctx context.Context, field graphql.CollectedField, obj *model.ModuleSplitChange) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleSplitChange_teachingHoursAfter(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TeachingHoursAfter, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleSplitChange_teachingHoursAfter(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleSplitChange", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _ModuleSplitRefusal_instance(ctx context.Context, field graphql.CollectedField, obj *model.ModuleSplitRefusal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleSplitRefusal_instance(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Instance, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CourseInstance) graphql.Marshaler {
+			return ec.marshalNCourseInstance2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCourseInstance(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleSplitRefusal_instance(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ModuleSplitRefusal",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CourseInstance(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ModuleSplitRefusal_kind(ctx context.Context, field graphql.CollectedField, obj *model.ModuleSplitRefusal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleSplitRefusal_kind(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Kind, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v domain.InstancePartKind) graphql.Marshaler {
+			return ec.marshalNInstancePartKind2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐInstancePartKind(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleSplitRefusal_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleSplitRefusal", field, false, false, errors.New("field of type InstancePartKind does not have child fields"))
+}
+
+func (ec *executionContext) _ModuleSplitRefusal_code(ctx context.Context, field graphql.CollectedField, obj *model.ModuleSplitRefusal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleSplitRefusal_code(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Code, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleSplitRefusal_code(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleSplitRefusal", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ModuleSplitRefusal_message(ctx context.Context, field graphql.CollectedField, obj *model.ModuleSplitRefusal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleSplitRefusal_message(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Message, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleSplitRefusal_message(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleSplitRefusal", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _Programme_code(ctx context.Context, field graphql.CollectedField, obj *model.Programme) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2598,6 +2887,160 @@ func (ec *executionContext) _ModuleOffering(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var moduleSplitApplicationImplementors = []string{"ModuleSplitApplication"}
+
+func (ec *executionContext) _ModuleSplitApplication(ctx context.Context, sel ast.SelectionSet, obj *model.ModuleSplitApplication) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, moduleSplitApplicationImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ModuleSplitApplication")
+		case "dryRun":
+			out.Values[i] = ec._ModuleSplitApplication_dryRun(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "changed":
+			out.Values[i] = ec._ModuleSplitApplication_changed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "refused":
+			out.Values[i] = ec._ModuleSplitApplication_refused(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "unchanged":
+			out.Values[i] = ec._ModuleSplitApplication_unchanged(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var moduleSplitChangeImplementors = []string{"ModuleSplitChange"}
+
+func (ec *executionContext) _ModuleSplitChange(ctx context.Context, sel ast.SelectionSet, obj *model.ModuleSplitChange) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, moduleSplitChangeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ModuleSplitChange")
+		case "instance":
+			out.Values[i] = ec._ModuleSplitChange_instance(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "teachingHoursBefore":
+			out.Values[i] = ec._ModuleSplitChange_teachingHoursBefore(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "teachingHoursAfter":
+			out.Values[i] = ec._ModuleSplitChange_teachingHoursAfter(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var moduleSplitRefusalImplementors = []string{"ModuleSplitRefusal"}
+
+func (ec *executionContext) _ModuleSplitRefusal(ctx context.Context, sel ast.SelectionSet, obj *model.ModuleSplitRefusal) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, moduleSplitRefusalImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ModuleSplitRefusal")
+		case "instance":
+			out.Values[i] = ec._ModuleSplitRefusal_instance(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "kind":
+			out.Values[i] = ec._ModuleSplitRefusal_kind(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "code":
+			out.Values[i] = ec._ModuleSplitRefusal_code(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "message":
+			out.Values[i] = ec._ModuleSplitRefusal_message(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var programmeImplementors = []string{"Programme"}
 
 func (ec *executionContext) _Programme(ctx context.Context, sel ast.SelectionSet, obj *model.Programme) graphql.Marshaler {
@@ -3064,6 +3507,72 @@ func (ec *executionContext) marshalNModuleSource2githubᚗcomᚋobcodeᚋtallox�
 		}
 	}
 	return res
+}
+
+func (ec *executionContext) marshalNModuleSplitApplication2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleSplitApplication(ctx context.Context, sel ast.SelectionSet, v model.ModuleSplitApplication) graphql.Marshaler {
+	return ec._ModuleSplitApplication(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNModuleSplitApplication2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleSplitApplication(ctx context.Context, sel ast.SelectionSet, v *model.ModuleSplitApplication) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ModuleSplitApplication(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNModuleSplitChange2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleSplitChangeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ModuleSplitChange) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNModuleSplitChange2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleSplitChange(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNModuleSplitChange2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleSplitChange(ctx context.Context, sel ast.SelectionSet, v *model.ModuleSplitChange) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ModuleSplitChange(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNModuleSplitRefusal2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleSplitRefusalᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ModuleSplitRefusal) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNModuleSplitRefusal2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleSplitRefusal(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNModuleSplitRefusal2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleSplitRefusal(ctx context.Context, sel ast.SelectionSet, v *model.ModuleSplitRefusal) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ModuleSplitRefusal(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNProgramme2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgramme(ctx context.Context, sel ast.SelectionSet, v model.Programme) graphql.Marshaler {

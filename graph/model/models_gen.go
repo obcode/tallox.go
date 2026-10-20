@@ -852,6 +852,40 @@ type ModuleRef struct {
 	Compulsory bool `json:"compulsory"`
 }
 
+// What carrying a split over did, or — after a dry run — what it would do.
+type ModuleSplitApplication struct {
+	// True when nothing was written.
+	DryRun bool `json:"dryRun"`
+	// Instances whose parts were rewritten, at least in part.
+	Changed []*ModuleSplitChange `json:"changed"`
+	// What was left as it was, one entry per instance and kind.
+	Refused []*ModuleSplitRefusal `json:"refused"`
+	// How many instances already followed the split.
+	Unchanged int `json:"unchanged"`
+}
+
+// One instance whose parts follow the split now.
+type ModuleSplitChange struct {
+	// The instance as it is now — after a dry run, untouched.
+	Instance *CourseInstance `json:"instance"`
+	// Its teaching hours before, summed over its parts.
+	TeachingHoursBefore float64 `json:"teachingHoursBefore"`
+	// And after.
+	TeachingHoursAfter float64 `json:"teachingHoursAfter"`
+}
+
+// One kind of part in one instance that was left as it was.
+type ModuleSplitRefusal struct {
+	// The instance the part belongs to, as it is now.
+	Instance *CourseInstance `json:"instance"`
+	// The kind of part that was left as it was.
+	Kind domain.InstancePartKind `json:"kind"`
+	// `PART_ASSIGNED`, `PART_DIVIDED` or `SPLIT_LEFT_TO_PROGRAMME`.
+	Code string `json:"code"`
+	// The sentence to show.
+	Message string `json:"message"`
+}
+
 // A module of a subject group that nobody has said they can teach.
 type ModuleWithoutCompetence struct {
 	ID string `json:"id"`

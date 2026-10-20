@@ -313,6 +313,26 @@ type ComplexityRoot struct {
 		Name              func(childComplexity int) int
 	}
 
+	ModuleSplitApplication struct {
+		Changed   func(childComplexity int) int
+		DryRun    func(childComplexity int) int
+		Refused   func(childComplexity int) int
+		Unchanged func(childComplexity int) int
+	}
+
+	ModuleSplitChange struct {
+		Instance            func(childComplexity int) int
+		TeachingHoursAfter  func(childComplexity int) int
+		TeachingHoursBefore func(childComplexity int) int
+	}
+
+	ModuleSplitRefusal struct {
+		Code     func(childComplexity int) int
+		Instance func(childComplexity int) int
+		Kind     func(childComplexity int) int
+		Message  func(childComplexity int) int
+	}
+
 	ModuleWithoutCompetence struct {
 		Compulsory func(childComplexity int) int
 		ID         func(childComplexity int) int
@@ -323,6 +343,7 @@ type ComplexityRoot struct {
 		AcceptInstanceCoverage        func(childComplexity int, id string) int
 		AddInstancePart               func(childComplexity int, instanceID string, kind domain.InstancePartKind, teachingHours *float64) int
 		AdvanceSemesterPhase          func(childComplexity int, code string, to policy.Phase) int
+		ApplyModuleSplitToInstances   func(childComplexity int, moduleID string, dryRun bool) int
 		ChangeCourseInstance          func(childComplexity int, id string, track string, programmeSemester *int) int
 		ChangeInstancePart            func(childComplexity int, id string, kind domain.InstancePartKind, teachingHours *float64) int
 		ChangeLocalModule             func(childComplexity int, id string, input model.LocalModuleInput) int
@@ -1868,6 +1889,75 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ModuleRef.Name(childComplexity), true
 
+	case "ModuleSplitApplication.changed":
+		if e.ComplexityRoot.ModuleSplitApplication.Changed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleSplitApplication.Changed(childComplexity), true
+	case "ModuleSplitApplication.dryRun":
+		if e.ComplexityRoot.ModuleSplitApplication.DryRun == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleSplitApplication.DryRun(childComplexity), true
+	case "ModuleSplitApplication.refused":
+		if e.ComplexityRoot.ModuleSplitApplication.Refused == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleSplitApplication.Refused(childComplexity), true
+	case "ModuleSplitApplication.unchanged":
+		if e.ComplexityRoot.ModuleSplitApplication.Unchanged == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleSplitApplication.Unchanged(childComplexity), true
+
+	case "ModuleSplitChange.instance":
+		if e.ComplexityRoot.ModuleSplitChange.Instance == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleSplitChange.Instance(childComplexity), true
+	case "ModuleSplitChange.teachingHoursAfter":
+		if e.ComplexityRoot.ModuleSplitChange.TeachingHoursAfter == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleSplitChange.TeachingHoursAfter(childComplexity), true
+	case "ModuleSplitChange.teachingHoursBefore":
+		if e.ComplexityRoot.ModuleSplitChange.TeachingHoursBefore == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleSplitChange.TeachingHoursBefore(childComplexity), true
+
+	case "ModuleSplitRefusal.code":
+		if e.ComplexityRoot.ModuleSplitRefusal.Code == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleSplitRefusal.Code(childComplexity), true
+	case "ModuleSplitRefusal.instance":
+		if e.ComplexityRoot.ModuleSplitRefusal.Instance == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleSplitRefusal.Instance(childComplexity), true
+	case "ModuleSplitRefusal.kind":
+		if e.ComplexityRoot.ModuleSplitRefusal.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleSplitRefusal.Kind(childComplexity), true
+	case "ModuleSplitRefusal.message":
+		if e.ComplexityRoot.ModuleSplitRefusal.Message == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleSplitRefusal.Message(childComplexity), true
+
 	case "ModuleWithoutCompetence.compulsory":
 		if e.ComplexityRoot.ModuleWithoutCompetence.Compulsory == nil {
 			break
@@ -1920,6 +2010,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.AdvanceSemesterPhase(childComplexity, args["code"].(string), args["to"].(policy.Phase)), true
+	case "Mutation.applyModuleSplitToInstances":
+		if e.ComplexityRoot.Mutation.ApplyModuleSplitToInstances == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_applyModuleSplitToInstances_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ApplyModuleSplitToInstances(childComplexity, args["moduleId"].(string), args["dryRun"].(bool)), true
 	case "Mutation.changeCourseInstance":
 		if e.ComplexityRoot.Mutation.ChangeCourseInstance == nil {
 			break
@@ -5762,6 +5863,37 @@ extend type Mutation {
   ): Module! @scope(area: PLANNING, verb: WRITE)
 
   """
+  Carry the module's split over to the instances that already exist.
+
+  An instance takes its parts from the split when it is declared, copied or duplicated, and keeps
+  them: what a lecturer is credited with is editable afterwards. So correcting the split changes
+  no existing instance until this is called — deliberately a step of its own, because it can
+  overwrite hours somebody set by hand, and ` + "`" + `dryRun` + "`" + ` shows that first.
+
+  For every instance of the module in a semester that is not ` + "`" + `FINAL` + "`" + `, of every programme:
+
+  - a kind the split still names gets its hours (and its pieces, where it names a kind twice),
+    on a held part too — the person holding it teaches what the module now requires;
+  - a kind it names and the instance lacks is added; for the practical kind as many groups as
+    the instance had of the practical kind it replaces;
+  - a kind it no longer names is removed.
+
+  What is left as it was is reported in ` + "`" + `refused` + "`" + `, per instance and kind: ` + "`" + `PART_ASSIGNED` + "`" + ` (held,
+  cannot be removed), ` + "`" + `PART_DIVIDED` + "`" + ` (divided otherwise than the split says, or taught by
+  another faculty), ` + "`" + `SPLIT_LEFT_TO_PROGRAMME` + "`" + ` (an instance whose assignments the caller cannot
+  read — nothing is removed there at all, so the answer says nothing about whether anybody holds
+  it). A cohort covered by another programme holds no parts and is skipped.
+
+  Allowed for whoever may call ` + "`" + `setModuleComponents` + "`" + `. ` + "`" + `@interactiveOnly` + "`" + ` because it can answer
+  ` + "`" + `PART_ASSIGNED` + "`" + `, like every write that can. ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + ` where there is no split.
+  """
+  applyModuleSplitToInstances(
+    moduleId: ID!
+    "Report what would happen and write nothing."
+    dryRun: Boolean! = false
+  ): ModuleSplitApplication! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
   Mark a module as a project-based course (PBLV), or take the mark back.
 
   The process gives PBLVs out last, so that they are not snapped up as gap fillers. The examination
@@ -5770,6 +5902,46 @@ extend type Mutation {
   """
   setModuleProjectBased(moduleId: ID!, projectBased: Boolean!): Module!
     @scope(area: PLANNING, verb: WRITE)
+}
+
+"""
+What carrying a split over did, or — after a dry run — what it would do.
+"""
+type ModuleSplitApplication {
+  "True when nothing was written."
+  dryRun: Boolean!
+  "Instances whose parts were rewritten, at least in part."
+  changed: [ModuleSplitChange!]!
+  "What was left as it was, one entry per instance and kind."
+  refused: [ModuleSplitRefusal!]!
+  "How many instances already followed the split."
+  unchanged: Int!
+}
+
+"""
+One instance whose parts follow the split now.
+"""
+type ModuleSplitChange {
+  "The instance as it is now — after a dry run, untouched."
+  instance: CourseInstance!
+  "Its teaching hours before, summed over its parts."
+  teachingHoursBefore: Float!
+  "And after."
+  teachingHoursAfter: Float!
+}
+
+"""
+One kind of part in one instance that was left as it was.
+"""
+type ModuleSplitRefusal {
+  "The instance the part belongs to, as it is now."
+  instance: CourseInstance!
+  "The kind of part that was left as it was."
+  kind: InstancePartKind!
+  "` + "`" + `PART_ASSIGNED` + "`" + `, ` + "`" + `PART_DIVIDED` + "`" + ` or ` + "`" + `SPLIT_LEFT_TO_PROGRAMME` + "`" + `."
+  code: String!
+  "The sentence to show."
+  message: String!
 }
 `, BuiltIn: false},
 	{Name: "../competence.graphqls", Input: `# Competences: who can teach which module, and who would like to.
@@ -7074,7 +7246,7 @@ enum ScopeArea {
   # "is this part taken", which through a token the read rule would not.
 
   ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `,
-  ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
+  ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `applyModuleSplitToInstances` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
@@ -9460,6 +9632,46 @@ func (ec *executionContext) childFields_ModuleRef(ctx context.Context, field gra
 		return ec.fieldContext_ModuleRef_compulsory(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ModuleRef", field.Name)
+}
+
+func (ec *executionContext) childFields_ModuleSplitApplication(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "dryRun":
+		return ec.fieldContext_ModuleSplitApplication_dryRun(ctx, field)
+	case "changed":
+		return ec.fieldContext_ModuleSplitApplication_changed(ctx, field)
+	case "refused":
+		return ec.fieldContext_ModuleSplitApplication_refused(ctx, field)
+	case "unchanged":
+		return ec.fieldContext_ModuleSplitApplication_unchanged(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ModuleSplitApplication", field.Name)
+}
+
+func (ec *executionContext) childFields_ModuleSplitChange(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "instance":
+		return ec.fieldContext_ModuleSplitChange_instance(ctx, field)
+	case "teachingHoursBefore":
+		return ec.fieldContext_ModuleSplitChange_teachingHoursBefore(ctx, field)
+	case "teachingHoursAfter":
+		return ec.fieldContext_ModuleSplitChange_teachingHoursAfter(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ModuleSplitChange", field.Name)
+}
+
+func (ec *executionContext) childFields_ModuleSplitRefusal(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "instance":
+		return ec.fieldContext_ModuleSplitRefusal_instance(ctx, field)
+	case "kind":
+		return ec.fieldContext_ModuleSplitRefusal_kind(ctx, field)
+	case "code":
+		return ec.fieldContext_ModuleSplitRefusal_code(ctx, field)
+	case "message":
+		return ec.fieldContext_ModuleSplitRefusal_message(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ModuleSplitRefusal", field.Name)
 }
 
 func (ec *executionContext) childFields_ModuleWithoutCompetence(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/obcode/tallox.go/graph/generated"
@@ -158,6 +159,25 @@ func (r *mutationResolver) SetModuleComponents(ctx context.Context, moduleID str
 		return nil, catalogueUserFacing(actor, err)
 	}
 	return moduleModel(*module), nil
+}
+
+// ApplyModuleSplitToInstances is the resolver for the applyModuleSplitToInstances field.
+func (r *mutationResolver) ApplyModuleSplitToInstances(ctx context.Context, moduleID string, dryRun bool) (*model.ModuleSplitApplication, error) {
+	actor := principal.From(ctx)
+
+	id, err := uuid.Parse(moduleID)
+	if err != nil {
+		return nil, badRequest("MODULE_NOT_FOUND", domain.ErrModuleNotFound.Error())
+	}
+
+	applied, err := r.Demand.ApplyModuleSplit(ctx, actor, id, dryRun)
+	if errors.Is(err, domain.ErrModuleNotDecomposed) {
+		return nil, demandUserFacing(actor, err)
+	}
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+	return splitApplicationModel(applied), nil
 }
 
 // SetModuleProjectBased is the resolver for the setModuleProjectBased field.

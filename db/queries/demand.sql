@@ -821,3 +821,39 @@ RETURNING programme_id, study_year, teaching_hours::float8 AS teaching_hours, se
 DELETE FROM programme_quota
  WHERE study_year = sqlc.arg(study_year)::int
    AND programme_id = (SELECT id FROM programme WHERE code = sqlc.arg(programme)::text);
+
+-- name: InstancesForSplit :many
+-- The instances a corrected split is carried over to: every cohort of the module in a semester
+-- that is not over, except those another programme holds — they have no parts to correct.
+--
+-- With what the store needs to decide how far it may go in each: whose demand it is, and whether
+-- that semester's assignments are public yet. Locked, so that a cohort withdrawn while its parts
+-- are being rewritten waits rather than leaving the rewrite pointing at nothing.
+SELECT ci.id, ci.programme_id, s.phase AS semester_phase,
+       s.wishes_published_at, s.assignments_published_at
+FROM course_instance ci
+JOIN semester s ON s.id = ci.semester_id
+WHERE ci.module_id = $1
+  AND s.phase <> 'FINAL'
+  AND ci.covered_accepted_at IS NULL
+ORDER BY s.code, ci.programme_id, ci.track, ci.id
+FOR UPDATE OF ci;
+
+-- name: RenumberInstanceParts :exec
+-- Positions after parts were added and removed: the lecture first, then the kinds in their usual
+-- order, and within a kind as they were. A piece shares the position of the part it was cut from,
+-- so the numbering is over undivided parts and the pieces follow theirs.
+UPDATE instance_part p
+SET position = n.position, updated_at = now()
+FROM (
+    SELECT root.id AS root_id,
+           (row_number() OVER (
+               ORDER BY array_position(
+                            ARRAY['LECTURE', 'LAB', 'EXERCISE', 'SEMINAR', 'PROJECT', 'OTHER'], root.kind),
+                        root.position, root.created_at, root.id) - 1)::integer AS position
+    FROM instance_part root
+    WHERE root.course_instance_id = $1 AND root.divided_from_id IS NULL
+) n
+WHERE p.course_instance_id = $1
+  AND COALESCE(p.divided_from_id, p.id) = n.root_id
+  AND p.position <> n.position;

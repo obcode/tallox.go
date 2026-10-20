@@ -54,7 +54,7 @@ SELECT
     a.assigned_by, a.created_at, a.updated_at,
     p.kind AS part_kind, p.position AS part_position, p.teaching_hours AS part_teaching_hours,
     p.serves_sibling_tracks,
-    ci.id AS course_instance_id, ci.track, ci.programme_semester,
+    ci.id AS course_instance_id, ci.track, ci.topic, ci.programme_semester,
     sem.code AS semester_code, sem.phase AS semester_phase,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
@@ -107,6 +107,7 @@ type AssignmentByIDRow struct {
 	ServesSiblingTracks bool
 	CourseInstanceID    uuid.UUID
 	Track               string
+	Topic               *string
 	ProgrammeSemester   *int32
 	SemesterCode        string
 	SemesterPhase       string
@@ -147,6 +148,7 @@ func (q *Queries) AssignmentByID(ctx context.Context, arg AssignmentByIDParams) 
 		&i.ServesSiblingTracks,
 		&i.CourseInstanceID,
 		&i.Track,
+		&i.Topic,
 		&i.ProgrammeSemester,
 		&i.SemesterCode,
 		&i.SemesterPhase,
@@ -217,7 +219,7 @@ SELECT
     a.assigned_by, a.created_at, a.updated_at,
     p.kind AS part_kind, p.position AS part_position, p.teaching_hours AS part_teaching_hours,
     p.serves_sibling_tracks,
-    ci.id AS course_instance_id, ci.track, ci.programme_semester,
+    ci.id AS course_instance_id, ci.track, ci.topic, ci.programme_semester,
     sem.code AS semester_code, sem.phase AS semester_phase,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
@@ -283,6 +285,7 @@ type AssignmentsOfSemesterRow struct {
 	ServesSiblingTracks bool
 	CourseInstanceID    uuid.UUID
 	Track               string
+	Topic               *string
 	ProgrammeSemester   *int32
 	SemesterCode        string
 	SemesterPhase       string
@@ -382,6 +385,7 @@ func (q *Queries) AssignmentsOfSemester(ctx context.Context, arg AssignmentsOfSe
 			&i.ServesSiblingTracks,
 			&i.CourseInstanceID,
 			&i.Track,
+			&i.Topic,
 			&i.ProgrammeSemester,
 			&i.SemesterCode,
 			&i.SemesterPhase,

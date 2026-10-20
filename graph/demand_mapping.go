@@ -56,6 +56,14 @@ func programmeQuotaModel(q domain.ProgrammeQuota) *model.ProgrammeQuota {
 	}
 }
 
+// topicModel is the topic as the schema states it: null for no topic, never the empty string.
+func topicModel(topic string) *string {
+	if topic == "" {
+		return nil
+	}
+	return &topic
+}
+
 // courseInstanceModel reshapes an instance for the wire.
 func courseInstanceModel(i domain.CourseInstance) *model.CourseInstance {
 	out := &model.CourseInstance{
@@ -70,6 +78,7 @@ func courseInstanceModel(i domain.CourseInstance) *model.CourseInstance {
 		TaughtInEnglish:   i.TaughtInEnglish(),
 
 		TaughtInEnglishOverridden: i.EnglishOverride != nil,
+		Topic:                     topicModel(i.Topic),
 		// Computed here rather than in a field resolver: it is a sum over a slice that is
 		// already loaded, and a resolver would suggest it costs something to ask for.
 		TeachingHours:         i.TeachingHours(),

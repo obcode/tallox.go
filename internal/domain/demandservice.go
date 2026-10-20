@@ -504,6 +504,47 @@ func (s *DemandService) SetFormat(ctx context.Context, actor principal.Actor, id
 	return s.store.SetCourseInstanceFormat(ctx, instance.ID, delivery, englishOverride)
 }
 
+// SetTopic writes which seminar a cohort of an umbrella module is. An empty topic, or one of
+// only spaces, takes it away.
+//
+// Judged by the union of the demand's and the assignment's rule (policy.MayWriteInstanceTopic):
+// the programme lead names the seminars in advance so that colleagues can wish for one, and the
+// subject group lead may correct the title when the cohort is staffed.
+func (s *DemandService) SetTopic(ctx context.Context, actor principal.Actor, id uuid.UUID,
+	topic string,
+) (*CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	normalised, err := normaliseTopic(topic)
+	if err != nil {
+		return nil, err
+	}
+
+	instance, err := s.store.CourseInstanceByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if instance == nil {
+		return nil, ErrInstanceNotFound
+	}
+
+	subjectGroupID := uuid.Nil
+	if instance.Module.SubjectGroup != nil {
+		subjectGroupID = instance.Module.SubjectGroup.ID
+	}
+	if !policy.MayWriteInstanceTopic(actor, subjectGroupID, instance.Programme.ID,
+		instance.SemesterPhase) {
+		if !policy.MayActInSubjectGroup(actor, subjectGroupID) &&
+			!policy.MayPlanProgramme(actor, instance.Programme.ID) {
+			return nil, ErrNotYourSubject
+		}
+		return nil, ErrAssignmentPhaseClosed
+	}
+
+	return s.store.SetCourseInstanceTopic(ctx, instance.ID, normalised)
+}
+
 // DividePart cuts a piece of the given hours off a part — the lecture of 4 given 2 and 2, by two
 // people or by us and another faculty.
 //
@@ -1104,6 +1145,22 @@ func normaliseNote(note string) (string, error) {
 		return "", ErrNoteTooLong
 	}
 	return note, nil
+}
+
+// MaxTopicLength bounds a topic. A heading, not a paragraph: the note is for the paragraph.
+const MaxTopicLength = 120
+
+// normaliseTopic trims a topic and turns the empty one into no topic, which is the only spelling
+// course_instance_topic_is_a_heading admits. Counted in characters, like the note.
+func normaliseTopic(topic string) (*string, error) {
+	topic = strings.TrimSpace(topic)
+	if topic == "" {
+		return nil, nil
+	}
+	if utf8.RuneCountInString(topic) > MaxTopicLength {
+		return nil, ErrTopicTooLong
+	}
+	return &topic, nil
 }
 
 // validPart is the shape of a part, not its meaning.

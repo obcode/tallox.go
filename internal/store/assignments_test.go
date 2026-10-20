@@ -635,3 +635,27 @@ func TestTheHolderCannotGiveTheirOwnPartBack(t *testing.T) {
 		t.Errorf("the holder clearing their own assignment answered %v, want ErrNotYourSubject", err)
 	}
 }
+
+// An assignment names the seminar it is for, like a wish: its instance is rendered from the
+// assignment's own columns, and "Meine Lehre" without the topic is a list of identical seminars.
+func TestAnAssignmentCarriesTheTopicOfItsCohort(t *testing.T) {
+	t.Parallel()
+
+	f := newAssignmentFixture(t)
+	if _, err := f.schema.Pool.Exec(t.Context(),
+		`UPDATE course_instance SET topic = 'Green Software Engineering' WHERE id = $1`,
+		f.instance); err != nil {
+		t.Fatalf("cannot name the seminar: %v", err)
+	}
+	f.fill(t, f.lecture, domain.Assignee{PersonID: testdata.Eins.ID()})
+
+	got, err := f.assignments.Assignments(t.Context(),
+		domain.AssignmentQuery{SemesterCode: f.semester.Code},
+		policy.AssignmentFilter{Scope: policy.AssignmentReadScopeAll})
+	if err != nil {
+		t.Fatalf("cannot read the assignments: %v", err)
+	}
+	if len(got) != 1 || got[0].Instance.Topic != "Green Software Engineering" {
+		t.Errorf("the assignments read %+v, want the one for Green Software Engineering", got)
+	}
+}

@@ -231,6 +231,7 @@ type wishRow struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	Track             string
+	Topic             *string
 	ProgrammeSemester *int32
 	SemesterCode      string
 	SemesterPhase     string
@@ -263,6 +264,7 @@ func wishFrom(row wishRow) domain.Wish {
 			SemesterCode:      row.SemesterCode,
 			SemesterPhase:     policy.Phase(row.SemesterPhase),
 			Track:             row.Track,
+			Topic:             stringOrEmpty(row.Topic),
 			ProgrammeSemester: intOrNil(row.ProgrammeSemester),
 			Module:            domain.Module{ID: row.ModuleID, Name: row.ModuleName},
 			Programme: domain.Programme{

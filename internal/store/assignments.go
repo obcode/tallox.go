@@ -342,6 +342,7 @@ type assignmentRow struct {
 	ServesSiblingTracks bool
 	CourseInstanceID    uuid.UUID
 	Track               string
+	Topic               *string
 	ProgrammeSemester   *int32
 	SemesterCode        string
 	SemesterPhase       string
@@ -376,6 +377,7 @@ func assignmentFrom(row assignmentRow) domain.Assignment {
 			SemesterCode:      row.SemesterCode,
 			SemesterPhase:     policy.Phase(row.SemesterPhase),
 			Track:             row.Track,
+			Topic:             stringOrEmpty(row.Topic),
 			ProgrammeSemester: intOrNil(row.ProgrammeSemester),
 			Module: domain.Module{
 				ID:   row.ModuleID,

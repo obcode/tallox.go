@@ -586,6 +586,29 @@ func (ec *executionContext) fieldContext_CourseInstance_taughtInEnglishOverridde
 	return graphql.NewScalarFieldContext("CourseInstance", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _CourseInstance_topic(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CourseInstance_topic(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Topic, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_CourseInstance_topic(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CourseInstance", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _CourseInstance_parts(ctx context.Context, field graphql.CollectedField, obj *model.CourseInstance) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1978,6 +2001,11 @@ func (ec *executionContext) _CourseInstance(ctx context.Context, sel ast.Selecti
 		case "taughtInEnglishOverridden":
 			out.Values[i] = ec._CourseInstance_taughtInEnglishOverridden(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "topic":
+			out.Values[i] = ec._CourseInstance_topic(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		case "parts":

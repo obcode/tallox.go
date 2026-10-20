@@ -94,7 +94,7 @@ func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertW
 const wishByID = `-- name: WishByID :one
 SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
-    ci.track, ci.programme_semester,
+    ci.track, ci.topic, ci.programme_semester,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
     -- query renders one row per wish, and a join to instance_part would turn each of them into
@@ -144,6 +144,7 @@ type WishByIDRow struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	Track             string
+	Topic             *string
 	ProgrammeSemester *int32
 	SemesterCode      string
 	SemesterPhase     string
@@ -179,6 +180,7 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Track,
+		&i.Topic,
 		&i.ProgrammeSemester,
 		&i.SemesterCode,
 		&i.SemesterPhase,
@@ -199,7 +201,7 @@ const wishesOfSemester = `-- name: WishesOfSemester :many
 
 SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
-    ci.track, ci.programme_semester,
+    ci.track, ci.topic, ci.programme_semester,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
     -- query renders one row per wish, and a join to instance_part would turn each of them into
@@ -260,6 +262,7 @@ type WishesOfSemesterRow struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	Track             string
+	Topic             *string
 	ProgrammeSemester *int32
 	SemesterCode      string
 	SemesterPhase     string
@@ -347,6 +350,7 @@ func (q *Queries) WishesOfSemester(ctx context.Context, arg WishesOfSemesterPara
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Track,
+			&i.Topic,
 			&i.ProgrammeSemester,
 			&i.SemesterCode,
 			&i.SemesterPhase,

@@ -184,6 +184,7 @@ type ComplexityRoot struct {
 		TaughtInEnglish           func(childComplexity int) int
 		TaughtInEnglishOverridden func(childComplexity int) int
 		TeachingHours             func(childComplexity int) int
+		Topic                     func(childComplexity int) int
 		Track                     func(childComplexity int) int
 		UpdatedAt                 func(childComplexity int) int
 	}
@@ -371,6 +372,7 @@ type ComplexityRoot struct {
 		RevokePersonalAccessToken     func(childComplexity int, id string) int
 		SetAssignment                 func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
 		SetCourseInstanceFormat       func(childComplexity int, id string, delivery domain.Delivery, taughtInEnglish *bool) int
+		SetCourseInstanceTopic        func(childComplexity int, id string, topic string) int
 		SetDemandComplete             func(childComplexity int, semester string, programme string, complete bool) int
 		SetDesiredTeachingHours       func(childComplexity int, semester string, hours *float64, note *string) int
 		SetInstancePartTaughtBy       func(childComplexity int, id string, faculty *string) int
@@ -1330,6 +1332,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CourseInstance.TeachingHours(childComplexity), true
+	case "CourseInstance.topic":
+		if e.ComplexityRoot.CourseInstance.Topic == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.Topic(childComplexity), true
 	case "CourseInstance.track":
 		if e.ComplexityRoot.CourseInstance.Track == nil {
 			break
@@ -2306,6 +2314,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetCourseInstanceFormat(childComplexity, args["id"].(string), args["delivery"].(domain.Delivery), args["taughtInEnglish"].(*bool)), true
+	case "Mutation.setCourseInstanceTopic":
+		if e.ComplexityRoot.Mutation.SetCourseInstanceTopic == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setCourseInstanceTopic_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetCourseInstanceTopic(childComplexity, args["id"].(string), args["topic"].(string)), true
 	case "Mutation.setDemandComplete":
 		if e.ComplexityRoot.Mutation.SetDemandComplete == nil {
 			break
@@ -6510,6 +6529,17 @@ type CourseInstance {
   """
   taughtInEnglishOverridden: Boolean!
   """
+  Which seminar this cohort is, or ` + "`" + `null` + "`" + ` for the ordinary cohort whose module's name says what it
+  is.
+
+  For the umbrella module the examination office holds once and the faculty runs many times a
+  semester, each with its own title and lecturer: the seminars of a term are cohorts A, B, C … of
+  that one module, and this is what tells them apart. Not part of the identity — it may change
+  while the cohort stays the same. Carried over when a semester's demand is copied, not when a
+  cohort is duplicated: a second seminar is a different one.
+  """
+  topic: String
+  """
   The assignable units this cohort holds itself, in order.
 
   Made from the module's split when the instance is declared — one part per unit — and edited
@@ -7032,6 +7062,25 @@ extend type Mutation {
     @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
+  Name the seminar a cohort is — see ` + "`" + `CourseInstance.topic` + "`" + `.
+
+  Written by whoever may write either the demand or the assignment of the cohort: the lead of
+  its study programme names the seminars in advance so that colleagues can wish for one, the lead
+  of the module's subject group may correct a title when the cohort is staffed, and the dean's
+  office may do both, while the semester is not ` + "`" + `FINAL` + "`" + `.
+
+  The topic is trimmed; an empty one takes it away. At most 120 characters.
+
+  Refusals: ` + "`" + `INSTANCE_NOT_FOUND` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + `, ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + `, ` + "`" + `TOPIC_TOO_LONG` + "`" + `.
+  """
+  setCourseInstanceTopic(
+    "The cohort."
+    id: ID!
+    "Which seminar it is. Empty takes the topic away."
+    topic: String!
+  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
   Withdraw an instance that is not needed after all. Its parts go with it.
 
   Refused with ` + "`" + `INSTANCE_IN_USE` + "`" + ` once anything hangs off it. That refusal deliberately says
@@ -7298,7 +7347,7 @@ enum ScopeArea {
   ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `applyModuleSplitToInstances` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `,
   ` + "`" + `setModuleSemesterSpan` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
-  ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
+  ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `setCourseInstanceTopic` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
 
   # Dividing a part and handing it to another faculty are @interactiveOnly like setAssignment:
@@ -9414,6 +9463,8 @@ func (ec *executionContext) childFields_CourseInstance(ctx context.Context, fiel
 		return ec.fieldContext_CourseInstance_taughtInEnglish(ctx, field)
 	case "taughtInEnglishOverridden":
 		return ec.fieldContext_CourseInstance_taughtInEnglishOverridden(ctx, field)
+	case "topic":
+		return ec.fieldContext_CourseInstance_topic(ctx, field)
 	case "parts":
 		return ec.fieldContext_CourseInstance_parts(ctx, field)
 	case "borrowedParts":

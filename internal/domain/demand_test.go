@@ -137,6 +137,18 @@ func (f *fakeDemandStore) SetCourseInstanceFormat(ctx context.Context, id uuid.U
 	return instance, nil
 }
 
+func (f *fakeDemandStore) SetCourseInstanceTopic(ctx context.Context, id uuid.UUID,
+	topic *string,
+) (*domain.CourseInstance, error) {
+	f.writes++
+	instance, _ := f.CourseInstanceByID(ctx, id)
+	instance.Topic = ""
+	if topic != nil {
+		instance.Topic = *topic
+	}
+	return instance, nil
+}
+
 func (f *fakeDemandStore) DeleteCourseInstance(_ context.Context, id uuid.UUID) error {
 	f.writes++
 	delete(f.instances, id)
@@ -1114,6 +1126,64 @@ func TestANoteIsTrimmedAndCountedInCharacters(t *testing.T) {
 	}
 	if got := plan(t, entry(ptrs(strings.Repeat("ä", domain.MaxNoteLength)))).Note; got == nil {
 		t.Error("a note of exactly the bound, in two-byte characters, was refused")
+	}
+}
+
+// A topic is trimmed, an empty one is no topic, and the bound counts characters — the same
+// three properties as the note, against the CHECK that admits exactly one spelling of "none".
+func TestATopicIsTrimmedAndAnEmptyOneIsNone(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		in      string
+		want    string
+		wantErr error
+	}{
+		{in: "  Design Thinking \n", want: "Design Thinking"},
+		{in: "   ", want: ""},
+		{in: strings.Repeat("ä", domain.MaxTopicLength), want: strings.Repeat("ä", domain.MaxTopicLength)},
+		{in: strings.Repeat("ä", domain.MaxTopicLength+1), wantErr: domain.ErrTopicTooLong},
+	} {
+		f := newDemandService(t, policy.PhaseDemandPlanning)
+		instance := f.store.add(demandProgramme, policy.PhaseDemandPlanning, 1)
+
+		got, err := f.service.SetTopic(t.Context(), lead(principal.KindInteractive, demandProgramme),
+			instance.ID, tc.in)
+		if tc.wantErr != nil {
+			if !errors.Is(err, tc.wantErr) || f.store.writes != 0 {
+				t.Errorf("%q gave %v after %d writes, want %v and none", tc.in, err, f.store.writes,
+					tc.wantErr)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatalf("%q was refused: %v", tc.in, err)
+		}
+		if got.Topic != tc.want {
+			t.Errorf("%q was stored as %q, want %q", tc.in, got.Topic, tc.want)
+		}
+	}
+}
+
+// Somebody who may write neither the demand nor the assignment of a cohort is told it is not
+// their subject, and a lead whose phase is over is told that instead.
+func TestTheTopicIsRefusedWithTheAssignmentsSentences(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandService(t, policy.PhaseDemandPlanning)
+	instance := f.store.add(otherProgramme, policy.PhaseDemandPlanning, 1)
+	if _, err := f.service.SetTopic(t.Context(), lead(principal.KindInteractive, demandProgramme),
+		instance.ID, "Design Thinking"); !errors.Is(err, domain.ErrNotYourSubject) {
+		t.Errorf("another programme's lead gave %v, want ErrNotYourSubject", err)
+	}
+
+	finished := f.store.add(demandProgramme, policy.PhaseFinal, 1)
+	if _, err := f.service.SetTopic(t.Context(), lead(principal.KindInteractive, demandProgramme),
+		finished.ID, "Design Thinking"); !errors.Is(err, domain.ErrAssignmentPhaseClosed) {
+		t.Errorf("a finished semester gave %v, want ErrAssignmentPhaseClosed", err)
+	}
+	if f.store.writes != 0 {
+		t.Errorf("refusals wrote %d times", f.store.writes)
 	}
 }
 

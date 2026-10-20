@@ -74,6 +74,7 @@ type CourseInstance struct {
 	Note                 string
 	Delivery             string
 	TaughtInEnglish      *bool
+	Topic                *string
 }
 
 type DemandCompletion struct {

@@ -120,7 +120,7 @@ enum ScopeArea {
   `setModuleComponents`, `applyModuleSplitToInstances`, `setModuleProjectBased`,
   `setModuleSemesterSpan`, `createLocalModule`, `changeLocalModule`,
   `setProgrammePlanningStatus`, `declareCourseInstance`, `duplicateCourseInstance`,
-  `changeCourseInstance`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
+  `changeCourseInstance`, `setCourseInstanceTopic`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
 
   # Dividing a part and handing it to another faculty are @interactiveOnly like setAssignment:

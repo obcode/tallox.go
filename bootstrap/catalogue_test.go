@@ -1670,6 +1670,69 @@ func TestTheHomeProgrammesLeadMarksAPBLV(t *testing.T) {
 		})
 }
 
+// A module over two semesters: marked by the people who state the split, through both doors, and
+// from then on proposed and compared per semester. The catalogue's own figure stays what it is.
+func TestTheHomeProgrammesLeadMarksAModuleOverTwoSemesters(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		grants{testdata.Eins, []string{"LECTURER"}})
+
+	const mark = `mutation($m: ID!, $n: Int!) {
+		setModuleSemesterSpan(moduleId: $m, semesters: $n) {
+			semesterSpan contactHoursPerWeek contactHoursPerSemester
+			proposedComponents { teachingHours }
+		}
+	}`
+
+	graphqltest.EachDoor(t, f.handler, testdata.Vier.Mail, testdata.Vier.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct {
+				SetModuleSemesterSpan struct {
+					SemesterSpan            int
+					ContactHoursPerWeek     int
+					ContactHoursPerSemester float64
+					ProposedComponents      []struct{ TeachingHours float64 }
+				}
+			}
+			c.MustQuery(t, mark, map[string]any{"m": f.moduleOrdinary.String(), "n": 2}, &out)
+			got := out.SetModuleSemesterSpan
+			if got.SemesterSpan != 2 || got.ContactHoursPerWeek != 4 || got.ContactHoursPerSemester != 2 {
+				t.Errorf("the module reads %+v, want 2 semesters of 2 out of the catalogue's 4", got)
+			}
+			proposed := 0.0
+			for _, p := range got.ProposedComponents {
+				proposed += p.TeachingHours
+			}
+			if proposed != 2 {
+				t.Errorf("the proposal adds up to %v hours, want one semester's 2", proposed)
+			}
+
+			assertRefusal(t, c.Do(t, mark, map[string]any{"m": f.moduleOrdinary.String(), "n": 3}),
+				"SEMESTER_SPAN_INVALID")
+		})
+
+	// The faculty's fact, like the PBLV mark: a re-projection must not reset it.
+	if _, err := store.NewCatalogue(f.schema.Pool).Project(t.Context(), nil); err != nil {
+		t.Fatalf("cannot re-project: %v", err)
+	}
+	var seen struct{ Module struct{ SemesterSpan int } }
+	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t,
+		`query($m: ID!) { module(id: $m) { semesterSpan } }`,
+		map[string]any{"m": f.moduleOrdinary.String()}, &seen)
+	if seen.Module.SemesterSpan != 2 {
+		t.Errorf("a lecturer reads %d semesters, want the 2 that were stated", seen.Module.SemesterSpan)
+	}
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			assertRefusal(t, c.Do(t, mark, map[string]any{"m": f.moduleOrdinary.String(), "n": 1}),
+				"NOT_YOUR_MODULE")
+		})
+}
+
 // Who leads a programme is readable by everybody with an account, through both doors, like the
 // leads of a subject group: it is whom a colleague asks about the programme's demand. The reader
 // here holds no planning role at all, which is the point.

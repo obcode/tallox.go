@@ -134,6 +134,9 @@ type Module struct {
 	// ProjectBased marks a project-based course (PBLV), which the process gives out last. The
 	// faculty's own fact: the examination office does not publish it.
 	ProjectBased bool
+	// SemesterSpan is over how many semesters the module runs: 1, or 2 for a module the catalogue
+	// states with the hours of both semesters added up. The faculty's own fact, like the split.
+	SemesterSpan int
 	// Components is how the module's hours divide between teachable units. Empty means nobody
 	// has stated it, and then no instance can be declared — see Plannable.
 	Components []ModuleComponent
@@ -168,7 +171,30 @@ func (m Module) ProposedComponents() []ModuleComponent {
 	if m.ContactHoursPerWeek != nil {
 		hours = *m.ContactHoursPerWeek
 	}
-	return m.CourseType.ProposedComponents(hours)
+	// A module over two semesters is split per semester: what one semester's instance holds.
+	// Integer division on purpose — the proposal rule works in whole hours, and an odd total
+	// over two semesters is something to state rather than to guess.
+	return m.CourseType.ProposedComponents(hours / m.semesters())
+}
+
+// semesters is SemesterSpan, read as 1 where it is unset — a Module built by hand in a test, or by
+// a caller that does not read the column, is an ordinary one-semester module.
+func (m Module) semesters() int {
+	if m.SemesterSpan < 1 {
+		return 1
+	}
+	return m.SemesterSpan
+}
+
+// ContactHoursPerSemester is what one semester of the module holds: the catalogue's figure over
+// the number of semesters, or nil where the catalogue states none. The split is compared with
+// this, not with the catalogue's figure — 4 + 4 against 8 is no discrepancy.
+func (m Module) ContactHoursPerSemester() *float64 {
+	if m.ContactHoursPerWeek == nil {
+		return nil
+	}
+	hours := float64(*m.ContactHoursPerWeek) / float64(m.semesters())
+	return &hours
 }
 
 // SplitIsEstimated reports whether a proposal is waiting to be confirmed.
@@ -427,6 +453,9 @@ type CatalogueReader interface {
 	// SetModuleProjectBased marks a module as a PBLV or takes the mark back. Returns nil for an
 	// id no module has.
 	SetModuleProjectBased(ctx context.Context, moduleID uuid.UUID, projectBased bool) (*Module, error)
+	// SetModuleSemesterSpan states over how many semesters a module runs. Returns nil for an id no
+	// module has.
+	SetModuleSemesterSpan(ctx context.Context, moduleID uuid.UUID, semesters int) (*Module, error)
 	// SetProgrammePlanningStatus records that this faculty plans a programme, or no longer
 	// does. Returns nil for a code that names no programme.
 	SetProgrammePlanningStatus(ctx context.Context, code string, status ProgrammeStatus, by uuid.UUID) (*Programme, error)

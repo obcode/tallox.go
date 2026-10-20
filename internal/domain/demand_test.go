@@ -441,6 +441,10 @@ func (fakeCatalogueReader) SetModuleComponents(context.Context, uuid.UUID,
 	return nil, nil
 }
 
+func (fakeCatalogueReader) SetModuleSemesterSpan(context.Context, uuid.UUID, int) (*domain.Module, error) {
+	return nil, nil
+}
+
 func (fakeCatalogueReader) SetModuleProjectBased(context.Context, uuid.UUID, bool) (*domain.Module, error) {
 	return nil, nil
 }

@@ -451,6 +451,22 @@ func (m *Modules) SetModuleProjectBased(ctx context.Context, moduleID uuid.UUID,
 	return m.ModuleByID(ctx, moduleID)
 }
 
+// SetModuleSemesterSpan states over how many semesters a module runs.
+func (m *Modules) SetModuleSemesterSpan(ctx context.Context, moduleID uuid.UUID,
+	semesters int) (*domain.Module, error) {
+	n, err := New(m.pool).SetModuleSemesterSpan(ctx, SetModuleSemesterSpanParams{
+		ID:           moduleID,
+		SemesterSpan: int16(semesters), //nolint:gosec // bounded to 1..2 by the service and a CHECK
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot set the module's semesters: %w", err)
+	}
+	if n == 0 {
+		return nil, nil
+	}
+	return m.ModuleByID(ctx, moduleID)
+}
+
 func moduleFrom(row ListModulesRow) domain.Module {
 	module := domain.Module{
 		ID:                  row.ID,
@@ -466,6 +482,7 @@ func moduleFrom(row ListModulesRow) domain.Module {
 		Source:              domain.ModuleSource(row.Source),
 		Kind:                domain.ModuleKind(row.Kind),
 		ProjectBased:        row.ProjectBased,
+		SemesterSpan:        int(row.SemesterSpan),
 	}
 	if row.SubjectGroupID.Valid {
 		module.SubjectGroup = &domain.SubjectGroupRef{

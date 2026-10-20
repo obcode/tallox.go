@@ -1205,6 +1205,9 @@ type Querier interface {
 	// Mark a module as a project-based course (PBLV), or take the mark back. The faculty's own fact,
 	// like the split: the import never writes this column.
 	SetModuleProjectBased(ctx context.Context, arg SetModuleProjectBasedParams) (int64, error)
+	// Over how many semesters a module runs. The faculty's own fact, like the split: the import never
+	// writes this column.
+	SetModuleSemesterSpan(ctx context.Context, arg SetModuleSemesterSpanParams) (int64, error)
 	// Deactivation is how a leaver loses access to everything at once, tokens included.
 	//
 	// The guard against deactivating the last administrator is not here. It cannot be: it depends

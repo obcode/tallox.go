@@ -117,7 +117,8 @@ enum ScopeArea {
   # "is this part taken", which through a token the read rule would not.
 
   `assignments`, `myAssignments`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`,
-  `setModuleComponents`, `applyModuleSplitToInstances`, `setModuleProjectBased`, `createLocalModule`, `changeLocalModule`,
+  `setModuleComponents`, `applyModuleSplitToInstances`, `setModuleProjectBased`,
+  `setModuleSemesterSpan`, `createLocalModule`, `changeLocalModule`,
   `setProgrammePlanningStatus`, `declareCourseInstance`, `duplicateCourseInstance`,
   `changeCourseInstance`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,

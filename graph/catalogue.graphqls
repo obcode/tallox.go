@@ -220,6 +220,15 @@ type Programme {
   planningStatus: ProgrammeStatus!
   "Its versions of the examination regulations, newest first."
   spos: [Spo!]!
+  """
+  Who leads this programme: the people holding `PROGRAMME_LEAD` for it.
+
+  Readable by every account and through a token, like `SubjectGroup.leads` — who leads a
+  programme is not confidential inside the faculty, and it is whom to ask about its demand.
+  A grant that has expired is left out, and so is a partner faculty's reader, who may read the
+  programme's demand but does not lead it. Empty when nobody has been given the programme yet.
+  """
+  leads: [Person!]!
 }
 
 """

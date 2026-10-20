@@ -927,6 +927,13 @@ type Querier interface {
 	ProgrammeByCode(ctx context.Context, code string) (ProgrammeByCodeRow, error)
 	// The id behind a code somebody named. For the permission check, which asks about ids.
 	ProgrammeIDByCode(ctx context.Context, code string) (uuid.UUID, error)
+	// Who leads each of these study programmes — the other direction of ProgrammeScopesFor.
+	//
+	// Filtered to PROGRAMME_LEAD, because person_programme_scope also carries the partner reader's
+	// programmes, and a colleague from a partner faculty who may read a programme's demand does not
+	// lead it. The expiry filter is the same rule as in SubjectGroupLeadsFor and for the same
+	// reason: a lead whose grant ran out is not a lead.
+	ProgrammeLeadsFor(ctx context.Context, programmeCodes []string) ([]ProgrammeLeadsForRow, error)
 	// The quotas entered for one study year, one row per programme that has one.
 	//
 	// Only those: a programme without a row has no quota, which the controlling shows as "no figure"

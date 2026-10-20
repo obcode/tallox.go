@@ -375,3 +375,25 @@ LEFT JOIN person_role pr
    AND (pr.expires_at IS NULL OR pr.expires_at > now())
 WHERE t.id = sqlc.arg(teacher_id)::uuid
 GROUP BY t.id, p.id;
+
+-- name: ProgrammeLeadsFor :many
+-- Who leads each of these study programmes — the other direction of ProgrammeScopesFor.
+--
+-- Filtered to PROGRAMME_LEAD, because person_programme_scope also carries the partner reader's
+-- programmes, and a colleague from a partner faculty who may read a programme's demand does not
+-- lead it. The expiry filter is the same rule as in SubjectGroupLeadsFor and for the same
+-- reason: a lead whose grant ran out is not a lead.
+SELECT
+    pr.code AS programme_code,
+    p.id, p.mail, p.name,
+    COALESCE(t.short_name, '')::text AS sort_name,
+    p.active
+FROM person_programme_scope s
+JOIN programme pr ON pr.id = s.programme_id
+JOIN person p ON p.id = s.person_id
+JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+LEFT JOIN teacher t ON t.mail = p.mail
+WHERE pr.code = ANY (sqlc.arg(programme_codes)::text[])
+  AND s.role = 'PROGRAMME_LEAD'
+  AND (r.expires_at IS NULL OR r.expires_at > now())
+ORDER BY pr.code, COALESCE(NULLIF(t.short_name, ''), p.name), p.mail;

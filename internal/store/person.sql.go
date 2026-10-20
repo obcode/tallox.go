@@ -518,6 +518,65 @@ func (q *Queries) PersonByMail(ctx context.Context, mail string) (PersonByMailRo
 	return i, err
 }
 
+const programmeLeadsFor = `-- name: ProgrammeLeadsFor :many
+SELECT
+    pr.code AS programme_code,
+    p.id, p.mail, p.name,
+    COALESCE(t.short_name, '')::text AS sort_name,
+    p.active
+FROM person_programme_scope s
+JOIN programme pr ON pr.id = s.programme_id
+JOIN person p ON p.id = s.person_id
+JOIN person_role r ON r.person_id = s.person_id AND r.role = s.role
+LEFT JOIN teacher t ON t.mail = p.mail
+WHERE pr.code = ANY ($1::text[])
+  AND s.role = 'PROGRAMME_LEAD'
+  AND (r.expires_at IS NULL OR r.expires_at > now())
+ORDER BY pr.code, COALESCE(NULLIF(t.short_name, ''), p.name), p.mail
+`
+
+type ProgrammeLeadsForRow struct {
+	ProgrammeCode string
+	ID            uuid.UUID
+	Mail          string
+	Name          string
+	SortName      string
+	Active        bool
+}
+
+// Who leads each of these study programmes — the other direction of ProgrammeScopesFor.
+//
+// Filtered to PROGRAMME_LEAD, because person_programme_scope also carries the partner reader's
+// programmes, and a colleague from a partner faculty who may read a programme's demand does not
+// lead it. The expiry filter is the same rule as in SubjectGroupLeadsFor and for the same
+// reason: a lead whose grant ran out is not a lead.
+func (q *Queries) ProgrammeLeadsFor(ctx context.Context, programmeCodes []string) ([]ProgrammeLeadsForRow, error) {
+	rows, err := q.db.Query(ctx, programmeLeadsFor, programmeCodes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProgrammeLeadsForRow{}
+	for rows.Next() {
+		var i ProgrammeLeadsForRow
+		if err := rows.Scan(
+			&i.ProgrammeCode,
+			&i.ID,
+			&i.Mail,
+			&i.Name,
+			&i.SortName,
+			&i.Active,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const programmeScopesFor = `-- name: ProgrammeScopesFor :many
 SELECT s.person_id, s.role, p.id AS programme_id, p.code, p.title, p.active
 FROM person_programme_scope s

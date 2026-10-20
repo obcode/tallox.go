@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/policy"
 )
 
 // Catalogue reading, and the one write that belongs to it.
@@ -120,6 +121,26 @@ func (m *Modules) ProgrammeByCode(ctx context.Context, code string) (*domain.Pro
 		}
 	}
 	return nil, nil
+}
+
+// ProgrammeLeads lists who holds PROGRAMME_LEAD for each of these programmes, in one statement.
+func (m *Modules) ProgrammeLeads(ctx context.Context,
+	codes []string) (map[string][]domain.Person, error) {
+	rows, err := New(m.pool).ProgrammeLeadsFor(ctx, codes)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the programme leads: %w", err)
+	}
+	out := make(map[string][]domain.Person, len(codes))
+	for _, row := range rows {
+		out[row.ProgrammeCode] = append(out[row.ProgrammeCode], domain.Person{
+			ID: row.ID, Mail: row.Mail, SortName: row.SortName,
+			Name:   domain.PlainName(row.Name, row.SortName),
+			Active: row.Active,
+			// Everybody in this list holds PROGRAMME_LEAD by construction: the query filters on it.
+			Roles: []policy.Role{policy.RoleProgrammeLead},
+		})
+	}
+	return out, nil
 }
 
 // Teachers lists the people who teach.

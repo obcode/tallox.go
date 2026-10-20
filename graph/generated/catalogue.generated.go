@@ -30,6 +30,9 @@ type ModuleResolver interface {
 	Plannable(ctx context.Context, obj *model.Module) (bool, error)
 	ProgrammeSemester(ctx context.Context, obj *model.Module, programme string) (*int, error)
 }
+type ProgrammeResolver interface {
+	Leads(ctx context.Context, obj *model.Programme) ([]*model.Person, error)
+}
 
 // endregion ************************** generated!.gotpl **************************
 
@@ -1281,6 +1284,38 @@ func (ec *executionContext) fieldContext_Programme_spos(_ context.Context, field
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Spo(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Programme_leads(ctx context.Context, field graphql.CollectedField, obj *model.Programme) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Programme_leads(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Programme().Leads(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.Person) graphql.Marshaler {
+			return ec.marshalNPerson2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPersonᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Programme_leads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Programme",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Person(ctx, field)
 		},
 	}
 	return fc, nil
@@ -2578,28 +2613,66 @@ func (ec *executionContext) _Programme(ctx context.Context, sel ast.SelectionSet
 		case "code":
 			out.Values[i] = ec._Programme_code(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "title":
 			out.Values[i] = ec._Programme_title(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "active":
 			out.Values[i] = ec._Programme_active(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "planningStatus":
 			out.Values[i] = ec._Programme_planningStatus(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "spos":
 			out.Values[i] = ec._Programme_spos(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "leads":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Programme_leads(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

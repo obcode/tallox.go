@@ -798,4 +798,9 @@ type DemandStore interface {
 	// TeachingLoad is the semester's teaching by home programme: every planned programme, and
 	// any other whose modules are taught in it.
 	TeachingLoad(ctx context.Context, semesterCode string) ([]TeachingLoad, error)
+	// ApplyModuleSplit rewrites the parts of every instance of the module in a semester that is
+	// not FINAL to follow its split, in one transaction, and rolls back on dryRun. mayRemove says
+	// for which instances it may remove parts; for the others it only changes hours and adds.
+	ApplyModuleSplit(ctx context.Context, moduleID uuid.UUID,
+		mayRemove func(SplitInstanceScope) bool, dryRun bool) (SplitApplication, error)
 }

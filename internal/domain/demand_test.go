@@ -253,6 +253,14 @@ func (f *fakeDemandStore) TeachingLoad(_ context.Context, semester string) ([]do
 	return append([]domain.TeachingLoad{}, f.loads...), nil
 }
 
+// ApplyModuleSplit is exercised against PostgreSQL (store.TestApplyModuleSplit…); the service's
+// own part is the permission, which bootstrap tests through both doors.
+func (f *fakeDemandStore) ApplyModuleSplit(_ context.Context, _ uuid.UUID,
+	_ func(domain.SplitInstanceScope) bool, dryRun bool,
+) (domain.SplitApplication, error) {
+	return domain.SplitApplication{DryRun: dryRun}, nil
+}
+
 func (f *fakeDemandStore) ProgrammeQuotas(_ context.Context, studyYear int) ([]domain.ProgrammeQuota, error) {
 	f.quotaYears = append(f.quotaYears, studyYear)
 	out := []domain.ProgrammeQuota{}

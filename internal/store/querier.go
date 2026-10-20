@@ -643,6 +643,13 @@ type Querier interface {
 	InstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]InstancePartsForRow, error)
 	// Whether a cohort already has a part of this kind, so that undoing a merge does not give it two.
 	InstancePartsOfKindExist(ctx context.Context, arg InstancePartsOfKindExistParams) (bool, error)
+	// The instances a corrected split is carried over to: every cohort of the module in a semester
+	// that is not over, except those another programme holds — they have no parts to correct.
+	//
+	// With what the store needs to decide how far it may go in each: whose demand it is, and whether
+	// that semester's assignments are public yet. Locked, so that a cohort withdrawn while its parts
+	// are being rewritten waits rather than leaving the rewrite pointing at nothing.
+	InstancesForSplit(ctx context.Context, moduleID uuid.UUID) ([]InstancesForSplitRow, error)
 	// The one number the interface shows largest, and the one the deploy smoke check asserts is
 	// recent. PARTIAL counts: it fetched something, and a run that got three of four endpoints is
 	// not the silence this is watching for.
@@ -1089,6 +1096,10 @@ type Querier interface {
 	// The name only. The code is the address — it is in URLs and in colleagues' scripts — and
 	// changing it is not a rename but a different group.
 	RenameSubjectGroup(ctx context.Context, arg RenameSubjectGroupParams) (RenameSubjectGroupRow, error)
+	// Positions after parts were added and removed: the lecture first, then the kinds in their usual
+	// order, and within a kind as they were. A piece shares the position of the part it was cut from,
+	// so the numbering is over undivided parts and the pieces follow theirs.
+	RenumberInstanceParts(ctx context.Context, courseInstanceID uuid.UUID) error
 	// Hand a part to somebody else. Returns no row if the assignment being replaced is gone.
 	//
 	// Compare-and-set, the same shape AdvanceSemesterPhase takes and for the same reason: @replacing

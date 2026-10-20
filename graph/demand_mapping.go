@@ -215,6 +215,31 @@ func demandPlanModel(p domain.DemandPlan) *model.DemandPlanReport {
 	return out
 }
 
+func splitApplicationModel(a domain.SplitApplication) *model.ModuleSplitApplication {
+	out := &model.ModuleSplitApplication{
+		DryRun:    a.DryRun,
+		Changed:   make([]*model.ModuleSplitChange, 0, len(a.Changed)),
+		Refused:   make([]*model.ModuleSplitRefusal, 0, len(a.Refused)),
+		Unchanged: a.Unchanged,
+	}
+	for _, c := range a.Changed {
+		out.Changed = append(out.Changed, &model.ModuleSplitChange{
+			Instance:            courseInstanceModel(c.Instance),
+			TeachingHoursBefore: c.HoursBefore,
+			TeachingHoursAfter:  c.HoursAfter,
+		})
+	}
+	for _, r := range a.Refused {
+		out.Refused = append(out.Refused, &model.ModuleSplitRefusal{
+			Instance: courseInstanceModel(r.Instance),
+			Kind:     r.Kind,
+			Code:     r.Code,
+			Message:  r.Reason,
+		})
+	}
+	return out
+}
+
 func demandChanges(changes []domain.DemandChange) []*model.DemandChange {
 	out := make([]*model.DemandChange, 0, len(changes))
 	for _, c := range changes {

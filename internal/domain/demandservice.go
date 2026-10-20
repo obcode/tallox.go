@@ -28,7 +28,7 @@ var (
 	ErrNoteTooLong = errors.New("die Notiz darf höchstens 2000 Zeichen lang sein")
 	// ErrDuplicateEntry is the same module, or the same cohort of one, twice in one plan.
 	ErrDuplicateEntry = errors.New("jedes Modul und jeder Zug darf nur einmal vorkommen")
-	// ErrTooManyTracks is more parallel cohorts than the alphabet the interface offers.
+	// ErrTooManyTracks is more cohorts than the alphabet has letters.
 	ErrTooManyTracks = errors.New("so viele Züge kann ein Modul nicht haben")
 	// ErrTooManyGroups is more parallel groups than anybody runs.
 	ErrTooManyGroups = errors.New("so viele Gruppen kann ein Zug nicht haben")

@@ -985,6 +985,12 @@ func TestWhatIsAcceptedAsAPlan(t *testing.T) {
 			wantErr: domain.ErrDuplicateEntry,
 		},
 		{
+			// The umbrella seminar: one catalogue module, one cohort per seminar actually run.
+			name:    "a cohort for every letter of the alphabet",
+			entries: []domain.DemandEntry{{ModuleID: moduleID, Tracks: alphabetTracks(domain.MaxTracksPerModule)}},
+			want:    alphabetTracks(26),
+		},
+		{
 			name: "more cohorts than the alphabet offers",
 			entries: []domain.DemandEntry{{
 				ModuleID: moduleID,
@@ -1061,6 +1067,15 @@ func TestWhatIsAcceptedAsAPlan(t *testing.T) {
 			}
 		})
 	}
+}
+
+// alphabetTracks names n cohorts A, B, C …, the way the interface does.
+func alphabetTracks(n int) []domain.DemandTrack {
+	tracks := make([]domain.DemandTrack, n)
+	for i := range tracks {
+		tracks[i] = domain.DemandTrack{Track: string(rune('A' + i)), Groups: 0}
+	}
+	return tracks
 }
 
 // The note is trimmed before it is stored, and the bound counts characters rather than bytes:

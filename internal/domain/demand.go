@@ -427,10 +427,12 @@ type CopyReport struct {
 
 // MaxTracksPerModule bounds the cohorts of one module in one semester.
 //
-// Eight, which is the alphabet the interface offers and four times the largest thing the faculty
-// runs. A guard against a number typed into a stepper by holding down a key, not a rule about
-// teaching.
-const MaxTracksPerModule = 8
+// Twenty-six, which is the alphabet: the interface names cohorts A to Z, one letter each. A
+// cohort is not always a parallel class — an umbrella module such as a seminar that the
+// catalogue holds once and the faculty runs fourteen times a semester, each with its own topic
+// and lecturer, is planned as fourteen cohorts. So the bound is a guard against a number typed
+// into a stepper by holding down a key, not a rule about teaching.
+const MaxTracksPerModule = 26
 
 // MaxGroupsPerTrack bounds the parallel groups of one cohort.
 //

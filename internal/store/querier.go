@@ -59,9 +59,14 @@ type Querier interface {
 	// A part with no hours stated is treated as zero, which only rejoining can meet: dividing refuses
 	// such a part.
 	AddInstancePartHours(ctx context.Context, arg AddInstancePartHoursParams) error
-	// The foreign key to person_role is what refuses a lead who does not hold the role. The service
-	// checks first so that the ordinary case gets a sentence; this is the race the constraint closes.
-	AddSubjectGroupLead(ctx context.Context, arg AddSubjectGroupLeadParams) error
+	// Writes nothing for somebody whose SUBJECT_GROUP_LEAD is not in force, and the caller reads the
+	// zero as the refusal.
+	//
+	// The foreign key to person_role alone is not enough: an expired grant keeps its row, so the key
+	// is satisfied and the lead is stored — and then filtered out by every lookup, so the screen says
+	// "saved" and the group still has nobody. Hence the same expiry filter as SubjectGroupLeadsFor,
+	// here in the statement. The key still closes the race with a revocation.
+	AddSubjectGroupLead(ctx context.Context, arg AddSubjectGroupLeadParams) (int64, error)
 	AddSubjectGroupMembership(ctx context.Context, arg AddSubjectGroupMembershipParams) error
 	// Compare-and-set: $3 is the phase the caller believes the semester is in, and no rows come
 	// back if it has moved on since they looked.

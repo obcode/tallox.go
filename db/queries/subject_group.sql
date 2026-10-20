@@ -220,11 +220,23 @@ ON CONFLICT (person_id, subject_group_id) DO NOTHING;
 DELETE FROM person_subject_group_scope
 WHERE subject_group_id = $1 AND role = 'SUBJECT_GROUP_LEAD';
 
--- name: AddSubjectGroupLead :exec
--- The foreign key to person_role is what refuses a lead who does not hold the role. The service
--- checks first so that the ordinary case gets a sentence; this is the race the constraint closes.
+-- name: AddSubjectGroupLead :execrows
+-- Writes nothing for somebody whose SUBJECT_GROUP_LEAD is not in force, and the caller reads the
+-- zero as the refusal.
+--
+-- The foreign key to person_role alone is not enough: an expired grant keeps its row, so the key
+-- is satisfied and the lead is stored — and then filtered out by every lookup, so the screen says
+-- "saved" and the group still has nobody. Hence the same expiry filter as SubjectGroupLeadsFor,
+-- here in the statement. The key still closes the race with a revocation.
 INSERT INTO person_subject_group_scope (person_id, role, subject_group_id, granted_by)
-VALUES ($1, 'SUBJECT_GROUP_LEAD', $2, sqlc.narg(granted_by))
+SELECT sqlc.arg(person_id)::uuid, 'SUBJECT_GROUP_LEAD', sqlc.arg(subject_group_id)::uuid,
+       sqlc.narg(granted_by)::uuid
+WHERE EXISTS (
+    SELECT 1 FROM person_role r
+    WHERE r.person_id = sqlc.arg(person_id)::uuid
+      AND r.role = 'SUBJECT_GROUP_LEAD'
+      AND (r.expires_at IS NULL OR r.expires_at > now())
+)
 ON CONFLICT (person_id, role, subject_group_id) DO NOTHING;
 
 -- name: SubjectGroupsWithoutLead :one

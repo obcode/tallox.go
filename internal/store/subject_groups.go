@@ -272,21 +272,25 @@ func (s *SubjectGroups) SetSubjectGroupLeads(ctx context.Context, groupID uuid.U
 			return fmt.Errorf("cannot clear the leads: %w", err)
 		}
 		for _, person := range people {
-			err := q.AddSubjectGroupLead(ctx, AddSubjectGroupLeadParams{
+			n, err := q.AddSubjectGroupLead(ctx, AddSubjectGroupLeadParams{
 				PersonID:       person,
 				SubjectGroupID: groupID,
 				GrantedBy:      nullUUID(nonNilUUID(grantedBy)),
 			})
-			// Two constraints can refuse here and they mean different things: the group may not
-			// exist, or the person may not hold SUBJECT_GROUP_LEAD. The service checks the role
-			// first so that the ordinary case gets its own sentence; what reaches this point is
-			// the race, and the safe report for a race is the one that does not claim to know
-			// which half lost.
+			// A foreign-key violation is the race: the role was revoked, or the group removed,
+			// between the statement's check and its insert. The safe report for a race is the one
+			// that does not claim to know which half lost.
 			if isForeignKeyViolation(err) {
 				return domain.ErrNotASubjectGroupLead
 			}
 			if err != nil {
 				return fmt.Errorf("cannot add a lead: %w", err)
+			}
+			// The ordinary case: the person does not hold the role, or their grant has expired.
+			// The people are deduplicated and the leads cleared above, so no row cannot be a
+			// conflict with an existing one.
+			if n == 0 {
+				return domain.ErrNotASubjectGroupLead
 			}
 		}
 		return nil

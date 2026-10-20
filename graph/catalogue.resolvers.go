@@ -175,6 +175,16 @@ func (r *mutationResolver) SetModuleProjectBased(ctx context.Context, moduleID s
 	return moduleModel(*module), nil
 }
 
+// Leads is the resolver for the leads field.
+func (r *programmeResolver) Leads(ctx context.Context, obj *model.Programme) ([]*model.Person, error) {
+	actor := principal.From(ctx)
+	leads, err := r.Catalogue.ProgrammeLeads(ctx, actor, obj.Code)
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+	return personModels(leads), nil
+}
+
 // Programmes is the resolver for the programmes field.
 func (r *queryResolver) Programmes(ctx context.Context, includeUnplanned bool) ([]*model.Programme, error) {
 	actor := principal.From(ctx)
@@ -269,4 +279,10 @@ func (r *queryResolver) Teachers(ctx context.Context, search *string, includeIna
 // Module returns generated.ModuleResolver implementation.
 func (r *Resolver) Module() generated.ModuleResolver { return &moduleResolver{r} }
 
-type moduleResolver struct{ *Resolver }
+// Programme returns generated.ProgrammeResolver implementation.
+func (r *Resolver) Programme() generated.ProgrammeResolver { return &programmeResolver{r} }
+
+type (
+	moduleResolver    struct{ *Resolver }
+	programmeResolver struct{ *Resolver }
+)

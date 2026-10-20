@@ -125,6 +125,10 @@ models:
     fields:
       modules:
         resolver: true
+  Programme:
+    fields:
+      leads:
+        resolver: true
   ProgrammeStatus:
     model: github.com/obcode/tallox.go/internal/domain.ProgrammeStatus
   ModuleSource:

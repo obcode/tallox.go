@@ -1669,3 +1669,43 @@ func TestTheHomeProgrammesLeadMarksAPBLV(t *testing.T) {
 				"NOT_YOUR_MODULE")
 		})
 }
+
+// Who leads a programme is readable by everybody with an account, through both doors, like the
+// leads of a subject group: it is whom a colleague asks about the programme's demand. The reader
+// here holds no planning role at all, which is the point.
+func TestProgrammeLeadsAreReadableByAnybodyWithAnAccount(t *testing.T) {
+	t.Parallel()
+
+	f := catalogueHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Eins, []string{"LECTURER"}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}})
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct {
+				Programmes []struct {
+					Code  string
+					Leads []struct{ Mail string }
+				}
+			}
+			c.MustQuery(t, `{ programmes { code leads { mail } } }`, nil, &out)
+
+			found := false
+			for _, p := range out.Programmes {
+				if p.Code != storetest.FixtureProgrammeA {
+					if len(p.Leads) != 0 {
+						t.Errorf("%s is led by %v, but nobody was given it", p.Code, p.Leads)
+					}
+					continue
+				}
+				found = true
+				if len(p.Leads) != 1 || p.Leads[0].Mail != testdata.Vier.Mail {
+					t.Errorf("%s is led by %v, want %s", p.Code, p.Leads, testdata.Vier.Mail)
+				}
+			}
+			if !found {
+				t.Fatalf("%s is not in the list", storetest.FixtureProgrammeA)
+			}
+		})
+}

@@ -416,6 +416,9 @@ type CatalogueReader interface {
 	// ProgrammesByID resolves a handful of ids, without their regulations.
 	ProgrammesByID(ctx context.Context, ids []uuid.UUID) ([]Programme, error)
 	ProgrammeByCode(ctx context.Context, code string) (*Programme, error)
+	// ProgrammeLeads lists who holds PROGRAMME_LEAD for each of these programmes, by code.
+	// Expired grants and partner readers are left out.
+	ProgrammeLeads(ctx context.Context, codes []string) (map[string][]Person, error)
 	Modules(ctx context.Context, filter ModuleFilter) ([]Module, error)
 	Teachers(ctx context.Context, filter TeacherFilter) ([]Teacher, error)
 	ModuleByID(ctx context.Context, id uuid.UUID) (*Module, error)

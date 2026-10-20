@@ -27,6 +27,7 @@ type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 type ResolverRoot interface {
 	Module() ModuleResolver
 	Mutation() MutationResolver
+	Programme() ProgrammeResolver
 	Query() QueryResolver
 	SubjectGroup() SubjectGroupResolver
 }
@@ -409,6 +410,7 @@ type ComplexityRoot struct {
 	Programme struct {
 		Active         func(childComplexity int) int
 		Code           func(childComplexity int) int
+		Leads          func(childComplexity int) int
 		PlanningStatus func(childComplexity int) int
 		Spos           func(childComplexity int) int
 		Title          func(childComplexity int) int
@@ -2632,6 +2634,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Programme.Code(childComplexity), true
+	case "Programme.leads":
+		if e.ComplexityRoot.Programme.Leads == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Programme.Leads(childComplexity), true
 	case "Programme.planningStatus":
 		if e.ComplexityRoot.Programme.PlanningStatus == nil {
 			break
@@ -5116,6 +5124,15 @@ type Programme {
   planningStatus: ProgrammeStatus!
   "Its versions of the examination regulations, newest first."
   spos: [Spo!]!
+  """
+  Who leads this programme: the people holding ` + "`" + `PROGRAMME_LEAD` + "`" + ` for it.
+
+  Readable by every account and through a token, like ` + "`" + `SubjectGroup.leads` + "`" + ` — who leads a
+  programme is not confidential inside the faculty, and it is whom to ask about its demand.
+  A grant that has expired is left out, and so is a partner faculty's reader, who may read the
+  programme's demand but does not lead it. Empty when nobody has been given the programme yet.
+  """
+  leads: [Person!]!
 }
 
 """
@@ -9525,6 +9542,8 @@ func (ec *executionContext) childFields_Programme(ctx context.Context, field gra
 		return ec.fieldContext_Programme_planningStatus(ctx, field)
 	case "spos":
 		return ec.fieldContext_Programme_spos(ctx, field)
+	case "leads":
+		return ec.fieldContext_Programme_leads(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Programme", field.Name)
 }

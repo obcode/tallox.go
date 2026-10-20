@@ -140,6 +140,26 @@ func (s *CatalogueService) ProgrammeByCode(ctx context.Context, actor principal.
 	return s.store.ProgrammeByCode(ctx, normaliseProgrammeCode(code))
 }
 
+// ProgrammeLeads lists who leads a study programme.
+//
+// Readable by anybody with an account, through both doors, like the leads of a subject group and
+// for the same reason: who leads a programme is not confidential inside the faculty, and the
+// colleague who has a question about a programme's demand needs to know whom to ask. It is a
+// grant, not personnel data — a name and an address, nothing about teaching load or notes.
+func (s *CatalogueService) ProgrammeLeads(ctx context.Context, actor principal.Actor,
+	code string,
+) ([]Person, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	code = normaliseProgrammeCode(code)
+	leads, err := s.store.ProgrammeLeads(ctx, []string{code})
+	if err != nil {
+		return nil, err
+	}
+	return leads[code], nil
+}
+
 // Modules lists the catalogue, filtered.
 func (s *CatalogueService) Modules(ctx context.Context, actor principal.Actor, filter ModuleFilter) ([]Module, error) {
 	if err := mayRead(actor); err != nil {

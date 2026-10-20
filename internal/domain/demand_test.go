@@ -405,6 +405,10 @@ func (fakeCatalogueReader) ProgrammeByCode(_ context.Context, code string) (*dom
 	}
 }
 
+func (fakeCatalogueReader) ProgrammeLeads(context.Context, []string) (map[string][]domain.Person, error) {
+	return nil, nil
+}
+
 func (fakeCatalogueReader) Modules(context.Context, domain.ModuleFilter) ([]domain.Module, error) {
 	return nil, nil
 }

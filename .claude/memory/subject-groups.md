@@ -96,3 +96,16 @@ Scope entscheidet schon etwas Echtes, und ein Scope ohne gerenderte Regel ist ei
 geprüft hat.
 
 Siehe auch [[identity-and-auth]], [[scope-enforcement]], [[programme-planning-status]].
+
+## Falle: der Fremdschlüssel kennt keinen Ablauf (behoben 2026-10-20)
+
+Der zusammengesetzte Fremdschlüssel auf `person_role` akzeptiert auch einen **abgelaufenen**
+Grant, weil dessen Zeile stehen bleibt. `setSubjectGroupLeads` speicherte die Leitung daher, und
+jede Abfrage filterte sie wieder heraus. In der Oberfläche stand „gespeichert“, die Fachgruppe hatte
+trotzdem keine Leitung. Jetzt trägt `AddSubjectGroupLead` den Ablauffilter selbst (`INSERT … SELECT
+… WHERE EXISTS`, `:execrows`). Null Zeilen heißen `NOT_A_SUBJECT_GROUP_LEAD`. Test:
+`TestAnExpiredGrantCannotLeadASubjectGroup`.
+
+Die GUI war nicht betroffen, weil `people.roles` nur gültige Rollen liefert. Beim Studiengang
+prüft `PeopleService.SetProgrammes` gegen dieselben gefilterten Rollen, dort gibt es die Lücke
+also nicht.

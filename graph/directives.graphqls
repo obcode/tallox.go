@@ -119,7 +119,7 @@ enum ScopeArea {
   `assignments`, `myAssignments`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`,
   `setModuleComponents`, `applyModuleSplitToInstances`, `setModuleProjectBased`,
   `setModuleSemesterSpan`, `createLocalModule`, `changeLocalModule`,
-  `setProgrammePlanningStatus`, `declareCourseInstance`, `duplicateCourseInstance`,
+  `setProgrammePlanningStatus`, `setProgrammeDegree`, `declareCourseInstance`, `duplicateCourseInstance`,
   `changeCourseInstance`, `setCourseInstanceTopic`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
 

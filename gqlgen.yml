@@ -129,8 +129,15 @@ models:
     fields:
       leads:
         resolver: true
+      # Looked up per operation rather than carried on the model: a programme reaches the API
+      # from some twenty queries, and a field filled in by some of them would read as "not
+      # recorded" on the others. See graph/degree.go.
+      degree:
+        resolver: true
   ProgrammeStatus:
     model: github.com/obcode/tallox.go/internal/domain.ProgrammeStatus
+  Degree:
+    model: github.com/obcode/tallox.go/internal/domain.Degree
   ModuleSource:
     model: github.com/obcode/tallox.go/internal/domain.ModuleSource
   ModuleKind:

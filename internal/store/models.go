@@ -240,6 +240,9 @@ type Programme struct {
 	PlanningStatus      string
 	PlanningStatusSetAt pgtype.Timestamptz
 	PlanningStatusSetBy uuid.NullUUID
+	Degree              *string
+	DegreeSetAt         pgtype.Timestamptz
+	DegreeSetBy         uuid.NullUUID
 }
 
 type ProgrammeQuotum struct {

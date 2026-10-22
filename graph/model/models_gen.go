@@ -840,6 +840,12 @@ type ModuleFilter struct {
 	WithoutSubjectGroup *bool `json:"withoutSubjectGroup,omitempty"`
 	// Keep only the modules of one subject group, by id.
 	SubjectGroup *string `json:"subjectGroup,omitempty"`
+	// Keep only the modules relevant for a programme of this degree.
+	//
+	// The same two halves as `programme`, over every programme of the degree: at home in one, or
+	// counting in one of its regulations. A module that counts in a bachelor's and a master's
+	// matches both. A programme whose `degree` is null matches neither.
+	Degree *domain.Degree `json:"degree,omitempty"`
 }
 
 // A module as a subject group refers to it: enough to recognise, and no more.

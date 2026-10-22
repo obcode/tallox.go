@@ -35,6 +35,7 @@ type MutationResolver interface {
 	RejoinInstancePart(ctx context.Context, id string) (*model.CourseInstance, error)
 	SetInstancePartTaughtBy(ctx context.Context, id string, faculty *string) (*model.CourseInstance, error)
 	SetProgrammePlanningStatus(ctx context.Context, code string, status domain.ProgrammeStatus) (*model.Programme, error)
+	SetProgrammeDegree(ctx context.Context, code string, degree *domain.Degree) (*model.Programme, error)
 	CreateLocalModule(ctx context.Context, input model.LocalModuleInput) (*model.Module, error)
 	ChangeLocalModule(ctx context.Context, id string, input model.LocalModuleInput) (*model.Module, error)
 	SetModuleComponents(ctx context.Context, moduleID string, components []*model.ModuleComponentInput) (*model.Module, error)
@@ -1047,6 +1048,28 @@ func (ec *executionContext) field_Mutation_setPlanningSemester_args(ctx context.
 		return nil, err
 	}
 	args["code"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setProgrammeDegree_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "code",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["code"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "degree",
+		func(ctx context.Context, v any) (*domain.Degree, error) {
+			return ec.unmarshalODegree2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐDegree(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["degree"] = arg1
 	return args, nil
 }
 
@@ -2297,6 +2320,50 @@ func (ec *executionContext) fieldContext_Mutation_setProgrammePlanningStatus(ctx
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setProgrammePlanningStatus_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setProgrammeDegree(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setProgrammeDegree(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetProgrammeDegree(ctx, fc.Args["code"].(string), fc.Args["degree"].(*domain.Degree))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Programme) graphql.Marshaler {
+			return ec.marshalNProgramme2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgramme(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setProgrammeDegree(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Programme(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setProgrammeDegree_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4960,6 +5027,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setProgrammePlanningStatus":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setProgrammePlanningStatus(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setProgrammeDegree":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setProgrammeDegree(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

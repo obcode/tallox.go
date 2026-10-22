@@ -648,6 +648,19 @@ func TestDatabaseAndDomainAgreeOnModuleKinds(t *testing.T) {
 		func(v string) bool { _, ok := domain.ParseModuleKind(v); return ok })
 }
 
+func TestDatabaseAndDomainAgreeOnDegrees(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
+	known := make([]string, 0, len(domain.AllDegrees()))
+	for _, v := range domain.AllDegrees() {
+		known = append(known, string(v))
+	}
+	assertVocabulariesAgree(t, constraintDef(t, s, "programme_degree_is_known"), known,
+		func(v string) bool { _, ok := domain.ParseDegree(v); return ok })
+}
+
 func TestDatabaseAndDomainAgreeOnProgrammeStatuses(t *testing.T) {
 	t.Parallel()
 

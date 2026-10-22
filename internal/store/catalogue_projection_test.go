@@ -489,6 +489,46 @@ func TestProjectionDoesNotOverwriteAHandEditedTitle(t *testing.T) {
 	}
 }
 
+// The degree is the faculty's to record — the source does not know it — so the nightly run must
+// leave what somebody recorded where it is.
+func TestProjectionDoesNotTouchTheDegree(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+
+	project(t, s)
+
+	if _, err := s.Pool.Exec(ctx,
+		`UPDATE programme SET degree = 'MASTER' WHERE code = $1`,
+		storetest.FixtureProgrammeB); err != nil {
+		t.Fatalf("cannot record the degree: %v", err)
+	}
+
+	project(t, s)
+
+	var degree *string
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT degree FROM programme WHERE code = $1`,
+		storetest.FixtureProgrammeB).Scan(&degree); err != nil {
+		t.Fatalf("cannot read the programme: %v", err)
+	}
+	if degree == nil || *degree != "MASTER" {
+		t.Errorf("the nightly projection changed the degree to %v", degree)
+	}
+
+	// And it never invents one: the programmes nobody recorded a degree for stay without.
+	var recorded int
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT count(*) FROM programme WHERE degree IS NOT NULL`).Scan(&recorded); err != nil {
+		t.Fatalf("cannot count the degrees: %v", err)
+	}
+	if recorded != 1 {
+		t.Errorf("%d programmes have a degree after the projection, want only the recorded one",
+			recorded)
+	}
+}
+
 // The split of a module into teachable units is the faculty's knowledge and the source has none.
 // An import that could overwrite it would make it unsafe to enter, which would defeat the
 // requirement that it be entered.

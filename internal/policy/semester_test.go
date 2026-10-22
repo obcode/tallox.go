@@ -292,3 +292,34 @@ func TestPublishingIsIndependentOfThePhase(t *testing.T) {
 		}
 	}
 }
+
+// The degree sits with the same people as the phases today, and is its own function so that the
+// day it moves is one line. Pinned exhaustively against MayAdministerSemesters, and by name for
+// the two roles that would most plausibly be given it by mistake.
+func TestMaySetProgrammeDegree(t *testing.T) {
+	t.Parallel()
+
+	for _, kind := range []principal.Kind{principal.KindInteractive, principal.KindToken} {
+		for _, role := range policy.AllRoles() {
+			actor := testdata.Eins.Actor(kind, string(role))
+			if got, want := policy.MaySetProgrammeDegree(actor),
+				policy.MayAdministerSemesters(actor); got != want {
+				t.Errorf("%s via %q: MaySetProgrammeDegree = %v, want %v", role, kind, got, want)
+			}
+		}
+	}
+
+	if !policy.MaySetProgrammeDegree(testdata.Vier.Actor(principal.KindToken,
+		string(policy.RoleDeansOffice))) {
+		t.Error("the dean's office cannot record a degree through a token")
+	}
+	for _, role := range []policy.Role{policy.RoleProgrammeLead, policy.RoleAdmin} {
+		if policy.MaySetProgrammeDegree(testdata.Vier.Actor(principal.KindInteractive,
+			string(role))) {
+			t.Errorf("%s may record a degree", role)
+		}
+	}
+	if policy.MaySetProgrammeDegree(principal.Anonymous) {
+		t.Error("an anonymous caller may record a degree")
+	}
+}

@@ -570,6 +570,11 @@ extend type Query {
     cost this programme nothing and say so in `coveredBy`.
     """
     foreignHome: Boolean = false
+    """
+    Only the instances of programmes of this degree. A programme whose `degree` is null matches
+    neither, so a filtered answer can be smaller than the two filtered answers suggest.
+    """
+    degree: Degree
   ): [CourseInstance!]! @scope(area: PLANNING, verb: READ)
 
   """

@@ -164,6 +164,18 @@ WHERE ($1::uuid IS NULL
   AND (NOT $10::boolean OR g.module_id IS NULL)
   AND ($11::uuid IS NULL
        OR g.subject_group_id = $11::uuid)
+  -- The same two halves as the programme filter, for every programme of one degree: at home in
+  -- one, or counting in one of its regulations. A module that counts in a bachelor's and in a
+  -- master's matches both, and a programme without a recorded degree matches neither.
+  AND ($12::text IS NULL
+       OR EXISTS (SELECT 1 FROM programme hp
+                   WHERE hp.id = m.home_programme_id AND hp.degree = $12::text)
+       OR EXISTS (SELECT 1
+                    FROM module_offering o
+                    JOIN spo s ON s.id = o.spo_id
+                    JOIN programme p ON p.id = s.programme_id
+                   WHERE o.module_id = m.id
+                     AND p.degree = $12::text))
 ORDER BY (m.name = ''), m.name, m.id
 `
 
@@ -179,6 +191,7 @@ type ListModulesParams struct {
 	WithoutComponents   bool
 	WithoutSubjectGroup bool
 	SubjectGroup        uuid.NullUUID
+	Degree              *string
 }
 
 type ListModulesRow struct {
@@ -230,6 +243,7 @@ func (q *Queries) ListModules(ctx context.Context, arg ListModulesParams) ([]Lis
 		arg.WithoutComponents,
 		arg.WithoutSubjectGroup,
 		arg.SubjectGroup,
+		arg.Degree,
 	)
 	if err != nil {
 		return nil, err
@@ -260,6 +274,43 @@ func (q *Queries) ListModules(ctx context.Context, arg ListModulesParams) ([]Lis
 			&i.SubjectGroupName,
 			&i.SubjectGroupActive,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProgrammeDegrees = `-- name: ListProgrammeDegrees :many
+SELECT code, degree::text AS degree
+FROM programme
+WHERE degree IS NOT NULL
+ORDER BY code
+`
+
+type ListProgrammeDegreesRow struct {
+	Code   string
+	Degree string
+}
+
+// Every programme with a recorded degree, by code.
+//
+// A lookup table rather than a column on every programme read: a programme reaches the API from
+// some twenty queries, and a column added to some of them would read as "not recorded" on the
+// others. Thirty rows, read once per operation that asks.
+func (q *Queries) ListProgrammeDegrees(ctx context.Context) ([]ListProgrammeDegreesRow, error) {
+	rows, err := q.db.Query(ctx, listProgrammeDegrees)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListProgrammeDegreesRow{}
+	for rows.Next() {
+		var i ListProgrammeDegreesRow
+		if err := rows.Scan(&i.Code, &i.Degree); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -850,6 +901,47 @@ func (q *Queries) SetModuleSemesterSpan(ctx context.Context, arg SetModuleSemest
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const setProgrammeDegree = `-- name: SetProgrammeDegree :one
+UPDATE programme
+SET degree = $1,
+    degree_set_at = now(),
+    degree_set_by = $2,
+    updated_at = now()
+WHERE code = $3
+RETURNING id, code, title, active, planning_status
+`
+
+type SetProgrammeDegreeParams struct {
+	Degree *string
+	SetBy  uuid.NullUUID
+	Code   string
+}
+
+type SetProgrammeDegreeRow struct {
+	ID             uuid.UUID
+	Code           string
+	Title          string
+	Active         bool
+	PlanningStatus string
+}
+
+// Record whether a programme leads to a bachelor's or a master's, or take it back with NULL.
+//
+// By code, like the planning status next to it. Who and when are written on taking it back too:
+// "somebody cleared this on Tuesday" is a different state from "nobody ever said".
+func (q *Queries) SetProgrammeDegree(ctx context.Context, arg SetProgrammeDegreeParams) (SetProgrammeDegreeRow, error) {
+	row := q.db.QueryRow(ctx, setProgrammeDegree, arg.Degree, arg.SetBy, arg.Code)
+	var i SetProgrammeDegreeRow
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Title,
+		&i.Active,
+		&i.PlanningStatus,
+	)
+	return i, err
 }
 
 const setProgrammePlanningStatus = `-- name: SetProgrammePlanningStatus :one

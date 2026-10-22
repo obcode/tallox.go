@@ -218,6 +218,15 @@ type Programme {
   object the source carries holds a code and nothing else.
   """
   planningStatus: ProgrammeStatus!
+  """
+  Whether the programme leads to a bachelor's or a master's, or null while nobody has recorded it.
+
+  Recorded by the dean's office with `setProgrammeDegree`, because nothing else knows: the
+  examination office delivers a code and nothing more, and the codes do not encode it. The
+  nightly import never writes it. Null matches neither degree in a filter — treat it as "not
+  recorded yet", not as a third kind of programme.
+  """
+  degree: Degree
   "Its versions of the examination regulations, newest first."
   spos: [Spo!]!
   """
@@ -229,6 +238,17 @@ type Programme {
   programme's demand but does not lead it. Empty when nobody has been given the programme yet.
   """
   leads: [Person!]!
+}
+
+"""
+What a study programme leads to.
+
+Two values and no third: a programme whose degree nobody has recorded has a null `degree`
+rather than an `UNKNOWN` one, so that a filter for one of these never quietly includes it.
+"""
+enum Degree {
+  BACHELOR
+  MASTER
 }
 
 """
@@ -654,6 +674,14 @@ input ModuleFilter {
   Keep only the modules of one subject group, by id.
   """
   subjectGroup: ID
+  """
+  Keep only the modules relevant for a programme of this degree.
+
+  The same two halves as `programme`, over every programme of the degree: at home in one, or
+  counting in one of its regulations. A module that counts in a bachelor's and a master's
+  matches both. A programme whose `degree` is null matches neither.
+  """
+  degree: Degree
 }
 
 """
@@ -811,6 +839,21 @@ extend type Mutation {
     "The programme's short code. Upper-cased and trimmed for you."
     code: String!
     status: ProgrammeStatus!
+  ): Programme! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Record whether a study programme leads to a bachelor's or a master's. `null` takes it back.
+
+  Nothing the examination office delivers says it, so the faculty records it once per programme;
+  until then `Programme.degree` is null and the programme matches neither degree in a filter.
+
+  The dean's office, through both doors, like `setProgrammePlanningStatus`. Not the programme
+  leads: the degree decides what other people's filtered screens show.
+  """
+  setProgrammeDegree(
+    "The programme's short code. Upper-cased and trimmed for you."
+    code: String!
+    degree: Degree
   ): Programme! @scope(area: PLANNING, verb: WRITE)
 
   """

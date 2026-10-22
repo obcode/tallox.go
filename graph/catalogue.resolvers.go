@@ -103,6 +103,19 @@ func (r *mutationResolver) SetProgrammePlanningStatus(ctx context.Context, code 
 	return programmeModel(*programme), nil
 }
 
+// SetProgrammeDegree is the resolver for the setProgrammeDegree field.
+func (r *mutationResolver) SetProgrammeDegree(ctx context.Context, code string, degree *domain.Degree) (*model.Programme, error) {
+	actor := principal.From(ctx)
+
+	programme, err := r.Catalogue.SetProgrammeDegree(ctx, actor, code, degree)
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+	// The lookup may have been read earlier in this operation, before the write.
+	forgetProgrammeDegrees(ctx)
+	return programmeModel(*programme), nil
+}
+
 // CreateLocalModule is the resolver for the createLocalModule field.
 func (r *mutationResolver) CreateLocalModule(ctx context.Context, input model.LocalModuleInput) (*model.Module, error) {
 	actor := principal.From(ctx)
@@ -209,6 +222,23 @@ func (r *mutationResolver) SetModuleSemesterSpan(ctx context.Context, moduleID s
 		return nil, catalogueUserFacing(actor, err)
 	}
 	return moduleModel(*module), nil
+}
+
+// Degree is the resolver for the degree field.
+func (r *programmeResolver) Degree(ctx context.Context, obj *model.Programme) (*domain.Degree, error) {
+	actor := principal.From(ctx)
+
+	degrees, err := programmeDegrees(ctx, func(ctx context.Context) (map[string]domain.Degree, error) {
+		return r.Catalogue.ProgrammeDegrees(ctx, actor)
+	})
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+	degree, ok := degrees[obj.Code]
+	if !ok {
+		return nil, nil
+	}
+	return &degree, nil
 }
 
 // Leads is the resolver for the leads field.

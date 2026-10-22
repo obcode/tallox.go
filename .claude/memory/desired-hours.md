@@ -1,35 +1,58 @@
 ---
 name: desired-hours
-description: Wunsch-SWS — eigene Zeile je Person und Semester, Leserecht über die Fachgruppen der Person, eigene Zeile in der Schreibmatrix für die offene Sperrfrage
+description: Wunsch-SWS — Bereich min/max je Person und Semester, eingefroren und veröffentlicht durch das Dekanat, Notiz bleibt vertraulich, Übersicht des Kollegiums
 metadata:
   type: project
 ---
 
-Migration 31 (`20261018120000_desired_teaching_hours.sql`), 2026-10-18. Aus dem Kickoff: „wie
-viele SWS jemand halten will“, und ab einem Punkt im Prozess nicht mehr änderbar.
+Migration 31 (`20261018120000_desired_teaching_hours.sql`, 2026-10-18), erweitert mit Migration
+`20261022120000_desired_hours_range.sql` (2026-10-22). Kickoff: „wie viele SWS jemand halten
+will“, ab einem Punkt nicht mehr änderbar. Am 2026-10-22 hat die Dekanin per Mail entschieden,
+wie, und zwar **statt der Deputat-Ampel**: alle tragen modulbehaftete Lehre ohne
+Abschlussarbeiten als Min/Max ein. Zum Stichtag friert das Dekanat ein, die FKL prüft auf
+Plausibilität und klärt Ausreißer bilateral. Danach wird der Stand **für alle** sichtbar, „damit
+alle sehen, ob sie wem was wegnehmen“.
 
-**Am WishService, nicht als eigener Service.** Gehört zur Aussage „das möchte ich halten, und so
-viel davon“, wird auf der Wunschseite eingetragen, und spart die Verdrahtung. Der Store ist
-`store.Wishes`, das Interface `domain.DesiredHoursStore` ist in `WishStore` eingebettet.
+**Am WishService, nicht als eigener Service.** Store `store.Wishes`, Interface
+`domain.DesiredHoursStore` in `WishStore` eingebettet.
 
-**Nur selbst, keine Zeile heißt „nicht angegeben“** — anders als `0` (Forschungssemester).
-`numeric(4,1)`, 0–40, in halben Stunden; die Domain sagt es in einem Satz, bevor der CHECK greift.
+**Bereich als *eine* neue Spalte.** `hours` bleibt der Höchstwert, `min_hours` (nullable) ist der
+Mindestwert. Das vorherige Image schreibt weiter nur `hours`, und seine Zeilen lesen sich als
+min = max. Gelesen wird `LEAST(COALESCE(min_hours, hours), hours)`. Einen CHECK über beide Spalten
+gibt es nicht (das alte Image würde daran scheitern), die Domain lehnt min > max ab
+(`DESIRED_HOURS_RANGE`). Ein Ende allein ergibt einen Einzelwert, beide `null` nehmen den Wert
+zurück. Keine Zeile heißt „nicht angegeben“ und ist etwas anderes als `0`.
 
-**Leserecht: die Kompetenz-Regel, zur Person gedreht.** `policy.DesiredHoursVisibility`: eigene
-immer (beide Türen), interaktiv zusätzlich Fachgruppenleitungen **der Fachgruppen, in denen die
-Person Mitglied ist** (`AssignmentScope`), und das Dekanat. Mitgliedschaft wird zur Abfragezeit
-gelesen — Umhängen ändert, wer liest. Keine Studiengangsleitung (sie erreicht Instanzen, keine
-Personen), kein ADMIN, nie veröffentlicht. `TestEveryDesiredHoursReadIsFiltered` liest die
-Query-Datei, kein COUNT/SUM.
+**Drei Zustände, zwei Marken an `semester`:** `desired_hours_frozen_at/_by` und
+`desired_hours_published_at/_by`. Beide sind idempotent, der erste Zeitstempel gilt, und es gibt
+kein Zurück. Ein CHECK sorgt dafür, dass nichts veröffentlicht ist, ohne eingefroren zu sein.
+Beide Mutationen (`freezeDesiredHours`, `publishDesiredHours`) sind `@interactiveOnly` und nur
+für `DEANS_OFFICE`. Kein Kalender, kein Phasenbezug. Die Schreibmatrix-Zeile
+`WriteAreaDesiredHours` bleibt bis FINAL offen, das Einfrieren prüft `MayStateDesiredHours`
+zusätzlich.
+- Offen: eigene Zeile, beide Türen.
+- Eingefroren: nur `correctDesiredTeachingHours` (Dekanat, interaktiv, nicht in FINAL) für jede
+  Person. Es setzt `corrected_by`. Schreibt die Person selbst, wird `corrected_by` wieder NULL.
+  Die Abweisung kommt bewusst aus der Domain als `FORBIDDEN` und nicht über `@interactiveOnly`,
+  weil dessen `null` hier „zurückgenommen“ hieße.
+- Veröffentlicht: der Bereich ist für alle lesbar, durch beide Türen (wie veröffentlichte
+  Wünsche), nur nicht für PartnerOnly.
 
-**Die Sperre ist offen.** `WriteAreaDesiredHours` hat die Form der Wünsche (offen bis `FINAL`, in
-beide Richtungen). Die Antwort von der Klausurtagung (Vorschlag: mit Schließen des Wunschfensters)
-ist eine Änderung an dieser Zeile — und am `wish_window`-Check, falls es das Fenster wird; dann
-braucht die Person eine Fachgruppe, und Personen ohne Fachgruppe müssen eine Antwort bekommen.
+**Die Notiz wird nie veröffentlicht.** Sie hat einen eigenen Filter
+(`DesiredHoursNoteVisibility`, die Regel von vorher: selbst, Leitungen der Fachgruppen der
+Person, Dekanat, interaktiv). In SQL ist das das zweite Prädikat `note_*` per `CROSS JOIN
+LATERAL`. Darf jemand die Notiz nicht lesen, sind Notiz und `correctedBy` der leere String.
+`TestEveryDesiredHoursReadIsFiltered` verlangt beide Prädikate.
 
-GraphQL: `myDesiredTeachingHours`, `desiredTeachingHours(semester, person)`,
-`setDesiredTeachingHours(semester, hours, note)` — `hours: null` nimmt zurück. Codes
-`DESIRED_HOURS_OUT_OF_RANGE`, `DESIRED_HOURS_PHASE_CLOSED`, `SEMESTER_REQUIRED`. Scope `WISHES`.
+**Übersicht `desiredHoursOverview(semester)`**: aktive Personen mit LECTURER oder
+Fachgruppen-Mitgliedschaft (beides ist ohnehin lesbar), dazu Fachgruppen und ein `LEFT JOIN` auf
+die Wunsch-SWS **mit Filter im ON**. „Nicht sichtbar“ und „nicht angegeben“ sind dort beide
+`stated: false`, so entsteht kein Hat-angegeben-Flag. `assignedLoad` daneben läuft durch die
+eigene Regel, siehe [[assigned-load]].
 
-Eine zugeteilte Last je Person gibt es (noch) nicht — die Zuteilungsseite zeigt die Wunsch-SWS
-daher nur als Hinweis am Kandidaten. Verwandt: [[wishes]], [[competences]].
+Codes: `DESIRED_HOURS_OUT_OF_RANGE`, `DESIRED_HOURS_RANGE`, `DESIRED_HOURS_PHASE_CLOSED`,
+`DESIRED_HOURS_FROZEN`, `DESIRED_HOURS_NOT_FROZEN`, `PERSON_NOT_FOUND` (Korrektur für ein
+unbekanntes Konto), `SEMESTER_REQUIRED`.
+
+Noch offen für die Klausurtagung: ob Studiengangsleitungen vor der Veröffentlichung lesen.
+Verwandt: [[wishes]], [[competences]], [[assigned-load]].

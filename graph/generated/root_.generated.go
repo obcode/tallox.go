@@ -96,6 +96,17 @@ type ComplexityRoot struct {
 		Until     func(childComplexity int) int
 	}
 
+	AssignedLoad struct {
+		BySubjectGroup func(childComplexity int) int
+		Person         func(childComplexity int) int
+		Total          func(childComplexity int) int
+	}
+
+	AssignedLoadShare struct {
+		Hours        func(childComplexity int) int
+		SubjectGroup func(childComplexity int) int
+	}
+
 	Assignee struct {
 		Mail      func(childComplexity int) int
 		Name      func(childComplexity int) int
@@ -230,12 +241,24 @@ type ComplexityRoot struct {
 		Track      func(childComplexity int) int
 	}
 
+	DesiredHoursOverviewRow struct {
+		AssignedLoad  func(childComplexity int) int
+		MaxHours      func(childComplexity int) int
+		MinHours      func(childComplexity int) int
+		Person        func(childComplexity int) int
+		Stated        func(childComplexity int) int
+		SubjectGroups func(childComplexity int) int
+	}
+
 	DesiredTeachingHours struct {
-		Hours     func(childComplexity int) int
-		Note      func(childComplexity int) int
-		Person    func(childComplexity int) int
-		Semester  func(childComplexity int) int
-		UpdatedAt func(childComplexity int) int
+		CorrectedBy func(childComplexity int) int
+		Hours       func(childComplexity int) int
+		MaxHours    func(childComplexity int) int
+		MinHours    func(childComplexity int) int
+		Note        func(childComplexity int) int
+		Person      func(childComplexity int) int
+		Semester    func(childComplexity int) int
+		UpdatedAt   func(childComplexity int) int
 	}
 
 	InstanceCoverage struct {
@@ -352,6 +375,7 @@ type ComplexityRoot struct {
 		ChangeLocalModule             func(childComplexity int, id string, input model.LocalModuleInput) int
 		ClearAssignment               func(childComplexity int, id string) int
 		CopyDemandFromSemester        func(childComplexity int, from string, to string, programme string) int
+		CorrectDesiredTeachingHours   func(childComplexity int, semester string, person string, minHours *float64, maxHours *float64, note *string) int
 		CreateLocalModule             func(childComplexity int, input model.LocalModuleInput) int
 		CreatePerson                  func(childComplexity int, mail string, name *string) int
 		CreatePersonalAccessToken     func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput) int
@@ -359,9 +383,11 @@ type ComplexityRoot struct {
 		DeclareCourseInstance         func(childComplexity int, input model.DeclareCourseInstanceInput) int
 		DivideInstancePart            func(childComplexity int, id string, teachingHours float64) int
 		DuplicateCourseInstance       func(childComplexity int, id string, track string, sourceTrack *string) int
+		FreezeDesiredHours            func(childComplexity int, code string) int
 		PlanDemand                    func(childComplexity int, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) int
 		ProjectZpaCatalogue           func(childComplexity int) int
 		PublishAssignments            func(childComplexity int, code string) int
+		PublishDesiredHours           func(childComplexity int, code string) int
 		PublishWishes                 func(childComplexity int, code string) int
 		RejoinInstancePart            func(childComplexity int, id string) int
 		ReleaseInstanceCoverage       func(childComplexity int, id string) int
@@ -374,7 +400,7 @@ type ComplexityRoot struct {
 		SetCourseInstanceFormat       func(childComplexity int, id string, delivery domain.Delivery, taughtInEnglish *bool) int
 		SetCourseInstanceTopic        func(childComplexity int, id string, topic string) int
 		SetDemandComplete             func(childComplexity int, semester string, programme string, complete bool) int
-		SetDesiredTeachingHours       func(childComplexity int, semester string, hours *float64, note *string) int
+		SetDesiredTeachingHours       func(childComplexity int, semester string, minHours *float64, maxHours *float64, hours *float64, note *string) int
 		SetInstancePartTaughtBy       func(childComplexity int, id string, faculty *string) int
 		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
 		SetModuleProjectBased         func(childComplexity int, moduleID string, projectBased bool) int
@@ -479,6 +505,7 @@ type ComplexityRoot struct {
 	Query struct {
 		AccessLog                  func(childComplexity int, filter *model.AccessLogFilter, limit *int, before *string) int
 		AccessSummary              func(childComplexity int, from time.Time, until time.Time) int
+		AssignedTeachingHours      func(childComplexity int, semester string, person *string) int
 		Assignments                func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
 		BuildInfo                  func(childComplexity int) int
 		CompetenceMemberStatus     func(childComplexity int, subjectGroup string) int
@@ -486,6 +513,7 @@ type ComplexityRoot struct {
 		CourseInstance             func(childComplexity int, id string) int
 		CourseInstances            func(childComplexity int, semester string, programme *string, module *string, foreignHome *bool, degree *domain.Degree) int
 		DemandCompletions          func(childComplexity int, semester string) int
+		DesiredHoursOverview       func(childComplexity int, semester string) int
 		DesiredTeachingHours       func(childComplexity int, semester string, person *string) int
 		DiagnoseAccess             func(childComplexity int, mail string) int
 		Me                         func(childComplexity int) int
@@ -549,13 +577,15 @@ type ComplexityRoot struct {
 	}
 
 	Semester struct {
-		AssignmentsPublishedAt func(childComplexity int) int
-		Code                   func(childComplexity int) int
-		DecidedAt              func(childComplexity int) int
-		IsPlanningSemester     func(childComplexity int) int
-		Phase                  func(childComplexity int) int
-		ReachablePhases        func(childComplexity int) int
-		WishesPublishedAt      func(childComplexity int) int
+		AssignmentsPublishedAt  func(childComplexity int) int
+		Code                    func(childComplexity int) int
+		DecidedAt               func(childComplexity int) int
+		DesiredHoursFrozenAt    func(childComplexity int) int
+		DesiredHoursPublishedAt func(childComplexity int) int
+		IsPlanningSemester      func(childComplexity int) int
+		Phase                   func(childComplexity int) int
+		ReachablePhases         func(childComplexity int) int
+		WishesPublishedAt       func(childComplexity int) int
 	}
 
 	Session struct {
@@ -964,6 +994,38 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AccessSummary.Until(childComplexity), true
+
+	case "AssignedLoad.bySubjectGroup":
+		if e.ComplexityRoot.AssignedLoad.BySubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignedLoad.BySubjectGroup(childComplexity), true
+	case "AssignedLoad.person":
+		if e.ComplexityRoot.AssignedLoad.Person == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignedLoad.Person(childComplexity), true
+	case "AssignedLoad.total":
+		if e.ComplexityRoot.AssignedLoad.Total == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignedLoad.Total(childComplexity), true
+
+	case "AssignedLoadShare.hours":
+		if e.ComplexityRoot.AssignedLoadShare.Hours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignedLoadShare.Hours(childComplexity), true
+	case "AssignedLoadShare.subjectGroup":
+		if e.ComplexityRoot.AssignedLoadShare.SubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignedLoadShare.SubjectGroup(childComplexity), true
 
 	case "Assignee.mail":
 		if e.ComplexityRoot.Assignee.Mail == nil {
@@ -1514,12 +1576,67 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DemandRefusal.Track(childComplexity), true
 
+	case "DesiredHoursOverviewRow.assignedLoad":
+		if e.ComplexityRoot.DesiredHoursOverviewRow.AssignedLoad == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredHoursOverviewRow.AssignedLoad(childComplexity), true
+	case "DesiredHoursOverviewRow.maxHours":
+		if e.ComplexityRoot.DesiredHoursOverviewRow.MaxHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredHoursOverviewRow.MaxHours(childComplexity), true
+	case "DesiredHoursOverviewRow.minHours":
+		if e.ComplexityRoot.DesiredHoursOverviewRow.MinHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredHoursOverviewRow.MinHours(childComplexity), true
+	case "DesiredHoursOverviewRow.person":
+		if e.ComplexityRoot.DesiredHoursOverviewRow.Person == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredHoursOverviewRow.Person(childComplexity), true
+	case "DesiredHoursOverviewRow.stated":
+		if e.ComplexityRoot.DesiredHoursOverviewRow.Stated == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredHoursOverviewRow.Stated(childComplexity), true
+	case "DesiredHoursOverviewRow.subjectGroups":
+		if e.ComplexityRoot.DesiredHoursOverviewRow.SubjectGroups == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredHoursOverviewRow.SubjectGroups(childComplexity), true
+
+	case "DesiredTeachingHours.correctedBy":
+		if e.ComplexityRoot.DesiredTeachingHours.CorrectedBy == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredTeachingHours.CorrectedBy(childComplexity), true
 	case "DesiredTeachingHours.hours":
 		if e.ComplexityRoot.DesiredTeachingHours.Hours == nil {
 			break
 		}
 
 		return e.ComplexityRoot.DesiredTeachingHours.Hours(childComplexity), true
+	case "DesiredTeachingHours.maxHours":
+		if e.ComplexityRoot.DesiredTeachingHours.MaxHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredTeachingHours.MaxHours(childComplexity), true
+	case "DesiredTeachingHours.minHours":
+		if e.ComplexityRoot.DesiredTeachingHours.MinHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredTeachingHours.MinHours(childComplexity), true
 	case "DesiredTeachingHours.note":
 		if e.ComplexityRoot.DesiredTeachingHours.Note == nil {
 			break
@@ -2101,6 +2218,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CopyDemandFromSemester(childComplexity, args["from"].(string), args["to"].(string), args["programme"].(string)), true
+	case "Mutation.correctDesiredTeachingHours":
+		if e.ComplexityRoot.Mutation.CorrectDesiredTeachingHours == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_correctDesiredTeachingHours_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CorrectDesiredTeachingHours(childComplexity, args["semester"].(string), args["person"].(string), args["minHours"].(*float64), args["maxHours"].(*float64), args["note"].(*string)), true
 	case "Mutation.createLocalModule":
 		if e.ComplexityRoot.Mutation.CreateLocalModule == nil {
 			break
@@ -2178,6 +2306,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.DuplicateCourseInstance(childComplexity, args["id"].(string), args["track"].(string), args["sourceTrack"].(*string)), true
+	case "Mutation.freezeDesiredHours":
+		if e.ComplexityRoot.Mutation.FreezeDesiredHours == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_freezeDesiredHours_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.FreezeDesiredHours(childComplexity, args["code"].(string)), true
 	case "Mutation.planDemand":
 		if e.ComplexityRoot.Mutation.PlanDemand == nil {
 			break
@@ -2206,6 +2345,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.PublishAssignments(childComplexity, args["code"].(string)), true
+	case "Mutation.publishDesiredHours":
+		if e.ComplexityRoot.Mutation.PublishDesiredHours == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_publishDesiredHours_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.PublishDesiredHours(childComplexity, args["code"].(string)), true
 	case "Mutation.publishWishes":
 		if e.ComplexityRoot.Mutation.PublishWishes == nil {
 			break
@@ -2348,7 +2498,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.SetDesiredTeachingHours(childComplexity, args["semester"].(string), args["hours"].(*float64), args["note"].(*string)), true
+		return e.ComplexityRoot.Mutation.SetDesiredTeachingHours(childComplexity, args["semester"].(string), args["minHours"].(*float64), args["maxHours"].(*float64), args["hours"].(*float64), args["note"].(*string)), true
 	case "Mutation.setInstancePartTaughtBy":
 		if e.ComplexityRoot.Mutation.SetInstancePartTaughtBy == nil {
 			break
@@ -2987,6 +3137,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.AccessSummary(childComplexity, args["from"].(time.Time), args["until"].(time.Time)), true
+	case "Query.assignedTeachingHours":
+		if e.ComplexityRoot.Query.AssignedTeachingHours == nil {
+			break
+		}
+
+		args, err := ec.field_Query_assignedTeachingHours_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AssignedTeachingHours(childComplexity, args["semester"].(string), args["person"].(*string)), true
 	case "Query.assignments":
 		if e.ComplexityRoot.Query.Assignments == nil {
 			break
@@ -3059,6 +3220,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.DemandCompletions(childComplexity, args["semester"].(string)), true
+	case "Query.desiredHoursOverview":
+		if e.ComplexityRoot.Query.DesiredHoursOverview == nil {
+			break
+		}
+
+		args, err := ec.field_Query_desiredHoursOverview_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.DesiredHoursOverview(childComplexity, args["semester"].(string)), true
 	case "Query.desiredTeachingHours":
 		if e.ComplexityRoot.Query.DesiredTeachingHours == nil {
 			break
@@ -3523,6 +3695,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Semester.DecidedAt(childComplexity), true
+	case "Semester.desiredHoursFrozenAt":
+		if e.ComplexityRoot.Semester.DesiredHoursFrozenAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Semester.DesiredHoursFrozenAt(childComplexity), true
+	case "Semester.desiredHoursPublishedAt":
+		if e.ComplexityRoot.Semester.DesiredHoursPublishedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Semester.DesiredHoursPublishedAt(childComplexity), true
 	case "Semester.isPlanningSemester":
 		if e.ComplexityRoot.Semester.IsPlanningSemester == nil {
 			break
@@ -4904,6 +5088,34 @@ type Assignment {
   updatedAt: Time!
 }
 
+"""
+How many hours a week one person already holds in a semester: in total, and by the subject group of
+the modules they hold them in.
+
+**Readable before the assignments are published, by more than the person**, which no other sum over
+assignments is: in a signed-in session the lead of any subject group the person is a member of reads
+it, and the dean's office — so that whoever fills an instance can see that a colleague is already
+full in another group, and whom to talk to. It names no module, instance or part. Through a
+Personal Access Token it is your own until ` + "`" + `Semester.assignmentsPublishedAt` + "`" + `, and everybody's
+after.
+"""
+type AssignedLoad {
+  "Whose load it is."
+  person: Person!
+  "Hours a week, the sum of ` + "`" + `bySubjectGroup` + "`" + `."
+  total: Float!
+  "One entry per subject group, by code, and last the modules in no subject group."
+  bySubjectGroup: [AssignedLoadShare!]!
+}
+
+"One subject group's share of somebody's load."
+type AssignedLoadShare {
+  "The subject group of the modules, or ` + "`" + `null` + "`" + ` for modules nobody has sorted into one."
+  subjectGroup: SubjectGroupRef
+  "Hours a week."
+  hours: Float!
+}
+
 extend type Query {
   """
   What the caller has been given to teach — in one semester, or in every semester.
@@ -4944,6 +5156,17 @@ extend type Query {
     "Narrow to one person's assignments. Matches an account, not a teacher without one."
     person: ID
   ): [Assignment!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  The load of everybody whose load you may see in one semester — see ` + "`" + `AssignedLoad` + "`" + ` for who that
+  is. Somebody who holds nothing has no entry. Not an error when you may see only your own.
+  """
+  assignedTeachingHours(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "Narrow to one person, by id."
+    person: ID
+  ): [AssignedLoad!]! @scope(area: PLANNING, verb: READ)
 }
 
 extend type Mutation {
@@ -7410,7 +7633,7 @@ enum ScopeArea {
   # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
   # "is this part taken", which through a token the read rule would not.
 
-  ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `,
+  ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `assignedTeachingHours` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `,
   ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `applyModuleSplitToInstances` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `,
   ` + "`" + `setModuleSemesterSpan` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `setProgrammeDegree` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
@@ -7432,7 +7655,14 @@ enum ScopeArea {
   ` + "`" + `demandCompletions` + "`" + `, ` + "`" + `wishWindows` + "`" + `, ` + "`" + `setDemandComplete` + "`" + `, ` + "`" + `setWishWindow` + "`" + `,
   ` + "`" + `reviewCompletions` + "`" + `, ` + "`" + `setReviewComplete` + "`" + `,
   ` + "`" + `subjectGroups` + "`" + `, ` + "`" + `subjectGroup` + "`" + `, ` + "`" + `mySubjectGroups` + "`" + `, ` + "`" + `modulesWithoutSubjectGroup` + "`" + `,
-  ` + "`" + `subjectGroupsWithoutLead` + "`" + `, ` + "`" + `setMySubjectGroups` + "`" + `, ` + "`" + `setModulesSubjectGroup` + "`" + `.
+  ` + "`" + `subjectGroupsWithoutLead` + "`" + `, ` + "`" + `setMySubjectGroups` + "`" + `, ` + "`" + `setModulesSubjectGroup` + "`" + `,
+
+  # The dean's office's three acts on the desired teaching hours, all browser-only: there is no
+  # unfreezing and no un-publishing, and a correction changes somebody else's statement. The
+  # correction refuses a token in the domain rather than by @interactiveOnly, whose null would
+  # read as "taken back".
+
+  ` + "`" + `freezeDesiredHours` + "`" + `, ` + "`" + `publishDesiredHours` + "`" + `, ` + "`" + `correctDesiredTeachingHours` + "`" + `.
   """
   PLANNING
 
@@ -7457,7 +7687,8 @@ enum ScopeArea {
   Fields: ` + "`" + `myWishes` + "`" + `, ` + "`" + `wishes` + "`" + `, ` + "`" + `setWish` + "`" + `, ` + "`" + `withdrawWish` + "`" + `, ` + "`" + `myCompetences` + "`" + `, ` + "`" + `myCompetenceStatus` + "`" + `,
   ` + "`" + `competences` + "`" + `, ` + "`" + `competenceMemberStatus` + "`" + `, ` + "`" + `modulesWithoutCompetence` + "`" + `, ` + "`" + `setMyCompetence` + "`" + `,
   ` + "`" + `withdrawMyCompetence` + "`" + `, ` + "`" + `setTeacherCompetence` + "`" + `, ` + "`" + `withdrawTeacherCompetence` + "`" + `,
-  ` + "`" + `myDesiredTeachingHours` + "`" + `, ` + "`" + `desiredTeachingHours` + "`" + `, ` + "`" + `setDesiredTeachingHours` + "`" + `.
+  ` + "`" + `myDesiredTeachingHours` + "`" + `, ` + "`" + `desiredTeachingHours` + "`" + `, ` + "`" + `desiredHoursOverview` + "`" + `,
+  ` + "`" + `setDesiredTeachingHours` + "`" + `.
   """
   WISHES
 
@@ -7972,6 +8203,22 @@ type Semester {
   assignmentsPublishedAt: Time
 
   """
+  When the dean's office froze the desired teaching hours of this semester, or ` + "`" + `null` + "`" + ` while
+  everybody may still change their own. Afterwards only the dean's office corrects a figure.
+
+  There is no unfreezing.
+  """
+  desiredHoursFrozenAt: Time
+
+  """
+  When the desired teaching hours of this semester became visible to everybody, or ` + "`" + `null` + "`" + `. Never
+  before the freeze. The notes stay where they were.
+
+  There is no un-publishing.
+  """
+  desiredHoursPublishedAt: Time
+
+  """
   When the last decision about this semester was recorded, or ` + "`" + `null` + "`" + ` while none has been.
 
   Not "when the semester was created" — nothing creates one. It is the phase switch or the
@@ -8104,6 +8351,23 @@ extend type Mutation {
   attributable to a sign-in rather than to a string in a script.
   """
   publishAssignments(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Freeze the desired teaching hours of this semester: from now on only the dean's office changes a
+  figure. The deadline, made an act.
+
+  **There is no way back.** Calling it twice is not an error and does not move the timestamp.
+  Interactive only, like the publications.
+  """
+  freezeDesiredHours(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Make the desired teaching hours of this semester visible to everybody — the range, not the
+  notes. Only a frozen semester (` + "`" + `DESIRED_HOURS_NOT_FROZEN` + "`" + ` otherwise).
+
+  **There is no way back.** Calling it twice is not an error and does not move the timestamp.
+  """
+  publishDesiredHours(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../session.graphqls", Input: `# The difference between "who you are" and "how this request is being judged".
@@ -8787,27 +9051,73 @@ extend type Mutation {
 }
 
 """
-How many hours a week somebody would like to teach in one semester.
+How many hours a week of module teaching somebody would like to take in one semester, as a range.
+Theses are not included.
 
 Stated by the person, on the wish screen, beside the wishes it belongs to. Not the teaching
 obligation and not a balance — those are the dean's office's and are not stored here. No entry
 means "not stated", which is different from ` + "`" + `0` + "`" + `.
 
-Read by the person, through either door; in an interactive session also by the lead of any
-subject group the person is a member of, and by the dean's office. Never published: it is a
-statement about one's own workload, and nothing in the process needs a colleague to read it.
+Three states, set by the dean's office on the semester:
+
+- **Open** — the person states and changes their own. Read by the person, through either door; in
+  an interactive session also by the lead of any subject group the person is a member of, and by
+  the dean's office.
+- **Frozen** (` + "`" + `Semester.desiredHoursFrozenAt` + "`" + `) — only the dean's office changes a figure, with
+  ` + "`" + `correctDesiredTeachingHours` + "`" + `, after agreeing it with the person.
+- **Published** (` + "`" + `Semester.desiredHoursPublishedAt` + "`" + `) — everybody reads the range, through either
+  door. The ` + "`" + `note` + "`" + ` keeps the rule of the open state: it is the person's own words.
 """
 type DesiredTeachingHours {
   "The semester, as its code: ` + "`" + `2027-SS` + "`" + `."
   semester: String!
-  "Whose figure it is. Always the person who stated it."
+  "Whose figure it is."
   person: Person!
-  "Hours a week, in half hours, from 0 to 40."
-  hours: Float!
-  "The person's own words: „gern als Block“, „Forschungssemester im Herbst“."
+  "The lower end, hours a week in half hours from 0 to 40. Equal to ` + "`" + `maxHours` + "`" + ` for a single figure."
+  minHours: Float!
+  "The upper end, hours a week in half hours from 0 to 40."
+  maxHours: Float!
+  "The upper end."
+  hours: Float! @deprecated(reason: "A range now: use ` + "`" + `minHours` + "`" + ` and ` + "`" + `maxHours` + "`" + `.")
+  """
+  The person's own words: „gern als Block“, „Forschungssemester im Herbst“. Empty when you may read
+  the range but not the note — which is everybody but the person, the leads of their subject groups
+  and the dean's office, in an interactive session.
+  """
   note: String!
+  """
+  The name of whoever in the dean's office last corrected the figure after the freeze, or empty
+  while it stands as the person stated it. Empty, too, where the note is.
+  """
+  correctedBy: String!
   "When it was last changed."
   updatedAt: Time!
+}
+
+"""
+One colleague in the overview of desired teaching hours: who, in which subject groups, and the range
+— where you may see it.
+"""
+type DesiredHoursOverviewRow {
+  "The colleague."
+  person: Person!
+  "The subject groups the person is a member of."
+  subjectGroups: [SubjectGroupRef!]!
+  """
+  Whether there is a figure **you may see**. False both for nobody having stated one and for one you
+  may not read yet: before publication the two are the same answer on purpose.
+  """
+  stated: Boolean!
+  "The lower end, or ` + "`" + `null` + "`" + ` while ` + "`" + `stated` + "`" + ` is false."
+  minHours: Float
+  "The upper end, or ` + "`" + `null` + "`" + ` while ` + "`" + `stated` + "`" + ` is false."
+  maxHours: Float
+  """
+  What the person already holds in this semester, or ` + "`" + `null` + "`" + ` where you may not see it or they hold
+  nothing. Its own rule, ` + "`" + `AssignedLoad` + "`" + `'s: the leads of the person's subject groups read it while
+  the planning runs, everybody once the assignments are published.
+  """
+  assignedLoad: AssignedLoad
 }
 
 extend type Query {
@@ -8824,7 +9134,8 @@ extend type Query {
 
   **Not an error when you may see none**, for the reason ` + "`" + `wishes` + "`" + ` gives: whether a colleague has
   stated a figure is the fact the rule protects. Through a Personal Access Token this is your own
-  entry whatever your role.
+  entry whatever your role — until the dean's office publishes the semester's figures, after which
+  it is everybody's.
   """
   desiredTeachingHours(
     "Four digits, a hyphen and SS or WS."
@@ -8832,26 +9143,62 @@ extend type Query {
     "One person's entry, by id."
     person: ID
   ): [DesiredTeachingHours!]! @scope(area: WISHES, verb: READ)
+
+  """
+  Every colleague of the faculty — active, and holding ` + "`" + `LECTURER` + "`" + ` or a member of a subject group —
+  with their subject groups and the desired teaching hours you may see for one semester.
+
+  The list of people is the same for everybody; only the figures depend on who asks. Before the
+  dean's office publishes them that is your own, and in a signed-in session the members of the
+  subject groups you lead, or everybody for the dean's office.
+  """
+  desiredHoursOverview(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): [DesiredHoursOverviewRow!]! @scope(area: WISHES, verb: READ)
 }
 
 extend type Mutation {
   """
-  State how many hours a week you would like to teach in a semester, or change it. ` + "`" + `hours: null` + "`" + `
-  takes it back.
+  State how many hours a week you would like to teach in a semester, or change it. Both ends
+  ` + "`" + `null` + "`" + ` takes it back; one end alone is a single figure.
 
-  Yours only. Open until the semester is finished, ` + "`" + `DESIRED_HOURS_PHASE_CLOSED` + "`" + ` afterwards, in
-  both directions; when exactly the figure should freeze is still being decided.
-  ` + "`" + `DESIRED_HOURS_OUT_OF_RANGE` + "`" + ` for anything that is not a multiple of one half between 0 and 40.
+  Yours only. Open until the dean's office freezes the semester's figures —
+  ` + "`" + `DESIRED_HOURS_FROZEN` + "`" + ` afterwards — and never once the semester is finished
+  (` + "`" + `DESIRED_HOURS_PHASE_CLOSED` + "`" + `). ` + "`" + `DESIRED_HOURS_OUT_OF_RANGE` + "`" + ` for anything that is not a multiple
+  of one half between 0 and 40, ` + "`" + `DESIRED_HOURS_RANGE` + "`" + ` for a minimum above the maximum.
 
   Returns the stored entry, or ` + "`" + `null` + "`" + ` after taking it back.
   """
   setDesiredTeachingHours(
     "Four digits, a hyphen and SS or WS."
     semester: String!
-    hours: Float
+    minHours: Float
+    maxHours: Float
+    "A single figure, for scripts written before the range: the same as ` + "`" + `minHours` + "`" + ` and ` + "`" + `maxHours` + "`" + `."
+    hours: Float @deprecated(reason: "Use ` + "`" + `minHours` + "`" + ` and ` + "`" + `maxHours` + "`" + `.")
     "Up to 500 characters, or nothing at all."
     note: String
   ): DesiredTeachingHours @scope(area: WISHES, verb: WRITE)
+
+  """
+  Change somebody's figure after the freeze: what the dean's office agreed with the person in the
+  plausibility check. Both ends ` + "`" + `null` + "`" + ` takes it back. Recorded as a correction (` + "`" + `correctedBy` + "`" + `).
+
+  The dean's office in a signed-in session only — through a Personal Access Token ` + "`" + `FORBIDDEN` + "`" + `, said
+  as a refusal rather than the ` + "`" + `null` + "`" + ` of ` + "`" + `@interactiveOnly` + "`" + `, because ` + "`" + `null` + "`" + ` here already means "taken
+  back". ` + "`" + `DESIRED_HOURS_NOT_FROZEN` + "`" + ` while the figures are still the people's own to change,
+  ` + "`" + `DESIRED_HOURS_PHASE_CLOSED` + "`" + ` once the semester is finished.
+  """
+  correctDesiredTeachingHours(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    person: ID!
+    minHours: Float
+    maxHours: Float
+    "Up to 500 characters. Replaces the person's note; omitted or ` + "`" + `null` + "`" + ` keeps it."
+    note: String
+  ): DesiredTeachingHours @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../zpa.graphqls", Input: `# The module master data import, as far as it is visible from outside.
@@ -9366,6 +9713,28 @@ func (ec *executionContext) childFields_AccessSummary(ctx context.Context, field
 	return nil, fmt.Errorf("no field named %q was found under type AccessSummary", field.Name)
 }
 
+func (ec *executionContext) childFields_AssignedLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "person":
+		return ec.fieldContext_AssignedLoad_person(ctx, field)
+	case "total":
+		return ec.fieldContext_AssignedLoad_total(ctx, field)
+	case "bySubjectGroup":
+		return ec.fieldContext_AssignedLoad_bySubjectGroup(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AssignedLoad", field.Name)
+}
+
+func (ec *executionContext) childFields_AssignedLoadShare(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "subjectGroup":
+		return ec.fieldContext_AssignedLoadShare_subjectGroup(ctx, field)
+	case "hours":
+		return ec.fieldContext_AssignedLoadShare_hours(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AssignedLoadShare", field.Name)
+}
+
 func (ec *executionContext) childFields_Assignee(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "personId":
@@ -9634,16 +10003,40 @@ func (ec *executionContext) childFields_DemandRefusal(ctx context.Context, field
 	return nil, fmt.Errorf("no field named %q was found under type DemandRefusal", field.Name)
 }
 
+func (ec *executionContext) childFields_DesiredHoursOverviewRow(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "person":
+		return ec.fieldContext_DesiredHoursOverviewRow_person(ctx, field)
+	case "subjectGroups":
+		return ec.fieldContext_DesiredHoursOverviewRow_subjectGroups(ctx, field)
+	case "stated":
+		return ec.fieldContext_DesiredHoursOverviewRow_stated(ctx, field)
+	case "minHours":
+		return ec.fieldContext_DesiredHoursOverviewRow_minHours(ctx, field)
+	case "maxHours":
+		return ec.fieldContext_DesiredHoursOverviewRow_maxHours(ctx, field)
+	case "assignedLoad":
+		return ec.fieldContext_DesiredHoursOverviewRow_assignedLoad(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DesiredHoursOverviewRow", field.Name)
+}
+
 func (ec *executionContext) childFields_DesiredTeachingHours(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "semester":
 		return ec.fieldContext_DesiredTeachingHours_semester(ctx, field)
 	case "person":
 		return ec.fieldContext_DesiredTeachingHours_person(ctx, field)
+	case "minHours":
+		return ec.fieldContext_DesiredTeachingHours_minHours(ctx, field)
+	case "maxHours":
+		return ec.fieldContext_DesiredTeachingHours_maxHours(ctx, field)
 	case "hours":
 		return ec.fieldContext_DesiredTeachingHours_hours(ctx, field)
 	case "note":
 		return ec.fieldContext_DesiredTeachingHours_note(ctx, field)
+	case "correctedBy":
+		return ec.fieldContext_DesiredTeachingHours_correctedBy(ctx, field)
 	case "updatedAt":
 		return ec.fieldContext_DesiredTeachingHours_updatedAt(ctx, field)
 	}
@@ -10056,6 +10449,10 @@ func (ec *executionContext) childFields_Semester(ctx context.Context, field grap
 		return ec.fieldContext_Semester_wishesPublishedAt(ctx, field)
 	case "assignmentsPublishedAt":
 		return ec.fieldContext_Semester_assignmentsPublishedAt(ctx, field)
+	case "desiredHoursFrozenAt":
+		return ec.fieldContext_Semester_desiredHoursFrozenAt(ctx, field)
+	case "desiredHoursPublishedAt":
+		return ec.fieldContext_Semester_desiredHoursPublishedAt(ctx, field)
 	case "decidedAt":
 		return ec.fieldContext_Semester_decidedAt(ctx, field)
 	}

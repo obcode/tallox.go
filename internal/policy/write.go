@@ -140,9 +140,10 @@ var writeMatrix = map[WriteArea]map[Phase][]Role{
 	},
 	// The wishes' shape, and deliberately its own row rather than a reuse of theirs. The kickoff
 	// asked for the figure to freeze "ab einem Punkt im Prozess", so that nobody states little and
-	// raises it later to land a special course; which point is a question for the retreat on
-	// 2026-10-27 (docs/rueckfragen-2026-10.md). Until it is answered the figure is open as long as
-	// the wishes are — and the answer is one edit to this row, not a condition to find.
+	// raises it later to land a special course. The point turned out not to be a phase: the dean's
+	// office freezes the figures at a deadline of its own (2026-10-22), which is a mark on the
+	// semester and checked by MayStateDesiredHours on top of this row. The row still says the
+	// figure is open as long as the wishes are until then, and closed once the semester is over.
 	WriteAreaDesiredHours: {
 		PhaseDemandPlanning: {RoleLecturer},
 		PhaseWishes:         {RoleLecturer},

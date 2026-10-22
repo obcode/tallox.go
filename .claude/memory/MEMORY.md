@@ -32,7 +32,8 @@ Kollegium — das gehört nach `tallox.dev`.
 - [Block und Englisch je Zug](instance-format.md) — Override gegen den ZPA-Default, Schreibregel der Zuteilung, Mitnahmepfade
 - [Thema je Zug (Sammelmodule)](instance-topic.md) — WI-Seminare als Züge eines ZPA-Moduls, bis 26 Züge, Schreibregel Bedarf ∪ Zuteilung, Mitnahme nur bei der Semesterkopie
 - [Modulhandbuch-Link](module-handbook.md) — aus zpa.baseurl abgeleitet, nur aktive ZPA-Module, kein eigener Schlüssel
-- [Wunsch-SWS](desired-hours.md) — je Person und Semester, gelesen über die Fachgruppen der Person, eigene Zeile in der Schreibmatrix für die offene Sperrfrage
+- [Wunsch-SWS](desired-hours.md) — Min/Max je Person und Semester; Dekanat friert ein, korrigiert, veröffentlicht; Notiz nie öffentlich; Übersicht des Kollegiums
+- [Eingeplante SWS](assigned-load.md) — die einzige erlaubte Summe über Zuteilungen: Leitung sieht die Last ihrer Mitglieder je Fachgruppe, auch fremde
 - [Partnerfakultät](partner-reader.md) — PARTNER_READER verengt allein gehalten auf die eigenen Studiengänge, schreibt nichts, liest keine Wünsche
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:

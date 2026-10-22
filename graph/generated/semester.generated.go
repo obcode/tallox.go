@@ -164,6 +164,52 @@ func (ec *executionContext) fieldContext_Semester_assignmentsPublishedAt(_ conte
 	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _Semester_desiredHoursFrozenAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Semester_desiredHoursFrozenAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DesiredHoursFrozenAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Semester_desiredHoursFrozenAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _Semester_desiredHoursPublishedAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Semester_desiredHoursPublishedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DesiredHoursPublishedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Semester_desiredHoursPublishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
 func (ec *executionContext) _Semester_decidedAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -238,6 +284,16 @@ func (ec *executionContext) _Semester(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "assignmentsPublishedAt":
 			out.Values[i] = ec._Semester_assignmentsPublishedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "desiredHoursFrozenAt":
+			out.Values[i] = ec._Semester_desiredHoursFrozenAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "desiredHoursPublishedAt":
+			out.Values[i] = ec._Semester_desiredHoursPublishedAt(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}

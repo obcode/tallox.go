@@ -167,6 +167,32 @@ type AccessSummary struct {
 	Mutations []*AccessMutationCount `json:"mutations"`
 }
 
+// How many hours a week one person already holds in a semester: in total, and by the subject group of
+// the modules they hold them in.
+//
+// **Readable before the assignments are published, by more than the person**, which no other sum over
+// assignments is: in a signed-in session the lead of any subject group the person is a member of reads
+// it, and the dean's office — so that whoever fills an instance can see that a colleague is already
+// full in another group, and whom to talk to. It names no module, instance or part. Through a
+// Personal Access Token it is your own until `Semester.assignmentsPublishedAt`, and everybody's
+// after.
+type AssignedLoad struct {
+	// Whose load it is.
+	Person *Person `json:"person"`
+	// Hours a week, the sum of `bySubjectGroup`.
+	Total float64 `json:"total"`
+	// One entry per subject group, by code, and last the modules in no subject group.
+	BySubjectGroup []*AssignedLoadShare `json:"bySubjectGroup"`
+}
+
+// One subject group's share of somebody's load.
+type AssignedLoadShare struct {
+	// The subject group of the modules, or `null` for modules nobody has sorted into one.
+	SubjectGroup *SubjectGroupRef `json:"subjectGroup,omitempty"`
+	// Hours a week.
+	Hours float64 `json:"hours"`
+}
+
 // Whoever holds a part: a colleague with a Tallox account, or somebody from the examination
 // office's list who has none.
 //
@@ -655,24 +681,60 @@ type DemandTrackInput struct {
 	Groups int `json:"groups"`
 }
 
-// How many hours a week somebody would like to teach in one semester.
+// One colleague in the overview of desired teaching hours: who, in which subject groups, and the range
+// — where you may see it.
+type DesiredHoursOverviewRow struct {
+	// The colleague.
+	Person *Person `json:"person"`
+	// The subject groups the person is a member of.
+	SubjectGroups []*SubjectGroupRef `json:"subjectGroups"`
+	// Whether there is a figure **you may see**. False both for nobody having stated one and for one you
+	// may not read yet: before publication the two are the same answer on purpose.
+	Stated bool `json:"stated"`
+	// The lower end, or `null` while `stated` is false.
+	MinHours *float64 `json:"minHours,omitempty"`
+	// The upper end, or `null` while `stated` is false.
+	MaxHours *float64 `json:"maxHours,omitempty"`
+	// What the person already holds in this semester, or `null` where you may not see it or they hold
+	// nothing. Its own rule, `AssignedLoad`'s: the leads of the person's subject groups read it while
+	// the planning runs, everybody once the assignments are published.
+	AssignedLoad *AssignedLoad `json:"assignedLoad,omitempty"`
+}
+
+// How many hours a week of module teaching somebody would like to take in one semester, as a range.
+// Theses are not included.
 //
 // Stated by the person, on the wish screen, beside the wishes it belongs to. Not the teaching
 // obligation and not a balance — those are the dean's office's and are not stored here. No entry
 // means "not stated", which is different from `0`.
 //
-// Read by the person, through either door; in an interactive session also by the lead of any
-// subject group the person is a member of, and by the dean's office. Never published: it is a
-// statement about one's own workload, and nothing in the process needs a colleague to read it.
+// Three states, set by the dean's office on the semester:
+//
+//   - **Open** — the person states and changes their own. Read by the person, through either door; in
+//     an interactive session also by the lead of any subject group the person is a member of, and by
+//     the dean's office.
+//   - **Frozen** (`Semester.desiredHoursFrozenAt`) — only the dean's office changes a figure, with
+//     `correctDesiredTeachingHours`, after agreeing it with the person.
+//   - **Published** (`Semester.desiredHoursPublishedAt`) — everybody reads the range, through either
+//     door. The `note` keeps the rule of the open state: it is the person's own words.
 type DesiredTeachingHours struct {
 	// The semester, as its code: `2027-SS`.
 	Semester string `json:"semester"`
-	// Whose figure it is. Always the person who stated it.
+	// Whose figure it is.
 	Person *Person `json:"person"`
-	// Hours a week, in half hours, from 0 to 40.
+	// The lower end, hours a week in half hours from 0 to 40. Equal to `maxHours` for a single figure.
+	MinHours float64 `json:"minHours"`
+	// The upper end, hours a week in half hours from 0 to 40.
+	MaxHours float64 `json:"maxHours"`
+	// The upper end.
 	Hours float64 `json:"hours"`
-	// The person's own words: „gern als Block“, „Forschungssemester im Herbst“.
+	// The person's own words: „gern als Block“, „Forschungssemester im Herbst“. Empty when you may read
+	// the range but not the note — which is everybody but the person, the leads of their subject groups
+	// and the dean's office, in an interactive session.
 	Note string `json:"note"`
+	// The name of whoever in the dean's office last corrected the figure after the freeze, or empty
+	// while it stands as the person stated it. Empty, too, where the note is.
+	CorrectedBy string `json:"correctedBy"`
 	// When it was last changed.
 	UpdatedAt time.Time `json:"updatedAt"`
 }
@@ -1240,6 +1302,16 @@ type Semester struct {
 	//
 	// There is no un-publishing here either.
 	AssignmentsPublishedAt *time.Time `json:"assignmentsPublishedAt,omitempty"`
+	// When the dean's office froze the desired teaching hours of this semester, or `null` while
+	// everybody may still change their own. Afterwards only the dean's office corrects a figure.
+	//
+	// There is no unfreezing.
+	DesiredHoursFrozenAt *time.Time `json:"desiredHoursFrozenAt,omitempty"`
+	// When the desired teaching hours of this semester became visible to everybody, or `null`. Never
+	// before the freeze. The notes stay where they were.
+	//
+	// There is no un-publishing.
+	DesiredHoursPublishedAt *time.Time `json:"desiredHoursPublishedAt,omitempty"`
 	// When the last decision about this semester was recorded, or `null` while none has been.
 	//
 	// Not "when the semester was created" — nothing creates one. It is the phase switch or the

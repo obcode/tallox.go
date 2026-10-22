@@ -139,3 +139,18 @@ func partArrangementError(actor principal.Actor, err error) error {
 	}
 	return demandUserFacing(actor, err)
 }
+
+func assignedLoadModel(l domain.AssignedLoad) *model.AssignedLoad {
+	shares := make([]*model.AssignedLoadShare, 0, len(l.BySubjectGroup))
+	for _, part := range l.BySubjectGroup {
+		shares = append(shares, &model.AssignedLoadShare{
+			SubjectGroup: subjectGroupRefModel(part.SubjectGroup),
+			Hours:        part.Hours,
+		})
+	}
+	return &model.AssignedLoad{
+		Person:         personModel(l.Person),
+		Total:          l.Total,
+		BySubjectGroup: shares,
+	}
+}

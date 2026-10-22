@@ -18,7 +18,9 @@ SET phase = $2,
 WHERE id = $1
   AND phase = $3
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
 `
 
 type AdvanceSemesterPhaseParams struct {
@@ -48,6 +50,10 @@ func (q *Queries) AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterP
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
 		&i.AssignmentsPublishedAt,
+		&i.DesiredHoursFrozenAt,
+		&i.DesiredHoursFrozenBy,
+		&i.DesiredHoursPublishedAt,
+		&i.DesiredHoursPublishedBy,
 	)
 	return i, err
 }
@@ -88,7 +94,9 @@ INSERT INTO semester (code)
 VALUES ($1)
 ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
 `
 
 // Semesters and the phase each one is in.
@@ -124,6 +132,53 @@ func (q *Queries) EnsureSemester(ctx context.Context, code string) (Semester, er
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
 		&i.AssignmentsPublishedAt,
+		&i.DesiredHoursFrozenAt,
+		&i.DesiredHoursFrozenBy,
+		&i.DesiredHoursPublishedAt,
+		&i.DesiredHoursPublishedBy,
+	)
+	return i, err
+}
+
+const freezeSemesterDesiredHours = `-- name: FreezeSemesterDesiredHours :one
+UPDATE semester
+SET desired_hours_frozen_at = COALESCE(desired_hours_frozen_at, now()),
+    desired_hours_frozen_by = CASE WHEN desired_hours_frozen_at IS NULL
+                                   THEN $1::uuid ELSE desired_hours_frozen_by END,
+    updated_at = CASE WHEN desired_hours_frozen_at IS NULL THEN now() ELSE updated_at END
+WHERE id = $2::uuid
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
+`
+
+type FreezeSemesterDesiredHoursParams struct {
+	By uuid.NullUUID
+	ID uuid.UUID
+}
+
+// From here on only the dean's office changes a desired figure. Idempotent and first timestamp
+// wins, like the publications: a second click is not a second deadline, and who closed it is
+// whoever closed it first.
+func (q *Queries) FreezeSemesterDesiredHours(ctx context.Context, arg FreezeSemesterDesiredHoursParams) (Semester, error) {
+	row := q.db.QueryRow(ctx, freezeSemesterDesiredHours, arg.By, arg.ID)
+	var i Semester
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Phase,
+		&i.WishesPublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsPlanningSemester,
+		&i.PlanningSetAt,
+		&i.PlanningSetBy,
+		&i.AssignmentsPublishedAt,
+		&i.DesiredHoursFrozenAt,
+		&i.DesiredHoursFrozenBy,
+		&i.DesiredHoursPublishedAt,
+		&i.DesiredHoursPublishedBy,
 	)
 	return i, err
 }
@@ -136,7 +191,9 @@ SET is_planning_semester = true,
     updated_at = now()
 WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
 `
 
 type MarkPlanningSemesterParams struct {
@@ -163,13 +220,19 @@ func (q *Queries) MarkPlanningSemester(ctx context.Context, arg MarkPlanningSeme
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
 		&i.AssignmentsPublishedAt,
+		&i.DesiredHoursFrozenAt,
+		&i.DesiredHoursFrozenBy,
+		&i.DesiredHoursPublishedAt,
+		&i.DesiredHoursPublishedBy,
 	)
 	return i, err
 }
 
 const planningSemester = `-- name: PlanningSemester :one
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
 FROM semester
 WHERE is_planning_semester
 `
@@ -193,6 +256,10 @@ func (q *Queries) PlanningSemester(ctx context.Context) (Semester, error) {
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
 		&i.AssignmentsPublishedAt,
+		&i.DesiredHoursFrozenAt,
+		&i.DesiredHoursFrozenBy,
+		&i.DesiredHoursPublishedAt,
+		&i.DesiredHoursPublishedBy,
 	)
 	return i, err
 }
@@ -203,7 +270,9 @@ SET assignments_published_at = COALESCE(assignments_published_at, now()),
     updated_at = CASE WHEN assignments_published_at IS NULL THEN now() ELSE updated_at END
 WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
 `
 
 // Idempotent, and it keeps the *first* timestamp. Same shape as PublishSemesterWishes, and the
@@ -226,6 +295,54 @@ func (q *Queries) PublishSemesterAssignments(ctx context.Context, id uuid.UUID) 
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
 		&i.AssignmentsPublishedAt,
+		&i.DesiredHoursFrozenAt,
+		&i.DesiredHoursFrozenBy,
+		&i.DesiredHoursPublishedAt,
+		&i.DesiredHoursPublishedBy,
+	)
+	return i, err
+}
+
+const publishSemesterDesiredHours = `-- name: PublishSemesterDesiredHours :one
+UPDATE semester
+SET desired_hours_published_at = COALESCE(desired_hours_published_at, now()),
+    desired_hours_published_by = CASE WHEN desired_hours_published_at IS NULL
+                                      THEN $1::uuid ELSE desired_hours_published_by END,
+    updated_at = CASE WHEN desired_hours_published_at IS NULL THEN now() ELSE updated_at END
+WHERE id = $2::uuid
+  AND desired_hours_frozen_at IS NOT NULL
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
+`
+
+type PublishSemesterDesiredHoursParams struct {
+	By uuid.NullUUID
+	ID uuid.UUID
+}
+
+// Make the desired figures visible to everybody. Only a frozen semester: the figures colleagues
+// plan against must be the ones the leadership has read, not ones that may still move. No row
+// back means it is not frozen — the row exists, the caller ensured it.
+func (q *Queries) PublishSemesterDesiredHours(ctx context.Context, arg PublishSemesterDesiredHoursParams) (Semester, error) {
+	row := q.db.QueryRow(ctx, publishSemesterDesiredHours, arg.By, arg.ID)
+	var i Semester
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Phase,
+		&i.WishesPublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsPlanningSemester,
+		&i.PlanningSetAt,
+		&i.PlanningSetBy,
+		&i.AssignmentsPublishedAt,
+		&i.DesiredHoursFrozenAt,
+		&i.DesiredHoursFrozenBy,
+		&i.DesiredHoursPublishedAt,
+		&i.DesiredHoursPublishedBy,
 	)
 	return i, err
 }
@@ -236,7 +353,9 @@ SET wishes_published_at = COALESCE(wishes_published_at, now()),
     updated_at = CASE WHEN wishes_published_at IS NULL THEN now() ELSE updated_at END
 WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
 `
 
 // Idempotent, and it keeps the *first* timestamp.
@@ -262,13 +381,19 @@ func (q *Queries) PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Seme
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
 		&i.AssignmentsPublishedAt,
+		&i.DesiredHoursFrozenAt,
+		&i.DesiredHoursFrozenBy,
+		&i.DesiredHoursPublishedAt,
+		&i.DesiredHoursPublishedBy,
 	)
 	return i, err
 }
 
 const semesterByCode = `-- name: SemesterByCode :one
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
 FROM semester
 WHERE code = $1
 `
@@ -287,13 +412,19 @@ func (q *Queries) SemesterByCode(ctx context.Context, code string) (Semester, er
 		&i.PlanningSetAt,
 		&i.PlanningSetBy,
 		&i.AssignmentsPublishedAt,
+		&i.DesiredHoursFrozenAt,
+		&i.DesiredHoursFrozenBy,
+		&i.DesiredHoursPublishedAt,
+		&i.DesiredHoursPublishedBy,
 	)
 	return i, err
 }
 
 const semesters = `-- name: Semesters :many
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
 FROM semester
 ORDER BY code DESC
 `
@@ -324,6 +455,10 @@ func (q *Queries) Semesters(ctx context.Context) ([]Semester, error) {
 			&i.PlanningSetAt,
 			&i.PlanningSetBy,
 			&i.AssignmentsPublishedAt,
+			&i.DesiredHoursFrozenAt,
+			&i.DesiredHoursFrozenBy,
+			&i.DesiredHoursPublishedAt,
+			&i.DesiredHoursPublishedBy,
 		); err != nil {
 			return nil, err
 		}

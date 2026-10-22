@@ -199,3 +199,24 @@ func (r *queryResolver) Assignments(ctx context.Context, semester string, progra
 	}
 	return assignmentModels(list), nil
 }
+
+// AssignedTeachingHours is the resolver for the assignedTeachingHours field.
+func (r *queryResolver) AssignedTeachingHours(ctx context.Context, semester string, person *string) ([]*model.AssignedLoad, error) {
+	var who uuid.UUID
+	if person != nil {
+		id, err := parseID(*person)
+		if err != nil {
+			return nil, err
+		}
+		who = id
+	}
+	loads, err := r.Staffing.AssignedLoad(ctx, principal.From(ctx), semester, who)
+	if err != nil {
+		return nil, assignmentError(err)
+	}
+	out := make([]*model.AssignedLoad, 0, len(loads))
+	for _, l := range loads {
+		out = append(out, assignedLoadModel(l))
+	}
+	return out, nil
+}

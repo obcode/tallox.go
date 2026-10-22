@@ -115,6 +115,37 @@ type Querier interface {
 	// semester, and refusing on it would refuse exactly the lecturers on contract this column pair
 	// exists to make assignable.
 	AssignableTeacherExists(ctx context.Context, id uuid.UUID) (bool, error)
+	// Assigned load: how many hours a week each person already holds in a semester, by the subject
+	// group of the modules they hold them in.
+	//
+	// THE EXCEPTION THIS FILE IS
+	//
+	// assignment.sql has no COUNT and no SUM, because before publication a sum over assignments the
+	// caller may not read one by one is the same leak as the rows. This file is the one place that
+	// sums them anyway, and it may because its filter is a different one: not "which assignments may
+	// you read" but "whose load may you read" — the person, the leads of the subject groups the person
+	// is a member of, the dean's office, and everybody once the assignments are published
+	// (policy.AssignedLoadVisibility, where the reason is written down). A lead learns how full a
+	// member of their group is, and in which groups; never which modules.
+	//
+	// Every read carries the person filter, and store.TestEveryAssignedLoadQueryIsFiltered reads this
+	// file and insists on it:
+	//
+	//     @scope = 'all'            no restriction
+	//     @scope = 'own'            the caller's own load
+	//     @scope = 'own_or_scoped'  their own, plus the members of the subject groups they lead
+	//     anything else             nothing at all
+	//
+	// WHAT IS COUNTED
+	//
+	// The hours of the parts somebody with an account holds (a.person_id). A part with taught_by
+	// cannot be held, and a lecture serving both cohorts is one part, so each hour counts once. A
+	// teacher without an account is in no subject group and has no row here.
+	// One row per person and subject group of the module — NULL for a module nobody has sorted into a
+	// group yet, which is ordinary and must not make the load disappear. A module has at most one
+	// group (module_subject_group.module_id is the key), so the rows of a person add up to their total.
+	// The examination office's spelling, for the one register of names (domain.PlainName).
+	AssignedLoadOfSemester(ctx context.Context, arg AssignedLoadOfSemesterParams) ([]AssignedLoadOfSemesterRow, error)
 	// One assignment, through the same filter. A detail view that skipped it would be the hole the
 	// list does not have — and the realistic shape of that mistake is somebody adding a by-id lookup
 	// because "it is only one row".
@@ -204,7 +235,7 @@ type Querier interface {
 	CatalogueProjectionNotes(ctx context.Context, projectionID uuid.UUID) ([]CatalogueProjectionNotesRow, error)
 	// Give a part back. The row count is the answer: nothing cleared means it was not there.
 	ClearAssignment(ctx context.Context, id uuid.UUID) (int64, error)
-	// Take one's own figure back. No row is "not stated", which is the state this returns to.
+	// Take a figure back. No row is "not stated", which is the state this returns to.
 	ClearDesiredTeachingHours(ctx context.Context, arg ClearDesiredTeachingHoursParams) (int64, error)
 	// Taking modules out of every group, which is the same screen's other button. A module with no
 	// group is a normal state and the whole of October's work list.
@@ -520,6 +551,15 @@ type Querier interface {
 	// that refuses writes without saying why.
 	// Which study programmes have announced their demand as settled, for one semester.
 	DemandCompletionsOfSemester(ctx context.Context, semester string) ([]DemandCompletionsOfSemesterRow, error)
+	// The colleagues of the faculty with their subject groups and, where the filter lets it through,
+	// the range they stated for one semester. The table the dean asked for, "für alle sichtbar".
+	//
+	// Who is listed does not depend on the figures: every active person who teaches here — holds
+	// LECTURER or is a member of a subject group, both of which every colleague can already read. A
+	// list of "those who stated a figure" would be the has-stated flag the confidentiality rule
+	// forbids, so the figures are a LEFT JOIN carrying the filter, and a figure the caller may not
+	// read and one nobody stated come back the same: stated = false, no hours.
+	DesiredHoursOverview(ctx context.Context, arg DesiredHoursOverviewParams) ([]DesiredHoursOverviewRow, error)
 	// Desired teaching hours: what somebody would like to teach in a semester.
 	//
 	// Every read carries the filter parameters, as wish.sql and competence.sql do, and
@@ -532,6 +572,20 @@ type Querier interface {
 	//
 	// Membership is read at query time, like a wish's subject group: moving somebody to another group
 	// changes who reads their figure, which is what "the lead of their group reads it" means.
+	//
+	// TWO FILTERS, BECAUSE PUBLISHING OPENS THE FIGURE AND NOT THE NOTE
+	//
+	// Once the dean's office publishes a semester's figures, everybody reads the range. The note stays
+	// where it was — "Forschungssemester im Herbst" is not something the faculty agreed to publish —
+	// so it runs through a filter of its own, the note_* parameters, which is the same three-branch
+	// predicate with the rule from before publication. A note the caller may not read is the empty
+	// string, as is the name of whoever corrected the figure.
+	//
+	// THE RANGE
+	//
+	// hours is the upper end and min_hours the lower one, NULL meaning a single figure; see the
+	// migration 20261022120000 for why it is one new column and not two. LEAST clamps a lower end
+	// left above an upper one that the previous image shortened.
 	// The examination office's spelling, for the one register of names (domain.PlainName).
 	DesiredTeachingHours(ctx context.Context, arg DesiredTeachingHoursParams) ([]DesiredTeachingHoursRow, error)
 	// Get this mail address a person row, creating one if there is none.
@@ -591,6 +645,10 @@ type Querier interface {
 	FillInstancePart(ctx context.Context, arg FillInstancePartParams) (uuid.UUID, error)
 	FinishCatalogueProjection(ctx context.Context, arg FinishCatalogueProjectionParams) (FinishCatalogueProjectionRow, error)
 	FinishZPASyncRun(ctx context.Context, arg FinishZPASyncRunParams) (ZpaSyncRun, error)
+	// From here on only the dean's office changes a desired figure. Idempotent and first timestamp
+	// wins, like the publications: a second click is not a second deadline, and who closed it is
+	// whoever closed it first.
+	FreezeSemesterDesiredHours(ctx context.Context, arg FreezeSemesterDesiredHoursParams) (Semester, error)
 	// Idempotent in the sense that matters: granting a role somebody already holds updates its
 	// expiry rather than failing, so "give me DEANS_OFFICE for another hour" is one call and not
 	// a read-then-write race.
@@ -1066,6 +1124,10 @@ type Querier interface {
 	// A separate statement rather than a parameterised one over a column name, because the two marks
 	// are two decisions and a caller should not be able to reach the wrong one by passing a string.
 	PublishSemesterAssignments(ctx context.Context, id uuid.UUID) (Semester, error)
+	// Make the desired figures visible to everybody. Only a frozen semester: the figures colleagues
+	// plan against must be the ones the leadership has read, not ones that may still move. No row
+	// back means it is not frozen — the row exists, the caller ensured it.
+	PublishSemesterDesiredHours(ctx context.Context, arg PublishSemesterDesiredHoursParams) (Semester, error)
 	// Idempotent, and it keeps the *first* timestamp.
 	//
 	// Publishing twice is not an error — the second caller wanted the wishes published and they
@@ -1203,8 +1265,11 @@ type Querier interface {
 	//
 	// No confidentiality question: the demand is explicitly not confidential, unlike the wish.
 	SeparatelyPlannedInstancesFor(ctx context.Context, instanceIds []uuid.UUID) ([]SeparatelyPlannedInstancesForRow, error)
-	// State or change one's own figure. The semester row exists by the time this runs: the store
-	// ensures it in the same transaction, because stating a figure is a decision about the semester.
+	// State or change a figure. The semester row exists by the time this runs: the store ensures it
+	// in the same transaction, because stating a figure is a decision about the semester.
+	//
+	// corrected_by is the dean's office when it corrects a frozen figure and NULL when the person
+	// writes their own — the column says whose statement the current figure is.
 	SetDesiredTeachingHours(ctx context.Context, arg SetDesiredTeachingHoursParams) (SetDesiredTeachingHoursRow, error)
 	SetInstancePartShared(ctx context.Context, arg SetInstancePartSharedParams) error
 	SetInstancePartTaughtBy(ctx context.Context, arg SetInstancePartTaughtByParams) error

@@ -26,6 +26,171 @@ import (
 
 // region    **************************** field.gotpl *****************************
 
+func (ec *executionContext) _DesiredHoursOverviewRow_person(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredHoursOverviewRow_person(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Person, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Person) graphql.Marshaler {
+			return ec.marshalNPerson2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPerson(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredHoursOverviewRow_person(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredHoursOverviewRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Person(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DesiredHoursOverviewRow_subjectGroups(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredHoursOverviewRow_subjectGroups(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SubjectGroups, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.SubjectGroupRef) graphql.Marshaler {
+			return ec.marshalNSubjectGroupRef2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupRefᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredHoursOverviewRow_subjectGroups(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredHoursOverviewRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SubjectGroupRef(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DesiredHoursOverviewRow_stated(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredHoursOverviewRow_stated(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Stated, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredHoursOverviewRow_stated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DesiredHoursOverviewRow", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _DesiredHoursOverviewRow_minHours(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredHoursOverviewRow_minHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MinHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *float64) graphql.Marshaler {
+			return ec.marshalOFloat2ᚖfloat64(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredHoursOverviewRow_minHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DesiredHoursOverviewRow", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _DesiredHoursOverviewRow_maxHours(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredHoursOverviewRow_maxHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MaxHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *float64) graphql.Marshaler {
+			return ec.marshalOFloat2ᚖfloat64(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredHoursOverviewRow_maxHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DesiredHoursOverviewRow", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _DesiredHoursOverviewRow_assignedLoad(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredHoursOverviewRow_assignedLoad(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AssignedLoad, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AssignedLoad) graphql.Marshaler {
+			return ec.marshalOAssignedLoad2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoad(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredHoursOverviewRow_assignedLoad(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredHoursOverviewRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AssignedLoad(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _DesiredTeachingHours_semester(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -81,6 +246,52 @@ func (ec *executionContext) fieldContext_DesiredTeachingHours_person(_ context.C
 	return fc, nil
 }
 
+func (ec *executionContext) _DesiredTeachingHours_minHours(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredTeachingHours_minHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MinHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredTeachingHours_minHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _DesiredTeachingHours_maxHours(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredTeachingHours_maxHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MaxHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredTeachingHours_maxHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
 func (ec *executionContext) _DesiredTeachingHours_hours(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -124,6 +335,29 @@ func (ec *executionContext) _DesiredTeachingHours_note(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_DesiredTeachingHours_note(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _DesiredTeachingHours_correctedBy(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredTeachingHours_correctedBy(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CorrectedBy, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredTeachingHours_correctedBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
@@ -341,6 +575,69 @@ func (ec *executionContext) fieldContext_Wish_updatedAt(_ context.Context, field
 
 // region    **************************** object.gotpl ****************************
 
+var desiredHoursOverviewRowImplementors = []string{"DesiredHoursOverviewRow"}
+
+func (ec *executionContext) _DesiredHoursOverviewRow(ctx context.Context, sel ast.SelectionSet, obj *model.DesiredHoursOverviewRow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, desiredHoursOverviewRowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DesiredHoursOverviewRow")
+		case "person":
+			out.Values[i] = ec._DesiredHoursOverviewRow_person(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subjectGroups":
+			out.Values[i] = ec._DesiredHoursOverviewRow_subjectGroups(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "stated":
+			out.Values[i] = ec._DesiredHoursOverviewRow_stated(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "minHours":
+			out.Values[i] = ec._DesiredHoursOverviewRow_minHours(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "maxHours":
+			out.Values[i] = ec._DesiredHoursOverviewRow_maxHours(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "assignedLoad":
+			out.Values[i] = ec._DesiredHoursOverviewRow_assignedLoad(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var desiredTeachingHoursImplementors = []string{"DesiredTeachingHours"}
 
 func (ec *executionContext) _DesiredTeachingHours(ctx context.Context, sel ast.SelectionSet, obj *model.DesiredTeachingHours) graphql.Marshaler {
@@ -363,6 +660,16 @@ func (ec *executionContext) _DesiredTeachingHours(ctx context.Context, sel ast.S
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "minHours":
+			out.Values[i] = ec._DesiredTeachingHours_minHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxHours":
+			out.Values[i] = ec._DesiredTeachingHours_maxHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "hours":
 			out.Values[i] = ec._DesiredTeachingHours_hours(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -370,6 +677,11 @@ func (ec *executionContext) _DesiredTeachingHours(ctx context.Context, sel ast.S
 			}
 		case "note":
 			out.Values[i] = ec._DesiredTeachingHours_note(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "correctedBy":
+			out.Values[i] = ec._DesiredTeachingHours_correctedBy(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -470,6 +782,32 @@ func (ec *executionContext) _Wish(ctx context.Context, sel ast.SelectionSet, obj
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
+
+func (ec *executionContext) marshalNDesiredHoursOverviewRow2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredHoursOverviewRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DesiredHoursOverviewRow) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNDesiredHoursOverviewRow2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredHoursOverviewRow(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDesiredHoursOverviewRow2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredHoursOverviewRow(ctx context.Context, sel ast.SelectionSet, v *model.DesiredHoursOverviewRow) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DesiredHoursOverviewRow(ctx, sel, v)
+}
 
 func (ec *executionContext) marshalNDesiredTeachingHours2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredTeachingHoursᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DesiredTeachingHours) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {

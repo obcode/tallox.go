@@ -68,6 +68,33 @@ func (r *mutationResolver) PublishAssignments(ctx context.Context, code string) 
 	return semesterModel(published), nil
 }
 
+// FreezeDesiredHours is the resolver for the freezeDesiredHours field.
+func (r *mutationResolver) FreezeDesiredHours(ctx context.Context, code string) (*model.Semester, error) {
+	frozen, err := r.Planning.FreezeDesiredHours(ctx, principal.From(ctx), code)
+	if err != nil {
+		if errors.Is(err, domain.ErrForbidden) {
+			return nil, refusal("FORBIDDEN", policy.FreezeDesiredHoursReason)
+		}
+		return nil, semesterUserFacing(err)
+	}
+	return semesterModel(frozen), nil
+}
+
+// PublishDesiredHours is the resolver for the publishDesiredHours field.
+func (r *mutationResolver) PublishDesiredHours(ctx context.Context, code string) (*model.Semester, error) {
+	published, err := r.Planning.PublishDesiredHours(ctx, principal.From(ctx), code)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrForbidden):
+			return nil, refusal("FORBIDDEN", policy.PublishDesiredHoursReason)
+		case errors.Is(err, domain.ErrDesiredHoursNotFrozen):
+			return nil, refusal("DESIRED_HOURS_NOT_FROZEN", err.Error())
+		}
+		return nil, semesterUserFacing(err)
+	}
+	return semesterModel(published), nil
+}
+
 // Semesters is the resolver for the semesters field.
 func (r *queryResolver) Semesters(ctx context.Context) ([]*model.Semester, error) {
 	list, err := r.Planning.List(ctx, principal.From(ctx))

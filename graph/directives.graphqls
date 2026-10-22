@@ -116,7 +116,7 @@ enum ScopeArea {
   # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
   # "is this part taken", which through a token the read rule would not.
 
-  `assignments`, `myAssignments`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`,
+  `assignments`, `myAssignments`, `assignedTeachingHours`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`,
   `setModuleComponents`, `applyModuleSplitToInstances`, `setModuleProjectBased`,
   `setModuleSemesterSpan`, `createLocalModule`, `changeLocalModule`,
   `setProgrammePlanningStatus`, `setProgrammeDegree`, `declareCourseInstance`, `duplicateCourseInstance`,
@@ -138,7 +138,14 @@ enum ScopeArea {
   `demandCompletions`, `wishWindows`, `setDemandComplete`, `setWishWindow`,
   `reviewCompletions`, `setReviewComplete`,
   `subjectGroups`, `subjectGroup`, `mySubjectGroups`, `modulesWithoutSubjectGroup`,
-  `subjectGroupsWithoutLead`, `setMySubjectGroups`, `setModulesSubjectGroup`.
+  `subjectGroupsWithoutLead`, `setMySubjectGroups`, `setModulesSubjectGroup`,
+
+  # The dean's office's three acts on the desired teaching hours, all browser-only: there is no
+  # unfreezing and no un-publishing, and a correction changes somebody else's statement. The
+  # correction refuses a token in the domain rather than by @interactiveOnly, whose null would
+  # read as "taken back".
+
+  `freezeDesiredHours`, `publishDesiredHours`, `correctDesiredTeachingHours`.
   """
   PLANNING
 
@@ -163,7 +170,8 @@ enum ScopeArea {
   Fields: `myWishes`, `wishes`, `setWish`, `withdrawWish`, `myCompetences`, `myCompetenceStatus`,
   `competences`, `competenceMemberStatus`, `modulesWithoutCompetence`, `setMyCompetence`,
   `withdrawMyCompetence`, `setTeacherCompetence`, `withdrawTeacherCompetence`,
-  `myDesiredTeachingHours`, `desiredTeachingHours`, `setDesiredTeachingHours`.
+  `myDesiredTeachingHours`, `desiredTeachingHours`, `desiredHoursOverview`,
+  `setDesiredTeachingHours`.
   """
   WISHES
 

@@ -158,6 +158,34 @@ type Assignment {
   updatedAt: Time!
 }
 
+"""
+How many hours a week one person already holds in a semester: in total, and by the subject group of
+the modules they hold them in.
+
+**Readable before the assignments are published, by more than the person**, which no other sum over
+assignments is: in a signed-in session the lead of any subject group the person is a member of reads
+it, and the dean's office — so that whoever fills an instance can see that a colleague is already
+full in another group, and whom to talk to. It names no module, instance or part. Through a
+Personal Access Token it is your own until `Semester.assignmentsPublishedAt`, and everybody's
+after.
+"""
+type AssignedLoad {
+  "Whose load it is."
+  person: Person!
+  "Hours a week, the sum of `bySubjectGroup`."
+  total: Float!
+  "One entry per subject group, by code, and last the modules in no subject group."
+  bySubjectGroup: [AssignedLoadShare!]!
+}
+
+"One subject group's share of somebody's load."
+type AssignedLoadShare {
+  "The subject group of the modules, or `null` for modules nobody has sorted into one."
+  subjectGroup: SubjectGroupRef
+  "Hours a week."
+  hours: Float!
+}
+
 extend type Query {
   """
   What the caller has been given to teach — in one semester, or in every semester.
@@ -198,6 +226,17 @@ extend type Query {
     "Narrow to one person's assignments. Matches an account, not a teacher without one."
     person: ID
   ): [Assignment!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  The load of everybody whose load you may see in one semester — see `AssignedLoad` for who that
+  is. Somebody who holds nothing has no entry. Not an error when you may see only your own.
+  """
+  assignedTeachingHours(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "Narrow to one person, by id."
+    person: ID
+  ): [AssignedLoad!]! @scope(area: PLANNING, verb: READ)
 }
 
 extend type Mutation {

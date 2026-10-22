@@ -205,6 +205,8 @@ func (c PartWriteContext) Found() bool { return c.InstancePartID != uuid.Nil }
 // caller and it cannot come apart from a count — because there is no count that does not go
 // through it.
 type AssignmentStore interface {
+	AssignedLoadStore
+
 	// Assignments returns the assignments matching the query that the filter allows.
 	Assignments(ctx context.Context, q AssignmentQuery, filter policy.AssignmentFilter,
 	) ([]Assignment, error)

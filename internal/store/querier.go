@@ -115,6 +115,37 @@ type Querier interface {
 	// semester, and refusing on it would refuse exactly the lecturers on contract this column pair
 	// exists to make assignable.
 	AssignableTeacherExists(ctx context.Context, id uuid.UUID) (bool, error)
+	// Assigned load: how many hours a week each person already holds in a semester, by the subject
+	// group of the modules they hold them in.
+	//
+	// THE EXCEPTION THIS FILE IS
+	//
+	// assignment.sql has no COUNT and no SUM, because before publication a sum over assignments the
+	// caller may not read one by one is the same leak as the rows. This file is the one place that
+	// sums them anyway, and it may because its filter is a different one: not "which assignments may
+	// you read" but "whose load may you read" — the person, the leads of the subject groups the person
+	// is a member of, the dean's office, and everybody once the assignments are published
+	// (policy.AssignedLoadVisibility, where the reason is written down). A lead learns how full a
+	// member of their group is, and in which groups; never which modules.
+	//
+	// Every read carries the person filter, and store.TestEveryAssignedLoadQueryIsFiltered reads this
+	// file and insists on it:
+	//
+	//     @scope = 'all'            no restriction
+	//     @scope = 'own'            the caller's own load
+	//     @scope = 'own_or_scoped'  their own, plus the members of the subject groups they lead
+	//     anything else             nothing at all
+	//
+	// WHAT IS COUNTED
+	//
+	// The hours of the parts somebody with an account holds (a.person_id). A part with taught_by
+	// cannot be held, and a lecture serving both cohorts is one part, so each hour counts once. A
+	// teacher without an account is in no subject group and has no row here.
+	// One row per person and subject group of the module — NULL for a module nobody has sorted into a
+	// group yet, which is ordinary and must not make the load disappear. A module has at most one
+	// group (module_subject_group.module_id is the key), so the rows of a person add up to their total.
+	// The examination office's spelling, for the one register of names (domain.PlainName).
+	AssignedLoadOfSemester(ctx context.Context, arg AssignedLoadOfSemesterParams) ([]AssignedLoadOfSemesterRow, error)
 	// One assignment, through the same filter. A detail view that skipped it would be the hole the
 	// list does not have — and the realistic shape of that mistake is somebody adding a by-id lookup
 	// because "it is only one row".

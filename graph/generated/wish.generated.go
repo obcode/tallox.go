@@ -159,6 +159,38 @@ func (ec *executionContext) fieldContext_DesiredHoursOverviewRow_maxHours(_ cont
 	return graphql.NewScalarFieldContext("DesiredHoursOverviewRow", field, false, false, errors.New("field of type Float does not have child fields"))
 }
 
+func (ec *executionContext) _DesiredHoursOverviewRow_assignedLoad(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DesiredHoursOverviewRow_assignedLoad(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AssignedLoad, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AssignedLoad) graphql.Marshaler {
+			return ec.marshalOAssignedLoad2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoad(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DesiredHoursOverviewRow_assignedLoad(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DesiredHoursOverviewRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AssignedLoad(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _DesiredTeachingHours_semester(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -577,6 +609,11 @@ func (ec *executionContext) _DesiredHoursOverviewRow(ctx context.Context, sel as
 			}
 		case "maxHours":
 			out.Values[i] = ec._DesiredHoursOverviewRow_maxHours(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "assignedLoad":
+			out.Values[i] = ec._DesiredHoursOverviewRow_assignedLoad(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}

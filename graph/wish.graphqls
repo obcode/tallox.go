@@ -234,6 +234,12 @@ type DesiredHoursOverviewRow {
   minHours: Float
   "The upper end, or `null` while `stated` is false."
   maxHours: Float
+  """
+  What the person already holds in this semester, or `null` where you may not see it or they hold
+  nothing. Its own rule, `AssignedLoad`'s: the leads of the person's subject groups read it while
+  the planning runs, everybody once the assignments are published.
+  """
+  assignedLoad: AssignedLoad
 }
 
 extend type Query {

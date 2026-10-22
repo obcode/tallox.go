@@ -167,6 +167,32 @@ type AccessSummary struct {
 	Mutations []*AccessMutationCount `json:"mutations"`
 }
 
+// How many hours a week one person already holds in a semester: in total, and by the subject group of
+// the modules they hold them in.
+//
+// **Readable before the assignments are published, by more than the person**, which no other sum over
+// assignments is: in a signed-in session the lead of any subject group the person is a member of reads
+// it, and the dean's office — so that whoever fills an instance can see that a colleague is already
+// full in another group, and whom to talk to. It names no module, instance or part. Through a
+// Personal Access Token it is your own until `Semester.assignmentsPublishedAt`, and everybody's
+// after.
+type AssignedLoad struct {
+	// Whose load it is.
+	Person *Person `json:"person"`
+	// Hours a week, the sum of `bySubjectGroup`.
+	Total float64 `json:"total"`
+	// One entry per subject group, by code, and last the modules in no subject group.
+	BySubjectGroup []*AssignedLoadShare `json:"bySubjectGroup"`
+}
+
+// One subject group's share of somebody's load.
+type AssignedLoadShare struct {
+	// The subject group of the modules, or `null` for modules nobody has sorted into one.
+	SubjectGroup *SubjectGroupRef `json:"subjectGroup,omitempty"`
+	// Hours a week.
+	Hours float64 `json:"hours"`
+}
+
 // Whoever holds a part: a colleague with a Tallox account, or somebody from the examination
 // office's list who has none.
 //
@@ -669,6 +695,10 @@ type DesiredHoursOverviewRow struct {
 	MinHours *float64 `json:"minHours,omitempty"`
 	// The upper end, or `null` while `stated` is false.
 	MaxHours *float64 `json:"maxHours,omitempty"`
+	// What the person already holds in this semester, or `null` where you may not see it or they hold
+	// nothing. Its own rule, `AssignedLoad`'s: the leads of the person's subject groups read it while
+	// the planning runs, everybody once the assignments are published.
+	AssignedLoad *AssignedLoad `json:"assignedLoad,omitempty"`
 }
 
 // How many hours a week of module teaching somebody would like to take in one semester, as a range.

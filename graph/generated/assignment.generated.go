@@ -25,6 +25,148 @@ import (
 
 // region    **************************** field.gotpl *****************************
 
+func (ec *executionContext) _AssignedLoad_person(ctx context.Context, field graphql.CollectedField, obj *model.AssignedLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AssignedLoad_person(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Person, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Person) graphql.Marshaler {
+			return ec.marshalNPerson2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPerson(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AssignedLoad_person(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssignedLoad",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Person(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssignedLoad_total(ctx context.Context, field graphql.CollectedField, obj *model.AssignedLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AssignedLoad_total(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AssignedLoad_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AssignedLoad", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
+func (ec *executionContext) _AssignedLoad_bySubjectGroup(ctx context.Context, field graphql.CollectedField, obj *model.AssignedLoad) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AssignedLoad_bySubjectGroup(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.BySubjectGroup, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.AssignedLoadShare) graphql.Marshaler {
+			return ec.marshalNAssignedLoadShare2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoadShareᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AssignedLoad_bySubjectGroup(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssignedLoad",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AssignedLoadShare(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssignedLoadShare_subjectGroup(ctx context.Context, field graphql.CollectedField, obj *model.AssignedLoadShare) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AssignedLoadShare_subjectGroup(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SubjectGroup, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.SubjectGroupRef) graphql.Marshaler {
+			return ec.marshalOSubjectGroupRef2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupRef(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AssignedLoadShare_subjectGroup(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AssignedLoadShare",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SubjectGroupRef(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AssignedLoadShare_hours(ctx context.Context, field graphql.CollectedField, obj *model.AssignedLoadShare) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AssignedLoadShare_hours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Hours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AssignedLoadShare_hours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AssignedLoadShare", field, false, false, errors.New("field of type Float does not have child fields"))
+}
+
 func (ec *executionContext) _Assignee_personId(ctx context.Context, field graphql.CollectedField, obj *model.Assignee) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -340,6 +482,97 @@ func (ec *executionContext) fieldContext_Assignment_updatedAt(_ context.Context,
 
 // region    **************************** object.gotpl ****************************
 
+var assignedLoadImplementors = []string{"AssignedLoad"}
+
+func (ec *executionContext) _AssignedLoad(ctx context.Context, sel ast.SelectionSet, obj *model.AssignedLoad) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assignedLoadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssignedLoad")
+		case "person":
+			out.Values[i] = ec._AssignedLoad_person(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._AssignedLoad_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "bySubjectGroup":
+			out.Values[i] = ec._AssignedLoad_bySubjectGroup(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var assignedLoadShareImplementors = []string{"AssignedLoadShare"}
+
+func (ec *executionContext) _AssignedLoadShare(ctx context.Context, sel ast.SelectionSet, obj *model.AssignedLoadShare) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assignedLoadShareImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AssignedLoadShare")
+		case "subjectGroup":
+			out.Values[i] = ec._AssignedLoadShare_subjectGroup(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "hours":
+			out.Values[i] = ec._AssignedLoadShare_hours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var assigneeImplementors = []string{"Assignee"}
 
 func (ec *executionContext) _Assignee(ctx context.Context, sel ast.SelectionSet, obj *model.Assignee) graphql.Marshaler {
@@ -470,6 +703,58 @@ func (ec *executionContext) _Assignment(ctx context.Context, sel ast.SelectionSe
 
 // region    ***************************** type.gotpl *****************************
 
+func (ec *executionContext) marshalNAssignedLoad2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoadᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssignedLoad) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssignedLoad2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoad(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssignedLoad2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoad(ctx context.Context, sel ast.SelectionSet, v *model.AssignedLoad) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssignedLoad(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNAssignedLoadShare2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoadShareᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssignedLoadShare) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAssignedLoadShare2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoadShare(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAssignedLoadShare2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoadShare(ctx context.Context, sel ast.SelectionSet, v *model.AssignedLoadShare) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AssignedLoadShare(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNAssignee2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignee(ctx context.Context, sel ast.SelectionSet, v *model.Assignee) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -508,6 +793,13 @@ func (ec *executionContext) marshalNAssignment2ᚖgithubᚗcomᚋobcodeᚋtallox
 		return graphql.Null
 	}
 	return ec._Assignment(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOAssignedLoad2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoad(ctx context.Context, sel ast.SelectionSet, v *model.AssignedLoad) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._AssignedLoad(ctx, sel, v)
 }
 
 // endregion ***************************** type.gotpl *****************************

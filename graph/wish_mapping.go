@@ -3,6 +3,8 @@ package graph
 import (
 	"errors"
 
+	"github.com/google/uuid"
+
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
@@ -43,7 +45,12 @@ func desiredHoursModel(d domain.DesiredHours) *model.DesiredTeachingHours {
 	}
 }
 
-func desiredHoursRowModels(rows []domain.DesiredHoursRow) []*model.DesiredHoursOverviewRow {
+func desiredHoursRowModels(rows []domain.DesiredHoursRow,
+	loads []domain.AssignedLoad) []*model.DesiredHoursOverviewRow {
+	byPerson := make(map[uuid.UUID]domain.AssignedLoad, len(loads))
+	for _, l := range loads {
+		byPerson[l.Person.ID] = l
+	}
 	out := make([]*model.DesiredHoursOverviewRow, 0, len(rows))
 	for _, r := range rows {
 		groups := make([]*model.SubjectGroupRef, 0, len(r.SubjectGroups))
@@ -58,6 +65,9 @@ func desiredHoursRowModels(rows []domain.DesiredHoursRow) []*model.DesiredHoursO
 		if r.Stated {
 			low, high := r.MinHours, r.MaxHours
 			row.MinHours, row.MaxHours = &low, &high
+		}
+		if l, ok := byPerson[r.Person.ID]; ok {
+			row.AssignedLoad = assignedLoadModel(l)
 		}
 		out = append(out, row)
 	}

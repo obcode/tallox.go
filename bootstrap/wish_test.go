@@ -130,6 +130,8 @@ func wishHandler(t *testing.T, people ...grants) wishFixture {
 		SubjectGroups: domain.NewSubjectGroupService(store.NewSubjectGroups(s.Pool)),
 		Wishes:        domain.NewWishService(store.NewWishes(s.Pool), planning),
 		Marks:         domain.NewPlanningMarkService(store.NewPlanningMarks(s.Pool), planning),
+		// The desired hours overview carries the assigned load beside each figure.
+		Staffing: domain.NewAssignmentService(store.NewAssignments(s.Pool), planning),
 	})
 	return f
 }

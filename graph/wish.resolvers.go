@@ -177,9 +177,16 @@ func (r *queryResolver) DesiredTeachingHours(ctx context.Context, semester strin
 
 // DesiredHoursOverview is the resolver for the desiredHoursOverview field.
 func (r *queryResolver) DesiredHoursOverview(ctx context.Context, semester string) ([]*model.DesiredHoursOverviewRow, error) {
-	rows, err := r.Resolver.Wishes.DesiredHoursOverview(ctx, principal.From(ctx), semester)
+	actor := principal.From(ctx)
+	rows, err := r.Resolver.Wishes.DesiredHoursOverview(ctx, actor, semester)
 	if err != nil {
 		return nil, wishError(err)
 	}
-	return desiredHoursRowModels(rows), nil
+	// The load beside the figure, each through its own rule: the two lists are joined here by
+	// person, and a row whose load the actor may not see simply finds none.
+	loads, err := r.Resolver.Staffing.AssignedLoad(ctx, actor, semester, uuid.Nil)
+	if err != nil {
+		return nil, assignmentError(err)
+	}
+	return desiredHoursRowModels(rows, loads), nil
 }

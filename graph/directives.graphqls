@@ -116,7 +116,7 @@ enum ScopeArea {
   # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
   # "is this part taken", which through a token the read rule would not.
 
-  `assignments`, `myAssignments`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`,
+  `assignments`, `myAssignments`, `assignedTeachingHours`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`,
   `setModuleComponents`, `applyModuleSplitToInstances`, `setModuleProjectBased`,
   `setModuleSemesterSpan`, `createLocalModule`, `changeLocalModule`,
   `setProgrammePlanningStatus`, `setProgrammeDegree`, `declareCourseInstance`, `duplicateCourseInstance`,

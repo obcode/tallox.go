@@ -96,6 +96,17 @@ type ComplexityRoot struct {
 		Until     func(childComplexity int) int
 	}
 
+	AssignedLoad struct {
+		BySubjectGroup func(childComplexity int) int
+		Person         func(childComplexity int) int
+		Total          func(childComplexity int) int
+	}
+
+	AssignedLoadShare struct {
+		Hours        func(childComplexity int) int
+		SubjectGroup func(childComplexity int) int
+	}
+
 	Assignee struct {
 		Mail      func(childComplexity int) int
 		Name      func(childComplexity int) int
@@ -231,6 +242,7 @@ type ComplexityRoot struct {
 	}
 
 	DesiredHoursOverviewRow struct {
+		AssignedLoad  func(childComplexity int) int
 		MaxHours      func(childComplexity int) int
 		MinHours      func(childComplexity int) int
 		Person        func(childComplexity int) int
@@ -493,6 +505,7 @@ type ComplexityRoot struct {
 	Query struct {
 		AccessLog                  func(childComplexity int, filter *model.AccessLogFilter, limit *int, before *string) int
 		AccessSummary              func(childComplexity int, from time.Time, until time.Time) int
+		AssignedTeachingHours      func(childComplexity int, semester string, person *string) int
 		Assignments                func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
 		BuildInfo                  func(childComplexity int) int
 		CompetenceMemberStatus     func(childComplexity int, subjectGroup string) int
@@ -981,6 +994,38 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AccessSummary.Until(childComplexity), true
+
+	case "AssignedLoad.bySubjectGroup":
+		if e.ComplexityRoot.AssignedLoad.BySubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignedLoad.BySubjectGroup(childComplexity), true
+	case "AssignedLoad.person":
+		if e.ComplexityRoot.AssignedLoad.Person == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignedLoad.Person(childComplexity), true
+	case "AssignedLoad.total":
+		if e.ComplexityRoot.AssignedLoad.Total == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignedLoad.Total(childComplexity), true
+
+	case "AssignedLoadShare.hours":
+		if e.ComplexityRoot.AssignedLoadShare.Hours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignedLoadShare.Hours(childComplexity), true
+	case "AssignedLoadShare.subjectGroup":
+		if e.ComplexityRoot.AssignedLoadShare.SubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignedLoadShare.SubjectGroup(childComplexity), true
 
 	case "Assignee.mail":
 		if e.ComplexityRoot.Assignee.Mail == nil {
@@ -1531,6 +1576,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DemandRefusal.Track(childComplexity), true
 
+	case "DesiredHoursOverviewRow.assignedLoad":
+		if e.ComplexityRoot.DesiredHoursOverviewRow.AssignedLoad == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DesiredHoursOverviewRow.AssignedLoad(childComplexity), true
 	case "DesiredHoursOverviewRow.maxHours":
 		if e.ComplexityRoot.DesiredHoursOverviewRow.MaxHours == nil {
 			break
@@ -3086,6 +3137,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.AccessSummary(childComplexity, args["from"].(time.Time), args["until"].(time.Time)), true
+	case "Query.assignedTeachingHours":
+		if e.ComplexityRoot.Query.AssignedTeachingHours == nil {
+			break
+		}
+
+		args, err := ec.field_Query_assignedTeachingHours_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AssignedTeachingHours(childComplexity, args["semester"].(string), args["person"].(*string)), true
 	case "Query.assignments":
 		if e.ComplexityRoot.Query.Assignments == nil {
 			break
@@ -5026,6 +5088,34 @@ type Assignment {
   updatedAt: Time!
 }
 
+"""
+How many hours a week one person already holds in a semester: in total, and by the subject group of
+the modules they hold them in.
+
+**Readable before the assignments are published, by more than the person**, which no other sum over
+assignments is: in a signed-in session the lead of any subject group the person is a member of reads
+it, and the dean's office — so that whoever fills an instance can see that a colleague is already
+full in another group, and whom to talk to. It names no module, instance or part. Through a
+Personal Access Token it is your own until ` + "`" + `Semester.assignmentsPublishedAt` + "`" + `, and everybody's
+after.
+"""
+type AssignedLoad {
+  "Whose load it is."
+  person: Person!
+  "Hours a week, the sum of ` + "`" + `bySubjectGroup` + "`" + `."
+  total: Float!
+  "One entry per subject group, by code, and last the modules in no subject group."
+  bySubjectGroup: [AssignedLoadShare!]!
+}
+
+"One subject group's share of somebody's load."
+type AssignedLoadShare {
+  "The subject group of the modules, or ` + "`" + `null` + "`" + ` for modules nobody has sorted into one."
+  subjectGroup: SubjectGroupRef
+  "Hours a week."
+  hours: Float!
+}
+
 extend type Query {
   """
   What the caller has been given to teach — in one semester, or in every semester.
@@ -5066,6 +5156,17 @@ extend type Query {
     "Narrow to one person's assignments. Matches an account, not a teacher without one."
     person: ID
   ): [Assignment!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  The load of everybody whose load you may see in one semester — see ` + "`" + `AssignedLoad` + "`" + ` for who that
+  is. Somebody who holds nothing has no entry. Not an error when you may see only your own.
+  """
+  assignedTeachingHours(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "Narrow to one person, by id."
+    person: ID
+  ): [AssignedLoad!]! @scope(area: PLANNING, verb: READ)
 }
 
 extend type Mutation {
@@ -7532,7 +7633,7 @@ enum ScopeArea {
   # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
   # "is this part taken", which through a token the read rule would not.
 
-  ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `,
+  ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `assignedTeachingHours` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `,
   ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `applyModuleSplitToInstances` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `,
   ` + "`" + `setModuleSemesterSpan` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `setProgrammeDegree` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
@@ -9011,6 +9112,12 @@ type DesiredHoursOverviewRow {
   minHours: Float
   "The upper end, or ` + "`" + `null` + "`" + ` while ` + "`" + `stated` + "`" + ` is false."
   maxHours: Float
+  """
+  What the person already holds in this semester, or ` + "`" + `null` + "`" + ` where you may not see it or they hold
+  nothing. Its own rule, ` + "`" + `AssignedLoad` + "`" + `'s: the leads of the person's subject groups read it while
+  the planning runs, everybody once the assignments are published.
+  """
+  assignedLoad: AssignedLoad
 }
 
 extend type Query {
@@ -9606,6 +9713,28 @@ func (ec *executionContext) childFields_AccessSummary(ctx context.Context, field
 	return nil, fmt.Errorf("no field named %q was found under type AccessSummary", field.Name)
 }
 
+func (ec *executionContext) childFields_AssignedLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "person":
+		return ec.fieldContext_AssignedLoad_person(ctx, field)
+	case "total":
+		return ec.fieldContext_AssignedLoad_total(ctx, field)
+	case "bySubjectGroup":
+		return ec.fieldContext_AssignedLoad_bySubjectGroup(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AssignedLoad", field.Name)
+}
+
+func (ec *executionContext) childFields_AssignedLoadShare(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "subjectGroup":
+		return ec.fieldContext_AssignedLoadShare_subjectGroup(ctx, field)
+	case "hours":
+		return ec.fieldContext_AssignedLoadShare_hours(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AssignedLoadShare", field.Name)
+}
+
 func (ec *executionContext) childFields_Assignee(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "personId":
@@ -9886,6 +10015,8 @@ func (ec *executionContext) childFields_DesiredHoursOverviewRow(ctx context.Cont
 		return ec.fieldContext_DesiredHoursOverviewRow_minHours(ctx, field)
 	case "maxHours":
 		return ec.fieldContext_DesiredHoursOverviewRow_maxHours(ctx, field)
+	case "assignedLoad":
+		return ec.fieldContext_DesiredHoursOverviewRow_assignedLoad(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DesiredHoursOverviewRow", field.Name)
 }

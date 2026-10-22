@@ -79,7 +79,13 @@ type Semester struct {
 	// everybody, or the zero time while they are still confidential. Independent of the mark
 	// above in both directions — see policy.SemesterState.
 	AssignmentsPublishedAt time.Time
-	CreatedAt              time.Time
+	// DesiredHoursFrozenAt is when the dean's office froze the desired teaching hours, or the
+	// zero time while everybody may still change their own.
+	DesiredHoursFrozenAt time.Time
+	// DesiredHoursPublishedAt is when the desired teaching hours became visible to everybody, or
+	// the zero time. Never before the freeze.
+	DesiredHoursPublishedAt time.Time
+	CreatedAt               time.Time
 	// UpdatedAt is when the last decision about this semester was recorded, or the zero time
 	// while none has been.
 	UpdatedAt time.Time
@@ -95,9 +101,11 @@ func (s Semester) Recorded() bool { return s.ID != uuid.Nil }
 // State is the semester in the form the visibility rules take.
 func (s Semester) State() policy.SemesterState {
 	return policy.SemesterState{
-		Phase:                  s.Phase,
-		WishesPublishedAt:      s.WishesPublishedAt,
-		AssignmentsPublishedAt: s.AssignmentsPublishedAt,
+		Phase:                   s.Phase,
+		WishesPublishedAt:       s.WishesPublishedAt,
+		AssignmentsPublishedAt:  s.AssignmentsPublishedAt,
+		DesiredHoursFrozenAt:    s.DesiredHoursFrozenAt,
+		DesiredHoursPublishedAt: s.DesiredHoursPublishedAt,
 	}
 }
 
@@ -124,6 +132,11 @@ type SemesterStore interface {
 	PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Semester, error)
 	// PublishSemesterAssignments is the same for the second mark.
 	PublishSemesterAssignments(ctx context.Context, id uuid.UUID) (Semester, error)
+	// FreezeSemesterDesiredHours is idempotent and keeps the first timestamp and its author.
+	FreezeSemesterDesiredHours(ctx context.Context, id, by uuid.UUID) (Semester, error)
+	// PublishSemesterDesiredHours is the same, and answers ErrDesiredHoursNotFrozen for a
+	// semester that is not frozen.
+	PublishSemesterDesiredHours(ctx context.Context, id, by uuid.UUID) (Semester, error)
 	// PlanningSemester returns the marked semester, or a zero Semester when none is marked.
 	// No row is not an error: an installation where nobody has decided yet is a real state,
 	// and List has a fallback for it.
@@ -386,6 +399,47 @@ func (s *SemesterService) PublishAssignments(ctx context.Context, actor principa
 		return Semester{}, err
 	}
 	return s.store.PublishSemesterAssignments(ctx, existing.ID)
+}
+
+// FreezeDesiredHours closes the desired teaching hours of a semester to everybody but the dean's
+// office. Idempotent; there is no unfreezing — see policy.MayFreezeDesiredHours.
+func (s *SemesterService) FreezeDesiredHours(ctx context.Context, actor principal.Actor,
+	code string,
+) (Semester, error) {
+	if !policy.MayFreezeDesiredHours(actor) {
+		return Semester{}, ErrForbidden
+	}
+	code, err := s.plannable(code)
+	if err != nil {
+		return Semester{}, err
+	}
+	existing, err := s.store.EnsureSemester(ctx, code)
+	if err != nil {
+		return Semester{}, err
+	}
+	return s.store.FreezeSemesterDesiredHours(ctx, existing.ID, actor.ID)
+}
+
+// PublishDesiredHours makes the desired teaching hours of a semester visible to everybody. Only a
+// frozen semester: what colleagues plan against has to be what the leadership has read.
+func (s *SemesterService) PublishDesiredHours(ctx context.Context, actor principal.Actor,
+	code string,
+) (Semester, error) {
+	if !policy.MayPublishDesiredHours(actor) {
+		return Semester{}, ErrForbidden
+	}
+	code, err := s.plannable(code)
+	if err != nil {
+		return Semester{}, err
+	}
+	existing, err := s.store.EnsureSemester(ctx, code)
+	if err != nil {
+		return Semester{}, err
+	}
+	if existing.DesiredHoursFrozenAt.IsZero() {
+		return Semester{}, ErrDesiredHoursNotFrozen
+	}
+	return s.store.PublishSemesterDesiredHours(ctx, existing.ID, actor.ID)
 }
 
 // EnsureRecorded gives back the row for a semester, creating it if this is the first decision

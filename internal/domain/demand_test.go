@@ -370,6 +370,14 @@ func (f *fakeSemesterStore) PublishSemesterAssignments(context.Context, uuid.UUI
 	return domain.Semester{}, errors.New("not part of this test")
 }
 
+func (f *fakeSemesterStore) FreezeSemesterDesiredHours(context.Context, uuid.UUID, uuid.UUID) (domain.Semester, error) {
+	return domain.Semester{}, errors.New("not part of this test")
+}
+
+func (f *fakeSemesterStore) PublishSemesterDesiredHours(context.Context, uuid.UUID, uuid.UUID) (domain.Semester, error) {
+	return domain.Semester{}, errors.New("not part of this test")
+}
+
 func (f *fakeSemesterStore) PlanningSemester(context.Context) (domain.Semester, error) {
 	if f.planning == "" {
 		return domain.Semester{}, nil

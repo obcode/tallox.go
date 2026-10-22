@@ -64,6 +64,7 @@ type QueryResolver interface {
 	Wishes(ctx context.Context, semester string, programme *string, module *string, instance *string, person *string) ([]*model.Wish, error)
 	MyDesiredTeachingHours(ctx context.Context, semester *string) ([]*model.DesiredTeachingHours, error)
 	DesiredTeachingHours(ctx context.Context, semester string, person *string) ([]*model.DesiredTeachingHours, error)
+	DesiredHoursOverview(ctx context.Context, semester string) ([]*model.DesiredHoursOverviewRow, error)
 	ZpaSyncRuns(ctx context.Context, limit *int) ([]*model.ZpaSyncRun, error)
 	ZpaSyncRun(ctx context.Context, id string) (*model.ZpaSyncRun, error)
 	ZpaChanges(ctx context.Context, runID string) ([]*model.ZpaChange, error)
@@ -299,6 +300,20 @@ func (ec *executionContext) field_Query_courseInstances_args(ctx context.Context
 }
 
 func (ec *executionContext) field_Query_demandCompletions_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "semester",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["semester"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_desiredHoursOverview_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "semester",
@@ -2679,6 +2694,50 @@ func (ec *executionContext) fieldContext_Query_desiredTeachingHours(ctx context.
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_desiredHoursOverview(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_desiredHoursOverview(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().DesiredHoursOverview(ctx, fc.Args["semester"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.DesiredHoursOverviewRow) graphql.Marshaler {
+			return ec.marshalNDesiredHoursOverviewRow2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredHoursOverviewRowᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_desiredHoursOverview(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DesiredHoursOverviewRow(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_desiredHoursOverview_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_zpaSyncRuns(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3997,6 +4056,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_desiredTeachingHours(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "desiredHoursOverview":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_desiredHoursOverview(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

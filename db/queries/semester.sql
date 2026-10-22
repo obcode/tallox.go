@@ -23,11 +23,15 @@ INSERT INTO semester (code)
 VALUES ($1)
 ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at;
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by;
 
 -- name: SemesterByCode :one
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
 FROM semester
 WHERE code = $1;
 
@@ -39,7 +43,9 @@ WHERE code = $1;
 -- WS within a year, in the order the terms actually happen. Ordering by created_at instead
 -- would list them by when somebody got round to entering them.
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
 FROM semester
 ORDER BY code DESC;
 
@@ -57,7 +63,9 @@ SET phase = $2,
 WHERE id = $1
   AND phase = $3
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at;
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by;
 
 -- name: PublishSemesterWishes :one
 -- Idempotent, and it keeps the *first* timestamp.
@@ -74,7 +82,9 @@ SET wishes_published_at = COALESCE(wishes_published_at, now()),
     updated_at = CASE WHEN wishes_published_at IS NULL THEN now() ELSE updated_at END
 WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at;
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by;
 
 -- name: PublishSemesterAssignments :one
 -- Idempotent, and it keeps the *first* timestamp. Same shape as PublishSemesterWishes, and the
@@ -88,7 +98,40 @@ SET assignments_published_at = COALESCE(assignments_published_at, now()),
     updated_at = CASE WHEN assignments_published_at IS NULL THEN now() ELSE updated_at END
 WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at;
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by;
+
+-- name: FreezeSemesterDesiredHours :one
+-- From here on only the dean's office changes a desired figure. Idempotent and first timestamp
+-- wins, like the publications: a second click is not a second deadline, and who closed it is
+-- whoever closed it first.
+UPDATE semester
+SET desired_hours_frozen_at = COALESCE(desired_hours_frozen_at, now()),
+    desired_hours_frozen_by = CASE WHEN desired_hours_frozen_at IS NULL
+                                   THEN sqlc.narg('by')::uuid ELSE desired_hours_frozen_by END,
+    updated_at = CASE WHEN desired_hours_frozen_at IS NULL THEN now() ELSE updated_at END
+WHERE id = sqlc.arg('id')::uuid
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by;
+
+-- name: PublishSemesterDesiredHours :one
+-- Make the desired figures visible to everybody. Only a frozen semester: the figures colleagues
+-- plan against must be the ones the leadership has read, not ones that may still move. No row
+-- back means it is not frozen — the row exists, the caller ensured it.
+UPDATE semester
+SET desired_hours_published_at = COALESCE(desired_hours_published_at, now()),
+    desired_hours_published_by = CASE WHEN desired_hours_published_at IS NULL
+                                      THEN sqlc.narg('by')::uuid ELSE desired_hours_published_by END,
+    updated_at = CASE WHEN desired_hours_published_at IS NULL THEN now() ELSE updated_at END
+WHERE id = sqlc.arg('id')::uuid
+  AND desired_hours_frozen_at IS NOT NULL
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by;
 
 -- name: PlanningSemester :one
 -- The semester the faculty is planning, or no row while nobody has said.
@@ -97,7 +140,9 @@ RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
 -- of this statement, and a LIMIT here would quietly return one of several if that ever stopped
 -- being true.
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by
 FROM semester
 WHERE is_planning_semester;
 
@@ -138,4 +183,6 @@ SET is_planning_semester = true,
     updated_at = now()
 WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
-       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at;
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by;

@@ -69,6 +69,8 @@ type MutationResolver interface {
 	SetPlanningSemester(ctx context.Context, code string) (*model.Semester, error)
 	PublishWishes(ctx context.Context, code string) (*model.Semester, error)
 	PublishAssignments(ctx context.Context, code string) (*model.Semester, error)
+	FreezeDesiredHours(ctx context.Context, code string) (*model.Semester, error)
+	PublishDesiredHours(ctx context.Context, code string) (*model.Semester, error)
 	CreateSubjectGroup(ctx context.Context, code string, name string) (*model.SubjectGroup, error)
 	RenameSubjectGroup(ctx context.Context, id string, name string) (*model.SubjectGroup, error)
 	SetSubjectGroupActive(ctx context.Context, id string, active bool) (*model.SubjectGroup, error)
@@ -78,7 +80,8 @@ type MutationResolver interface {
 	SetSubjectGroupLeads(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error)
 	SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string) (*model.Wish, error)
 	WithdrawWish(ctx context.Context, id string) (string, error)
-	SetDesiredTeachingHours(ctx context.Context, semester string, hours *float64, note *string) (*model.DesiredTeachingHours, error)
+	SetDesiredTeachingHours(ctx context.Context, semester string, minHours *float64, maxHours *float64, hours *float64, note *string) (*model.DesiredTeachingHours, error)
+	CorrectDesiredTeachingHours(ctx context.Context, semester string, person string, minHours *float64, maxHours *float64, note *string) (*model.DesiredTeachingHours, error)
 	SyncZpaNow(ctx context.Context) (*model.ZpaSyncRun, error)
 	ProjectZpaCatalogue(ctx context.Context) (*model.ZpaCatalogueProjection, error)
 }
@@ -301,6 +304,52 @@ func (ec *executionContext) field_Mutation_copyDemandFromSemester_args(ctx conte
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_correctDesiredTeachingHours_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "semester",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["semester"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "person",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["person"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "minHours",
+		func(ctx context.Context, v any) (*float64, error) {
+			return ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["minHours"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "maxHours",
+		func(ctx context.Context, v any) (*float64, error) {
+			return ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["maxHours"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "note",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["note"] = arg4
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_createLocalModule_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -455,6 +504,20 @@ func (ec *executionContext) field_Mutation_duplicateCourseInstance_args(ctx cont
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_freezeDesiredHours_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "code",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["code"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_planDemand_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -494,6 +557,20 @@ func (ec *executionContext) field_Mutation_planDemand_args(ctx context.Context, 
 }
 
 func (ec *executionContext) field_Mutation_publishAssignments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "code",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["code"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_publishDesiredHours_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "code",
@@ -782,22 +859,38 @@ func (ec *executionContext) field_Mutation_setDesiredTeachingHours_args(ctx cont
 		return nil, err
 	}
 	args["semester"] = arg0
-	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "hours",
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "minHours",
 		func(ctx context.Context, v any) (*float64, error) {
 			return ec.unmarshalOFloat2ᚖfloat64(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["hours"] = arg1
-	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "note",
+	args["minHours"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "maxHours",
+		func(ctx context.Context, v any) (*float64, error) {
+			return ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["maxHours"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "hours",
+		func(ctx context.Context, v any) (*float64, error) {
+			return ec.unmarshalOFloat2ᚖfloat64(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["hours"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "note",
 		func(ctx context.Context, v any) (*string, error) {
 			return ec.unmarshalOString2ᚖstring(ctx, v)
 		})
 	if err != nil {
 		return nil, err
 	}
-	args["note"] = arg2
+	args["note"] = arg4
 	return args, nil
 }
 
@@ -4082,6 +4175,120 @@ func (ec *executionContext) fieldContext_Mutation_publishAssignments(ctx context
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_freezeDesiredHours(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_freezeDesiredHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().FreezeDesiredHours(ctx, fc.Args["code"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.InteractiveOnly == nil {
+					var zeroVal *model.Semester
+					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+				}
+				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Semester) graphql.Marshaler {
+			return ec.marshalNSemester2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSemester(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_freezeDesiredHours(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Semester(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_freezeDesiredHours_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_publishDesiredHours(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_publishDesiredHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().PublishDesiredHours(ctx, fc.Args["code"].(string))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.InteractiveOnly == nil {
+					var zeroVal *model.Semester
+					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+				}
+				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Semester) graphql.Marshaler {
+			return ec.marshalNSemester2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSemester(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_publishDesiredHours(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Semester(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_publishDesiredHours_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createSubjectGroup(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4566,7 +4773,7 @@ func (ec *executionContext) _Mutation_setDesiredTeachingHours(ctx context.Contex
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().SetDesiredTeachingHours(ctx, fc.Args["semester"].(string), fc.Args["hours"].(*float64), fc.Args["note"].(*string))
+			return ec.Resolvers.Mutation().SetDesiredTeachingHours(ctx, fc.Args["semester"].(string), fc.Args["minHours"].(*float64), fc.Args["maxHours"].(*float64), fc.Args["hours"].(*float64), fc.Args["note"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.DesiredTeachingHours) graphql.Marshaler {
@@ -4594,6 +4801,50 @@ func (ec *executionContext) fieldContext_Mutation_setDesiredTeachingHours(ctx co
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_setDesiredTeachingHours_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_correctDesiredTeachingHours(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_correctDesiredTeachingHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CorrectDesiredTeachingHours(ctx, fc.Args["semester"].(string), fc.Args["person"].(string), fc.Args["minHours"].(*float64), fc.Args["maxHours"].(*float64), fc.Args["note"].(*string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DesiredTeachingHours) graphql.Marshaler {
+			return ec.marshalODesiredTeachingHours2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredTeachingHours(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_correctDesiredTeachingHours(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DesiredTeachingHours(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_correctDesiredTeachingHours_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5269,6 +5520,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "freezeDesiredHours":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_freezeDesiredHours(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "publishDesiredHours":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_publishDesiredHours(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createSubjectGroup":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createSubjectGroup(ctx, field)
@@ -5335,6 +5600,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "setDesiredTeachingHours":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setDesiredTeachingHours(ctx, field)
+			})
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "correctDesiredTeachingHours":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_correctDesiredTeachingHours(ctx, field)
 			})
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++

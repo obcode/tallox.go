@@ -85,12 +85,14 @@ type DemandCompletion struct {
 }
 
 type DesiredTeachingHour struct {
-	SemesterID uuid.UUID
-	PersonID   uuid.UUID
-	Hours      pgtype.Numeric
-	Note       string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	SemesterID  uuid.UUID
+	PersonID    uuid.UUID
+	Hours       pgtype.Numeric
+	Note        string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	MinHours    pgtype.Numeric
+	CorrectedBy uuid.NullUUID
 }
 
 type GuessedPart struct {
@@ -266,16 +268,20 @@ type ReviewCompletion struct {
 }
 
 type Semester struct {
-	ID                     uuid.UUID
-	Code                   string
-	Phase                  string
-	WishesPublishedAt      pgtype.Timestamptz
-	CreatedAt              time.Time
-	UpdatedAt              time.Time
-	IsPlanningSemester     bool
-	PlanningSetAt          pgtype.Timestamptz
-	PlanningSetBy          uuid.NullUUID
-	AssignmentsPublishedAt pgtype.Timestamptz
+	ID                      uuid.UUID
+	Code                    string
+	Phase                   string
+	WishesPublishedAt       pgtype.Timestamptz
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
+	IsPlanningSemester      bool
+	PlanningSetAt           pgtype.Timestamptz
+	PlanningSetBy           uuid.NullUUID
+	AssignmentsPublishedAt  pgtype.Timestamptz
+	DesiredHoursFrozenAt    pgtype.Timestamptz
+	DesiredHoursFrozenBy    uuid.NullUUID
+	DesiredHoursPublishedAt pgtype.Timestamptz
+	DesiredHoursPublishedBy uuid.NullUUID
 }
 
 type Spo struct {

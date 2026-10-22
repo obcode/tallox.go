@@ -73,6 +73,31 @@ func MayPublishWishes(a principal.Actor) bool {
 	return MayReadInteractiveOnly(a) && RolesOf(a).Has(RoleDeansOffice)
 }
 
+// MayFreezeDesiredHours reports whether an actor may close the desired teaching hours of a
+// semester to everybody but the dean's office.
+//
+// The dean's office, interactive only, for the reason MayPublishWishes gives: there is no
+// unfreezing. A deadline that can be reopened is not one, and the corrections it would be reopened
+// for go through MayCorrectDesiredHours instead.
+func MayFreezeDesiredHours(a principal.Actor) bool {
+	return MayPublishWishes(a)
+}
+
+// MayPublishDesiredHours reports whether an actor may make the desired teaching hours of a
+// semester visible to everybody. The same people and door as the other publications, and a
+// function of its own because it is a different decision.
+func MayPublishDesiredHours(a principal.Actor) bool {
+	return MayPublishWishes(a)
+}
+
+// FreezeDesiredHoursReason is what a caller who failed MayFreezeDesiredHours is told.
+const FreezeDesiredHoursReason = "Nur das Dekanat darf die Wunsch-SWS einfrieren. " +
+	"Das geht ausschließlich im Browser, nicht über ein Personal Access Token."
+
+// PublishDesiredHoursReason is what a caller who failed MayPublishDesiredHours is told.
+const PublishDesiredHoursReason = "Nur das Dekanat darf die Wunsch-SWS veröffentlichen. " +
+	"Das geht ausschließlich im Browser, nicht über ein Personal Access Token."
+
 // SemesterAdminReason is what a caller who failed MayAdministerSemesters is told.
 //
 // It says nothing about creating a semester, because nothing creates one. A message offering

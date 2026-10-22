@@ -34,6 +34,14 @@ type SemesterState struct {
 	// is the ordinary case, and — less obviously — a finished plan can be published to a faculty
 	// whose wishes were never made public at all.
 	AssignmentsPublishedAt time.Time
+	// DesiredHoursFrozenAt is the moment the dean's office froze the desired teaching hours of
+	// this semester, or the zero time while everybody may still change their own. Mirrors
+	// semester.desired_hours_frozen_at. A write rule, not a read rule: freezing hides nothing.
+	DesiredHoursFrozenAt time.Time
+	// DesiredHoursPublishedAt is the moment the desired teaching hours became visible to
+	// everybody, or the zero time. Mirrors semester.desired_hours_published_at, and the database
+	// holds that it never precedes the freeze.
+	DesiredHoursPublishedAt time.Time
 }
 
 // WishesPublished reports whether the confidentiality window over the wishes has closed.
@@ -41,6 +49,12 @@ func (s SemesterState) WishesPublished() bool { return !s.WishesPublishedAt.IsZe
 
 // AssignmentsPublished reports whether the confidentiality window over the assignments has closed.
 func (s SemesterState) AssignmentsPublished() bool { return !s.AssignmentsPublishedAt.IsZero() }
+
+// DesiredHoursFrozen reports whether only the dean's office changes desired teaching hours now.
+func (s SemesterState) DesiredHoursFrozen() bool { return !s.DesiredHoursFrozenAt.IsZero() }
+
+// DesiredHoursPublished reports whether everybody reads the desired teaching hours now.
+func (s SemesterState) DesiredHoursPublished() bool { return !s.DesiredHoursPublishedAt.IsZero() }
 
 // Wish is the minimum of a wish that the visibility rule needs.
 //

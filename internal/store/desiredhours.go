@@ -35,15 +35,19 @@ func desiredHoursFilterParams(f policy.DesiredHoursFilter) (scope string, owner 
 	}
 }
 
-// DesiredHours returns the figures the filter allows.
+// DesiredHours returns the figures the filter allows, with the note through noteFilter.
 func (w *Wishes) DesiredHours(ctx context.Context, semesterCode string, person uuid.UUID,
-	filter policy.DesiredHoursFilter) ([]domain.DesiredHours, error) {
+	filter, noteFilter policy.DesiredHoursFilter) ([]domain.DesiredHours, error) {
 	scope, owner, groups := desiredHoursFilterParams(filter)
+	noteScope, noteOwner, noteGroups := desiredHoursFilterParams(noteFilter)
 
 	params := DesiredTeachingHoursParams{
-		Scope:           scope,
-		OwnerID:         owner,
-		SubjectGroupIds: groups,
+		Scope:               scope,
+		OwnerID:             owner,
+		SubjectGroupIds:     groups,
+		NoteScope:           noteScope,
+		NoteOwnerID:         noteOwner,
+		NoteSubjectGroupIds: noteGroups,
 	}
 	if semesterCode != "" {
 		params.Semester = &semesterCode
@@ -66,54 +70,88 @@ func (w *Wishes) DesiredHours(ctx context.Context, semesterCode string, person u
 				Name:     domain.PlainName(r.PersonName, r.PersonSortName),
 				SortName: r.PersonSortName,
 			},
-			Hours:     r.Hours,
-			Note:      r.Note,
-			CreatedAt: r.CreatedAt,
-			UpdatedAt: r.UpdatedAt,
+			MinHours:    r.MinHours,
+			MaxHours:    r.MaxHours,
+			Note:        r.Note,
+			CorrectedBy: r.CorrectedByName,
+			CreatedAt:   r.CreatedAt,
+			UpdatedAt:   r.UpdatedAt,
 		})
 	}
 	return out, nil
 }
 
-// SetDesiredHours states or changes the person's own figure, and reads it back through the
-// owner's filter so the answer is assembled by the query that renders a list.
+// DesiredHoursOverview lists the faculty's colleagues with the ranges the filter allows.
+func (w *Wishes) DesiredHoursOverview(ctx context.Context, semesterCode string,
+	filter policy.DesiredHoursFilter) ([]domain.DesiredHoursRow, error) {
+	scope, owner, groups := desiredHoursFilterParams(filter)
+	rows, err := New(w.pool).DesiredHoursOverview(ctx, DesiredHoursOverviewParams{
+		Semester:        semesterCode,
+		Scope:           scope,
+		OwnerID:         owner,
+		SubjectGroupIds: groups,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the desired hours overview: %w", err)
+	}
+	out := make([]domain.DesiredHoursRow, 0, len(rows))
+	for _, r := range rows {
+		refs := make([]domain.SubjectGroupRef, 0, len(r.GroupIds))
+		for i, id := range r.GroupIds {
+			refs = append(refs, domain.SubjectGroupRef{
+				ID: id, Code: r.GroupCodes[i], Name: r.GroupNames[i], Active: r.GroupActive[i],
+			})
+		}
+		out = append(out, domain.DesiredHoursRow{
+			Person: domain.Person{
+				ID:       r.PersonID,
+				Mail:     r.PersonMail,
+				Name:     domain.PlainName(r.PersonName, r.PersonSortName),
+				SortName: r.PersonSortName,
+			},
+			SubjectGroups: refs,
+			Stated:        r.Stated,
+			MinHours:      r.MinHours,
+			MaxHours:      r.MaxHours,
+		})
+	}
+	return out, nil
+}
+
+// SetDesiredHours states or changes a person's figure. correctedBy is uuid.Nil for one's own.
 func (w *Wishes) SetDesiredHours(ctx context.Context, semesterCode string, personID uuid.UUID,
-	hours float64, note string) (*domain.DesiredHours, error) {
+	minHours, maxHours float64, note string, correctedBy uuid.UUID) error {
 	tx, err := w.pool.Begin(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot begin: %w", err)
+		return fmt.Errorf("cannot begin: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	q := New(tx)
 	semester, err := q.EnsureSemester(ctx, semesterCode)
 	if err != nil {
-		return nil, fmt.Errorf("cannot ensure the semester: %w", err)
+		return fmt.Errorf("cannot ensure the semester: %w", err)
 	}
 	if _, err := q.SetDesiredTeachingHours(ctx, SetDesiredTeachingHoursParams{
-		SemesterID: semester.ID,
-		PersonID:   personID,
-		Hours:      hours,
-		Note:       note,
+		SemesterID:  semester.ID,
+		PersonID:    personID,
+		MinHours:    minHours,
+		MaxHours:    maxHours,
+		Note:        note,
+		CorrectedBy: nullUUID(nonNilUUID(correctedBy)),
 	}); err != nil {
-		return nil, fmt.Errorf("cannot store the desired teaching hours: %w", err)
+		if isForeignKeyViolation(err) {
+			return domain.ErrDesiredHoursUnknownPerson
+		}
+		return fmt.Errorf("cannot store the desired teaching hours: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return nil, fmt.Errorf("cannot commit: %w", err)
+		return fmt.Errorf("cannot commit: %w", err)
 	}
-
-	stored, err := w.DesiredHours(ctx, semesterCode, personID,
-		policy.DesiredHoursFilter{Scope: policy.DesiredHoursScopeOwn, OwnerID: personID})
-	if err != nil {
-		return nil, err
-	}
-	if len(stored) != 1 {
-		return nil, fmt.Errorf("the desired teaching hours just stored read back as %d rows", len(stored))
-	}
-	return &stored[0], nil
+	return nil
 }
 
-// ClearDesiredHours takes the person's own figure back.
+// ClearDesiredHours takes a person's figure back.
 func (w *Wishes) ClearDesiredHours(ctx context.Context, semesterCode string,
 	personID uuid.UUID) (bool, error) {
 	n, err := New(w.pool).ClearDesiredTeachingHours(ctx, ClearDesiredTeachingHoursParams{

@@ -108,6 +108,22 @@ type Semester {
   assignmentsPublishedAt: Time
 
   """
+  When the dean's office froze the desired teaching hours of this semester, or `null` while
+  everybody may still change their own. Afterwards only the dean's office corrects a figure.
+
+  There is no unfreezing.
+  """
+  desiredHoursFrozenAt: Time
+
+  """
+  When the desired teaching hours of this semester became visible to everybody, or `null`. Never
+  before the freeze. The notes stay where they were.
+
+  There is no un-publishing.
+  """
+  desiredHoursPublishedAt: Time
+
+  """
   When the last decision about this semester was recorded, or `null` while none has been.
 
   Not "when the semester was created" — nothing creates one. It is the phase switch or the
@@ -240,4 +256,21 @@ extend type Mutation {
   attributable to a sign-in rather than to a string in a script.
   """
   publishAssignments(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Freeze the desired teaching hours of this semester: from now on only the dean's office changes a
+  figure. The deadline, made an act.
+
+  **There is no way back.** Calling it twice is not an error and does not move the timestamp.
+  Interactive only, like the publications.
+  """
+  freezeDesiredHours(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Make the desired teaching hours of this semester visible to everybody — the range, not the
+  notes. Only a frozen semester (`DESIRED_HOURS_NOT_FROZEN` otherwise).
+
+  **There is no way back.** Calling it twice is not an error and does not move the timestamp.
+  """
+  publishDesiredHours(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 }

@@ -32,12 +32,36 @@ func wishModel(w domain.Wish) *model.Wish {
 
 func desiredHoursModel(d domain.DesiredHours) *model.DesiredTeachingHours {
 	return &model.DesiredTeachingHours{
-		Semester:  d.SemesterCode,
-		Person:    personModel(d.Person),
-		Hours:     d.Hours,
-		Note:      d.Note,
-		UpdatedAt: d.UpdatedAt,
+		Semester:    d.SemesterCode,
+		Person:      personModel(d.Person),
+		MinHours:    d.MinHours,
+		MaxHours:    d.MaxHours,
+		Hours:       d.MaxHours,
+		Note:        d.Note,
+		CorrectedBy: d.CorrectedBy,
+		UpdatedAt:   d.UpdatedAt,
 	}
+}
+
+func desiredHoursRowModels(rows []domain.DesiredHoursRow) []*model.DesiredHoursOverviewRow {
+	out := make([]*model.DesiredHoursOverviewRow, 0, len(rows))
+	for _, r := range rows {
+		groups := make([]*model.SubjectGroupRef, 0, len(r.SubjectGroups))
+		for _, g := range r.SubjectGroups {
+			groups = append(groups, subjectGroupRefModel(&g))
+		}
+		row := &model.DesiredHoursOverviewRow{
+			Person:        personModel(r.Person),
+			SubjectGroups: groups,
+			Stated:        r.Stated,
+		}
+		if r.Stated {
+			low, high := r.MinHours, r.MaxHours
+			row.MinHours, row.MaxHours = &low, &high
+		}
+		out = append(out, row)
+	}
+	return out
 }
 
 func desiredHoursModels(rows []domain.DesiredHours) []*model.DesiredTeachingHours {
@@ -82,6 +106,14 @@ func wishError(err error) error {
 		return refusal("DESIRED_HOURS_PHASE_CLOSED", err.Error())
 	case errors.Is(err, domain.ErrDesiredHoursOutOfRange):
 		return refusal("DESIRED_HOURS_OUT_OF_RANGE", err.Error())
+	case errors.Is(err, domain.ErrDesiredHoursRange):
+		return refusal("DESIRED_HOURS_RANGE", err.Error())
+	case errors.Is(err, domain.ErrDesiredHoursFrozen):
+		return refusal("DESIRED_HOURS_FROZEN", policy.DesiredHoursFrozenReason)
+	case errors.Is(err, domain.ErrDesiredHoursNotFrozen):
+		return refusal("DESIRED_HOURS_NOT_FROZEN", err.Error())
+	case errors.Is(err, domain.ErrDesiredHoursUnknownPerson):
+		return refusal("PERSON_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrSemesterRequired):
 		return refusal("SEMESTER_REQUIRED", err.Error())
 	case errors.Is(err, domain.ErrWishPhaseClosed):

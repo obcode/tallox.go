@@ -23,7 +23,7 @@ type ClearDesiredTeachingHoursParams struct {
 	Semester string
 }
 
-// Take one's own figure back. No row is "not stated", which is the state this returns to.
+// Take a figure back. No row is "not stated", which is the state this returns to.
 func (q *Queries) ClearDesiredTeachingHours(ctx context.Context, arg ClearDesiredTeachingHoursParams) (int64, error) {
 	result, err := q.db.Exec(ctx, clearDesiredTeachingHours, arg.PersonID, arg.Semester)
 	if err != nil {
@@ -32,48 +32,175 @@ func (q *Queries) ClearDesiredTeachingHours(ctx context.Context, arg ClearDesire
 	return result.RowsAffected(), nil
 }
 
-const desiredTeachingHours = `-- name: DesiredTeachingHours :many
-
-SELECT s.code AS semester_code,
-       d.person_id, p.name AS person_name, p.mail::text AS person_mail,
+const desiredHoursOverview = `-- name: DesiredHoursOverview :many
+SELECT p.id AS person_id, p.name AS person_name, p.mail::text AS person_mail,
        COALESCE(t.short_name, '')::text AS person_sort_name,
-       d.hours::float8 AS hours, d.note, d.created_at, d.updated_at
-FROM desired_teaching_hours d
-JOIN semester s ON s.id = d.semester_id
-JOIN person p ON p.id = d.person_id
+       COALESCE((SELECT array_agg(g.id ORDER BY g.code)
+                   FROM person_subject_group m JOIN subject_group g ON g.id = m.subject_group_id
+                  WHERE m.person_id = p.id), '{}')::uuid[] AS group_ids,
+       COALESCE((SELECT array_agg(g.code ORDER BY g.code)
+                   FROM person_subject_group m JOIN subject_group g ON g.id = m.subject_group_id
+                  WHERE m.person_id = p.id), '{}')::text[] AS group_codes,
+       COALESCE((SELECT array_agg(g.name ORDER BY g.code)
+                   FROM person_subject_group m JOIN subject_group g ON g.id = m.subject_group_id
+                  WHERE m.person_id = p.id), '{}')::text[] AS group_names,
+       COALESCE((SELECT array_agg(g.active ORDER BY g.code)
+                   FROM person_subject_group m JOIN subject_group g ON g.id = m.subject_group_id
+                  WHERE m.person_id = p.id), '{}')::bool[] AS group_active,
+       (d.person_id IS NOT NULL)::bool AS stated,
+       COALESCE(LEAST(COALESCE(d.min_hours, d.hours), d.hours), 0)::float8 AS min_hours,
+       COALESCE(d.hours, 0)::float8 AS max_hours
+FROM person p
 LEFT JOIN teacher t ON t.mail = p.mail
-WHERE ($1::text IS NULL OR s.code = $1::text)
-  AND ($2::uuid IS NULL OR d.person_id = $2::uuid)
-  AND (
-      $3::text = 'all'
-      OR ($3::text IN ('own', 'own_or_scoped')
-          AND d.person_id = $4::uuid)
-      OR ($3::text = 'own_or_scoped'
-          AND EXISTS (SELECT 1 FROM person_subject_group psg
-                       WHERE psg.person_id = d.person_id
-                         AND psg.subject_group_id = ANY ($5::uuid[])))
-  )
-ORDER BY s.code, COALESCE(NULLIF(t.short_name, ''), p.name)
+LEFT JOIN desired_teaching_hours d
+       ON d.person_id = p.id
+      AND d.semester_id = (SELECT id FROM semester WHERE code = $1::text)
+      AND (
+          $2::text = 'all'
+          OR ($2::text IN ('own', 'own_or_scoped')
+              AND d.person_id = $3::uuid)
+          OR ($2::text = 'own_or_scoped'
+              AND EXISTS (SELECT 1 FROM person_subject_group psg
+                           WHERE psg.person_id = d.person_id
+                             AND psg.subject_group_id = ANY ($4::uuid[])))
+      )
+WHERE p.active
+  AND (EXISTS (SELECT 1 FROM person_role r
+                WHERE r.person_id = p.id AND r.role = 'LECTURER'
+                  AND (r.expires_at IS NULL OR r.expires_at > now()))
+       OR EXISTS (SELECT 1 FROM person_subject_group m WHERE m.person_id = p.id))
+ORDER BY COALESCE(NULLIF(t.short_name, ''), p.name), p.mail
 `
 
-type DesiredTeachingHoursParams struct {
-	Semester        *string
-	Person          uuid.NullUUID
+type DesiredHoursOverviewParams struct {
+	Semester        string
 	Scope           string
 	OwnerID         uuid.UUID
 	SubjectGroupIds []uuid.UUID
 }
 
-type DesiredTeachingHoursRow struct {
-	SemesterCode   string
+type DesiredHoursOverviewRow struct {
 	PersonID       uuid.UUID
 	PersonName     string
 	PersonMail     string
 	PersonSortName string
-	Hours          float64
-	Note           string
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	GroupIds       []uuid.UUID
+	GroupCodes     []string
+	GroupNames     []string
+	GroupActive    []bool
+	Stated         bool
+	MinHours       float64
+	MaxHours       float64
+}
+
+// The colleagues of the faculty with their subject groups and, where the filter lets it through,
+// the range they stated for one semester. The table the dean asked for, "für alle sichtbar".
+//
+// Who is listed does not depend on the figures: every active person who teaches here — holds
+// LECTURER or is a member of a subject group, both of which every colleague can already read. A
+// list of "those who stated a figure" would be the has-stated flag the confidentiality rule
+// forbids, so the figures are a LEFT JOIN carrying the filter, and a figure the caller may not
+// read and one nobody stated come back the same: stated = false, no hours.
+func (q *Queries) DesiredHoursOverview(ctx context.Context, arg DesiredHoursOverviewParams) ([]DesiredHoursOverviewRow, error) {
+	rows, err := q.db.Query(ctx, desiredHoursOverview,
+		arg.Semester,
+		arg.Scope,
+		arg.OwnerID,
+		arg.SubjectGroupIds,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DesiredHoursOverviewRow{}
+	for rows.Next() {
+		var i DesiredHoursOverviewRow
+		if err := rows.Scan(
+			&i.PersonID,
+			&i.PersonName,
+			&i.PersonMail,
+			&i.PersonSortName,
+			&i.GroupIds,
+			&i.GroupCodes,
+			&i.GroupNames,
+			&i.GroupActive,
+			&i.Stated,
+			&i.MinHours,
+			&i.MaxHours,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const desiredTeachingHours = `-- name: DesiredTeachingHours :many
+
+SELECT s.code AS semester_code,
+       d.person_id, p.name AS person_name, p.mail::text AS person_mail,
+       COALESCE(t.short_name, '')::text AS person_sort_name,
+       LEAST(COALESCE(d.min_hours, d.hours), d.hours)::float8 AS min_hours,
+       d.hours::float8 AS max_hours,
+       (CASE WHEN note_visible.yes THEN d.note ELSE '' END)::text AS note,
+       (CASE WHEN note_visible.yes THEN COALESCE(c.name, '') ELSE '' END)::text AS corrected_by_name,
+       d.created_at, d.updated_at
+FROM desired_teaching_hours d
+JOIN semester s ON s.id = d.semester_id
+JOIN person p ON p.id = d.person_id
+LEFT JOIN person c ON c.id = d.corrected_by
+LEFT JOIN teacher t ON t.mail = p.mail
+CROSS JOIN LATERAL (
+    SELECT (
+        $1::text = 'all'
+        OR ($1::text IN ('own', 'own_or_scoped')
+            AND d.person_id = $2::uuid)
+        OR ($1::text = 'own_or_scoped'
+            AND EXISTS (SELECT 1 FROM person_subject_group npsg
+                         WHERE npsg.person_id = d.person_id
+                           AND npsg.subject_group_id = ANY ($3::uuid[])))
+    ) AS yes
+) note_visible
+WHERE ($4::text IS NULL OR s.code = $4::text)
+  AND ($5::uuid IS NULL OR d.person_id = $5::uuid)
+  AND (
+      $6::text = 'all'
+      OR ($6::text IN ('own', 'own_or_scoped')
+          AND d.person_id = $7::uuid)
+      OR ($6::text = 'own_or_scoped'
+          AND EXISTS (SELECT 1 FROM person_subject_group psg
+                       WHERE psg.person_id = d.person_id
+                         AND psg.subject_group_id = ANY ($8::uuid[])))
+  )
+ORDER BY s.code, COALESCE(NULLIF(t.short_name, ''), p.name)
+`
+
+type DesiredTeachingHoursParams struct {
+	NoteScope           string
+	NoteOwnerID         uuid.UUID
+	NoteSubjectGroupIds []uuid.UUID
+	Semester            *string
+	Person              uuid.NullUUID
+	Scope               string
+	OwnerID             uuid.UUID
+	SubjectGroupIds     []uuid.UUID
+}
+
+type DesiredTeachingHoursRow struct {
+	SemesterCode    string
+	PersonID        uuid.UUID
+	PersonName      string
+	PersonMail      string
+	PersonSortName  string
+	MinHours        float64
+	MaxHours        float64
+	Note            string
+	CorrectedByName string
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
 }
 
 // Desired teaching hours: what somebody would like to teach in a semester.
@@ -88,9 +215,26 @@ type DesiredTeachingHoursRow struct {
 //
 // Membership is read at query time, like a wish's subject group: moving somebody to another group
 // changes who reads their figure, which is what "the lead of their group reads it" means.
+//
+// # TWO FILTERS, BECAUSE PUBLISHING OPENS THE FIGURE AND NOT THE NOTE
+//
+// Once the dean's office publishes a semester's figures, everybody reads the range. The note stays
+// where it was — "Forschungssemester im Herbst" is not something the faculty agreed to publish —
+// so it runs through a filter of its own, the note_* parameters, which is the same three-branch
+// predicate with the rule from before publication. A note the caller may not read is the empty
+// string, as is the name of whoever corrected the figure.
+//
+// # THE RANGE
+//
+// hours is the upper end and min_hours the lower one, NULL meaning a single figure; see the
+// migration 20261022120000 for why it is one new column and not two. LEAST clamps a lower end
+// left above an upper one that the previous image shortened.
 // The examination office's spelling, for the one register of names (domain.PlainName).
 func (q *Queries) DesiredTeachingHours(ctx context.Context, arg DesiredTeachingHoursParams) ([]DesiredTeachingHoursRow, error) {
 	rows, err := q.db.Query(ctx, desiredTeachingHours,
+		arg.NoteScope,
+		arg.NoteOwnerID,
+		arg.NoteSubjectGroupIds,
 		arg.Semester,
 		arg.Person,
 		arg.Scope,
@@ -110,8 +254,10 @@ func (q *Queries) DesiredTeachingHours(ctx context.Context, arg DesiredTeachingH
 			&i.PersonName,
 			&i.PersonMail,
 			&i.PersonSortName,
-			&i.Hours,
+			&i.MinHours,
+			&i.MaxHours,
 			&i.Note,
+			&i.CorrectedByName,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -126,37 +272,45 @@ func (q *Queries) DesiredTeachingHours(ctx context.Context, arg DesiredTeachingH
 }
 
 const setDesiredTeachingHours = `-- name: SetDesiredTeachingHours :one
-INSERT INTO desired_teaching_hours (semester_id, person_id, hours, note)
+INSERT INTO desired_teaching_hours (semester_id, person_id, min_hours, hours, note, corrected_by)
 VALUES ($1::uuid, $2::uuid,
-        ($3::float8)::numeric(4, 1), $4::text)
+        ($3::float8)::numeric(4, 1), ($4::float8)::numeric(4, 1),
+        $5::text, $6::uuid)
 ON CONFLICT (semester_id, person_id) DO UPDATE
-   SET hours = EXCLUDED.hours, note = EXCLUDED.note, updated_at = now()
-RETURNING created_at, updated_at, hours::float8 AS hours
+   SET min_hours = EXCLUDED.min_hours, hours = EXCLUDED.hours, note = EXCLUDED.note,
+       corrected_by = EXCLUDED.corrected_by, updated_at = now()
+RETURNING created_at, updated_at
 `
 
 type SetDesiredTeachingHoursParams struct {
-	SemesterID uuid.UUID
-	PersonID   uuid.UUID
-	Hours      float64
-	Note       string
+	SemesterID  uuid.UUID
+	PersonID    uuid.UUID
+	MinHours    float64
+	MaxHours    float64
+	Note        string
+	CorrectedBy uuid.NullUUID
 }
 
 type SetDesiredTeachingHoursRow struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	Hours     float64
 }
 
-// State or change one's own figure. The semester row exists by the time this runs: the store
-// ensures it in the same transaction, because stating a figure is a decision about the semester.
+// State or change a figure. The semester row exists by the time this runs: the store ensures it
+// in the same transaction, because stating a figure is a decision about the semester.
+//
+// corrected_by is the dean's office when it corrects a frozen figure and NULL when the person
+// writes their own — the column says whose statement the current figure is.
 func (q *Queries) SetDesiredTeachingHours(ctx context.Context, arg SetDesiredTeachingHoursParams) (SetDesiredTeachingHoursRow, error) {
 	row := q.db.QueryRow(ctx, setDesiredTeachingHours,
 		arg.SemesterID,
 		arg.PersonID,
-		arg.Hours,
+		arg.MinHours,
+		arg.MaxHours,
 		arg.Note,
+		arg.CorrectedBy,
 	)
 	var i SetDesiredTeachingHoursRow
-	err := row.Scan(&i.CreatedAt, &i.UpdatedAt, &i.Hours)
+	err := row.Scan(&i.CreatedAt, &i.UpdatedAt)
 	return i, err
 }

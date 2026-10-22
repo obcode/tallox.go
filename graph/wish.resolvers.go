@@ -7,10 +7,12 @@ package graph
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/policy"
 	"github.com/obcode/tallox.go/internal/principal"
 )
 
@@ -48,13 +50,42 @@ func (r *mutationResolver) WithdrawWish(ctx context.Context, id string) (string,
 }
 
 // SetDesiredTeachingHours is the resolver for the setDesiredTeachingHours field.
-func (r *mutationResolver) SetDesiredTeachingHours(ctx context.Context, semester string, hours *float64, note *string) (*model.DesiredTeachingHours, error) {
+func (r *mutationResolver) SetDesiredTeachingHours(ctx context.Context, semester string, minHours *float64, maxHours *float64, hours *float64, note *string) (*model.DesiredTeachingHours, error) {
 	text := ""
 	if note != nil {
 		text = *note
 	}
-	stored, err := r.Resolver.Wishes.SetDesiredHours(ctx, principal.From(ctx), semester, hours, text)
+	// A script from before the range sends one figure; it means both ends.
+	if minHours == nil && maxHours == nil {
+		maxHours = hours
+	}
+	stored, err := r.Resolver.Wishes.SetDesiredHours(ctx, principal.From(ctx), semester,
+		minHours, maxHours, text)
 	if err != nil {
+		return nil, wishError(err)
+	}
+	if stored == nil {
+		return nil, nil
+	}
+	return desiredHoursModel(*stored), nil
+}
+
+// CorrectDesiredTeachingHours is the resolver for the correctDesiredTeachingHours field.
+func (r *mutationResolver) CorrectDesiredTeachingHours(ctx context.Context, semester string, person string, minHours *float64, maxHours *float64, note *string) (*model.DesiredTeachingHours, error) {
+	who, err := parseID(person)
+	if err != nil {
+		return nil, err
+	}
+	text := ""
+	if note != nil {
+		text = *note
+	}
+	stored, err := r.Resolver.Wishes.CorrectDesiredHours(ctx, principal.From(ctx), semester, who,
+		minHours, maxHours, text)
+	if err != nil {
+		if errors.Is(err, domain.ErrForbidden) {
+			return nil, refusal("FORBIDDEN", policy.CorrectDesiredHoursReason)
+		}
 		return nil, wishError(err)
 	}
 	if stored == nil {
@@ -142,4 +173,13 @@ func (r *queryResolver) DesiredTeachingHours(ctx context.Context, semester strin
 		return nil, wishError(err)
 	}
 	return desiredHoursModels(rows), nil
+}
+
+// DesiredHoursOverview is the resolver for the desiredHoursOverview field.
+func (r *queryResolver) DesiredHoursOverview(ctx context.Context, semester string) ([]*model.DesiredHoursOverviewRow, error) {
+	rows, err := r.Resolver.Wishes.DesiredHoursOverview(ctx, principal.From(ctx), semester)
+	if err != nil {
+		return nil, wishError(err)
+	}
+	return desiredHoursRowModels(rows), nil
 }

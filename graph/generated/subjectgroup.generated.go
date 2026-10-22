@@ -847,6 +847,22 @@ func (ec *executionContext) marshalNSubjectGroupAssignmentReport2ᚖgithubᚗcom
 	return ec._SubjectGroupAssignmentReport(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNSubjectGroupRef2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupRefᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SubjectGroupRef) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNSubjectGroupRef2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupRef(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) marshalNSubjectGroupRef2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupRef(ctx context.Context, sel ast.SelectionSet, v *model.SubjectGroupRef) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {

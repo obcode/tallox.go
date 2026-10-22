@@ -35,14 +35,16 @@ var _ domain.SemesterStore = (*Semesters)(nil)
 // would land on DEMAND_PLANNING, which is the most permissive phase for writes.
 func semesterFrom(row Semester) domain.Semester {
 	return domain.Semester{
-		ID:                     row.ID,
-		Code:                   row.Code,
-		Phase:                  policy.Phase(row.Phase),
-		IsPlanning:             row.IsPlanningSemester,
-		WishesPublishedAt:      nullableTime(row.WishesPublishedAt),
-		AssignmentsPublishedAt: nullableTime(row.AssignmentsPublishedAt),
-		CreatedAt:              row.CreatedAt,
-		UpdatedAt:              row.UpdatedAt,
+		ID:                      row.ID,
+		Code:                    row.Code,
+		Phase:                   policy.Phase(row.Phase),
+		IsPlanning:              row.IsPlanningSemester,
+		WishesPublishedAt:       nullableTime(row.WishesPublishedAt),
+		AssignmentsPublishedAt:  nullableTime(row.AssignmentsPublishedAt),
+		DesiredHoursFrozenAt:    nullableTime(row.DesiredHoursFrozenAt),
+		DesiredHoursPublishedAt: nullableTime(row.DesiredHoursPublishedAt),
+		CreatedAt:               row.CreatedAt,
+		UpdatedAt:               row.UpdatedAt,
 	}
 }
 
@@ -138,6 +140,37 @@ func (s *Semesters) PublishSemesterAssignments(ctx context.Context, id uuid.UUID
 	row, err := s.q.PublishSemesterAssignments(ctx, id)
 	if err != nil {
 		return domain.Semester{}, fmt.Errorf("cannot publish assignments: %w", err)
+	}
+	return semesterFrom(row), nil
+}
+
+// FreezeSemesterDesiredHours hands the desired figures to the dean's office. Idempotent — see the
+// query.
+func (s *Semesters) FreezeSemesterDesiredHours(ctx context.Context, id, by uuid.UUID,
+) (domain.Semester, error) {
+	row, err := s.q.FreezeSemesterDesiredHours(ctx, FreezeSemesterDesiredHoursParams{
+		ID: id,
+		By: nullUUID(nonNilUUID(by)),
+	})
+	if err != nil {
+		return domain.Semester{}, fmt.Errorf("cannot freeze the desired teaching hours: %w", err)
+	}
+	return semesterFrom(row), nil
+}
+
+// PublishSemesterDesiredHours makes the desired figures visible to everybody. No row back is a
+// semester that is not frozen, whatever the caller checked a moment ago.
+func (s *Semesters) PublishSemesterDesiredHours(ctx context.Context, id, by uuid.UUID,
+) (domain.Semester, error) {
+	row, err := s.q.PublishSemesterDesiredHours(ctx, PublishSemesterDesiredHoursParams{
+		ID: id,
+		By: nullUUID(nonNilUUID(by)),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.Semester{}, domain.ErrDesiredHoursNotFrozen
+	}
+	if err != nil {
+		return domain.Semester{}, fmt.Errorf("cannot publish the desired teaching hours: %w", err)
 	}
 	return semesterFrom(row), nil
 }

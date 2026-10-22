@@ -173,27 +173,67 @@ extend type Mutation {
 }
 
 """
-How many hours a week somebody would like to teach in one semester.
+How many hours a week of module teaching somebody would like to take in one semester, as a range.
+Theses are not included.
 
 Stated by the person, on the wish screen, beside the wishes it belongs to. Not the teaching
 obligation and not a balance — those are the dean's office's and are not stored here. No entry
 means "not stated", which is different from `0`.
 
-Read by the person, through either door; in an interactive session also by the lead of any
-subject group the person is a member of, and by the dean's office. Never published: it is a
-statement about one's own workload, and nothing in the process needs a colleague to read it.
+Three states, set by the dean's office on the semester:
+
+- **Open** — the person states and changes their own. Read by the person, through either door; in
+  an interactive session also by the lead of any subject group the person is a member of, and by
+  the dean's office.
+- **Frozen** (`Semester.desiredHoursFrozenAt`) — only the dean's office changes a figure, with
+  `correctDesiredTeachingHours`, after agreeing it with the person.
+- **Published** (`Semester.desiredHoursPublishedAt`) — everybody reads the range, through either
+  door. The `note` keeps the rule of the open state: it is the person's own words.
 """
 type DesiredTeachingHours {
   "The semester, as its code: `2027-SS`."
   semester: String!
-  "Whose figure it is. Always the person who stated it."
+  "Whose figure it is."
   person: Person!
-  "Hours a week, in half hours, from 0 to 40."
-  hours: Float!
-  "The person's own words: „gern als Block“, „Forschungssemester im Herbst“."
+  "The lower end, hours a week in half hours from 0 to 40. Equal to `maxHours` for a single figure."
+  minHours: Float!
+  "The upper end, hours a week in half hours from 0 to 40."
+  maxHours: Float!
+  "The upper end."
+  hours: Float! @deprecated(reason: "A range now: use `minHours` and `maxHours`.")
+  """
+  The person's own words: „gern als Block“, „Forschungssemester im Herbst“. Empty when you may read
+  the range but not the note — which is everybody but the person, the leads of their subject groups
+  and the dean's office, in an interactive session.
+  """
   note: String!
+  """
+  The name of whoever in the dean's office last corrected the figure after the freeze, or empty
+  while it stands as the person stated it. Empty, too, where the note is.
+  """
+  correctedBy: String!
   "When it was last changed."
   updatedAt: Time!
+}
+
+"""
+One colleague in the overview of desired teaching hours: who, in which subject groups, and the range
+— where you may see it.
+"""
+type DesiredHoursOverviewRow {
+  "The colleague."
+  person: Person!
+  "The subject groups the person is a member of."
+  subjectGroups: [SubjectGroupRef!]!
+  """
+  Whether there is a figure **you may see**. False both for nobody having stated one and for one you
+  may not read yet: before publication the two are the same answer on purpose.
+  """
+  stated: Boolean!
+  "The lower end, or `null` while `stated` is false."
+  minHours: Float
+  "The upper end, or `null` while `stated` is false."
+  maxHours: Float
 }
 
 extend type Query {
@@ -210,7 +250,8 @@ extend type Query {
 
   **Not an error when you may see none**, for the reason `wishes` gives: whether a colleague has
   stated a figure is the fact the rule protects. Through a Personal Access Token this is your own
-  entry whatever your role.
+  entry whatever your role — until the dean's office publishes the semester's figures, after which
+  it is everybody's.
   """
   desiredTeachingHours(
     "Four digits, a hyphen and SS or WS."
@@ -218,24 +259,60 @@ extend type Query {
     "One person's entry, by id."
     person: ID
   ): [DesiredTeachingHours!]! @scope(area: WISHES, verb: READ)
+
+  """
+  Every colleague of the faculty — active, and holding `LECTURER` or a member of a subject group —
+  with their subject groups and the desired teaching hours you may see for one semester.
+
+  The list of people is the same for everybody; only the figures depend on who asks. Before the
+  dean's office publishes them that is your own, and in a signed-in session the members of the
+  subject groups you lead, or everybody for the dean's office.
+  """
+  desiredHoursOverview(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): [DesiredHoursOverviewRow!]! @scope(area: WISHES, verb: READ)
 }
 
 extend type Mutation {
   """
-  State how many hours a week you would like to teach in a semester, or change it. `hours: null`
-  takes it back.
+  State how many hours a week you would like to teach in a semester, or change it. Both ends
+  `null` takes it back; one end alone is a single figure.
 
-  Yours only. Open until the semester is finished, `DESIRED_HOURS_PHASE_CLOSED` afterwards, in
-  both directions; when exactly the figure should freeze is still being decided.
-  `DESIRED_HOURS_OUT_OF_RANGE` for anything that is not a multiple of one half between 0 and 40.
+  Yours only. Open until the dean's office freezes the semester's figures —
+  `DESIRED_HOURS_FROZEN` afterwards — and never once the semester is finished
+  (`DESIRED_HOURS_PHASE_CLOSED`). `DESIRED_HOURS_OUT_OF_RANGE` for anything that is not a multiple
+  of one half between 0 and 40, `DESIRED_HOURS_RANGE` for a minimum above the maximum.
 
   Returns the stored entry, or `null` after taking it back.
   """
   setDesiredTeachingHours(
     "Four digits, a hyphen and SS or WS."
     semester: String!
-    hours: Float
+    minHours: Float
+    maxHours: Float
+    "A single figure, for scripts written before the range: the same as `minHours` and `maxHours`."
+    hours: Float @deprecated(reason: "Use `minHours` and `maxHours`.")
     "Up to 500 characters, or nothing at all."
     note: String
   ): DesiredTeachingHours @scope(area: WISHES, verb: WRITE)
+
+  """
+  Change somebody's figure after the freeze: what the dean's office agreed with the person in the
+  plausibility check. Both ends `null` takes it back. Recorded as a correction (`correctedBy`).
+
+  The dean's office in a signed-in session only — through a Personal Access Token `FORBIDDEN`, said
+  as a refusal rather than the `null` of `@interactiveOnly`, because `null` here already means "taken
+  back". `DESIRED_HOURS_NOT_FROZEN` while the figures are still the people's own to change,
+  `DESIRED_HOURS_PHASE_CLOSED` once the semester is finished.
+  """
+  correctDesiredTeachingHours(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    person: ID!
+    minHours: Float
+    maxHours: Float
+    "Up to 500 characters, or nothing at all. Replaces the person's note."
+    note: String
+  ): DesiredTeachingHours @scope(area: PLANNING, verb: WRITE)
 }

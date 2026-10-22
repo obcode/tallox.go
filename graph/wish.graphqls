@@ -318,7 +318,7 @@ extend type Mutation {
     person: ID!
     minHours: Float
     maxHours: Float
-    "Up to 500 characters, or nothing at all. Replaces the person's note."
+    "Up to 500 characters. Replaces the person's note; omitted or `null` keeps it."
     note: String
   ): DesiredTeachingHours @scope(area: PLANNING, verb: WRITE)
 }

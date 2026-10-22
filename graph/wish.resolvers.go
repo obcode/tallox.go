@@ -76,12 +76,8 @@ func (r *mutationResolver) CorrectDesiredTeachingHours(ctx context.Context, seme
 	if err != nil {
 		return nil, err
 	}
-	text := ""
-	if note != nil {
-		text = *note
-	}
 	stored, err := r.Resolver.Wishes.CorrectDesiredHours(ctx, principal.From(ctx), semester, who,
-		minHours, maxHours, text)
+		minHours, maxHours, note)
 	if err != nil {
 		if errors.Is(err, domain.ErrForbidden) {
 			return nil, refusal("FORBIDDEN", policy.CorrectDesiredHoursReason)

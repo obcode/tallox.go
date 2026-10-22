@@ -331,7 +331,7 @@ func TestTheFreezeHandsTheFigureToTheDeansOffice(t *testing.T) {
 		t.Fatalf("cannot state: %v", err)
 	}
 	if _, err := f.service.CorrectDesiredHours(ctx, deansOffice(), desiredSemester,
-		testdata.Eins.ID(), hoursPtr(8), hoursPtr(10), ""); !errors.Is(err, domain.ErrDesiredHoursNotFrozen) {
+		testdata.Eins.ID(), hoursPtr(8), hoursPtr(10), nil); !errors.Is(err, domain.ErrDesiredHoursNotFrozen) {
 		t.Errorf("a correction before the freeze: got %v, want ErrDesiredHoursNotFrozen", err)
 	}
 	if _, err := f.semesters.PublishDesiredHours(ctx, deansOffice(),
@@ -355,22 +355,29 @@ func TestTheFreezeHandsTheFigureToTheDeansOffice(t *testing.T) {
 	}
 	byToken := testdata.Fuenf.Actor(principal.KindToken, "DEANS_OFFICE")
 	if _, err := f.service.CorrectDesiredHours(ctx, byToken, desiredSemester, testdata.Eins.ID(),
-		hoursPtr(8), hoursPtr(10), ""); !errors.Is(err, domain.ErrForbidden) {
+		hoursPtr(8), hoursPtr(10), nil); !errors.Is(err, domain.ErrForbidden) {
 		t.Errorf("a correction through a token: got %v, want ErrForbidden", err)
 	}
 	if _, err := f.service.CorrectDesiredHours(ctx, deansOffice(), desiredSemester, uuid.New(),
-		hoursPtr(8), hoursPtr(10), ""); !errors.Is(err, domain.ErrDesiredHoursUnknownPerson) {
+		hoursPtr(8), hoursPtr(10), nil); !errors.Is(err, domain.ErrDesiredHoursUnknownPerson) {
 		t.Errorf("a correction for nobody: got %v, want ErrDesiredHoursUnknownPerson", err)
 	}
 
+	// Without a note the person's own stays.
 	corrected, err := f.service.CorrectDesiredHours(ctx, deansOffice(), desiredSemester,
-		testdata.Eins.ID(), hoursPtr(8), hoursPtr(10), "abgesprochen")
+		testdata.Eins.ID(), hoursPtr(8), hoursPtr(10), nil)
 	if err != nil {
 		t.Fatalf("the dean's office cannot correct: %v", err)
 	}
 	if corrected.MinHours != 8 || corrected.MaxHours != 10 || corrected.CorrectedBy == "" ||
-		corrected.Note != "abgesprochen" {
+		corrected.Note != "erst einmal wenig" {
 		t.Errorf("the correction reads back as %+v", corrected)
+	}
+	agreed := "abgesprochen"
+	corrected, err = f.service.CorrectDesiredHours(ctx, deansOffice(), desiredSemester,
+		testdata.Eins.ID(), hoursPtr(8), hoursPtr(10), &agreed)
+	if err != nil || corrected.Note != "abgesprochen" {
+		t.Errorf("a correction with a note reads back as %+v, %v", corrected, err)
 	}
 	own, err := f.service.DesiredHours(ctx, eins, desiredSemester, uuid.Nil)
 	if err != nil || len(own) != 1 || own[0].CorrectedBy == "" {

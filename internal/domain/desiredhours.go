@@ -195,9 +195,12 @@ func (s *WishService) SetDesiredHours(ctx context.Context, actor principal.Actor
 // CorrectDesiredHours is the dean's office changing somebody's figure after the freeze — what was
 // agreed with the person in the plausibility check. Both ends nil takes the figure back. Recorded
 // as the dean's office's correction until the person writes again, which the freeze prevents.
+//
+// A nil note keeps the person's own: correcting a figure in a table is not a reason to erase what
+// somebody wrote beside it.
 func (s *WishService) CorrectDesiredHours(ctx context.Context, actor principal.Actor,
 	semesterCode string, person uuid.UUID, minHours, maxHours *float64,
-	note string) (*DesiredHours, error) {
+	note *string) (*DesiredHours, error) {
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
@@ -211,9 +214,12 @@ func (s *WishService) CorrectDesiredHours(ctx context.Context, actor principal.A
 	if err != nil {
 		return nil, err
 	}
-	note = strings.TrimSpace(note)
-	if len(note) > MaxWishNote {
-		return nil, ErrWishNoteTooLong
+	if note != nil {
+		trimmed := strings.TrimSpace(*note)
+		if len(trimmed) > MaxWishNote {
+			return nil, ErrWishNoteTooLong
+		}
+		note = &trimmed
 	}
 
 	semester, err := s.semesters.ByCode(ctx, actor, semesterCode)
@@ -232,7 +238,20 @@ func (s *WishService) CorrectDesiredHours(ctx context.Context, actor principal.A
 		_, err := s.store.ClearDesiredHours(ctx, semester.Code, person)
 		return nil, err
 	}
-	if err := s.store.SetDesiredHours(ctx, semester.Code, person, low, high, note,
+	text := ""
+	if note != nil {
+		text = *note
+	} else {
+		existing, err := s.store.DesiredHours(ctx, semester.Code, person,
+			policy.DesiredHoursNoteVisibility(actor), policy.DesiredHoursNoteVisibility(actor))
+		if err != nil {
+			return nil, err
+		}
+		if len(existing) == 1 {
+			text = existing[0].Note
+		}
+	}
+	if err := s.store.SetDesiredHours(ctx, semester.Code, person, low, high, text,
 		actor.ID); err != nil {
 		return nil, err
 	}

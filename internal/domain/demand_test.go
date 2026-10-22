@@ -447,6 +447,16 @@ func (fakeCatalogueReader) SetProgrammePlanningStatus(context.Context, string,
 	return nil, errors.New("not part of this test")
 }
 
+func (fakeCatalogueReader) SetProgrammeDegree(context.Context, string, *domain.Degree,
+	uuid.UUID,
+) (*domain.Programme, error) {
+	return nil, errors.New("not part of this test")
+}
+
+func (fakeCatalogueReader) ProgrammeDegrees(context.Context) (map[string]domain.Degree, error) {
+	return nil, errors.New("not part of this test")
+}
+
 func (fakeCatalogueReader) SetModuleComponents(context.Context, uuid.UUID,
 	[]domain.ModuleComponent, uuid.UUID,
 ) (*domain.Module, error) {

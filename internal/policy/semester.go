@@ -171,3 +171,16 @@ func (p Phase) Neighbours() []Phase {
 func MaySetProgrammeQuota(a principal.Actor) bool {
 	return MayAdministerSemesters(a)
 }
+
+// MaySetProgrammeDegree reports whether an actor may record whether a study programme leads to a
+// bachelor's or a master's.
+//
+// The dean's office, which keeps the list of programmes and their planning status. A function of
+// its own for the same reason as MaySetProgrammeQuota: it is a different decision that happens to
+// sit with the same people today.
+//
+// Not the programme leads, although they know the answer best: the degree decides which
+// programmes a filter shows, and every screen that filters by it is read by somebody else.
+func MaySetProgrammeDegree(a principal.Actor) bool {
+	return MayAdministerSemesters(a)
+}

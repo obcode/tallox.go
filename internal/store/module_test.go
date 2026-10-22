@@ -316,3 +316,118 @@ func TestProgrammesLeaveOutWhatTheFacultyDoesNotPlan(t *testing.T) {
 		t.Errorf("an unknown code gave (%v, %v), want (nil, nil)", missing, err)
 	}
 }
+
+// The degree is recorded, read back through the lookup, and taken back — and who did it stays on
+// the row even after taking it back.
+func TestADegreeIsRecordedAndTakenBack(t *testing.T) {
+	t.Parallel()
+
+	f := newModuleFixture(t)
+	ctx := t.Context()
+
+	none, err := f.modules.ProgrammeDegrees(ctx)
+	if err != nil {
+		t.Fatalf("cannot read the degrees: %v", err)
+	}
+	if len(none) != 0 {
+		t.Errorf("a fresh projection has degrees %v, want none: nothing may guess them", none)
+	}
+
+	master := domain.DegreeMaster
+	changed, err := f.modules.SetProgrammeDegree(ctx, storetest.FixtureProgrammeB, &master,
+		uuid.Nil)
+	if err != nil {
+		t.Fatalf("cannot record the degree: %v", err)
+	}
+	if changed == nil || changed.Code != storetest.FixtureProgrammeB {
+		t.Fatalf("recording answered %+v, want programme %s", changed, storetest.FixtureProgrammeB)
+	}
+
+	degrees, err := f.modules.ProgrammeDegrees(ctx)
+	if err != nil {
+		t.Fatalf("cannot read the degrees: %v", err)
+	}
+	if len(degrees) != 1 || degrees[storetest.FixtureProgrammeB] != domain.DegreeMaster {
+		t.Errorf("the degrees read %v, want only %s = MASTER", degrees, storetest.FixtureProgrammeB)
+	}
+
+	if _, err := f.modules.SetProgrammeDegree(ctx, storetest.FixtureProgrammeB, nil,
+		uuid.Nil); err != nil {
+		t.Fatalf("cannot take the degree back: %v", err)
+	}
+	degrees, err = f.modules.ProgrammeDegrees(ctx)
+	if err != nil {
+		t.Fatalf("cannot read the degrees: %v", err)
+	}
+	if len(degrees) != 0 {
+		t.Errorf("after taking it back the degrees read %v, want none", degrees)
+	}
+
+	missing, err := f.modules.SetProgrammeDegree(ctx, "GIBTESNICHT", &master, uuid.Nil)
+	if err != nil || missing != nil {
+		t.Errorf("an unknown code gave (%v, %v), want (nil, nil)", missing, err)
+	}
+}
+
+// The catalogue's degree filter has the programme filter's two halves, over every programme of
+// the degree — and a programme nobody recorded a degree for matches neither.
+func TestTheCatalogueFiltersByDegree(t *testing.T) {
+	t.Parallel()
+
+	f := newModuleFixture(t)
+	ctx := t.Context()
+	bachelor, master := domain.DegreeBachelor, domain.DegreeMaster
+
+	refs := func(degree *domain.Degree) map[int64]bool {
+		t.Helper()
+		modules, err := f.modules.Modules(ctx, domain.ModuleFilter{Degree: degree})
+		if err != nil {
+			t.Fatalf("cannot list the catalogue: %v", err)
+		}
+		out := map[int64]bool{}
+		for _, m := range modules {
+			if m.ZpaID != nil {
+				out[*m.ZpaID] = true
+			}
+		}
+		return out
+	}
+
+	// Before anybody records anything, a filter by degree finds nothing — not everything.
+	if got := refs(&master); len(got) != 0 {
+		t.Errorf("with no degree recorded, MASTER found %v, want nothing", got)
+	}
+
+	for code, degree := range map[string]*domain.Degree{
+		storetest.FixtureProgrammeA: &bachelor,
+		storetest.FixtureProgrammeB: &master,
+	} {
+		if _, err := f.modules.SetProgrammeDegree(ctx, code, degree, uuid.Nil); err != nil {
+			t.Fatalf("cannot record the degree of %s: %v", code, err)
+		}
+	}
+
+	masters := refs(&master)
+	// 101 is at home in PA and counts in PB: the offering half finds it.
+	if len(masters) != 1 || !masters[storetest.FixtureModuleOrdinary] {
+		t.Errorf("MASTER found %v, want only %d, which counts in PB", masters,
+			storetest.FixtureModuleOrdinary)
+	}
+
+	bachelors := refs(&bachelor)
+	for _, want := range []int64{storetest.FixtureModuleOrdinary, storetest.FixtureModuleDutyDiffers} {
+		if !bachelors[want] {
+			t.Errorf("BACHELOR is missing %d, which is at home in PA", want)
+		}
+	}
+	// 107 is PZ's, and nobody said what PZ leads to.
+	if bachelors[storetest.FixtureModuleOfProgrammeZ] || masters[storetest.FixtureModuleOfProgrammeZ] {
+		t.Errorf("module %d of a programme without a degree matched a degree",
+			storetest.FixtureModuleOfProgrammeZ)
+	}
+
+	if all := refs(nil); len(all) <= len(bachelors) {
+		t.Errorf("without a degree the catalogue holds %d modules, no more than BACHELOR's %d",
+			len(all), len(bachelors))
+	}
+}

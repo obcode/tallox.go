@@ -1218,9 +1218,12 @@ WHERE s.code = $1::text
   AND ($2::text IS NULL OR p.code = $2::text)
   AND ($3::uuid IS NULL OR ci.module_id = $3::uuid)
   AND (NOT $4::bool OR m.home_programme_id <> ci.programme_id)
+  -- A programme whose degree nobody has recorded matches neither degree: NULL = 'MASTER' is not
+  -- true, and that is the intended reading rather than an accident of SQL.
+  AND ($5::text IS NULL OR p.degree = $5::text)
   -- Whose demand the caller reads: every programme's, unless they are a partner faculty
   -- (policy.DemandReadScope). A WHERE clause and not a filter over the result, like every read rule.
-  AND ($5::bool OR ci.programme_id = ANY ($6::uuid[]))
+  AND ($6::bool OR ci.programme_id = ANY ($7::uuid[]))
 ORDER BY ci.programme_semester NULLS LAST, (m.name = ''), m.name, ci.track, ci.id
 `
 
@@ -1229,6 +1232,7 @@ type ListCourseInstancesParams struct {
 	Programme     *string
 	Module        uuid.NullUUID
 	ForeignHome   bool
+	Degree        *string
 	AllProgrammes bool
 	ProgrammeIds  []uuid.UUID
 }
@@ -1289,6 +1293,7 @@ func (q *Queries) ListCourseInstances(ctx context.Context, arg ListCourseInstanc
 		arg.Programme,
 		arg.Module,
 		arg.ForeignHome,
+		arg.Degree,
 		arg.AllProgrammes,
 		arg.ProgrammeIds,
 	)

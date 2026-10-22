@@ -12,6 +12,7 @@ Kollegium — das gehört nach `tallox.dev`.
 - [ZPA-Import](zpa-import.md) — Cache, Sync, Cron und der Fehler, den erst der echte Lauf zeigte
 - [Integrationstests in der CI](integration-tests-in-ci.md) — zwei Test-Binaries, zwei Container, ein Ryuk: woran man den Ärger erkennt
 - [Welche Studiengänge geplant werden](programme-planning-status.md) — warum das ZPA es nicht sagt (gemessen), und was aus der Spalte folgt
+- [Abschluss am Studiengang](programme-degree.md) — Bachelor/Master von Hand gepflegt, NULL statt geraten, Feld-Resolver gegen das stille null
 - [Studiengangsleitungen lesbar](programme-leads.md) — `Programme.leads` für alle Konten, ohne Partnerkonten und abgelaufene Grants
 - [Lokale Module und FWP-Platzhalter](local-modules.md) — warum eine `module`-Zeile statt einer eigenen Tabelle, und warum drei FWPs drei Züge sind
 - [Zulassung von Lehrenden](admitting-a-teacher.md) — wie aus einer ZPA-Lehrperson ein Konto wird, und die drei Entscheidungen darin

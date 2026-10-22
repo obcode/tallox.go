@@ -168,6 +168,7 @@ func (d *Demand) CourseInstances(ctx context.Context, filter domain.DemandFilter
 		params.Module = uuid.NullUUID{UUID: filter.Module, Valid: true}
 	}
 	params.ForeignHome = filter.ForeignHome
+	params.Degree = degreeParam(filter.Degree)
 	params.AllProgrammes = filter.Reach.All
 	params.ProgrammeIds = filter.Reach.IDs
 	if params.ProgrammeIds == nil {

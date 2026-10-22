@@ -14,6 +14,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/introspection"
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/buildinfo"
+	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
@@ -43,7 +44,7 @@ type QueryResolver interface {
 	TeachingLoad(ctx context.Context, semester string) ([]*model.ProgrammeTeachingLoad, error)
 	StudyYearLoad(ctx context.Context, studyYear int) ([]*model.ProgrammeStudyYearLoad, error)
 	ProgrammeQuotas(ctx context.Context, studyYear int) ([]*model.ProgrammeQuota, error)
-	CourseInstances(ctx context.Context, semester string, programme *string, module *string, foreignHome *bool) ([]*model.CourseInstance, error)
+	CourseInstances(ctx context.Context, semester string, programme *string, module *string, foreignHome *bool, degree *domain.Degree) ([]*model.CourseInstance, error)
 	CourseInstance(ctx context.Context, id string) (*model.CourseInstance, error)
 	Me(ctx context.Context) (*model.Person, error)
 	DemandCompletions(ctx context.Context, semester string) ([]*model.DemandCompletion, error)
@@ -286,6 +287,14 @@ func (ec *executionContext) field_Query_courseInstances_args(ctx context.Context
 		return nil, err
 	}
 	args["foreignHome"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "degree",
+		func(ctx context.Context, v any) (*domain.Degree, error) {
+			return ec.unmarshalODegree2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐDegree(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["degree"] = arg4
 	return args, nil
 }
 
@@ -1901,7 +1910,7 @@ func (ec *executionContext) _Query_courseInstances(ctx context.Context, field gr
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Query().CourseInstances(ctx, fc.Args["semester"].(string), fc.Args["programme"].(*string), fc.Args["module"].(*string), fc.Args["foreignHome"].(*bool))
+			return ec.Resolvers.Query().CourseInstances(ctx, fc.Args["semester"].(string), fc.Args["programme"].(*string), fc.Args["module"].(*string), fc.Args["foreignHome"].(*bool), fc.Args["degree"].(*domain.Degree))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.CourseInstance) graphql.Marshaler {

@@ -31,6 +31,8 @@ var (
 	ErrComponentInvalid = errors.New("die Aufteilung ist nicht gültig")
 	// ErrProgrammeStatusUnknown is a planning status this build does not know.
 	ErrProgrammeStatusUnknown = errors.New("diesen Planungsstatus kennt der Server nicht")
+	// ErrDegreeUnknown is a degree this build does not know.
+	ErrDegreeUnknown = errors.New("diesen Abschluss kennt der Server nicht")
 	// ErrProgrammeNotPlanned is a write against a programme this faculty does not plan. Not a
 	// permission — the person may well lead a programme — but a statement about the thing: it is
 	// somebody else's programme, or it has run out.
@@ -102,6 +104,45 @@ func (s *CatalogueService) SetProgrammePlanningStatus(ctx context.Context, actor
 
 	programme, err := s.store.SetProgrammePlanningStatus(ctx, normaliseProgrammeCode(code),
 		status, actor.ID)
+	if err != nil {
+		return nil, err
+	}
+	if programme == nil {
+		return nil, ErrProgrammeNotFound
+	}
+	return programme, nil
+}
+
+// ProgrammeDegrees maps the code of every programme with a recorded degree to it. Whoever may
+// read the catalogue may read this: it is what the filters on every planning screen run on.
+func (s *CatalogueService) ProgrammeDegrees(ctx context.Context, actor principal.Actor,
+) (map[string]Degree, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	return s.store.ProgrammeDegrees(ctx)
+}
+
+// SetProgrammeDegree records whether a programme leads to a bachelor's or a master's, or takes
+// the statement back with nil.
+//
+// The dean's office, for the reasons policy.MaySetProgrammeDegree gives. Reachable through a
+// Personal Access Token: it is reversible, and entering the list once from a script is the
+// obvious way to enter it.
+func (s *CatalogueService) SetProgrammeDegree(ctx context.Context, actor principal.Actor,
+	code string, degree *Degree,
+) (*Programme, error) {
+	if !policy.MaySetProgrammeDegree(actor) {
+		return nil, ErrCatalogueForbidden
+	}
+	if degree != nil {
+		if _, ok := ParseDegree(string(*degree)); !ok {
+			return nil, fmt.Errorf("%w: %q", ErrDegreeUnknown, *degree)
+		}
+	}
+
+	programme, err := s.store.SetProgrammeDegree(ctx, normaliseProgrammeCode(code), degree,
+		actor.ID)
 	if err != nil {
 		return nil, err
 	}

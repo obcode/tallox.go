@@ -105,6 +105,18 @@ WHERE (sqlc.narg('responsible')::uuid IS NULL
   AND (NOT sqlc.arg('without_subject_group')::boolean OR g.module_id IS NULL)
   AND (sqlc.narg('subject_group')::uuid IS NULL
        OR g.subject_group_id = sqlc.narg('subject_group')::uuid)
+  -- The same two halves as the programme filter, for every programme of one degree: at home in
+  -- one, or counting in one of its regulations. A module that counts in a bachelor's and in a
+  -- master's matches both, and a programme without a recorded degree matches neither.
+  AND (sqlc.narg('degree')::text IS NULL
+       OR EXISTS (SELECT 1 FROM programme hp
+                   WHERE hp.id = m.home_programme_id AND hp.degree = sqlc.narg('degree')::text)
+       OR EXISTS (SELECT 1
+                    FROM module_offering o
+                    JOIN spo s ON s.id = o.spo_id
+                    JOIN programme p ON p.id = s.programme_id
+                   WHERE o.module_id = m.id
+                     AND p.degree = sqlc.narg('degree')::text))
 -- A module with no name sorts last rather than first: the empty string would otherwise put the
 -- handful of nameless ones at the top of every list in the system.
 ORDER BY (m.name = ''), m.name, m.id;
@@ -280,6 +292,30 @@ SET planning_status = sqlc.arg('planning_status'),
     updated_at = now()
 WHERE code = sqlc.arg('code')
 RETURNING id, code, title, active, planning_status;
+
+-- name: SetProgrammeDegree :one
+-- Record whether a programme leads to a bachelor's or a master's, or take it back with NULL.
+--
+-- By code, like the planning status next to it. Who and when are written on taking it back too:
+-- "somebody cleared this on Tuesday" is a different state from "nobody ever said".
+UPDATE programme
+SET degree = sqlc.narg('degree'),
+    degree_set_at = now(),
+    degree_set_by = sqlc.narg('set_by'),
+    updated_at = now()
+WHERE code = sqlc.arg('code')
+RETURNING id, code, title, active, planning_status;
+
+-- name: ListProgrammeDegrees :many
+-- Every programme with a recorded degree, by code.
+--
+-- A lookup table rather than a column on every programme read: a programme reaches the API from
+-- some twenty queries, and a column added to some of them would read as "not recorded" on the
+-- others. Thirty rows, read once per operation that asks.
+SELECT code, degree::text AS degree
+FROM programme
+WHERE degree IS NOT NULL
+ORDER BY code;
 
 -- name: SetModuleProjectBased :execrows
 -- Mark a module as a project-based course (PBLV), or take the mark back. The faculty's own fact,

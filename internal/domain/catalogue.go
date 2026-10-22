@@ -103,6 +103,35 @@ func ParseProgrammeStatus(s string) (ProgrammeStatus, bool) {
 // Planned reports whether this faculty plans the programme.
 func (s ProgrammeStatus) Planned() bool { return s == ProgrammePlanned }
 
+// Degree is what a study programme leads to.
+//
+// Recorded by the faculty, because the examination office does not deliver it and the codes do
+// not encode it. A programme carries a nil degree until somebody records one, and nil matches
+// neither value in a filter — a guessed degree would look maintained.
+type Degree string
+
+const (
+	// DegreeBachelor is a first-cycle programme.
+	DegreeBachelor Degree = "BACHELOR"
+	// DegreeMaster is a second-cycle programme.
+	DegreeMaster Degree = "MASTER"
+)
+
+// AllDegrees returns every degree, the bachelor's first — the order the screens list them in.
+func AllDegrees() []Degree {
+	return []Degree{DegreeBachelor, DegreeMaster}
+}
+
+// ParseDegree reports whether s is a degree this package knows.
+func ParseDegree(s string) (Degree, bool) {
+	for _, v := range AllDegrees() {
+		if string(v) == s {
+			return v, true
+		}
+	}
+	return "", false
+}
+
 // ModuleSource is where a catalogue row came from.
 //
 // Two values, and the distinction is load-bearing rather than informational: the projection

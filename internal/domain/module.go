@@ -432,6 +432,10 @@ type ModuleFilter struct {
 	SubjectGroup uuid.UUID
 	// Responsible keeps only the modules this teacher is responsible for.
 	Responsible uuid.UUID
+	// Degree keeps only the modules at home in, or counting in, a programme of this degree —
+	// the same two halves as Programme. Nil means every degree; a programme whose degree nobody
+	// has recorded matches neither.
+	Degree *Degree
 }
 
 // CatalogueReader is what reading the catalogue needs.
@@ -459,6 +463,12 @@ type CatalogueReader interface {
 	// SetProgrammePlanningStatus records that this faculty plans a programme, or no longer
 	// does. Returns nil for a code that names no programme.
 	SetProgrammePlanningStatus(ctx context.Context, code string, status ProgrammeStatus, by uuid.UUID) (*Programme, error)
+	// SetProgrammeDegree records what a programme leads to, or takes it back with nil. Returns
+	// nil for a code that names no programme.
+	SetProgrammeDegree(ctx context.Context, code string, degree *Degree, by uuid.UUID) (*Programme, error)
+	// ProgrammeDegrees maps the code of every programme with a recorded degree to it. A
+	// programme nobody has recorded one for is absent.
+	ProgrammeDegrees(ctx context.Context) (map[string]Degree, error)
 	// CreateLocalModule adds a catalogue row the faculty enters itself, with its split.
 	CreateLocalModule(ctx context.Context, spec NewLocalModule, by uuid.UUID) (*Module, error)
 	// UpdateLocalModule corrects one, or takes it out of the lists. Never touches an imported

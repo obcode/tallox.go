@@ -659,6 +659,7 @@ func graphqlHandler(opts Options) http.Handler {
 	}
 
 	srv.AroundOperations(graph.EnforceScopes)
+	srv.AroundOperations(graph.CacheProgrammeDegrees)
 
 	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
 

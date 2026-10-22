@@ -717,6 +717,12 @@ type Querier interface {
 	// move between reloads is one where somebody eventually clicks the wrong row. People with no
 	// name yet sort first, which is also where the work is.
 	ListPeople(ctx context.Context, arg ListPeopleParams) ([]ListPeopleRow, error)
+	// Every programme with a recorded degree, by code.
+	//
+	// A lookup table rather than a column on every programme read: a programme reaches the API from
+	// some twenty queries, and a column added to some of them would read as "not recorded" on the
+	// others. Thirty rows, read once per operation that asks.
+	ListProgrammeDegrees(ctx context.Context) ([]ListProgrammeDegreesRow, error)
 	// Reading the module catalogue.
 	//
 	// The shape of this file is set by one decision: a list of modules is loaded in a fixed number
@@ -1219,6 +1225,11 @@ type Querier interface {
 	// here that is not a permission change, and mixing it in would make every rename look like
 	// one in the audit log.
 	SetPersonName(ctx context.Context, arg SetPersonNameParams) error
+	// Record whether a programme leads to a bachelor's or a master's, or take it back with NULL.
+	//
+	// By code, like the planning status next to it. Who and when are written on taking it back too:
+	// "somebody cleared this on Tuesday" is a different state from "nobody ever said".
+	SetProgrammeDegree(ctx context.Context, arg SetProgrammeDegreeParams) (SetProgrammeDegreeRow, error)
 	// Record that this faculty plans a programme, or no longer does.
 	//
 	// By code rather than by id: this is the one screen where somebody types what they mean, and the

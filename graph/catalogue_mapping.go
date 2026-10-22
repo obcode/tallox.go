@@ -196,6 +196,7 @@ func moduleFilterFrom(in *model.ModuleFilter) (domain.ModuleFilter, error) {
 	if in.WithoutComponents != nil {
 		filter.WithoutComponents = *in.WithoutComponents
 	}
+	filter.Degree = in.Degree
 	if in.Responsible != nil {
 		id, err := uuid.Parse(*in.Responsible)
 		if err != nil {
@@ -302,6 +303,11 @@ func catalogueUserFacing(actor principal.Actor, err error) error {
 		return &gqlerror.Error{
 			Message:    domain.ErrProgrammeStatusUnknown.Error(),
 			Extensions: map[string]any{"code": "PROGRAMME_STATUS_UNKNOWN"},
+		}
+	case errors.Is(err, domain.ErrDegreeUnknown):
+		return &gqlerror.Error{
+			Message:    domain.ErrDegreeUnknown.Error(),
+			Extensions: map[string]any{"code": "DEGREE_UNKNOWN"},
 		}
 	case errors.Is(err, domain.ErrLocalModuleNameTaken):
 		// Its own code rather than a generic write refusal: the repair is to pick another name,

@@ -231,6 +231,7 @@ func (m *Modules) Modules(ctx context.Context, filter domain.ModuleFilter) ([]do
 	if filter.Responsible != uuid.Nil {
 		params.Responsible = uuid.NullUUID{UUID: filter.Responsible, Valid: true}
 	}
+	params.Degree = degreeParam(filter.Degree)
 	if filter.SubjectGroup != uuid.Nil {
 		params.SubjectGroup = uuid.NullUUID{UUID: filter.SubjectGroup, Valid: true}
 	}
@@ -703,4 +704,50 @@ func (m *Modules) SetProgrammePlanningStatus(ctx context.Context, code string,
 		ID: row.ID, Code: row.Code, Title: row.Title, Active: row.Active,
 		PlanningStatus: domain.ProgrammeStatus(row.PlanningStatus),
 	}, nil
+}
+
+// SetProgrammeDegree records whether a programme leads to a bachelor's or a master's, or takes it
+// back with nil.
+//
+// No row back means no programme of that code, like the planning status above.
+func (m *Modules) SetProgrammeDegree(ctx context.Context, code string, degree *domain.Degree,
+	by uuid.UUID,
+) (*domain.Programme, error) {
+	row, err := New(m.pool).SetProgrammeDegree(ctx, SetProgrammeDegreeParams{
+		Code:   code,
+		Degree: degreeParam(degree),
+		SetBy:  nullUUID(nonNilUUID(by)),
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("cannot record the degree: %w", err)
+	}
+	return &domain.Programme{
+		ID: row.ID, Code: row.Code, Title: row.Title, Active: row.Active,
+		PlanningStatus: domain.ProgrammeStatus(row.PlanningStatus),
+	}, nil
+}
+
+// ProgrammeDegrees maps the code of every programme with a recorded degree to it.
+func (m *Modules) ProgrammeDegrees(ctx context.Context) (map[string]domain.Degree, error) {
+	rows, err := New(m.pool).ListProgrammeDegrees(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the degrees: %w", err)
+	}
+	out := make(map[string]domain.Degree, len(rows))
+	for _, row := range rows {
+		out[row.Code] = domain.Degree(row.Degree)
+	}
+	return out, nil
+}
+
+// degreeParam is a degree as the queries take it: nil for "any" or "none".
+func degreeParam(d *domain.Degree) *string {
+	if d == nil {
+		return nil
+	}
+	s := string(*d)
+	return &s
 }

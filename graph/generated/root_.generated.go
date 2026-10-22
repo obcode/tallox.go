@@ -386,6 +386,7 @@ type ComplexityRoot struct {
 		SetPersonProgrammes           func(childComplexity int, id string, programmes []string, role *policy.Role) int
 		SetPersonRoles                func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
 		SetPlanningSemester           func(childComplexity int, code string) int
+		SetProgrammeDegree            func(childComplexity int, code string, degree *domain.Degree) int
 		SetProgrammePlanningStatus    func(childComplexity int, code string, status domain.ProgrammeStatus) int
 		SetProgrammeQuota             func(childComplexity int, programme string, studyYear int, teachingHours *float64) int
 		SetReviewComplete             func(childComplexity int, semester string, programme string, complete bool) int
@@ -436,6 +437,7 @@ type ComplexityRoot struct {
 	Programme struct {
 		Active         func(childComplexity int) int
 		Code           func(childComplexity int) int
+		Degree         func(childComplexity int) int
 		Leads          func(childComplexity int) int
 		PlanningStatus func(childComplexity int) int
 		Spos           func(childComplexity int) int
@@ -482,7 +484,7 @@ type ComplexityRoot struct {
 		CompetenceMemberStatus     func(childComplexity int, subjectGroup string) int
 		Competences                func(childComplexity int, module *string, subjectGroup *string, person *string, teacher *string) int
 		CourseInstance             func(childComplexity int, id string) int
-		CourseInstances            func(childComplexity int, semester string, programme *string, module *string, foreignHome *bool) int
+		CourseInstances            func(childComplexity int, semester string, programme *string, module *string, foreignHome *bool, degree *domain.Degree) int
 		DemandCompletions          func(childComplexity int, semester string) int
 		DesiredTeachingHours       func(childComplexity int, semester string, person *string) int
 		DiagnoseAccess             func(childComplexity int, mail string) int
@@ -2468,6 +2470,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetPlanningSemester(childComplexity, args["code"].(string)), true
+	case "Mutation.setProgrammeDegree":
+		if e.ComplexityRoot.Mutation.SetProgrammeDegree == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setProgrammeDegree_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetProgrammeDegree(childComplexity, args["code"].(string), args["degree"].(*domain.Degree)), true
 	case "Mutation.setProgrammePlanningStatus":
 		if e.ComplexityRoot.Mutation.SetProgrammePlanningStatus == nil {
 			break
@@ -2780,6 +2793,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Programme.Code(childComplexity), true
+	case "Programme.degree":
+		if e.ComplexityRoot.Programme.Degree == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Programme.Degree(childComplexity), true
 	case "Programme.leads":
 		if e.ComplexityRoot.Programme.Leads == nil {
 			break
@@ -3028,7 +3047,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Query.CourseInstances(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string), args["foreignHome"].(*bool)), true
+		return e.ComplexityRoot.Query.CourseInstances(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string), args["foreignHome"].(*bool), args["degree"].(*domain.Degree)), true
 	case "Query.demandCompletions":
 		if e.ComplexityRoot.Query.DemandCompletions == nil {
 			break
@@ -5268,6 +5287,15 @@ type Programme {
   object the source carries holds a code and nothing else.
   """
   planningStatus: ProgrammeStatus!
+  """
+  Whether the programme leads to a bachelor's or a master's, or null while nobody has recorded it.
+
+  Recorded by the dean's office with ` + "`" + `setProgrammeDegree` + "`" + `, because nothing else knows: the
+  examination office delivers a code and nothing more, and the codes do not encode it. The
+  nightly import never writes it. Null matches neither degree in a filter — treat it as "not
+  recorded yet", not as a third kind of programme.
+  """
+  degree: Degree
   "Its versions of the examination regulations, newest first."
   spos: [Spo!]!
   """
@@ -5279,6 +5307,17 @@ type Programme {
   programme's demand but does not lead it. Empty when nobody has been given the programme yet.
   """
   leads: [Person!]!
+}
+
+"""
+What a study programme leads to.
+
+Two values and no third: a programme whose degree nobody has recorded has a null ` + "`" + `degree` + "`" + `
+rather than an ` + "`" + `UNKNOWN` + "`" + ` one, so that a filter for one of these never quietly includes it.
+"""
+enum Degree {
+  BACHELOR
+  MASTER
 }
 
 """
@@ -5704,6 +5743,14 @@ input ModuleFilter {
   Keep only the modules of one subject group, by id.
   """
   subjectGroup: ID
+  """
+  Keep only the modules relevant for a programme of this degree.
+
+  The same two halves as ` + "`" + `programme` + "`" + `, over every programme of the degree: at home in one, or
+  counting in one of its regulations. A module that counts in a bachelor's and a master's
+  matches both. A programme whose ` + "`" + `degree` + "`" + ` is null matches neither.
+  """
+  degree: Degree
 }
 
 """
@@ -5861,6 +5908,21 @@ extend type Mutation {
     "The programme's short code. Upper-cased and trimmed for you."
     code: String!
     status: ProgrammeStatus!
+  ): Programme! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Record whether a study programme leads to a bachelor's or a master's. ` + "`" + `null` + "`" + ` takes it back.
+
+  Nothing the examination office delivers says it, so the faculty records it once per programme;
+  until then ` + "`" + `Programme.degree` + "`" + ` is null and the programme matches neither degree in a filter.
+
+  The dean's office, through both doors, like ` + "`" + `setProgrammePlanningStatus` + "`" + `. Not the programme
+  leads: the degree decides what other people's filtered screens show.
+  """
+  setProgrammeDegree(
+    "The programme's short code. Upper-cased and trimmed for you."
+    code: String!
+    degree: Degree
   ): Programme! @scope(area: PLANNING, verb: WRITE)
 
   """
@@ -6963,6 +7025,11 @@ extend type Query {
     cost this programme nothing and say so in ` + "`" + `coveredBy` + "`" + `.
     """
     foreignHome: Boolean = false
+    """
+    Only the instances of programmes of this degree. A programme whose ` + "`" + `degree` + "`" + ` is null matches
+    neither, so a filtered answer can be smaller than the two filtered answers suggest.
+    """
+    degree: Degree
   ): [CourseInstance!]! @scope(area: PLANNING, verb: READ)
 
   """
@@ -7346,7 +7413,7 @@ enum ScopeArea {
   ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `,
   ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `applyModuleSplitToInstances` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `,
   ` + "`" + `setModuleSemesterSpan` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
-  ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
+  ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `setProgrammeDegree` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `setCourseInstanceTopic` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
 
@@ -9857,6 +9924,8 @@ func (ec *executionContext) childFields_Programme(ctx context.Context, field gra
 		return ec.fieldContext_Programme_active(ctx, field)
 	case "planningStatus":
 		return ec.fieldContext_Programme_planningStatus(ctx, field)
+	case "degree":
+		return ec.fieldContext_Programme_degree(ctx, field)
 	case "spos":
 		return ec.fieldContext_Programme_spos(ctx, field)
 	case "leads":

@@ -31,6 +31,8 @@ type ModuleResolver interface {
 	ProgrammeSemester(ctx context.Context, obj *model.Module, programme string) (*int, error)
 }
 type ProgrammeResolver interface {
+	Degree(ctx context.Context, obj *model.Programme) (*domain.Degree, error)
+
 	Leads(ctx context.Context, obj *model.Programme) ([]*model.Person, error)
 }
 
@@ -1592,6 +1594,29 @@ func (ec *executionContext) fieldContext_Programme_planningStatus(_ context.Cont
 	return graphql.NewScalarFieldContext("Programme", field, false, false, errors.New("field of type ProgrammeStatus does not have child fields"))
 }
 
+func (ec *executionContext) _Programme_degree(ctx context.Context, field graphql.CollectedField, obj *model.Programme) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Programme_degree(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Programme().Degree(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *domain.Degree) graphql.Marshaler {
+			return ec.marshalODegree2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐDegree(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Programme_degree(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Programme", field, true, true, errors.New("field of type Degree does not have child fields"))
+}
+
 func (ec *executionContext) _Programme_spos(ctx context.Context, field graphql.CollectedField, obj *model.Programme) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2214,7 +2239,7 @@ func (ec *executionContext) unmarshalInputModuleFilter(ctx context.Context, obj 
 		asMap["withoutSubjectGroup"] = false
 	}
 
-	fieldsInOrder := [...]string{"programme", "spo", "frequency", "duty", "search", "includeInactive", "responsible", "withoutComponents", "withoutSubjectGroup", "subjectGroup"}
+	fieldsInOrder := [...]string{"programme", "spo", "frequency", "duty", "search", "includeInactive", "responsible", "withoutComponents", "withoutSubjectGroup", "subjectGroup", "degree"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -2291,6 +2316,13 @@ func (ec *executionContext) unmarshalInputModuleFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.SubjectGroup = data
+		case "degree":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("degree"))
+			data, err := ec.unmarshalODegree2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐDegree(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Degree = data
 		}
 	}
 	return it, nil
@@ -3129,6 +3161,44 @@ func (ec *executionContext) _Programme(ctx context.Context, sel ast.SelectionSet
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "degree":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Programme_degree(ctx, field, obj)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "spos":
 			out.Values[i] = ec._Programme_spos(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -3744,6 +3814,25 @@ func (ec *executionContext) marshalODate2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgo�
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) unmarshalODegree2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐDegree(ctx context.Context, v any) (*domain.Degree, error) {
+	if v == nil {
+		return nil, nil
+	}
+	tmp, err := graphql.UnmarshalString(v)
+	res := domain.Degree(tmp)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalODegree2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐDegree(ctx context.Context, sel ast.SelectionSet, v *domain.Degree) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(string(*v))
+	return res
 }
 
 func (ec *executionContext) unmarshalODutyStatus2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐDutyStatus(ctx context.Context, v any) (*domain.DutyStatus, error) {

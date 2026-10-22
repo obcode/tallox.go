@@ -72,3 +72,5 @@ rückholbar und gewöhnliche Prozessarbeit, dieselbe Linie wie beim Planungsseme
 nicht darauf: Betreiben ≠ Planen.
 
 Siehe [[semester-and-phase]], [[local-modules]].
+
+Der Abschluss (Bachelor/Master) ist ebenfalls Fakultätsentscheidung und steht daneben: [[programme-degree]].

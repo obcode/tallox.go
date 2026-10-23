@@ -139,6 +139,33 @@ kommt, weil nichts passiert ist, sieht aus wie eine, die nicht kommt, weil nicht
 Die `RUNNING`-Zeile wird **vor** dem ersten Abruf geschrieben. Ein abgestürzter Lauf ist damit
 sichtbar statt unsichtbar; ein Startschritt neben `reconcileProtectedAdmins` schließt alte.
 
+## Der Knopf-Lauf überlebt seinen Request (2026-10-23)
+
+`syncZpaNow` lief bis dahin komplett im Request. Tab zu, Proxy gibt auf, VPN weg → ctx tot,
+`FinishRun` scheitert, die Zeile bleibt `RUNNING` bis zum nächsten Neustart. Jetzt:
+`ZPASyncService.Start` nimmt den Lock und schreibt die `RUNNING`-Zeile **synchron** (Absagen
+erreichen weiter die Person am Knopf), gibt die Zeile zurück und macht den Rest in einer
+Goroutine auf `context.WithoutCancel`, gedeckelt durch `MaximumZPASyncDuration` (30 min, unter
+der Stunde, nach der ein Start die Zeile für tot erklärt). Shutdown wartet (`Wait`) nach
+`srv.Shutdown`. Cron behält das blockierende `Sync`, beide über `begin`/`complete`.
+Der Locker ist dafür Acquire/Release statt Callback. Die Projektion beendet ihre Zeile mit
+`WithoutCancel` und wird beim Start ebenfalls aufgeräumt (`FailAbandonedProjections`).
+
+**Gemessen, nicht geschätzt** (echte Fixtures, frisches Schema, lokal): DB-Arbeit eines ganzen
+Laufs ≈ 1,2 s beim ersten, ≈ 0,8 s bei jedem weiteren Lauf (davon MSBA 0,6–0,9 s), Projektion
+0,15 s. Der Rest der ≈ 11 s ist das ZPA, 8,4 s davon ein einziger GET. Deshalb **kein
+Reporter-Interface und keine Subscription**: unterhalb eines Endpunkts gibt es nichts zu melden,
+und die GUI pollt `zpaSyncRun(id)`, dessen `kinds` sich schon immer Endpunkt für Endpunkt füllen.
+Begründung zum Transport in `architecture-decisions.md` (tallox.dev). Messskript nicht
+eingecheckt — nachbauen mit `storetest.New` + `zpa.New` gegen einen `httptest`-Server über
+`TALLOX_ZPA_FIXTURE_DIR` und Zeitstempeln in einem `RecordRunKind`-Wrapper.
+
+**Testfallstricke:** die Tests mit gesperrter Quelle halten den datenbankweiten Advisory-Lock
+und sind deshalb nicht `t.Parallel()` (wie die Lock-Tests im Store). `importStack` registriert
+`Wait` als Cleanup **nach** `storetest.New`, damit kein Hintergrundlauf in ein schon gelöschtes
+Schema schreibt. Ein abgebrochener Request lässt sich mit `graphqltest` nicht spielen — dafür
+baut `TestARunOutlivesTheRequestThatStartedIt` den Request von Hand.
+
 ## Was nicht nach außen geht
 
 Keine rohen Payloads in der API. Ein Feld hier ist ein veröffentlichter Kontrakt, es bräuchte

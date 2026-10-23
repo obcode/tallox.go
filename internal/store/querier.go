@@ -620,6 +620,10 @@ type Querier interface {
 	// idiom for "give me the row either way"; nothing is changed by it, and updated_at stays where
 	// it was so that arriving at a semester does not look like deciding something about it.
 	EnsureSemester(ctx context.Context, code string) (Semester, error)
+	// The projection's counterpart of FailAbandonedZPASyncRuns, called beside it at startup. A
+	// projection takes a fraction of a second, so one still RUNNING after the cutoff belongs to a
+	// process that is gone.
+	FailAbandonedCatalogueProjections(ctx context.Context, olderThan time.Time) ([]uuid.UUID, error)
 	// Called at startup, beside the protected-admin reconciliation.
 	//
 	// A process that dies mid-sync leaves a RUNNING row forever, and forever is long enough that

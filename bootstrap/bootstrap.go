@@ -348,6 +348,11 @@ func Serve(build buildinfo.Info) {
 	} else if failed > 0 {
 		log.Warn().Int("runs", failed).Msg("marked abandoned zpa sync runs as failed")
 	}
+	if failed, err := catalogueProjection.FailAbandonedProjections(ctx, abandonedRunAge); err != nil {
+		log.Warn().Err(err).Msg("cannot clear abandoned catalogue projections")
+	} else if failed > 0 {
+		log.Warn().Int("projections", failed).Msg("marked abandoned catalogue projections as failed")
+	}
 
 	srv := &http.Server{
 		Addr: cfg.Server.Addr(),
@@ -393,6 +398,12 @@ func Serve(build buildinfo.Info) {
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Error().Err(err).Msg("cannot shut down cleanly")
+	}
+	// After the server, so no new run can start while this waits for the ones already going: a
+	// sync somebody started from the interface finishes on its own and should not be lost to
+	// a deploy.
+	if err := imports.Wait(shutdownCtx); err != nil {
+		log.Warn().Err(err).Msg("a zpa sync was still running at shutdown")
 	}
 }
 

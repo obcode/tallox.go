@@ -35,7 +35,7 @@ func (r *mutationResolver) SyncZpaNow(ctx context.Context) (*model.ZpaSyncRun, e
 		startedBy = &id
 	}
 
-	run, err := r.Import.Sync(ctx, domain.ZPASyncTriggerManual, startedBy)
+	run, err := r.Import.Start(ctx, domain.ZPASyncTriggerManual, startedBy)
 	if err != nil {
 		return nil, zpaUserFacing(err)
 	}

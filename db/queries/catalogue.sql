@@ -474,6 +474,18 @@ WHERE id = sqlc.arg(id)
 RETURNING id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
           modules_written, offerings_written, offerings_removed, error;
 
+-- name: FailAbandonedCatalogueProjections :many
+-- The projection's counterpart of FailAbandonedZPASyncRuns, called beside it at startup. A
+-- projection takes a fraction of a second, so one still RUNNING after the cutoff belongs to a
+-- process that is gone.
+UPDATE zpa_catalogue_projection
+SET status      = 'FAILED',
+    finished_at = now(),
+    error       = 'der Prozess wurde beendet, bevor die Projektion fertig war'
+WHERE status = 'RUNNING'
+  AND started_at < sqlc.arg(older_than)::timestamptz
+RETURNING id;
+
 -- name: RecordCatalogueProjectionNote :exec
 -- Only ever called with a positive count — a note saying "nothing happened" is noise in a
 -- report whose whole value is that every line means something.

@@ -19,7 +19,7 @@ var ErrZPASyncLocked = errors.New("another zpa sync is running")
 // comment is clearer than a hash of a string somebody may later reword.
 const zpaSyncLockKey int64 = 0x7A50_0001 // "ZPA" 0001
 
-// WithZPASyncLock runs fn while holding the sync lock, or refuses.
+// AcquireZPASyncLock takes the sync lock and returns what releases it, or refuses.
 //
 // pg_try_advisory_lock rather than the blocking form, and that is the decision in this file. A
 // second sync should be told "one is already running" and stop — not queue behind the first and
@@ -27,31 +27,44 @@ const zpaSyncLockKey int64 = 0x7A50_0001 // "ZPA" 0001
 // into something useful: it shows the run that is already in progress, which is the honest
 // answer to "sync now" while a sync is happening.
 //
-// Session-level and taken on a connection acquired for the duration, so a process killed
-// mid-sync releases it when its session ends rather than leaving the next one waiting for a
-// lock nobody holds. Same reasoning as the migration lock.
-func WithZPASyncLock(ctx context.Context, pool *pgxpool.Pool, fn func(context.Context) error) error {
+// Session-level and taken on a connection held until release, so a process killed mid-sync
+// releases it when its session ends rather than leaving the next one waiting for a lock nobody
+// holds. Same reasoning as the migration lock.
+//
+// The release does not take a context. It runs when the run is over, often after the request
+// that started it has gone, and unlocking must not depend on a cancellation that belongs to
+// somebody else.
+func AcquireZPASyncLock(ctx context.Context, pool *pgxpool.Pool) (func(), error) {
 	conn, err := pool.Acquire(ctx)
 	if err != nil {
-		return fmt.Errorf("cannot acquire a connection for the sync lock: %w", err)
+		return nil, fmt.Errorf("cannot acquire a connection for the sync lock: %w", err)
 	}
-	defer conn.Release()
 
 	var acquired bool
 	if err := conn.QueryRow(ctx, `SELECT pg_try_advisory_lock($1)`, zpaSyncLockKey).Scan(&acquired); err != nil {
-		return fmt.Errorf("cannot take the sync lock: %w", err)
+		conn.Release()
+		return nil, fmt.Errorf("cannot take the sync lock: %w", err)
 	}
 	if !acquired {
-		return ErrZPASyncLocked
+		conn.Release()
+		return nil, ErrZPASyncLocked
 	}
 
-	defer func() {
+	return func() {
 		// Released on the same connection it was taken on, which is what makes it a lock and
-		// not a leak. A failure here is worth a wrapped error only if fn succeeded; the session
-		// ending would release it anyway.
+		// not a leak. A failure is not reported: the session ending releases it anyway.
 		_, _ = conn.Exec(context.WithoutCancel(ctx), `SELECT pg_advisory_unlock($1)`, zpaSyncLockKey)
-	}()
+		conn.Release()
+	}, nil
+}
 
+// WithZPASyncLock runs fn while holding the sync lock, or returns ErrZPASyncLocked.
+func WithZPASyncLock(ctx context.Context, pool *pgxpool.Pool, fn func(context.Context) error) error {
+	release, err := AcquireZPASyncLock(ctx, pool)
+	if err != nil {
+		return err
+	}
+	defer release()
 	return fn(ctx)
 }
 
@@ -66,7 +79,7 @@ type ZPALock struct {
 // NewZPALock binds the sync lock to a pool.
 func NewZPALock(pool *pgxpool.Pool) *ZPALock { return &ZPALock{pool: pool} }
 
-// WithSyncLock runs fn while holding the lock, or returns ErrZPASyncLocked.
-func (l *ZPALock) WithSyncLock(ctx context.Context, fn func(context.Context) error) error {
-	return WithZPASyncLock(ctx, l.pool, fn)
+// AcquireSyncLock takes the lock, or returns ErrZPASyncLocked.
+func (l *ZPALock) AcquireSyncLock(ctx context.Context) (func(), error) {
+	return AcquireZPASyncLock(ctx, l.pool)
 }

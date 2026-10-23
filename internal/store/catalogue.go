@@ -65,7 +65,10 @@ func (c *Catalogue) Project(ctx context.Context, runID *uuid.UUID) (domain.Catal
 		failure = &message
 	}
 
-	finished, err := New(c.pool).FinishCatalogueProjection(ctx, FinishCatalogueProjectionParams{
+	// Without the caller's cancellation: a projection cut off by a closed connection has rolled
+	// back, which is correct, and has to say so. Finished with the dead context it would stay
+	// RUNNING, and the import page would show a projection in progress that nothing is doing.
+	finished, err := New(c.pool).FinishCatalogueProjection(context.WithoutCancel(ctx), FinishCatalogueProjectionParams{
 		ID:                started.ID,
 		Status:            string(status),
 		ProgrammesWritten: int32(counts.Programmes),
@@ -288,6 +291,18 @@ func gatherNotes(ctx context.Context, q *Queries) ([]domain.CatalogueProjectionN
 	}
 
 	return notes, nil
+}
+
+// FailAbandonedProjections marks projections that outlived the process that started them.
+//
+// Beside FailAbandonedRuns at startup, for the same reason: a RUNNING row nothing is working
+// on reads as a projection in progress for ever.
+func (c *Catalogue) FailAbandonedProjections(ctx context.Context, olderThan time.Duration) (int, error) {
+	ids, err := New(c.pool).FailAbandonedCatalogueProjections(ctx, time.Now().Add(-olderThan))
+	if err != nil {
+		return 0, fmt.Errorf("cannot fail the abandoned projections: %w", err)
+	}
+	return len(ids), nil
 }
 
 // LatestProjections returns the recent projection runs, newest first, each with its report.

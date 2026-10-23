@@ -96,9 +96,12 @@ Studiengangsleitung „was nehme ich von anderen". Gedeckte Kohorten bleiben dri
 
 ## Offen
 
-- **Körbe** (z. B. „WPF Anwendungen des maschinellen Lernens" für DC): welche Module eines Korbs
-  werden angeboten, welche nicht. Der Korbname steht im ZPA-Cache (`zpa_msba_v.basket_name`), die
-  Projektion (`ProjectModuleOfferings`) wirft ihn weg. Eigenes Vorhaben.
+- **Körbe** — gebaut am 2026-10-18 (`module_offering.baskets`, Statistik „Wahlpflicht nach Korb“).
+  Gemessen am 2026-10-23: 60 Körbe, davon 8 Pflicht; alle 1788 Offerings tragen nach dem Backfill
+  einen Namen, höchstens 4 je Offering. Viele Namen tragen das Studiengangskürzel als Präfix
+  („DA: Anwendungen“, „AISE: Schwerpunkt“), der Korb „FWP“ hat 208 Module. Drei Körbe heißen
+  „PBLV …“ — dort steht PBLV für **Praxisbegleitende** Lehrveranstaltung (IF) bzw. „Praktische
+  Wirtschaftsinformatik“ (WT), nicht für projektbasiert; siehe die offene Frage im Glossar.
 - Module anderer **Fakultäten** wirken finanziell erst ab einer Mindestzahl Studierender je Modul.
   Es gibt keine Fakultätsspalte an `programme`; ungeklärt.
 

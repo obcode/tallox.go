@@ -30,5 +30,5 @@ hinzukommender Zug (vom Geschwister, wie die Notiz) und Kopie aus dem Vorsemeste
 gespeicherten Override weiter, nicht den effektiven Wert. Neu deklariert → Default.
 Test: `TestHowACohortIsTaughtFollowsItsCohorts`.
 
-Offen: echte `std_lang`-Werte waren lokal nicht messbar (ZPA-Cache leer). Nach dem ersten
+Gemessen am 2026-10-23 an den Produktionsdaten: `std_lang` ist nur `DE` (485) oder `EN` (24), die Projektion stimmt damit überein (ein Modul ohne Angabe → `NULL`). Nichts zu tun. Früher stand hier: echte `std_lang`-Werte waren lokal nicht messbar (ZPA-Cache leer). Nach dem ersten
 Produktiv-Sync den Bericht auf `LANGUAGE_UNMAPPED` prüfen und `languagePhrases` erweitern.

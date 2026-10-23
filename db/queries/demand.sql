@@ -310,6 +310,62 @@ JOIN course_instance sib
 WHERE me.id = $1
 ORDER BY sib.track, sib.id;
 
+-- name: WishHandoverTarget :one
+-- The cohort a withdrawing cohort hands its wishes to: a sibling of the same module, semester and
+-- programme. One that holds its own teaching first — a covered cohort is still the same offer to a
+-- lecturer, but the one that actually has parts is where the assignment will happen — then by
+-- letter, so the answer does not depend on insertion order.
+--
+-- Here rather than in wish.sql: this reads cohorts, not wishes, and wish.sql is the file whose every
+-- query has to run through the confidentiality filter.
+SELECT sib.id
+FROM course_instance me
+JOIN course_instance sib
+  ON sib.semester_id = me.semester_id
+ AND sib.module_id = me.module_id
+ AND sib.programme_id = me.programme_id
+ AND sib.id <> me.id
+WHERE me.id = $1
+ORDER BY sib.is_covered IS TRUE, sib.track, sib.id
+LIMIT 1;
+
+-- name: MergeCollidingWishNotes :exec
+-- Somebody who wished for both cohorts keeps one wish after the merge, and it carries both of their
+-- notes: nobody's own words are dropped because a programme lead merged two cohorts. The same rule
+-- migration 16 applied when wishes moved from parts to instances — joined with " · ", truncated to
+-- the length the CHECK allows — written to whichever of the two rows survives (see the next query).
+UPDATE wish keep
+SET note = left(concat_ws(' · ', nullif(keep.note, ''), other.note), 500),
+    updated_at = now()
+FROM wish other
+WHERE keep.person_id = other.person_id
+  AND keep.course_instance_id IN (@from_instance::uuid, @to_instance::uuid)
+  AND other.course_instance_id IN (@from_instance::uuid, @to_instance::uuid)
+  AND keep.id <> other.id
+  AND other.note <> ''
+  AND other.note <> keep.note
+  AND (keep.priority, keep.created_at, keep.id) < (other.priority, other.created_at, other.id);
+
+-- name: DeleteWeakerCollidingWishes :exec
+-- Then the weaker of each pair goes: the strongest priority wins (1 is "unbedingt"), ties go to the
+-- older entry. Migration 16's order, so a person cannot tell which of the two merges happened to
+-- their wish.
+DELETE FROM wish gone
+USING wish keep
+WHERE gone.person_id = keep.person_id
+  AND gone.course_instance_id IN (@from_instance::uuid, @to_instance::uuid)
+  AND keep.course_instance_id IN (@from_instance::uuid, @to_instance::uuid)
+  AND gone.id <> keep.id
+  AND (gone.priority, gone.created_at, gone.id) > (keep.priority, keep.created_at, keep.id);
+
+-- name: MoveWishesToInstance :exec
+-- And what is left on the withdrawing cohort moves over. created_at stays: the entry is not new,
+-- and the wish screen sorts by it.
+UPDATE wish
+SET course_instance_id = @to_instance::uuid,
+    updated_at = now()
+WHERE course_instance_id = @from_instance::uuid;
+
 -- name: SeedProgrammeSemester :one
 -- Which cohort year to propose for a new instance, from the regulations of its programme.
 --

@@ -606,6 +606,12 @@ extend type Mutation {
   All of it in one transaction. A single cohort that cannot be withdrawn because something already
   hangs off it is reported in `refused` and costs exactly that cohort.
 
+  Fewer cohorts of a module that stays offered is a merge: the wishes on a cohort that goes move
+  to one that stays, so cohorts can be merged after the wish round. Somebody who wished for both
+  keeps one wish — the stronger priority, both notes. The report says nothing about it, by design.
+  A cohort somebody is already assigned to still refuses, and so does the last cohort of a module
+  that is no longer offered while somebody wants it.
+
   # dryRun
 
   Runs the same reconciliation and rolls it back, so the report is what a save would do rather
@@ -695,9 +701,12 @@ extend type Mutation {
   """
   Withdraw an instance that is not needed after all. Its parts go with it.
 
-  Refused with `INSTANCE_IN_USE` once anything hangs off it. That refusal deliberately says
-  nothing about *what* — no count, no kind of thing named. The wish table is what points at an
-  instance part, and "this instance has three wishes" is the confidential fact with the names
+  Where the module has another cohort in the same programme and semester, the wishes on this one
+  move to it first — a merge rather than taking the offer away (see `planDemand`).
+
+  Refused with `INSTANCE_IN_USE` once anything else hangs off it — an assignment, or a wish on the
+  last cohort of a module. That refusal deliberately says nothing about *what* — no count, no
+  kind of thing named. "This instance has three wishes" is the confidential fact with the names
   taken out.
 
   Only in a signed-in browser session: through a Personal Access Token this fails with

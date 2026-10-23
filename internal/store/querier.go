@@ -535,6 +535,10 @@ type Querier interface {
 	DeleteStaleModuleOfferings(ctx context.Context) (int64, error)
 	// Withdraw a teacher row. Only teacher rows: a person's statement is removed by that person.
 	DeleteTeacherCompetence(ctx context.Context, id uuid.UUID) (int64, error)
+	// Then the weaker of each pair goes: the strongest priority wins (1 is "unbedingt"), ties go to the
+	// older entry. Migration 16's order, so a person cannot tell which of the two merges happened to
+	// their wish.
+	DeleteWeakerCollidingWishes(ctx context.Context, arg DeleteWeakerCollidingWishesParams) error
 	// What opens and closes the planning, at the grain the planning actually happens in.
 	//
 	// Named marks and not windows, and that is not a matter of taste: sqlc names the generated file
@@ -898,6 +902,11 @@ type Querier interface {
 	// For one subject group: every member and how many of its compulsory modules they can teach.
 	// Refused in internal/domain unless the caller may read every competence in the group.
 	MemberCompulsoryCounts(ctx context.Context, subjectGroupID uuid.UUID) ([]MemberCompulsoryCountsRow, error)
+	// Somebody who wished for both cohorts keeps one wish after the merge, and it carries both of their
+	// notes: nobody's own words are dropped because a programme lead merged two cohorts. The same rule
+	// migration 16 applied when wishes moved from parts to instances — joined with " · ", truncated to
+	// the length the CHECK allows — written to whichever of the two rows survives (see the next query).
+	MergeCollidingWishNotes(ctx context.Context, arg MergeCollidingWishNotesParams) error
 	ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, error)
 	// The splits of a set of modules, in one statement.
 	ModuleComponentsFor(ctx context.Context, moduleIds []uuid.UUID) ([]ModuleComponentsForRow, error)
@@ -938,6 +947,9 @@ type Querier interface {
 	// position comes along unchanged. There is no unique constraint on (course_instance_id, position),
 	// the successor holds nothing to collide with, and renumbering would be a write with no reader.
 	MoveInstancePartsTo(ctx context.Context, arg MoveInstancePartsToParams) (int64, error)
+	// And what is left on the withdrawing cohort moves over. created_at stays: the entry is not new,
+	// and the wish screen sorts by it.
+	MoveWishesToInstance(ctx context.Context, arg MoveWishesToInstanceParams) error
 	// Where a newly added part goes: after the last one.
 	//
 	// COALESCE with the cast outside, for the same reason as above — MAX over no rows is NULL, and
@@ -1544,6 +1556,14 @@ type Querier interface {
 	// does not have — and the realistic shape of that mistake is somebody adding a by-id lookup
 	// because "it is only one row".
 	WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow, error)
+	// The cohort a withdrawing cohort hands its wishes to: a sibling of the same module, semester and
+	// programme. One that holds its own teaching first — a covered cohort is still the same offer to a
+	// lecturer, but the one that actually has parts is where the assignment will happen — then by
+	// letter, so the answer does not depend on insertion order.
+	//
+	// Here rather than in wish.sql: this reads cohorts, not wishes, and wish.sql is the file whose every
+	// query has to run through the confidentiality filter.
+	WishHandoverTarget(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	// The subject groups somebody has decided something about, for one semester.
 	//
 	// Only those: an absent row means open, so this list is the exceptions and not the state of every

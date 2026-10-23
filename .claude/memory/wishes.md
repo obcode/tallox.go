@@ -31,6 +31,13 @@ die eine Person allein macht.
 **Zwei Folgen im Schema, die man sonst als Fehler liest:**
 
 - `INSTANCE_IN_USE` hängt jetzt am eigenen Fremdschlüssel des Wunsches — ein Schritt statt zwei.
+  **Seit 2026-10-23 nicht mehr beim Zusammenlegen:** fällt ein Zug weg und bleibt das Modul im
+  Studiengang angeboten, wandern seine Wünsche auf einen Geschwisterzug (`handOverWishes` in
+  `internal/store/demand.go`, beide Wege: `planDemand` und `withdrawCourseInstance`). Doppelter
+  Wunsch → stärkere Priorität, beide Notizen, Regel aus Migration 16. Ausgelöst von einer
+  Collab-Meldung: nach der Wunschrunde ließ sich der Bedarf nicht mehr zuschneiden, obwohl die
+  Phasenmatrix offen war — gesperrt hat der FK, nicht die Phase. Kein Bericht über umgehängte
+  Wünsche (das wäre der Count); das Modul ganz streichen und besetzte Züge lehnen weiter ab.
 - Einen **Teil** einer bewünschten Instanz zu entfernen ist wieder erlaubt. Teile sind das
   Neu-Zerschneiden einer Instanz (dritte Praktikumsgruppe, geteilte Vorlesung), und niemand hat
   sich auf einen Teil eingetragen. Die Instanz selbst zurückzuziehen bleibt verweigert.

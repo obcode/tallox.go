@@ -44,7 +44,7 @@ func wordSet(list string) map[string]bool {
 
 var (
 	// Quoted text is what the interface says, or what somebody said — not the comment's language.
-	quoted = regexp.MustCompile("„[^“”]*[“”]|\"[^\"\\n]*\"|`[^`]*`|«[^»]*»")
+	quoted = regexp.MustCompile("„[^“”\"]*[“”\"]|\"[^\"\\n]*\"|`[^`]*`|«[^»]*»")
 	// One sentence at a time, so a comment that starts in English and ends in German is caught.
 	sentenceBreak = regexp.MustCompile(`[.!?:;]\s+|\s+[—–]\s+`)
 	letters       = regexp.MustCompile(`\p{L}+`)

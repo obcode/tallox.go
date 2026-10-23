@@ -814,6 +814,29 @@ func (q *Queries) DeleteInstancePartsOfKind(ctx context.Context, arg DeleteInsta
 	return result.RowsAffected(), nil
 }
 
+const deleteWeakerCollidingWishes = `-- name: DeleteWeakerCollidingWishes :exec
+DELETE FROM wish gone
+USING wish keep
+WHERE gone.person_id = keep.person_id
+  AND gone.course_instance_id IN ($1::uuid, $2::uuid)
+  AND keep.course_instance_id IN ($1::uuid, $2::uuid)
+  AND gone.id <> keep.id
+  AND (gone.priority, gone.created_at, gone.id) > (keep.priority, keep.created_at, keep.id)
+`
+
+type DeleteWeakerCollidingWishesParams struct {
+	FromInstance uuid.UUID
+	ToInstance   uuid.UUID
+}
+
+// Then the weaker of each pair goes: the strongest priority wins (1 is "unbedingt"), ties go to the
+// older entry. Migration 16's order, so a person cannot tell which of the two merges happened to
+// their wish.
+func (q *Queries) DeleteWeakerCollidingWishes(ctx context.Context, arg DeleteWeakerCollidingWishesParams) error {
+	_, err := q.db.Exec(ctx, deleteWeakerCollidingWishes, arg.FromInstance, arg.ToInstance)
+	return err
+}
+
 const hostCandidatesFor = `-- name: HostCandidatesFor :many
 SELECT c.id, c.track, c.programme_semester,
        p.id AS programme_id, p.code AS programme_code, p.title AS programme_title
@@ -1456,6 +1479,34 @@ func (q *Queries) LockInstancePart(ctx context.Context, id uuid.UUID) (LockInsta
 	return i, err
 }
 
+const mergeCollidingWishNotes = `-- name: MergeCollidingWishNotes :exec
+UPDATE wish keep
+SET note = left(concat_ws(' · ', nullif(keep.note, ''), other.note), 500),
+    updated_at = now()
+FROM wish other
+WHERE keep.person_id = other.person_id
+  AND keep.course_instance_id IN ($1::uuid, $2::uuid)
+  AND other.course_instance_id IN ($1::uuid, $2::uuid)
+  AND keep.id <> other.id
+  AND other.note <> ''
+  AND other.note <> keep.note
+  AND (keep.priority, keep.created_at, keep.id) < (other.priority, other.created_at, other.id)
+`
+
+type MergeCollidingWishNotesParams struct {
+	FromInstance uuid.UUID
+	ToInstance   uuid.UUID
+}
+
+// Somebody who wished for both cohorts keeps one wish after the merge, and it carries both of their
+// notes: nobody's own words are dropped because a programme lead merged two cohorts. The same rule
+// migration 16 applied when wishes moved from parts to instances — joined with " · ", truncated to
+// the length the CHECK allows — written to whichever of the two rows survives (see the next query).
+func (q *Queries) MergeCollidingWishNotes(ctx context.Context, arg MergeCollidingWishNotesParams) error {
+	_, err := q.db.Exec(ctx, mergeCollidingWishNotes, arg.FromInstance, arg.ToInstance)
+	return err
+}
+
 const moveInstancePartsTo = `-- name: MoveInstancePartsTo :execrows
 UPDATE instance_part
 SET course_instance_id = $1::uuid, updated_at = now()
@@ -1482,6 +1533,25 @@ func (q *Queries) MoveInstancePartsTo(ctx context.Context, arg MoveInstanceParts
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const moveWishesToInstance = `-- name: MoveWishesToInstance :exec
+UPDATE wish
+SET course_instance_id = $1::uuid,
+    updated_at = now()
+WHERE course_instance_id = $2::uuid
+`
+
+type MoveWishesToInstanceParams struct {
+	ToInstance   uuid.UUID
+	FromInstance uuid.UUID
+}
+
+// And what is left on the withdrawing cohort moves over. created_at stays: the entry is not new,
+// and the wish screen sorts by it.
+func (q *Queries) MoveWishesToInstance(ctx context.Context, arg MoveWishesToInstanceParams) error {
+	_, err := q.db.Exec(ctx, moveWishesToInstance, arg.ToInstance, arg.FromInstance)
+	return err
 }
 
 const nextInstancePartPosition = `-- name: NextInstancePartPosition :one
@@ -2206,4 +2276,31 @@ type UpdateInstancePartParams struct {
 func (q *Queries) UpdateInstancePart(ctx context.Context, arg UpdateInstancePartParams) error {
 	_, err := q.db.Exec(ctx, updateInstancePart, arg.ID, arg.Kind, arg.TeachingHours)
 	return err
+}
+
+const wishHandoverTarget = `-- name: WishHandoverTarget :one
+SELECT sib.id
+FROM course_instance me
+JOIN course_instance sib
+  ON sib.semester_id = me.semester_id
+ AND sib.module_id = me.module_id
+ AND sib.programme_id = me.programme_id
+ AND sib.id <> me.id
+WHERE me.id = $1
+ORDER BY sib.is_covered IS TRUE, sib.track, sib.id
+LIMIT 1
+`
+
+// The cohort a withdrawing cohort hands its wishes to: a sibling of the same module, semester and
+// programme. One that holds its own teaching first — a covered cohort is still the same offer to a
+// lecturer, but the one that actually has parts is where the assignment will happen — then by
+// letter, so the answer does not depend on insertion order.
+//
+// Here rather than in wish.sql: this reads cohorts, not wishes, and wish.sql is the file whose every
+// query has to run through the confidentiality filter.
+func (q *Queries) WishHandoverTarget(ctx context.Context, id uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, wishHandoverTarget, id)
+	var id_2 uuid.UUID
+	err := row.Scan(&id_2)
+	return id_2, err
 }

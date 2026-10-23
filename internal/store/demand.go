@@ -840,11 +840,18 @@ func (d *Demand) DeleteCourseInstance(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 
+	// And whatever interest was registered in it moves to a sibling cohort, if the module stays
+	// offered in this programme. See handOverWishes for why this is not a refusal any more.
+	if err := handOverWishes(ctx, q, id); err != nil {
+		return err
+	}
+
 	rows, err := q.DeleteCourseInstance(ctx, id)
 	if isForeignKeyViolation(err) {
-		// A wish still points at it, and that refusal stays opaque. Naming it would be the wish
-		// oracle db/queries/wish.sql exists to prevent: "this instance has 3 wishes" is the
-		// confidential fact with the names taken out. The handover above rolls back with it.
+		// Something still points at it — a wish on the last cohort of a module, an assignment on
+		// one of its parts — and that refusal stays opaque. Naming it would be the wish oracle
+		// db/queries/wish.sql exists to prevent: "this instance has 3 wishes" is the confidential
+		// fact with the names taken out. The handovers above roll back with it.
 		return domain.ErrInstanceInUse
 	}
 	if err != nil {
@@ -1375,6 +1382,53 @@ func refuseIfCovered(ctx context.Context, q *Queries, instanceID uuid.UUID) erro
 	}
 	if ctx1.CoveredAcceptedAt.Valid {
 		return domain.ErrInstanceCovered
+	}
+	return nil
+}
+
+// handOverWishes moves the wishes on a withdrawing cohort to a sibling cohort of the same module,
+// so that two cohorts can be merged into one after the wish round has run.
+//
+// # WHY THE WISHES MOVE INSTEAD OF REFUSING THE WITHDRAWAL
+//
+// A wish points at a cohort, and the foreign key used to refuse withdrawing one somebody had
+// wished for. That held the demand still from the first wish onwards, while the faculty plans
+// iteratively: cohorts are added and merged after the wish round, once it is clear who teaches
+// what (2026-10-23, from a programme lead's report). What somebody registered interest in is
+// "Softwareentwicklung II in this programme", and a merged cohort is still that offer — so the
+// interest moves with it rather than being refused or deleted.
+//
+// Somebody who wished for both cohorts keeps one wish: the stronger priority, both notes. A module
+// withdrawn altogether has no sibling to move to, and the foreign key refuses as before — that is
+// taking an offer away, not reshaping it.
+//
+// Reports nothing, and that is the confidentiality rule rather than an omission: "2 wishes moved"
+// is the count before publication with the names taken out. The withdrawal now succeeds whether
+// or not anybody wished for the cohort, which removes the oracle the refusal used to be instead
+// of adding a new one.
+func handOverWishes(ctx context.Context, q *Queries, instanceID uuid.UUID) error {
+	target, err := q.WishHandoverTarget(ctx, instanceID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("cannot find the cohort to hand the wishes to: %w", err)
+	}
+
+	if err := q.MergeCollidingWishNotes(ctx, MergeCollidingWishNotesParams{
+		FromInstance: instanceID, ToInstance: target,
+	}); err != nil {
+		return fmt.Errorf("cannot merge the notes of a double wish: %w", err)
+	}
+	if err := q.DeleteWeakerCollidingWishes(ctx, DeleteWeakerCollidingWishesParams{
+		FromInstance: instanceID, ToInstance: target,
+	}); err != nil {
+		return fmt.Errorf("cannot merge a double wish: %w", err)
+	}
+	if err := q.MoveWishesToInstance(ctx, MoveWishesToInstanceParams{
+		FromInstance: instanceID, ToInstance: target,
+	}); err != nil {
+		return fmt.Errorf("cannot hand the wishes over: %w", err)
 	}
 	return nil
 }
@@ -2324,7 +2378,7 @@ func (d *Demand) planModule(ctx context.Context, tx pgx.Tx, plan *domain.DemandP
 		last := spare[len(spare)-1]
 		spare = spare[:len(spare)-1]
 
-		if err := d.withdraw(ctx, tx, plan, last); err != nil {
+		if err := d.withdraw(ctx, tx, plan, last, len(wanted) > 0); err != nil {
 			return err
 		}
 	}
@@ -2396,7 +2450,14 @@ func sharedKindsOf(held []*heldInstance) map[string]bool {
 	return kinds
 }
 
-func (d *Demand) withdraw(ctx context.Context, tx pgx.Tx, plan *domain.DemandPlan, instance *heldInstance) error {
+// withdraw takes one cohort away inside a savepoint.
+//
+// keepOffered says the row still wants the module, with fewer cohorts: a merge rather than taking
+// the offer away. Only then do the cohort's wishes move to a sibling — when the whole module goes,
+// the foreign key refuses the last cohort as it always did.
+func (d *Demand) withdraw(ctx context.Context, tx pgx.Tx, plan *domain.DemandPlan, instance *heldInstance,
+	keepOffered bool,
+) error {
 	// A savepoint — pgx opens one for a transaction begun inside a transaction — because a
 	// foreign key that refuses this one withdrawal would otherwise abort the whole transaction,
 	// and the rest of the screen with it. One cohort that is spoken for must cost exactly that
@@ -2412,6 +2473,13 @@ func (d *Demand) withdraw(ctx context.Context, tx pgx.Tx, plan *domain.DemandPla
 	if err != nil {
 		_ = sub.Rollback(ctx)
 		return err
+	}
+
+	if keepOffered {
+		if err := handOverWishes(ctx, New(sub), instance.id); err != nil {
+			_ = sub.Rollback(ctx)
+			return err
+		}
 	}
 
 	rows, err := New(sub).DeleteCourseInstance(ctx, instance.id)

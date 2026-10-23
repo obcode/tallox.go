@@ -49,5 +49,5 @@ func MayServeOneself(a principal.Actor) bool {
 }
 
 // PartnerReason is the refusal a partner meets on a write path.
-const PartnerReason = "Als Partnerfakultät lesen Sie die Planung Ihrer Studiengänge; " +
+const PartnerReason = "Als Partnerfakultät liest Du die Planung Deiner Studiengänge; " +
 	"eintragen lässt sich hier nichts."

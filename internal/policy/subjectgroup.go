@@ -45,7 +45,7 @@ import (
 //
 // Specific rather than generic, for the reason ProgrammeScopeMissingReason gives: somebody who
 // reads "you may not do this" goes and asks for a role they already hold.
-const SubjectGroupScopeMissingReason = "Ihre Fachgruppenleitung ist noch keiner Fachgruppe " +
+const SubjectGroupScopeMissingReason = "Deine Fachgruppenleitung ist noch keiner Fachgruppe " +
 	"zugeordnet. Bitte in der Verwaltung eintragen lassen."
 
 // AssignmentReason is what everybody else is told.
@@ -150,8 +150,8 @@ func AssignmentRefusal(a principal.Actor) string {
 // Names the two things that can be wrong, because they have different repairs: the target group
 // is not one you lead, or the module is currently in somebody else's. A refusal that said only
 // "not allowed" would send a lead who is looking at her own group to ask for a role she holds.
-const ModuleFilingReason = "Module lassen sich nur in eine Fachgruppe einsortieren, die Sie " +
-	"leiten — und nur, solange sie in keiner anderen Fachgruppe stehen."
+const ModuleFilingReason = "Module lassen sich nur in eine Fachgruppe einsortieren, die Du " +
+	"leitest — und nur, solange sie in keiner anderen Fachgruppe stehen."
 
 // MayFileModule reports whether a may move one module from the subject group it is in today
 // into the one it should be in.

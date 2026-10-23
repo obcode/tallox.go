@@ -42,7 +42,7 @@ var (
 		"diese Lehrveranstaltung hält vollständig eine andere Fakultät")
 
 	// ErrNotYourSubjectGroup is somebody trying to switch a window that is not theirs.
-	ErrNotYourSubjectGroup = errors.New("für diese Fachgruppe sind Sie nicht zuständig")
+	ErrNotYourSubjectGroup = errors.New("für diese Fachgruppe bist Du nicht zuständig")
 )
 
 // DemandCompletion is one study programme saying its demand for a semester is settled.

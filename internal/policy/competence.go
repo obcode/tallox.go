@@ -170,4 +170,4 @@ const CompetenceForTeacherReason = "Kompetenzen von Lehrenden ohne Konto trägt 
 // CompetenceOutsideGroupsReason is the refusal when somebody states a competence for a module
 // outside their subject groups.
 const CompetenceOutsideGroupsReason = "Kompetenzen lassen sich nur für Module der eigenen " +
-	"Fachgruppen angeben. Treten Sie zuerst der Fachgruppe bei."
+	"Fachgruppen angeben. Tritt zuerst der Fachgruppe bei."

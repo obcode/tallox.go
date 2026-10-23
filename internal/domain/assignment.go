@@ -23,7 +23,7 @@ var (
 	// this instance is somebody else's to fill. Which axis would have let them through is not
 	// something they can act on. policy.AssignmentWriteRefusal has the four sentences that name a
 	// repair, for a caller that wants to show one.
-	ErrNotYourSubject = errors.New("für diese Instanz sind Sie nicht zuständig")
+	ErrNotYourSubject = errors.New("für diese Instanz bist Du nicht zuständig")
 
 	// ErrAssignmentPhaseClosed is the phase half saying no.
 	//

@@ -57,7 +57,7 @@ var (
 	// deliberately not said — it would be a statement about a colleague's group made to
 	// somebody who may not act in it.
 	ErrModuleFiledElsewhere = errors.New(
-		"Module lassen sich nur in eine Fachgruppe einsortieren, die Sie leiten — und nur, " +
+		"Module lassen sich nur in eine Fachgruppe einsortieren, die Du leitest — und nur, " +
 			"solange sie in keiner anderen Fachgruppe stehen")
 	// ErrNotASubjectGroupLead is assigning a group to somebody who does not hold the role, or
 	// whose grant of it has expired.

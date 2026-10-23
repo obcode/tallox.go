@@ -41,7 +41,7 @@ import (
 // Specific rather than generic, and that is the point of it existing separately from the
 // ordinary refusal: somebody who reads "you may not do this" goes and asks for a role they
 // already hold. Somebody who reads this asks for the thing that is actually missing.
-const ProgrammeScopeMissingReason = "Ihre Studiengangsleitung ist noch keinem Studiengang " +
+const ProgrammeScopeMissingReason = "Deine Studiengangsleitung ist noch keinem Studiengang " +
 	"zugeordnet. Bitte in der Verwaltung eintragen lassen."
 
 // PlanningReason is what everybody else is told.

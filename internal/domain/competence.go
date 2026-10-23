@@ -26,11 +26,11 @@ var (
 	// ErrCompetenceOutsideGroups is stating one's own competence for a module outside one's
 	// subject groups.
 	// The interface shows policy.CompetenceOutsideGroupsReason, which says what to do about it.
-	ErrCompetenceOutsideGroups = errors.New("dieses Modul gehört zu keiner Ihrer Fachgruppen")
+	ErrCompetenceOutsideGroups = errors.New("dieses Modul gehört zu keiner Deiner Fachgruppen")
 	// ErrCompetenceForTeacherRefused is writing for a teacher without being the lead of the
 	// module's subject group.
 	// The interface shows policy.CompetenceForTeacherReason.
-	ErrCompetenceForTeacherRefused = errors.New("für dieses Modul sind Sie nicht zuständig")
+	ErrCompetenceForTeacherRefused = errors.New("für dieses Modul bist Du nicht zuständig")
 	// ErrCompetenceTeacherHasAccount is writing for a teacher who can sign in and say it
 	// themselves. A row the lead wrote would be indistinguishable from their own statement.
 	ErrCompetenceTeacherHasAccount = errors.New(

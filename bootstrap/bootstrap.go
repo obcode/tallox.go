@@ -348,6 +348,11 @@ func Serve(build buildinfo.Info) {
 	} else if failed > 0 {
 		log.Warn().Int("runs", failed).Msg("marked abandoned zpa sync runs as failed")
 	}
+	if failed, err := catalogueProjection.FailAbandonedProjections(ctx, abandonedRunAge); err != nil {
+		log.Warn().Err(err).Msg("cannot clear abandoned catalogue projections")
+	} else if failed > 0 {
+		log.Warn().Int("projections", failed).Msg("marked abandoned catalogue projections as failed")
+	}
 
 	srv := &http.Server{
 		Addr: cfg.Server.Addr(),

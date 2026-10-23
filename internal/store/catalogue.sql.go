@@ -393,6 +393,39 @@ func (q *Queries) DeleteStaleModuleOfferings(ctx context.Context) (int64, error)
 	return result.RowsAffected(), nil
 }
 
+const failAbandonedCatalogueProjections = `-- name: FailAbandonedCatalogueProjections :many
+UPDATE zpa_catalogue_projection
+SET status      = 'FAILED',
+    finished_at = now(),
+    error       = 'der Prozess wurde beendet, bevor die Projektion fertig war'
+WHERE status = 'RUNNING'
+  AND started_at < $1::timestamptz
+RETURNING id
+`
+
+// The projection's counterpart of FailAbandonedZPASyncRuns, called beside it at startup. A
+// projection takes a fraction of a second, so one still RUNNING after the cutoff belongs to a
+// process that is gone.
+func (q *Queries) FailAbandonedCatalogueProjections(ctx context.Context, olderThan time.Time) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, failAbandonedCatalogueProjections, olderThan)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const finishCatalogueProjection = `-- name: FinishCatalogueProjection :one
 UPDATE zpa_catalogue_projection
 SET status             = $1,

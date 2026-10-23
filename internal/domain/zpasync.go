@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -152,8 +153,13 @@ type ZPAStore interface {
 //
 // The implementation refuses rather than waits. A second sync should be told one is already
 // running and stop, not queue behind the first and then repeat the work it just did.
+//
+// Acquire-and-release rather than a callback, because a run started from the interface
+// outlives the request that started it: the lock is taken while the caller still waits, so a
+// refusal reaches the person who pressed the button, and released by the goroutine that
+// finishes the run.
 type ZPASyncLocker interface {
-	WithSyncLock(ctx context.Context, fn func(context.Context) error) error
+	AcquireSyncLock(ctx context.Context) (release func(), err error)
 }
 
 // RetiredZPAObject is an object a successful fetch stopped mentioning.
@@ -189,6 +195,9 @@ type ZPASyncService struct {
 	locker    ZPASyncLocker
 	catalogue CatalogueStore
 	now       func() time.Time
+
+	// running counts the runs Start left going, so that shutting down can wait for them.
+	running sync.WaitGroup
 }
 
 // NewZPASyncService wires the service.
@@ -222,34 +231,123 @@ func (s *ZPASyncService) Configured() bool { return s.source != nil }
 // anything of its own. That is why the result can be PARTIAL, and why a night on which the
 // largest endpoint times out still leaves the three small ones correctly up to date instead of
 // rolling everything back to yesterday.
+//
+// Blocking: what the nightly job uses, whose process exists for this run and nothing else. The
+// button uses Start.
 func (s *ZPASyncService) Sync(ctx context.Context, trigger ZPASyncTrigger, startedBy *uuid.UUID) (ZPASyncRun, error) {
-	if !s.Configured() {
-		return ZPASyncRun{}, ErrZPANotConfigured
-	}
-	if s.locker == nil {
-		return s.sync(ctx, trigger, startedBy)
-	}
-
-	// The lock is taken here rather than by each caller, so the nightly job and the button in
-	// the interface cannot end up with different concurrency behaviour. That is the same
-	// argument the two authentication doors make about sharing one handler.
-	var run ZPASyncRun
-	err := s.locker.WithSyncLock(ctx, func(ctx context.Context) error {
-		var syncErr error
-		run, syncErr = s.sync(ctx, trigger, startedBy)
-		return syncErr
-	})
-	return run, err
-}
-
-func (s *ZPASyncService) sync(ctx context.Context, trigger ZPASyncTrigger, startedBy *uuid.UUID) (ZPASyncRun, error) {
-	run, err := s.store.StartRun(ctx, trigger, startedBy)
+	run, release, err := s.begin(ctx, trigger, startedBy)
 	if err != nil {
-		// Not wrapped: the store already says "cannot start a sync run", and two layers saying
-		// the same sentence make an error message that reads like a stutter.
 		return ZPASyncRun{}, err
 	}
+	defer release()
+	return s.complete(ctx, run)
+}
 
+// MaximumZPASyncDuration bounds a run that nobody is waiting for any more.
+//
+// Not a performance budget: a real run takes about eleven seconds, nearly all of it waiting
+// for the examination office's system, and the client's own timeouts end a hung fetch long
+// before this. It is the backstop that keeps a detached goroutine from holding the lock for
+// ever, and it stays below the hour after which a start marks a RUNNING row as abandoned, so
+// a live run is never declared dead.
+const MaximumZPASyncDuration = 30 * time.Minute
+
+// Start begins a run and returns it while it is still RUNNING; the rest happens without the
+// caller.
+//
+// What the button in the interface uses. The run used to happen inside the request, and a
+// request is the wrong owner for it: closing the tab, a proxy timing out or a dropped VPN
+// cancelled the context, the run died halfway, and its row stayed RUNNING until the next
+// restart. Detached, it finishes whatever happens to the connection, and the page follows it
+// by reading the run again — the per-endpoint results appear one by one as each endpoint is
+// done.
+//
+// The lock is taken and the row written before returning, so "already running" and "not
+// configured" still reach the person who pressed the button as refusals rather than as a run
+// that fails out of sight.
+//
+// Measured on 2026-10-23 against the recorded payloads: the database work of a whole run is
+// about one second and the projection 0.15 s. Everything else is the other system answering,
+// eight of the eleven seconds in a single request — which is why there is no progress counter
+// below the level of an endpoint.
+func (s *ZPASyncService) Start(ctx context.Context, trigger ZPASyncTrigger, startedBy *uuid.UUID) (ZPASyncRun, error) {
+	run, release, err := s.begin(ctx, trigger, startedBy)
+	if err != nil {
+		return ZPASyncRun{}, err
+	}
+	// Read back before the run moves on, for the name of whoever started it: the insert cannot
+	// join, and an answer that drops the attribution drops the reason this mutation is
+	// interactive-only.
+	started := run
+	if read, err := s.store.RunByID(ctx, run.ID); err == nil && read != nil {
+		started = *read
+	}
+
+	// WithoutCancel keeps the values — the actor, the request's logger — and drops the
+	// cancellation, which belongs to the connection and not to the run.
+	detached, cancel := context.WithTimeout(context.WithoutCancel(ctx), MaximumZPASyncDuration)
+	s.running.Add(1)
+	go func() {
+		defer s.running.Done()
+		defer cancel()
+		defer release()
+		if _, err := s.complete(detached, run); err != nil {
+			log.Error().Err(err).Str("run", run.ID.String()).Msg("zpa sync did not finish")
+		}
+	}()
+	return started, nil
+}
+
+// Wait blocks until every run Start left going has finished, or ctx ends.
+//
+// Called on shutdown after the server has stopped taking requests. A run cut off by the
+// process ending is not a disaster — the next start marks it as abandoned — but a deploy should
+// not be the reason a sync somebody just asked for is lost.
+func (s *ZPASyncService) Wait(ctx context.Context) error {
+	done := make(chan struct{})
+	go func() {
+		s.running.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+// begin takes the lock and writes the RUNNING row, and hands back what releases the lock.
+//
+// The row is written first and finished last, so a process that dies in between leaves
+// evidence rather than silence. The lock is taken here rather than by each caller, so the
+// nightly job and the button in the interface cannot end up with different concurrency
+// behaviour — the same argument the two authentication doors make about sharing one handler.
+func (s *ZPASyncService) begin(ctx context.Context, trigger ZPASyncTrigger, startedBy *uuid.UUID) (ZPASyncRun, func(), error) {
+	if !s.Configured() {
+		return ZPASyncRun{}, nil, ErrZPANotConfigured
+	}
+
+	release := func() {}
+	if s.locker != nil {
+		var err error
+		if release, err = s.locker.AcquireSyncLock(ctx); err != nil {
+			return ZPASyncRun{}, nil, err
+		}
+	}
+
+	run, err := s.store.StartRun(ctx, trigger, startedBy)
+	if err != nil {
+		release()
+		// Not wrapped: the store already says "cannot start a sync run", and two layers saying
+		// the same sentence make an error message that reads like a stutter.
+		return ZPASyncRun{}, nil, err
+	}
+	return run, release, nil
+}
+
+// complete fetches every kind for a run begin started, applies it and finishes the row.
+func (s *ZPASyncService) complete(ctx context.Context, run ZPASyncRun) (ZPASyncRun, error) {
 	var succeeded, failed int
 	for _, kind := range AllZPAKinds() {
 		result := s.syncKind(ctx, run.ID, kind)

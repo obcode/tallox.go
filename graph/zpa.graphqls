@@ -200,10 +200,14 @@ extend type Mutation {
   """
   Fetch the module master data now and apply it.
 
-  Refused if a run is already going — the one in progress is returned instead of a second one
-  being started — and refused for a while after a successful run, because this reaches into
-  another institution's system and a button that can be held down should not be able to hammer
-  it.
+  Returns as soon as the run has started, with status RUNNING; the run finishes on its own,
+  whether or not the caller is still connected. Follow it with `zpaSyncRun(id:)`: `kinds`
+  fills in one endpoint at a time, and `finishedAt` is set when it is done. A whole run takes
+  about a quarter of a minute, nearly all of it waiting for the other system.
+
+  Refused with ZPA_SYNC_RUNNING if a run is already going, and with ZPA_SYNCED_RECENTLY for a
+  while after a successful run, because this reaches into another institution's system and a
+  button that can be held down should not be able to hammer it.
 
   Interactive only. It is an outbound call using a shared credential, and the record of who
   asked for it should be a person who signed in rather than a token in a script.

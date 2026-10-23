@@ -394,6 +394,12 @@ func Serve(build buildinfo.Info) {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Error().Err(err).Msg("cannot shut down cleanly")
 	}
+	// After the server, so no new run can start while this waits for the ones already going: a
+	// sync somebody started from the interface finishes on its own and should not be lost to
+	// a deploy.
+	if err := imports.Wait(shutdownCtx); err != nil {
+		log.Warn().Err(err).Msg("a zpa sync was still running at shutdown")
+	}
 }
 
 // reconcileProtectedAdmins runs the list from tallox.yaml and reports what it changed.

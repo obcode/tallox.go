@@ -528,3 +528,127 @@ func TestAFailedProjectionDoesNotFailTheImport(t *testing.T) {
 		t.Errorf("the run reads as %s although every endpoint was fetched and applied", run.Status)
 	}
 }
+
+// gatedSource holds every fetch until the gate closes, and reports the context it was given.
+type gatedSource struct {
+	gate     chan struct{}
+	ctxErr   chan error
+	fetching chan struct{}
+	once     bool
+}
+
+func (g *gatedSource) Fetch(ctx context.Context, _ domain.ZPAKind) ([]domain.ZPAObject, error) {
+	if !g.once {
+		g.once = true
+		close(g.fetching)
+		<-g.gate
+		g.ctxErr <- ctx.Err()
+	}
+	return nil, nil
+}
+
+// fakeLocker hands out one lock and records when it comes back.
+type fakeLocker struct {
+	refuse   error
+	released chan struct{}
+}
+
+func (l *fakeLocker) AcquireSyncLock(context.Context) (func(), error) {
+	if l.refuse != nil {
+		return nil, l.refuse
+	}
+	return func() { close(l.released) }, nil
+}
+
+// TestAStartedRunOutlivesTheRequest.
+//
+// Start answers while the run is still RUNNING and finishes it without the caller. The context
+// of the request that started it is cancelled before the first fetch is allowed to continue —
+// what a closed tab does — and the run still sees a live context and ends SUCCEEDED. The lock
+// is given back only once the run is over, not when the request returns.
+func TestAStartedRunOutlivesTheRequest(t *testing.T) {
+	t.Parallel()
+
+	store := newFakeZPAStore()
+	source := &gatedSource{gate: make(chan struct{}), ctxErr: make(chan error, 1), fetching: make(chan struct{})}
+	locker := &fakeLocker{released: make(chan struct{})}
+	service := domain.NewZPASyncService(store, source, locker, nil)
+
+	ctx, hangUp := context.WithCancel(t.Context())
+	run, err := service.Start(ctx, domain.ZPASyncTriggerManual, nil)
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if run.Status != domain.ZPASyncRunning {
+		t.Errorf("Start answered %s, want RUNNING", run.Status)
+	}
+
+	<-source.fetching
+	hangUp()
+	select {
+	case <-locker.released:
+		t.Fatal("the lock was released while the run was still fetching")
+	default:
+	}
+	close(source.gate)
+
+	if err := <-source.ctxErr; err != nil {
+		t.Errorf("the run saw the request's cancellation: %v", err)
+	}
+	if err := service.Wait(t.Context()); err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	<-locker.released
+
+	if store.run.Status != domain.ZPASyncSucceeded || store.run.FinishedAt == nil {
+		t.Errorf("the run ended %s (finished %v), want SUCCEEDED", store.run.Status, store.run.FinishedAt)
+	}
+	if len(store.kinds) != len(domain.AllZPAKinds()) {
+		t.Errorf("%d endpoints recorded, want %d", len(store.kinds), len(domain.AllZPAKinds()))
+	}
+}
+
+// TestAStartRefusedByTheLockWritesNoRun. The refusal reaches the person who pressed the
+// button, and no RUNNING row appears for a run that never began.
+func TestAStartRefusedByTheLockWritesNoRun(t *testing.T) {
+	t.Parallel()
+
+	locked := errors.New("another zpa sync is running")
+	store := newFakeZPAStore()
+	service := domain.NewZPASyncService(store, &fakeZPASource{}, &fakeLocker{refuse: locked}, nil)
+
+	if _, err := service.Start(t.Context(), domain.ZPASyncTriggerManual, nil); !errors.Is(err, locked) {
+		t.Errorf("got %v, want the locker's refusal", err)
+	}
+	if store.run.ID != uuid.Nil {
+		t.Errorf("a refused start wrote run %s", store.run.ID)
+	}
+	if err := service.Wait(t.Context()); err != nil {
+		t.Errorf("Wait after a refused start: %v", err)
+	}
+}
+
+// TestWaitGivesUpWithItsContext. Shutdown has a deadline, and a hung run must not hold the
+// process past it.
+func TestWaitGivesUpWithItsContext(t *testing.T) {
+	t.Parallel()
+
+	source := &gatedSource{gate: make(chan struct{}), ctxErr: make(chan error, 1), fetching: make(chan struct{})}
+	service := domain.NewZPASyncService(newFakeZPAStore(), source, nil, nil)
+	if _, err := service.Start(t.Context(), domain.ZPASyncTriggerManual, nil); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	<-source.fetching
+
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+	defer cancel()
+	if err := service.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Errorf("Wait returned %v while a run was hung, want the deadline", err)
+	}
+
+	close(source.gate)
+	<-source.ctxErr
+	if err := service.Wait(t.Context()); err != nil {
+		t.Errorf("Wait after the run finished: %v", err)
+	}
+}

@@ -982,7 +982,7 @@ type Mutation struct {
 
 // A person in the planning.
 //
-// Carries identity and roles, nothing else. Teaching load and notes about people are not
+// Carries identity and roles, nothing else. Teaching hours and notes about people are not
 // reachable here — see the `@interactiveOnly` note in the API documentation.
 type Person struct {
 	ID string `json:"id"`

@@ -27,6 +27,12 @@ var formalAddress = regexp.MustCompile(
 		`|\bIhre[nrms]? (?:Studiengang|Studiengänge|Studiengangs|Fachgruppe|Fachgruppen|` +
 		`Studiengangsleitung|Fachgruppenleitung)\b`)
 
+// genericMasculine is the generic "er" after a conjunction — "bevor er sich einträgt" about
+// anybody at all. German here is written without gender marks and without the generic masculine:
+// "man", "die Person", "alle". The same pattern as tallox.gui's wording.test.ts; narrow, because a
+// bare "er" is too common a pair of letters to forbid.
+var genericMasculine = regexp.MustCompile(`(?i)\b(?:bevor|ob|wenn|dass|weil|damit|sobald|sodass) er\b`)
+
 // TestUserFacingGermanSaysDu reads every string literal in the non-test, non-generated Go source
 // and refuses the formal address. String literals only: a comment quoting how the faculty
 // talks is not a message anybody receives.
@@ -64,6 +70,10 @@ func TestUserFacingGermanSaysDu(t *testing.T) {
 			}
 			if m := formalAddress.FindString(text); m != "" {
 				t.Errorf("%s: %q addresses the reader formally (%q); the interface says \"Du\"",
+					fset.Position(n.Pos()), text, m)
+			}
+			if m := genericMasculine.FindString(text); m != "" {
+				t.Errorf("%s: %q uses the generic masculine (%q); write \"man\" or \"die Person\"",
 					fset.Position(n.Pos()), text, m)
 			}
 			// A joined expression has been read whole; do not report its halves again.
@@ -104,5 +114,22 @@ func literalText(n ast.Node) (string, bool) {
 		return left + right, true
 	default:
 		return "", false
+	}
+}
+
+// The pattern catches what it is for and lets ordinary sentences through.
+func TestTheGenericMasculinePattern(t *testing.T) {
+	t.Parallel()
+
+	for text, want := range map[string]bool{
+		"bevor er sich einträgt":              true,
+		"Ob er das halten kann, weiß niemand": true,
+		"bevor man sich einträgt":             false,
+		"Wer hier steht, hat eine HM-Kennung": false,
+		"der Termin ist erledigt":             false,
+	} {
+		if got := genericMasculine.MatchString(text); got != want {
+			t.Errorf("%q: match = %v, want %v", text, got, want)
+		}
 	}
 }

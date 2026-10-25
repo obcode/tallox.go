@@ -131,8 +131,9 @@ type Module struct {
 	Source ModuleSource
 	// Kind is what it stands for — an ordinary module, or an FWP placeholder.
 	Kind ModuleKind
-	// ProjectBased marks a project-based course (PBLV), which the process gives out last. The
-	// faculty's own fact: the examination office does not publish it.
+	// ProjectBased marks a practice-accompanying course (PBLV, praxisbegleitende
+	// Lehrveranstaltung), which the process gives out last. The name is older than the meaning
+	// and is kept because the API carries it. The faculty's own fact, set once per module.
 	ProjectBased bool
 	// SemesterSpan is over how many semesters the module runs: 1, or 2 for a module the catalogue
 	// states with the hours of both semesters added up. The faculty's own fact, like the split.

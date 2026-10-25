@@ -5623,8 +5623,9 @@ type Module {
   """
   kind: ModuleKind!
   """
-  A project-based course (PBLV). The process gives these out last; the faculty marks them,
-  because the examination office does not say. ` + "`" + `courseType: PROJECT` + "`" + ` is a different thing.
+  A practice-accompanying course (PBLV, praxisbegleitende Lehrveranstaltung). The process gives
+  these out last; the faculty marks them, once per module. The name of the field is older than the
+  meaning: it does not mean project-based, and ` + "`" + `courseType: PROJECT` + "`" + ` is a different thing.
   """
   projectBased: Boolean!
   """
@@ -6240,7 +6241,7 @@ extend type Mutation {
   ): ModuleSplitApplication! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
-  Mark a module as a project-based course (PBLV), or take the mark back.
+  Mark a module as a practice-accompanying course (PBLV), or take the mark back.
 
   The process gives PBLVs out last, so that they are not snapped up as gap fillers. The examination
   office does not publish which modules they are, so the faculty marks them, once per module. The
@@ -7784,7 +7785,10 @@ enum Role {
   SUBJECT_GROUP_LEAD
   "Declares the demand of one study programme: which instances are needed, and the catalogues."
   PROGRAMME_LEAD
-  "Reads across programmes for the import/export statistics, keeps the teaching-load traffic light."
+  """
+  Reads across programmes and every unpublished wish of the faculty, switches the phases, publishes
+  the wishes and the assignments, and freezes, corrects and publishes the desired teaching hours.
+  """
   DEANS_OFFICE
   """
   A partner faculty following the study programmes it shares with this one. Held alone it reads
@@ -7796,7 +7800,7 @@ enum Role {
   ADMIN
 }
 
-# Deliberately lean, and it stays that way. Personnel data — the teaching-load traffic light,
+# Deliberately lean, and it stays that way. Personnel data — desired and assigned teaching hours,
 # free-text notes — gets root fields of its own rather than being hung off this type, so that
 # there is no traversal path to it and @interactiveOnly is a second line of defence instead of
 # the only one.
@@ -7804,7 +7808,7 @@ enum Role {
 """
 A person in the planning.
 
-Carries identity and roles, nothing else. Teaching load and notes about people are not
+Carries identity and roles, nothing else. Teaching hours and notes about people are not
 reachable here — see the ` + "`" + `@interactiveOnly` + "`" + ` note in the API documentation.
 """
 type Person {

@@ -293,7 +293,7 @@ func (s *CatalogueService) SetModuleComponents(
 	return s.store.SetModuleComponents(ctx, moduleID, components, actor.ID)
 }
 
-// SetModuleProjectBased marks a module as a project-based course (PBLV), or takes the mark back.
+// SetModuleProjectBased marks a module as a practice-accompanying course (PBLV, praxisbegleitende Lehrveranstaltung), or takes the mark back.
 //
 // The same people as the split, by the same rule: the lead of its subject group, the lead of its
 // home programme, the dean's office. It is a fact about how the subject is taught, not a planning

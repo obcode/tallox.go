@@ -1306,7 +1306,7 @@ type Querier interface {
 	SetDesiredTeachingHours(ctx context.Context, arg SetDesiredTeachingHoursParams) (SetDesiredTeachingHoursRow, error)
 	SetInstancePartShared(ctx context.Context, arg SetInstancePartSharedParams) error
 	SetInstancePartTaughtBy(ctx context.Context, arg SetInstancePartTaughtByParams) error
-	// Mark a module as a project-based course (PBLV), or take the mark back. The faculty's own fact,
+	// Mark a module as a practice-accompanying course (PBLV), or take the mark back. The faculty's own fact,
 	// like the split: the import never writes this column.
 	SetModuleProjectBased(ctx context.Context, arg SetModuleProjectBasedParams) (int64, error)
 	// Over how many semesters a module runs. The faculty's own fact, like the split: the import never

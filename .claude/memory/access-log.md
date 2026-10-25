@@ -101,3 +101,13 @@ Arbeitszeiten von Beschäftigten ist mitbestimmungsrelevant (Art. 75 BayPVG). De
 Aufbewahrungsdauer eine Konstante mit Begründung in `internal/domain` und **kein
 Konfigurationsschlüssel**: was die Installation aufbewahrt, muss in einem Satz sagbar sein.
 Vor dem Produktivgang aktiv klären — siehe `open-questions` im geteilten Memory.
+
+## Selbst vergebene Rollen im Bericht (2026-10-25)
+
+`setPersonRoles` lehnt mit `SELF_GRANT_MUST_EXPIRE` ab, wenn eine Administration sich selbst
+DEANS_OFFICE, SUBJECT_GROUP_LEAD oder PROGRAMME_LEAD ohne `expiresAt` gibt; schon gehaltene Rollen
+zählen nicht. Der Nachtbericht listet jede solche Rolle, solange sie gilt („SELBST VERGEBENE
+ROLLEN“). Die Quelle ist `person_role` (`granted_by = person_id`, Query `AccessSelfGrants`), nicht
+das Protokoll, denn das kennt keine Argumente und weiß deshalb nicht, für wen ein Aufruf war.
+Solange es einen Eintrag gibt, ist der Bericht berichtenswert. Eine unbefristete Selbstvergabe aus
+der Zeit vor der Regel erscheint jede Nacht, bis jemand sie befristet.

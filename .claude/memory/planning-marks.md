@@ -90,3 +90,16 @@ wird. Das Paket kompilierte, die Queries fehlten einfach, und der Fehler zeigte 
 Deshalb heißt sie `planning_marks.sql`.
 
 Siehe auch [[wishes]], [[assignments]], [[semester-and-phase]].
+
+## Veröffentlichung wartet auf alle Wunschrunden (2026-10-25)
+
+Die Wunschrunde öffnet und schließt je Fachgruppe, veröffentlicht wird je Semester. Vorher ging
+`publishWishes` auch bei offener Runde, und ab dann war jede neue Eintragung in dieser Fachgruppe
+sofort sichtbar: das Windhundverfahren, zurück in genau einer Gruppe. Jetzt lehnt es mit
+`WISH_WINDOWS_OPEN` ab und nennt die Gruppen (Query `OpenWishWindowsOfSemester`): aktive
+Fachgruppen mit mindestens einer Instanz im Semester und ohne `open = false`. Fehlende Zeile heißt
+auch hier offen. Module ohne Fachgruppe halten nicht auf, weil niemand ihre Runde schließen könnte.
+
+**Offen gelassen:** Eine Runde *nach* der Veröffentlichung wieder zu öffnen, geht weiterhin. Dann
+ist jede neue Eintragung sofort sichtbar, aber das ist dann eine bewusste Entscheidung der Leitung,
+kein Versehen beim Veröffentlichen. Ob das gesperrt werden soll, ist eine Frage für die Fakultät.

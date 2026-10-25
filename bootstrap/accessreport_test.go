@@ -60,6 +60,29 @@ func TestTheNightlyReportNamesWhoWasTurnedAway(t *testing.T) {
 	}
 }
 
+// A self-granted role that reads wishes is named, with its end — the one way the administrator's
+// look into unpublished wishes reaches somebody other than the administrator.
+func TestTheNightlyReportNamesSelfGrantedRoles(t *testing.T) {
+	t.Parallel()
+
+	report := reportWith(nil, nil)
+	report.Summary.SelfGrants = []domain.SelfGrant{{
+		Mail: "prof.sechs@example.org", Role: "DEANS_OFFICE",
+		GrantedAt: time.Date(2026, 8, 23, 20, 0, 0, 0, time.Local),
+		ExpiresAt: time.Date(2026, 8, 30, 20, 0, 0, 0, time.Local),
+	}}
+
+	var out strings.Builder
+	bootstrap.PrintAccessReportForTest(&out, report, 24*time.Hour)
+	text := out.String()
+	for _, want := range []string{"SELBST VERGEBENE ROLLEN", "prof.sechs@example.org", "DEANS_OFFICE",
+		"bis 2026-08-30 20:00", "Berichtenswert: ja"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the report does not mention %q:\n%s", want, text)
+		}
+	}
+}
+
 // TestTheNightlyReportCarriesNoRawEntries.
 //
 // The decision this pins: the mail carries figures and events, and the entries stay behind the

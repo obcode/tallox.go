@@ -108,6 +108,22 @@ func printAccessReport(out io.Writer, report domain.AccessReport, since time.Dur
 		}
 	}
 
+	// Names people, because holding a role one gave oneself is the event: ADMIN reads no wishes,
+	// and these are the administrators who currently do.
+	if len(s.SelfGrants) > 0 {
+		w.printf("\nSELBST VERGEBENE ROLLEN\n")
+		for _, g := range s.SelfGrants {
+			until := "unbefristet"
+			if !g.ExpiresAt.IsZero() {
+				until = "bis " + g.ExpiresAt.Format("2006-01-02 15:04")
+			}
+			w.printf("  %-40s %-20s seit %s, %s\n",
+				g.Mail, g.Role, g.GrantedAt.Format("2006-01-02 15:04"), until)
+		}
+		w.printf("\n  Diese Rollen lesen unveröffentlichte Wünsche. Wer administriert, gibt sie sich\n")
+		w.printf("  nur befristet; eine unbefristete stammt aus der Zeit vor dieser Regel.\n")
+	}
+
 	w.printf("\nAufbewahrung: %s. Gelöscht wurden %d Einträge vor dem %s.\n",
 		humanDuration(domain.AccessLogRetention), report.Pruned,
 		report.Cutoff.Format("2006-01-02"))

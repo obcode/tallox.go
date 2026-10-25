@@ -84,7 +84,7 @@ func (a *Access) Entries(ctx context.Context, filter domain.AccessFilter) ([]dom
 
 // Summary assembles the figures for one window: [from, until).
 //
-// Four queries rather than one. They aggregate over different groupings and a single statement
+// Five queries rather than one. They aggregate over different groupings and a single statement
 // would need three lateral joins to produce a shape that Go then has to take apart again — and
 // this runs once a night and once per page load, not per request.
 func (a *Access) Summary(ctx context.Context, from, until time.Time) (domain.AccessSummary, error) {
@@ -143,6 +143,18 @@ func (a *Access) Summary(ctx context.Context, from, until time.Time) (domain.Acc
 			Calls:  row.Calls,
 			LastAt: row.LastAt,
 		})
+	}
+
+	selfGrants, err := a.q.AccessSelfGrants(ctx, until)
+	if err != nil {
+		return domain.AccessSummary{}, fmt.Errorf("cannot read self-granted roles: %w", err)
+	}
+	for _, row := range selfGrants {
+		g := domain.SelfGrant{Mail: row.Mail, Role: row.Role, GrantedAt: row.GrantedAt}
+		if row.ExpiresAt.Valid {
+			g.ExpiresAt = row.ExpiresAt.Time
+		}
+		summary.SelfGrants = append(summary.SelfGrants, g)
 	}
 
 	return summary, nil

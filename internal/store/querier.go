@@ -54,6 +54,14 @@ type Querier interface {
 	// an address here and silently dropped every refused token — which is the half an administrator
 	// most wants to see, because a token being tried repeatedly is what a leaked one looks like.
 	AccessLogRefusedSignIns(ctx context.Context, arg AccessLogRefusedSignInsParams) ([]AccessLogRefusedSignInsRow, error)
+	// Roles that read other people's unpublished wishes, held by the person who granted them, and
+	// still in force at the end of the window.
+	//
+	// Not out of the access log, which stores field names and never arguments, and so cannot say whom
+	// a setPersonRoles was about. person_role can: granted_by = person_id is an administrator who gave
+	// it to themselves. Listed every night for as long as it holds, not only on the night it was made,
+	// because "somebody can read every wish right now" is the standing fact worth reading.
+	AccessSelfGrants(ctx context.Context, until time.Time) ([]AccessSelfGrantsRow, error)
 	// Move hours onto or off a part, in numeric rather than in float: what dividing takes off one part
 	// and puts on the other has to add up to the cent, or the instance's figure drifts by a rounding.
 	// A part with no hours stated is treated as zero, which only rejoining can meet: dividing refuses

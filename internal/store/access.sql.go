@@ -350,6 +350,58 @@ func (q *Queries) AccessLogRefusedSignIns(ctx context.Context, arg AccessLogRefu
 	return items, nil
 }
 
+const accessSelfGrants = `-- name: AccessSelfGrants :many
+SELECT p.mail::text AS mail,
+       r.role::text AS role,
+       r.granted_at::timestamptz AS granted_at,
+       r.expires_at AS expires_at
+FROM person_role r
+JOIN person p ON p.id = r.person_id
+WHERE r.granted_by = r.person_id
+  AND r.role IN ('DEANS_OFFICE', 'SUBJECT_GROUP_LEAD', 'PROGRAMME_LEAD')
+  AND (r.expires_at IS NULL OR r.expires_at > $1::timestamptz)
+ORDER BY r.granted_at DESC, p.mail, r.role
+`
+
+type AccessSelfGrantsRow struct {
+	Mail      string
+	Role      string
+	GrantedAt time.Time
+	ExpiresAt pgtype.Timestamptz
+}
+
+// Roles that read other people's unpublished wishes, held by the person who granted them, and
+// still in force at the end of the window.
+//
+// Not out of the access log, which stores field names and never arguments, and so cannot say whom
+// a setPersonRoles was about. person_role can: granted_by = person_id is an administrator who gave
+// it to themselves. Listed every night for as long as it holds, not only on the night it was made,
+// because "somebody can read every wish right now" is the standing fact worth reading.
+func (q *Queries) AccessSelfGrants(ctx context.Context, until time.Time) ([]AccessSelfGrantsRow, error) {
+	rows, err := q.db.Query(ctx, accessSelfGrants, until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AccessSelfGrantsRow{}
+	for rows.Next() {
+		var i AccessSelfGrantsRow
+		if err := rows.Scan(
+			&i.Mail,
+			&i.Role,
+			&i.GrantedAt,
+			&i.ExpiresAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const pruneAccessLog = `-- name: PruneAccessLog :one
 WITH deleted AS (
     DELETE FROM access_log WHERE at < $1::timestamptz RETURNING 1

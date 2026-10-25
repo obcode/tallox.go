@@ -199,6 +199,18 @@ func CanSeeWish(a principal.Actor, s SemesterState, w Wish) bool {
 	}
 }
 
+// CanReadWishDetails reports whether the actor may read the note on a wish and when it was
+// entered: the rule from before publication, in every state.
+//
+// Publication makes visible who wants what — the point of it. It does not have to make visible
+// the owner's own words ("nur wenn es sonst niemand macht") or the order in which people
+// registered, which is the first-come information the rule exists to make irrelevant. Decided on
+// 2026-10-25 until the faculty says otherwise; the same line the desired hours draw with their
+// note (CanReadDesiredHoursNote).
+func CanReadWishDetails(a principal.Actor, w Wish) bool {
+	return CanSeeWish(a, SemesterState{}, w)
+}
+
 // WishVisibility returns the same rule as a query filter. The filter form.
 //
 // Deliberately a second implementation rather than a call to CanSeeWish over every row: this

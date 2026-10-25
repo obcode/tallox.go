@@ -557,3 +557,32 @@ func TestWishesPublishedReadsTheTimestamp(t *testing.T) {
 			"for a value that arrives from an unmigrated row")
 	}
 }
+
+// The details of a wish — its note and when it was entered — keep the rule from before
+// publication: publishing shows who wants what, and nothing a colleague could not read before.
+func TestWishDetailsKeepTheUnpublishedRule(t *testing.T) {
+	t.Parallel()
+
+	somebodyElse := policy.Wish{OwnerID: testdata.Zwei.ID(), ProgrammeID: programmeOne, SubjectGroupID: groupOne}
+	lead := testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleSubjectGroupLead))
+	lead.RoleScopes = []principal.RoleScope{{Role: string(policy.RoleSubjectGroupLead), SubjectGroupID: groupOne}}
+	leadByToken := lead
+	leadByToken.Kind = principal.KindToken
+
+	for _, tc := range []struct {
+		name  string
+		actor principal.Actor
+		w     policy.Wish
+		want  bool
+	}{
+		{"the owner", testdata.Zwei.Actor(principal.KindToken, string(policy.RoleLecturer)), somebodyElse, true},
+		{"a colleague", testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer)), somebodyElse, false},
+		{"the lead of the module's group", lead, somebodyElse, true},
+		{"the same lead through a token", leadByToken, somebodyElse, false},
+		{"the dean's office", testdata.Fuenf.Actor(principal.KindInteractive, string(policy.RoleDeansOffice)), somebodyElse, true},
+	} {
+		if got := policy.CanReadWishDetails(tc.actor, tc.w); got != tc.want {
+			t.Errorf("%s: CanReadWishDetails = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

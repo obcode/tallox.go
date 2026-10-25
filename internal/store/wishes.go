@@ -241,6 +241,7 @@ type wishRow struct {
 	ProgrammeTitle    string
 	ModuleID          uuid.UUID
 	ModuleName        string
+	SubjectGroupID    uuid.NullUUID
 	PersonMail        string
 	PersonName        string
 	PersonSortName    string
@@ -271,9 +272,10 @@ func wishFrom(row wishRow) domain.Wish {
 				ID: row.ProgrammeID, Code: row.ProgrammeCode, Title: row.ProgrammeTitle,
 			},
 		},
-		Priority:  domain.WishPriorityFromLevel(row.Priority),
-		Note:      row.Note,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
+		SubjectGroupID: row.SubjectGroupID.UUID,
+		Priority:       domain.WishPriorityFromLevel(row.Priority),
+		Note:           row.Note,
+		CreatedAt:      row.CreatedAt,
+		UpdatedAt:      row.UpdatedAt,
 	}
 }

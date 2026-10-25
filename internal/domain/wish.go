@@ -121,13 +121,35 @@ type Wish struct {
 	// alone; until then "ich mache die Vorlesung, das Praktikum jemand anderes" is what Note is
 	// for. See migration 16.
 	Instance CourseInstance
+	// SubjectGroupID is the subject group of the module, uuid.Nil for none — what the rule for the
+	// details below is scoped by, beside the programme of the instance.
+	SubjectGroupID uuid.UUID
 	// Priority is how much.
 	Priority WishPriority
-	// Note is the owner's own words, read by whoever may read the wish.
+	// Note is the owner's own words. Read by whoever could read the wish before publication — see
+	// policy.CanReadWishDetails — and the empty string for everybody else.
 	Note string
 
+	// CreatedAt and UpdatedAt are the zero time where the reader may not see the details: the order
+	// in which people registered is the first-come information the rule exists to make irrelevant.
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+// withoutDetailsFor blanks the note and the timestamps of every wish this actor could not have
+// read before publication. The rows are in hand and already filtered, so this is the guard form of
+// the rule, applied once on the way out.
+func withoutDetailsFor(actor principal.Actor, wishes []Wish) []Wish {
+	for i, w := range wishes {
+		if !policy.CanReadWishDetails(actor, policy.Wish{
+			OwnerID: w.Person.ID, ProgrammeID: w.Instance.Programme.ID, SubjectGroupID: w.SubjectGroupID,
+		}) {
+			wishes[i].Note = ""
+			wishes[i].CreatedAt = time.Time{}
+			wishes[i].UpdatedAt = time.Time{}
+		}
+	}
+	return wishes
 }
 
 // WishQuery is what a caller is asking for, before the visibility rule is applied to it.
@@ -230,7 +252,11 @@ func (s *WishService) List(ctx context.Context, actor principal.Actor,
 		return nil, err
 	}
 
-	return s.store.Wishes(ctx, q, policy.WishVisibility(actor, semester.State()))
+	wishes, err := s.store.Wishes(ctx, q, policy.WishVisibility(actor, semester.State()))
+	if err != nil {
+		return nil, err
+	}
+	return withoutDetailsFor(actor, wishes), nil
 }
 
 // Mine is the caller's own wishes — in one semester, or in every semester when the code is empty.

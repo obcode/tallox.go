@@ -126,3 +126,15 @@ Nebeneffekt vom Bau: „Zelle sagt niemand" und „Zelle fehlt" mussten untersch
 `policy.Decided`, statt sich auf nil-vs-leer zu verlassen.
 
 Siehe auch [[identity-and-auth]], [[semester-and-phase]].
+
+## Notiz und Zeitstempel bleiben nach der Veröffentlichung vertraulich (2026-10-25)
+
+Oliver, bis das Plenum anders entscheidet: Die Veröffentlichung zeigt, **wer was will** (Person,
+Instanz, Stufe). Die Notiz und `createdAt`/`updatedAt` liest weiter nur, wer den Wunsch vor der
+Veröffentlichung lesen durfte (`policy.CanReadWishDetails` = `CanSeeWish` mit unveröffentlichtem
+Zustand): die Person selbst, die zuständigen Leitungen im Browser, das Dekanat. Für alle anderen
+ist die Notiz `""`, und die Zeitstempel sind `null`. Die Reihenfolge der Eintragungen ist genau die
+Windhund-Information. Das ist die vorsichtige Richtung: Lockern geht später, eine veröffentlichte
+Notiz holt niemand zurück. Umgesetzt als Guard über die schon gefilterten Zeilen
+(`withoutDetailsFor` in `domain/wish.go`), die Query liefert dafür `subject_group_id` mit.
+Kontraktbruch: `createdAt`/`updatedAt` sind jetzt nullable.

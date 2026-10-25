@@ -27,11 +27,12 @@ var formalAddress = regexp.MustCompile(
 		`|\bIhre[nrms]? (?:Studiengang|Studiengänge|Studiengangs|Fachgruppe|Fachgruppen|` +
 		`Studiengangsleitung|Fachgruppenleitung)\b`)
 
-// genericMasculine is the generic "er" after a conjunction — "bevor er sich einträgt" about
-// anybody at all. German here is written without gender marks and without the generic masculine:
-// "man", "die Person", "alle". The same pattern as tallox.gui's wording.test.ts; narrow, because a
-// bare "er" is too common a pair of letters to forbid.
-var genericMasculine = regexp.MustCompile(`(?i)\b(?:bevor|ob|wenn|dass|weil|damit|sobald|sodass) er\b`)
+// genericMasculine is the generic "er" about a person — "bevor er sich einträgt" about anybody at
+// all. German here is written without gender marks and without the generic masculine: "man", "die
+// Person", "alle". Narrow, because "er" is also the Studiengang or the Vorschlag of the sentence
+// before; the reflexive after a conjunction is the shape the person-sentences take. The same
+// pattern as tallox.gui's wording.test.ts.
+var genericMasculine = regexp.MustCompile(`(?i)\b(?:bevor|ob|wenn|dass|weil|damit|sobald|sodass) er sich\b`)
 
 // TestUserFacingGermanSaysDu reads every string literal in the non-test, non-generated Go source
 // and refuses the formal address. String literals only: a comment quoting how the faculty
@@ -123,7 +124,8 @@ func TestTheGenericMasculinePattern(t *testing.T) {
 
 	for text, want := range map[string]bool{
 		"bevor er sich einträgt":              true,
-		"Ob er das halten kann, weiß niemand": true,
+		"ob er sich das zutraut":              true,
+		"ob er zum Bachelor führt":            false,
 		"bevor man sich einträgt":             false,
 		"Wer hier steht, hat eine HM-Kennung": false,
 		"der Termin ist erledigt":             false,

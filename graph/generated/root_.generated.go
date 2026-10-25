@@ -8982,13 +8982,18 @@ type Wish {
   rather than as structure: „ich mache die Vorlesung, das Praktikum jemand anderes“ is a proposal
   about two people, and turning it into a field would ask one of them to decide it alone.
 
-  Read by whoever may read the wish — the same rule as the row, because it is part of the row.
+  Read by whoever could read the wish before publication: the owner, the leads responsible for it
+  in a signed-in session, the dean's office. Publication makes visible who wants what, not the
+  owner's own words; for everybody else this is the empty string.
   """
   note: String!
-  "When it was first registered."
-  createdAt: Time!
-  "When it was last changed. Changing your mind moves this and keeps ` + "`" + `createdAt` + "`" + `."
-  updatedAt: Time!
+  """
+  When it was first registered. ` + "`" + `null` + "`" + ` where the note is empty for you: the order in which people
+  registered is the first-come information the confidentiality rule exists to make irrelevant.
+  """
+  createdAt: Time
+  "When it was last changed. Changing your mind moves this and keeps ` + "`" + `createdAt` + "`" + `. ` + "`" + `null` + "`" + ` like ` + "`" + `createdAt` + "`" + `."
+  updatedAt: Time
 }
 
 extend type Query {

@@ -55,7 +55,7 @@ SELECT
     COALESCE((SELECT SUM(p.teaching_hours) FROM instance_part p
                WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
-    m.id AS module_id, m.name AS module_name,
+    m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name
 FROM wish w
@@ -102,7 +102,7 @@ SELECT
     COALESCE((SELECT SUM(p.teaching_hours) FROM instance_part p
                WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
-    m.id AS module_id, m.name AS module_name,
+    m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name
 FROM wish w

@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"time"
+
 	"errors"
 
 	"github.com/google/uuid"
@@ -27,8 +29,8 @@ func wishModel(w domain.Wish) *model.Wish {
 		Instance:  courseInstanceModel(w.Instance),
 		Priority:  w.Priority,
 		Note:      w.Note,
-		CreatedAt: w.CreatedAt,
-		UpdatedAt: w.UpdatedAt,
+		CreatedAt: timeOrNil(w.CreatedAt),
+		UpdatedAt: timeOrNil(w.UpdatedAt),
 	}
 }
 
@@ -155,4 +157,13 @@ func wishError(err error) error {
 	// mean nothing. The database noise a driver error carries never reaches here: internal/store
 	// wraps it, and graphqltest.AssertNoLeak is what says so.
 	return err
+}
+
+// timeOrNil is a moment for the schema, or null where the domain left it zero — a timestamp the
+// reader may not see.
+func timeOrNil(t time.Time) *time.Time {
+	if t.IsZero() {
+		return nil
+	}
+	return &t
 }

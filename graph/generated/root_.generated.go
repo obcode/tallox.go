@@ -5095,9 +5095,10 @@ the modules they hold them in.
 **Readable before the assignments are published, by more than the person**, which no other sum over
 assignments is: in a signed-in session the lead of any subject group the person is a member of reads
 it, and the dean's office — so that whoever fills an instance can see that a colleague is already
-full in another group, and whom to talk to. It names no module, instance or part. Through a
-Personal Access Token it is your own until ` + "`" + `Semester.assignmentsPublishedAt` + "`" + `, and everybody's
-after.
+full in another group, and whom to talk to. It names no module, instance or part. Once
+` + "`" + `Semester.assignmentsPublishedAt` + "`" + ` is set, everybody reads everybody's in a signed-in session.
+Through a Personal Access Token it is your own in every state: the published assignments are public
+row by row, but everybody's totals in one call are personnel data in bulk.
 """
 type AssignedLoad {
   "Whose load it is."
@@ -7537,8 +7538,8 @@ that asks for something interactive-only alongside other fields keeps the other 
 field that cannot be null, and on every mutation, the call is refused with the error code
 ` + "`" + `INTERACTIVE_ONLY` + "`" + `.
 
-Behind it: teaching load and overtime, other people's unpublished wishes, free-text notes
-about people, the audit log, token management itself, and every mutation that writes the demand.
+Behind it: other people's unpublished wishes, other people's desired and assigned teaching hours,
+the faculty roster with those hours, free-text notes about people, the audit log, token management itself, and every mutation that writes the demand.
 A long-lived token in a script is a different risk from a login: it makes silent bulk export
 possible and separates "who saw this" from any sign-in. Token management is on the list because a
 leaked token that can mint its successors would outlive its own expiry date.
@@ -9143,8 +9144,9 @@ extend type Query {
 
   **Not an error when you may see none**, for the reason ` + "`" + `wishes` + "`" + ` gives: whether a colleague has
   stated a figure is the fact the rule protects. Through a Personal Access Token this is your own
-  entry whatever your role — until the dean's office publishes the semester's figures, after which
-  it is everybody's.
+  entry whatever your role and whatever the state of the semester. Once the dean's office publishes
+  the figures, everybody reads them in a signed-in session; a script does not, because the whole
+  faculty's teaching plans in one call are personnel data in bulk.
   """
   desiredTeachingHours(
     "Four digits, a hyphen and SS or WS."
@@ -9157,14 +9159,18 @@ extend type Query {
   Every colleague of the faculty — active, and holding ` + "`" + `LECTURER` + "`" + ` or a member of a subject group —
   with their subject groups and the desired teaching hours you may see for one semester.
 
-  The list of people is the same for everybody; only the figures depend on who asks. Before the
-  dean's office publishes them that is your own, and in a signed-in session the members of the
-  subject groups you lead, or everybody for the dean's office.
+  The list of people is the same for every colleague; only the figures depend on who asks. Before
+  the dean's office publishes them that is your own, the members of the subject groups you lead, or
+  everybody for the dean's office. A partner faculty gets an empty list: the faculty's roster is
+  not what it follows.
+
+  Signed-in sessions only: a roster of the faculty with everybody's teaching plans is the bulk
+  export a token must not make possible.
   """
   desiredHoursOverview(
     "Four digits, a hyphen and SS or WS."
     semester: String!
-  ): [DesiredHoursOverviewRow!]! @scope(area: WISHES, verb: READ)
+  ): [DesiredHoursOverviewRow!]! @interactiveOnly @scope(area: WISHES, verb: READ)
 }
 
 extend type Mutation {

@@ -169,8 +169,8 @@ func TestALeadReadsTheWholeLoadOfTheirMembers(t *testing.T) {
 	}
 }
 
-// A colleague reads their own before publication and everybody's after; the dean's office reads
-// everybody's throughout.
+// A colleague reads their own before publication and everybody's after, in the browser — through a
+// token only their own; the dean's office reads everybody's throughout.
 func TestTheAssignedLoadIsPublishedWithTheAssignments(t *testing.T) {
 	t.Parallel()
 
@@ -190,7 +190,11 @@ func TestTheAssignedLoadIsPublishedWithTheAssignments(t *testing.T) {
 	}
 
 	f.publish(t)
-	if got := f.loads(t, vier); len(got) != 2 || got[testdata.Eins.ID()].Total != 6.5 {
-		t.Errorf("after publication Vier reads %+v through a token, want both", got)
+	if got := f.loads(t, vier); len(got) != 0 {
+		t.Errorf("after publication Vier reads %+v through a token, want none of somebody else's", got)
+	}
+	vierInBrowser := testdata.Vier.Actor(principal.KindInteractive, "LECTURER")
+	if got := f.loads(t, vierInBrowser); len(got) != 2 || got[testdata.Eins.ID()].Total != 6.5 {
+		t.Errorf("after publication Vier reads %+v in the browser, want both", got)
 	}
 }

@@ -2773,7 +2773,20 @@ func (ec *executionContext) _Query_desiredHoursOverview(ctx context.Context, fie
 			fc := graphql.GetFieldContext(ctx)
 			return ec.Resolvers.Query().DesiredHoursOverview(ctx, fc.Args["semester"].(string))
 		},
-		nil,
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.InteractiveOnly == nil {
+					var zeroVal []*model.DesiredHoursOverviewRow
+					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+				}
+				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
 		func(ctx context.Context, selections ast.SelectionSet, v []*model.DesiredHoursOverviewRow) graphql.Marshaler {
 			return ec.marshalNDesiredHoursOverviewRow2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredHoursOverviewRowᚄ(ctx, selections, v)
 		},

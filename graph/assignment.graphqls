@@ -165,9 +165,10 @@ the modules they hold them in.
 **Readable before the assignments are published, by more than the person**, which no other sum over
 assignments is: in a signed-in session the lead of any subject group the person is a member of reads
 it, and the dean's office — so that whoever fills an instance can see that a colleague is already
-full in another group, and whom to talk to. It names no module, instance or part. Through a
-Personal Access Token it is your own until `Semester.assignmentsPublishedAt`, and everybody's
-after.
+full in another group, and whom to talk to. It names no module, instance or part. Once
+`Semester.assignmentsPublishedAt` is set, everybody reads everybody's in a signed-in session.
+Through a Personal Access Token it is your own in every state: the published assignments are public
+row by row, but everybody's totals in one call are personnel data in bulk.
 """
 type AssignedLoad {
   "Whose load it is."

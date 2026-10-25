@@ -26,8 +26,10 @@ import (
 //     instance, so responsibility runs through the subject groups the person is a member of.
 //   - Frozen: only the dean's office changes a figure, anybody's (MayCorrectDesiredHours). The
 //     correction is agreed with the person and recorded as the dean's office's.
-//   - Published: everybody reads the range, through either door, like published wishes. Still
-//     frozen — the figures colleagues plan against do not move under them.
+//   - Published: everybody reads the range in a signed-in session. Still frozen — the figures
+//     colleagues plan against do not move under them. Through a token it stays one's own: the
+//     whole faculty's teaching plans in one script call is the silent bulk export rule 2 exists
+//     against, and nothing in the process needs it (decided 2026-10-25).
 //
 // The note is not published with the range. It is the person's own words and can be personal
 // ("Forschungssemester im Herbst"), and nothing in the process needs a colleague to read it: it
@@ -89,7 +91,7 @@ func CanSeeDesiredHours(a principal.Actor, s SemesterState, d DesiredHours) bool
 		return false
 	case a.Owns(d.OwnerID):
 		return true
-	case PartnerOnly(a):
+	case PartnerOnly(a), !a.Interactive():
 		return false
 	case s.DesiredHoursPublished():
 		return true
@@ -116,13 +118,14 @@ func CanReadDesiredHoursNote(a principal.Actor, d DesiredHours) bool {
 
 // DesiredHoursVisibility returns the read rule for the range as a query filter.
 //
-// Published, it is everybody's, except a partner faculty's, which reads its own and nothing else —
-// the line WishVisibility draws, for the reason it gives. Before that it is the note's rule.
+// Published, it is everybody's in a signed-in session, except a partner faculty's, which reads its
+// own and nothing else — the line WishVisibility draws, for the reason it gives. A token reads its
+// own in every state. Before publication it is the note's rule.
 func DesiredHoursVisibility(a principal.Actor, s SemesterState) DesiredHoursFilter {
 	switch {
 	case !a.Authenticated():
 		return DesiredHoursFilter{Scope: DesiredHoursScopeNone}
-	case PartnerOnly(a):
+	case PartnerOnly(a), !a.Interactive():
 		return DesiredHoursFilter{Scope: DesiredHoursScopeOwn, OwnerID: a.ID}
 	case s.DesiredHoursPublished():
 		return DesiredHoursFilter{Scope: DesiredHoursScopeAll}

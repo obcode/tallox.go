@@ -88,7 +88,7 @@ func TestWhoReadsSomebodyElsesAssignedLoad(t *testing.T) {
 		{"the dean's office", deans, planning, inGroupTwo, true},
 		{"a colleague", colleague, planning, inBoth, false},
 		{"a colleague, once published", colleague, published, inBoth, true},
-		{"a colleague by token, once published", colleagueByToken, published, inBoth, true},
+		{"a colleague by token, once published", colleagueByToken, published, inBoth, false},
 		{"a partner faculty, once published", partner, published, inBoth, false},
 		{"anonymous, once published", principal.Anonymous, published, inBoth, false},
 	} {

@@ -256,8 +256,9 @@ extend type Query {
 
   **Not an error when you may see none**, for the reason `wishes` gives: whether a colleague has
   stated a figure is the fact the rule protects. Through a Personal Access Token this is your own
-  entry whatever your role — until the dean's office publishes the semester's figures, after which
-  it is everybody's.
+  entry whatever your role and whatever the state of the semester. Once the dean's office publishes
+  the figures, everybody reads them in a signed-in session; a script does not, because the whole
+  faculty's teaching plans in one call are personnel data in bulk.
   """
   desiredTeachingHours(
     "Four digits, a hyphen and SS or WS."
@@ -270,14 +271,18 @@ extend type Query {
   Every colleague of the faculty — active, and holding `LECTURER` or a member of a subject group —
   with their subject groups and the desired teaching hours you may see for one semester.
 
-  The list of people is the same for everybody; only the figures depend on who asks. Before the
-  dean's office publishes them that is your own, and in a signed-in session the members of the
-  subject groups you lead, or everybody for the dean's office.
+  The list of people is the same for every colleague; only the figures depend on who asks. Before
+  the dean's office publishes them that is your own, the members of the subject groups you lead, or
+  everybody for the dean's office. A partner faculty gets an empty list: the faculty's roster is
+  not what it follows.
+
+  Signed-in sessions only: a roster of the faculty with everybody's teaching plans is the bulk
+  export a token must not make possible.
   """
   desiredHoursOverview(
     "Four digits, a hyphen and SS or WS."
     semester: String!
-  ): [DesiredHoursOverviewRow!]! @scope(area: WISHES, verb: READ)
+  ): [DesiredHoursOverviewRow!]! @interactiveOnly @scope(area: WISHES, verb: READ)
 }
 
 extend type Mutation {

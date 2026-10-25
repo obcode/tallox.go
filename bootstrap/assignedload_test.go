@@ -35,8 +35,8 @@ func assignedLoads(t *testing.T, c *graphqltest.Client, semester string) map[str
 
 // The exception, through the interface: the lead of SWE2 reads that a member of SWE2 already holds
 // two hours in MATHE2 — and not the assignment itself. Through a token the same lead reads only
-// their own; a colleague reads nothing until the assignments are published, then through either
-// door.
+// their own; a colleague reads nothing until the assignments are published, then in the browser
+// and still nothing through a token.
 func TestTheAssignedLoadThroughBothDoors(t *testing.T) {
 	t.Parallel()
 
@@ -112,10 +112,12 @@ func TestTheAssignedLoadThroughBothDoors(t *testing.T) {
 		})
 
 	f.publish(t)
-	graphqltest.EachDoor(t, f.handler, testdata.Zwei.Mail, testdata.Zwei.Token,
-		func(t *testing.T, c *graphqltest.Client) {
-			if got := assignedLoads(t, c, f.semester)[eins]; got.Total != 2 {
-				t.Errorf("after publication a colleague reads %+v, want 2", got)
-			}
-		})
+	if got := assignedLoads(t, graphqltest.New(f.handler).AsUser(testdata.Zwei.Mail),
+		f.semester)[eins]; got.Total != 2 {
+		t.Errorf("after publication a colleague reads %+v, want 2", got)
+	}
+	if got := assignedLoads(t, graphqltest.New(f.handler).WithToken(testdata.Zwei.Token),
+		f.semester); len(got) != 0 {
+		t.Errorf("after publication a token reads %+v of somebody else", got)
+	}
 }

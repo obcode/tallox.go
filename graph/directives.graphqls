@@ -11,8 +11,8 @@ that asks for something interactive-only alongside other fields keeps the other 
 field that cannot be null, and on every mutation, the call is refused with the error code
 `INTERACTIVE_ONLY`.
 
-Behind it: teaching load and overtime, other people's unpublished wishes, free-text notes
-about people, the audit log, token management itself, and every mutation that writes the demand.
+Behind it: other people's unpublished wishes, other people's desired and assigned teaching hours,
+the faculty roster with those hours, free-text notes about people, the audit log, token management itself, and every mutation that writes the demand.
 A long-lived token in a script is a different risk from a login: it makes silent bulk export
 possible and separates "who saw this" from any sign-in. Token management is on the list because a
 leaked token that can mint its successors would outlive its own expiry date.

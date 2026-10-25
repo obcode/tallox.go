@@ -87,6 +87,18 @@ func TestAPartnerReadsOnlyItsProgrammes(t *testing.T) {
 			}
 		})
 
+	// The roster of the faculty is not what a partner follows. Browser only, because the field
+	// is interactive-only for everybody.
+	var roster struct {
+		DesiredHoursOverview []struct{ Person struct{ Mail string } }
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Zwei.Mail).MustQuery(t,
+		`query($s: String!) { desiredHoursOverview(semester: $s) { person { mail } } }`,
+		map[string]any{"s": f.semester}, &roster)
+	if len(roster.DesiredHoursOverview) != 0 {
+		t.Errorf("a partner reads the faculty roster: %d people", len(roster.DesiredHoursOverview))
+	}
+
 	// An ordinary account still reads everything, which is the point of the narrowing being
 	// the partner's alone.
 	var everybody partnerView
@@ -94,6 +106,12 @@ func TestAPartnerReadsOnlyItsProgrammes(t *testing.T) {
 		MustQuery(t, partnerReads, map[string]any{"s": f.semester}, &everybody)
 	if len(everybody.TeachingLoad) < 2 {
 		t.Errorf("an ordinary account reads %d controlling rows; the partner rule leaked", len(everybody.TeachingLoad))
+	}
+	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t,
+		`query($s: String!) { desiredHoursOverview(semester: $s) { person { mail } } }`,
+		map[string]any{"s": f.semester}, &roster)
+	if len(roster.DesiredHoursOverview) == 0 {
+		t.Error("an ordinary account reads an empty roster; the partner rule leaked the other way")
 	}
 }
 

@@ -82,21 +82,25 @@ func TestTheDesiredHoursProcessThroughBothDoors(t *testing.T) {
 		map[string]any{"s": f.semester, "min": 6, "max": 10, "n": "Forschungssemester im Herbst"},
 		&ignored)
 
-	// Before publication a colleague reads nothing — neither the rows nor a has-stated flag in
-	// the overview — through either door.
+	// Before publication a colleague reads nothing — neither the rows, through either door, nor
+	// a has-stated flag in the overview, which is the browser's alone.
 	graphqltest.EachDoor(t, f.handler, testdata.Zwei.Mail, testdata.Zwei.Token,
 		func(t *testing.T, c *graphqltest.Client) {
 			if got := desiredRows(t, c, f.semester); len(got) != 0 {
 				t.Errorf("a colleague reads %+v before publication", got)
 			}
-			row, listed := overviewRows(t, c, f.semester)[eins]
-			if !listed {
-				t.Fatal("the overview does not list Eins at all")
-			}
-			if row.Stated || row.MinHours != nil || row.MaxHours != nil {
-				t.Errorf("the overview tells a colleague about Eins's figure: %+v", row)
-			}
 		})
+	colleague := graphqltest.New(f.handler).AsUser(testdata.Zwei.Mail)
+	row, listed := overviewRows(t, colleague, f.semester)[eins]
+	if !listed {
+		t.Fatal("the overview does not list Eins at all")
+	}
+	if row.Stated || row.MinHours != nil || row.MaxHours != nil {
+		t.Errorf("the overview tells a colleague about Eins's figure: %+v", row)
+	}
+	mustRefuseWith(t, graphqltest.New(f.handler).WithToken(testdata.Zwei.Token),
+		`query($s: String!) { desiredHoursOverview(semester: $s) { person { id } } }`,
+		map[string]any{"s": f.semester}, "INTERACTIVE_ONLY")
 
 	// Publishing before the freeze is refused, and so is freezing through a token.
 	mustRefuseWith(t, deans, `mutation($s: String!) { publishDesiredHours(code: $s) { code } }`,
@@ -143,22 +147,27 @@ func TestTheDesiredHoursProcessThroughBothDoors(t *testing.T) {
 		t.Fatal("publishing left desiredHoursPublishedAt null")
 	}
 
-	// Published: the range is everybody's through either door, the note and who corrected it are
-	// not.
-	graphqltest.EachDoor(t, f.handler, testdata.Zwei.Mail, testdata.Zwei.Token,
-		func(t *testing.T, c *graphqltest.Client) {
-			row, ok := desiredRows(t, c, f.semester)[eins]
-			if !ok || row.MinHours != 8 || row.MaxHours != 12 {
-				t.Errorf("after publication a colleague reads %+v, want 8–12", row)
-			}
-			if row.Note != "" || row.CorrectedBy != "" {
-				t.Errorf("a colleague reads the note %q and the corrector %q", row.Note, row.CorrectedBy)
-			}
-			over := overviewRows(t, c, f.semester)[eins]
-			if !over.Stated || over.MaxHours == nil || *over.MaxHours != 12 {
-				t.Errorf("the overview after publication reads %+v", over)
-			}
-		})
+	// Published: the range is everybody's in the browser, the note and who corrected it are not.
+	// The doors differ on purpose: through a token a colleague's figure stays out of reach, so
+	// that the faculty's teaching plans are not one script call away.
+	published0, ok := desiredRows(t, colleague, f.semester)[eins]
+	if !ok || published0.MinHours != 8 || published0.MaxHours != 12 {
+		t.Errorf("after publication a colleague reads %+v, want 8–12", published0)
+	}
+	if published0.Note != "" || published0.CorrectedBy != "" {
+		t.Errorf("a colleague reads the note %q and the corrector %q", published0.Note, published0.CorrectedBy)
+	}
+	over := overviewRows(t, colleague, f.semester)[eins]
+	if !over.Stated || over.MaxHours == nil || *over.MaxHours != 12 {
+		t.Errorf("the overview after publication reads %+v", over)
+	}
+	byToken := graphqltest.New(f.handler).WithToken(testdata.Zwei.Token)
+	if got := desiredRows(t, byToken, f.semester); len(got) != 0 {
+		t.Errorf("after publication a token reads %+v of somebody else", got)
+	}
+	mustRefuseWith(t, byToken,
+		`query($s: String!) { desiredHoursOverview(semester: $s) { person { id } } }`,
+		map[string]any{"s": f.semester}, "INTERACTIVE_ONLY")
 
 	// The person sees their own note and who corrected it, through either door.
 	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,

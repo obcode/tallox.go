@@ -83,9 +83,10 @@ func (s *AccessService) Report(ctx context.Context, now time.Time, window time.D
 //
 // Used by the nightly script through the exit code, so that an installation which would rather
 // not get a mail every single night can still be sure of getting one on the nights that matter.
-// Refused sign-ins and changes are the two, and both are events rather than volumes: somebody
-// was turned away, or somebody changed something.
+// Refused sign-ins and changes are events rather than volumes: somebody was turned away, or
+// somebody changed something. A self-granted role that reads wishes is a standing fact of the same
+// weight, and stays notable for as long as it holds.
 func (r AccessReport) Notable() bool {
-	return len(r.Summary.Refused) > 0 || len(r.Summary.Mutations) > 0 ||
+	return len(r.Summary.Refused) > 0 || len(r.Summary.Mutations) > 0 || len(r.Summary.SelfGrants) > 0 ||
 		r.Summary.Counts.RefusedScope > 0 || r.Summary.Counts.RefusedInteractive > 0
 }

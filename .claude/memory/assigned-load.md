@@ -26,7 +26,10 @@ muss. Module, Instanzen und Teile bleiben unsichtbar.
 **Die Form der Regel kommt von der Person, nicht von der Instanz**:
 `policy.AssignedLoadVisibility` ist `DesiredHoursNoteVisibility` plus „veröffentlicht → alle“.
 Das heißt: selbst (beide Türen), Leitungen der Fachgruppen der Person (interaktiv), Dekanat, und
-nach der Veröffentlichung alle über beide Türen. **Keine Studiengangsleitung.**
+nach der Veröffentlichung alle **im Browser**. Über ein Token nur die eigene, in jedem Zustand
+(2026-10-25, Oliver: „nur Browser“): die veröffentlichte Zuteilung ist zeilenweise öffentlich,
+aber die Summen des ganzen Kollegiums in einem Skriptaufruf sind Personaldaten in Masse.
+**Keine Studiengangsleitung.**
 `AssignedLoadFilter` ist ein Alias auf `DesiredHoursFilter`.
 
 **Eine eigene Query-Datei** `db/queries/assigned_load.sql` mit dem Personen-Prädikat und eigenem

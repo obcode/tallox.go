@@ -396,8 +396,8 @@ func TestTheFreezeHandsTheFigureToTheDeansOffice(t *testing.T) {
 	}
 }
 
-// Published, the range is everybody's through either door; the note and who corrected it keep
-// the rule from before.
+// Published, the range is everybody's in the browser and stays one's own through a token; the
+// note and who corrected it keep the rule from before.
 func TestPublishedDesiredHoursAreEverybodysButNotTheirNotes(t *testing.T) {
 	t.Parallel()
 
@@ -428,7 +428,11 @@ func TestPublishedDesiredHoursAreEverybodysButNotTheirNotes(t *testing.T) {
 		t.Fatalf("cannot publish: %v", err)
 	}
 
-	for _, actor := range []principal.Actor{colleague, colleagueByToken} {
+	if rows, err := f.service.DesiredHours(ctx, colleagueByToken, desiredSemester,
+		testdata.Eins.ID()); err != nil || len(rows) != 0 {
+		t.Errorf("a token reads somebody else's published figure: %v, %d rows", err, len(rows))
+	}
+	for _, actor := range []principal.Actor{colleague} {
 		rows, err := f.service.DesiredHours(ctx, actor, desiredSemester, testdata.Eins.ID())
 		if err != nil || len(rows) != 1 {
 			t.Fatalf("%s (%s) does not read the published figure: %v, %d rows",
@@ -501,7 +505,7 @@ func TestTheOverviewListsEverybodyAndOnlyWhatMayBeSeen(t *testing.T) {
 	if _, err := f.semesters.PublishDesiredHours(ctx, deansOffice(), desiredSemester); err != nil {
 		t.Fatalf("cannot publish: %v", err)
 	}
-	after := overview(testdata.Zwei.Actor(principal.KindToken, "LECTURER"))
+	after := overview(testdata.Zwei.Actor(principal.KindInteractive, "LECTURER"))
 	if eins := after[testdata.Eins.ID()]; !eins.Stated || eins.MaxHours != 12 {
 		t.Errorf("after publication Eins reads as %+v, want 12", eins)
 	}

@@ -4858,7 +4858,10 @@ extend type Mutation {
   anything.
 
   Refused with ` + "`" + `LAST_ADMIN` + "`" + ` when it would leave the installation with nobody who can
-  administer it.
+  administer it, and with ` + "`" + `SELF_GRANT_MUST_EXPIRE` + "`" + ` when an administrator adds ` + "`" + `DEANS_OFFICE` + "`" + `,
+  ` + "`" + `SUBJECT_GROUP_LEAD` + "`" + ` or ` + "`" + `PROGRAMME_LEAD` + "`" + ` to their own set without ` + "`" + `expiresAt` + "`" + `: each of those reads
+  other people's unpublished wishes, and an administrator who has to look does so for a limited
+  time, listed in the nightly access report.
   """
   setPersonRoles(id: ID!, roles: [Role!]!, expiresAt: Time): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 
@@ -5095,9 +5098,10 @@ the modules they hold them in.
 **Readable before the assignments are published, by more than the person**, which no other sum over
 assignments is: in a signed-in session the lead of any subject group the person is a member of reads
 it, and the dean's office — so that whoever fills an instance can see that a colleague is already
-full in another group, and whom to talk to. It names no module, instance or part. Through a
-Personal Access Token it is your own until ` + "`" + `Semester.assignmentsPublishedAt` + "`" + `, and everybody's
-after.
+full in another group, and whom to talk to. It names no module, instance or part. Once
+` + "`" + `Semester.assignmentsPublishedAt` + "`" + ` is set, everybody reads everybody's in a signed-in session.
+Through a Personal Access Token it is your own in every state: the published assignments are public
+row by row, but everybody's totals in one call are personnel data in bulk.
 """
 type AssignedLoad {
   "Whose load it is."
@@ -5619,8 +5623,9 @@ type Module {
   """
   kind: ModuleKind!
   """
-  A project-based course (PBLV). The process gives these out last; the faculty marks them,
-  because the examination office does not say. ` + "`" + `courseType: PROJECT` + "`" + ` is a different thing.
+  A practice-accompanying course (PBLV, praxisbegleitende Lehrveranstaltung). The process gives
+  these out last; the faculty marks them, once per module. The name of the field is older than the
+  meaning: it does not mean project-based, and ` + "`" + `courseType: PROJECT` + "`" + ` is a different thing.
   """
   projectBased: Boolean!
   """
@@ -6236,7 +6241,7 @@ extend type Mutation {
   ): ModuleSplitApplication! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
 
   """
-  Mark a module as a project-based course (PBLV), or take the mark back.
+  Mark a module as a practice-accompanying course (PBLV), or take the mark back.
 
   The process gives PBLVs out last, so that they are not snapped up as gap fillers. The examination
   office does not publish which modules they are, so the faculty marks them, once per module. The
@@ -7537,8 +7542,8 @@ that asks for something interactive-only alongside other fields keeps the other 
 field that cannot be null, and on every mutation, the call is refused with the error code
 ` + "`" + `INTERACTIVE_ONLY` + "`" + `.
 
-Behind it: teaching load and overtime, other people's unpublished wishes, free-text notes
-about people, the audit log, token management itself, and every mutation that writes the demand.
+Behind it: other people's unpublished wishes, other people's desired and assigned teaching hours,
+the faculty roster with those hours, free-text notes about people, the audit log, token management itself, and every mutation that writes the demand.
 A long-lived token in a script is a different risk from a login: it makes silent bulk export
 possible and separates "who saw this" from any sign-in. Token management is on the list because a
 leaked token that can mint its successors would outlive its own expiry date.
@@ -7780,7 +7785,10 @@ enum Role {
   SUBJECT_GROUP_LEAD
   "Declares the demand of one study programme: which instances are needed, and the catalogues."
   PROGRAMME_LEAD
-  "Reads across programmes for the import/export statistics, keeps the teaching-load traffic light."
+  """
+  Reads across programmes and every unpublished wish of the faculty, switches the phases, publishes
+  the wishes and the assignments, and freezes, corrects and publishes the desired teaching hours.
+  """
   DEANS_OFFICE
   """
   A partner faculty following the study programmes it shares with this one. Held alone it reads
@@ -7792,7 +7800,7 @@ enum Role {
   ADMIN
 }
 
-# Deliberately lean, and it stays that way. Personnel data — the teaching-load traffic light,
+# Deliberately lean, and it stays that way. Personnel data — desired and assigned teaching hours,
 # free-text notes — gets root fields of its own rather than being hung off this type, so that
 # there is no traversal path to it and @interactiveOnly is a second line of defence instead of
 # the only one.
@@ -7800,7 +7808,7 @@ enum Role {
 """
 A person in the planning.
 
-Carries identity and roles, nothing else. Teaching load and notes about people are not
+Carries identity and roles, nothing else. Teaching hours and notes about people are not
 reachable here — see the ` + "`" + `@interactiveOnly` + "`" + ` note in the API documentation.
 """
 type Person {
@@ -8344,6 +8352,11 @@ extend type Mutation {
   End the confidentiality window: make the wishes of this semester visible to everybody.
 
   **There is no way back.** Calling it twice is not an error and does not move the timestamp.
+
+  Refused with ` + "`" + `WISH_WINDOWS_OPEN` + "`" + `, naming the subject groups, while a subject group with an
+  instance in this semester has not closed its wish round (` + "`" + `setWishWindow` + "`" + `): published then, every
+  entry made in that round would be visible the moment it is made. A module in no subject group has
+  no round to close and does not hold it up.
 
   Only in a signed-in browser session: through a Personal Access Token this fails with
   ` + "`" + `INTERACTIVE_ONLY` + "`" + `.
@@ -9143,8 +9156,9 @@ extend type Query {
 
   **Not an error when you may see none**, for the reason ` + "`" + `wishes` + "`" + ` gives: whether a colleague has
   stated a figure is the fact the rule protects. Through a Personal Access Token this is your own
-  entry whatever your role — until the dean's office publishes the semester's figures, after which
-  it is everybody's.
+  entry whatever your role and whatever the state of the semester. Once the dean's office publishes
+  the figures, everybody reads them in a signed-in session; a script does not, because the whole
+  faculty's teaching plans in one call are personnel data in bulk.
   """
   desiredTeachingHours(
     "Four digits, a hyphen and SS or WS."
@@ -9157,14 +9171,18 @@ extend type Query {
   Every colleague of the faculty — active, and holding ` + "`" + `LECTURER` + "`" + ` or a member of a subject group —
   with their subject groups and the desired teaching hours you may see for one semester.
 
-  The list of people is the same for everybody; only the figures depend on who asks. Before the
-  dean's office publishes them that is your own, and in a signed-in session the members of the
-  subject groups you lead, or everybody for the dean's office.
+  The list of people is the same for every colleague; only the figures depend on who asks. Before
+  the dean's office publishes them that is your own, the members of the subject groups you lead, or
+  everybody for the dean's office. A partner faculty gets an empty list: the faculty's roster is
+  not what it follows.
+
+  Signed-in sessions only: a roster of the faculty with everybody's teaching plans is the bulk
+  export a token must not make possible.
   """
   desiredHoursOverview(
     "Four digits, a hyphen and SS or WS."
     semester: String!
-  ): [DesiredHoursOverviewRow!]! @scope(area: WISHES, verb: READ)
+  ): [DesiredHoursOverviewRow!]! @interactiveOnly @scope(area: WISHES, verb: READ)
 }
 
 extend type Mutation {

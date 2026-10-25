@@ -873,7 +873,7 @@ type SetModuleProjectBasedParams struct {
 	ID           uuid.UUID
 }
 
-// Mark a module as a project-based course (PBLV), or take the mark back. The faculty's own fact,
+// Mark a module as a practice-accompanying course (PBLV), or take the mark back. The faculty's own fact,
 // like the split: the import never writes this column.
 func (q *Queries) SetModuleProjectBased(ctx context.Context, arg SetModuleProjectBasedParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setModuleProjectBased, arg.ProjectBased, arg.ID)

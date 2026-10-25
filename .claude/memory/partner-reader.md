@@ -23,6 +23,9 @@ der Rechte). Die Rollenansicht „Partnerfakultät“ zeigt damit genau die Part
 - Zuteilungen: nur veröffentlichte der eigenen Studiengänge, vorher keine.
 - Wünsche: **keine**, auch nicht veröffentlichte.
 Offen bleiben Katalog, Semester, Fachgruppen-Struktur, Planungsmarken (Stammdaten, Prozessfakten).
+**Nicht offen: die Kollegiumsliste.** `desiredHoursOverview` gibt einer reinen Partnerfakultät eine
+leere Liste (2026-10-25). Vorher kamen alle Namen, Mailadressen und Fachgruppen, nur die Zahlen
+waren gefiltert. Getestet in `bootstrap/partner_test.go`.
 
 **Was gesperrt wird**, mit eigenem Code `PARTNER_READS_ONLY` statt der sonst passenden, aber
 falschen Meldung „Semester abgeschlossen“: Wunsch, Wunsch-SWS, eigene Kompetenz,

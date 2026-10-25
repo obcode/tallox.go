@@ -2,7 +2,9 @@ package bootstrap_test
 
 import (
 	"net/http"
+	"slices"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -185,6 +187,43 @@ func TestTheLastAdministratorCannotBeRemovedThroughTheAPI(t *testing.T) {
 	c.MustQuery(t, peopleQuery, nil, &got)
 	if got.People == nil {
 		t.Fatal("the administrator lost access despite both refusals")
+	}
+}
+
+// An administrator who has to look into unpublished wishes gives themselves DEANS_OFFICE — with an
+// expiry, or not at all. Somebody else's grant does not need one, and saving one's own unchanged
+// set is not a self-grant.
+func TestAnAdministratorGrantsThemselvesWishReadingRolesOnlyWithAnExpiry(t *testing.T) {
+	t.Parallel()
+
+	c := graphqltest.New(adminHandler(t)).AsUser(testdata.Sechs.Mail)
+	admin := testdata.Sechs.ID().String()
+	const withExpiry = `mutation ($id: ID!, $roles: [Role!]!, $until: Time) {
+		setPersonRoles(id: $id, roles: $roles, expiresAt: $until) { id roles }
+	}`
+
+	for _, role := range []string{"DEANS_OFFICE", "SUBJECT_GROUP_LEAD", "PROGRAMME_LEAD"} {
+		mustRefuseWith(t, c, setRolesMutation,
+			map[string]any{"id": admin, "roles": []string{"ADMIN", "LECTURER", role}}, "SELF_GRANT_MUST_EXPIRE")
+	}
+
+	// Unchanged is not a grant.
+	var ignored struct{}
+	c.MustQuery(t, setRolesMutation,
+		map[string]any{"id": admin, "roles": []string{"ADMIN", "LECTURER"}}, &ignored)
+
+	// Somebody else needs no expiry.
+	c.MustQuery(t, setRolesMutation,
+		map[string]any{"id": testdata.Zwei.ID().String(), "roles": []string{"LECTURER", "DEANS_OFFICE"}}, &ignored)
+
+	// Oneself, with one.
+	var got struct{ SetPersonRoles struct{ Roles []string } }
+	c.MustQuery(t, withExpiry, map[string]any{
+		"id": admin, "roles": []string{"ADMIN", "LECTURER", "DEANS_OFFICE"},
+		"until": time.Now().Add(24 * time.Hour).Format(time.RFC3339),
+	}, &got)
+	if !slices.Contains(got.SetPersonRoles.Roles, "DEANS_OFFICE") {
+		t.Errorf("a self-grant with an expiry was not applied: %v", got.SetPersonRoles.Roles)
 	}
 }
 

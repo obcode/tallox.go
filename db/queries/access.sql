@@ -132,6 +132,25 @@ WHERE a.mutation
 GROUP BY a.actor_mail, field
 ORDER BY last_at DESC;
 
+-- name: AccessSelfGrants :many
+-- Roles that read other people's unpublished wishes, held by the person who granted them, and
+-- still in force at the end of the window.
+--
+-- Not out of the access log, which stores field names and never arguments, and so cannot say whom
+-- a setPersonRoles was about. person_role can: granted_by = person_id is an administrator who gave
+-- it to themselves. Listed every night for as long as it holds, not only on the night it was made,
+-- because "somebody can read every wish right now" is the standing fact worth reading.
+SELECT p.mail::text AS mail,
+       r.role::text AS role,
+       r.granted_at::timestamptz AS granted_at,
+       r.expires_at AS expires_at
+FROM person_role r
+JOIN person p ON p.id = r.person_id
+WHERE r.granted_by = r.person_id
+  AND r.role IN ('DEANS_OFFICE', 'SUBJECT_GROUP_LEAD', 'PROGRAMME_LEAD')
+  AND (r.expires_at IS NULL OR r.expires_at > sqlc.arg('until')::timestamptz)
+ORDER BY r.granted_at DESC, p.mail, r.role;
+
 -- name: PruneAccessLog :one
 -- Delete what is older than the cutoff and say how much that was.
 --

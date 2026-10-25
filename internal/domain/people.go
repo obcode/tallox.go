@@ -93,7 +93,26 @@ var (
 	// the last one, on an installation reachable only through a VPN whose other repair is
 	// psql on the host.
 	ErrLastAdmin = errors.New("this would leave the installation without an administrator")
+	// ErrSelfGrantMustExpire: an administrator gave themselves a role that reads other people's
+	// unpublished wishes, without an expiry.
+	//
+	// ADMIN deliberately reads no wishes, and the way in for an administrator who has to look is
+	// to grant themselves DEANS_OFFICE visibly. "Visibly" was only the audit log, which the same
+	// administrator reads. Now the grant has to end on its own, at most MaxTemporaryGrantDays
+	// out, and the nightly access report lists it — so "the developer can read everybody's
+	// wishes" is a threshold with a date on it rather than a standing possibility.
+	ErrSelfGrantMustExpire = errors.New("a role that reads unpublished wishes is granted to oneself only with an expiry")
 )
+
+// SelfGrantMustExpireReason is what that refusal says.
+const SelfGrantMustExpireReason = "Leitungs- und Dekanatsrollen kannst Du Dir selbst nur " +
+	"befristet geben. Bitte ein Ablaufdatum setzen (höchstens 30 Tage)."
+
+// readsUnpublishedWishes are the roles an administrator may give themselves only with an expiry:
+// each of them reads other people's wishes before publication.
+var readsUnpublishedWishes = []policy.Role{
+	policy.RoleDeansOffice, policy.RoleSubjectGroupLead, policy.RoleProgrammeLead,
+}
 
 // LastAdminReason is what that refusal says to the person reading it.
 const LastAdminReason = "Das würde Tallox ohne Administration zurücklassen. " +
@@ -389,6 +408,16 @@ func (s *PeopleService) SetRoles(ctx context.Context, actor principal.Actor,
 	held := make(map[policy.Role]bool, len(current.Roles))
 	for _, r := range current.Roles {
 		held[r] = true
+	}
+
+	// Only grants being added: a role already held keeps its own expiry, so saving one's own set
+	// unchanged is not a self-grant.
+	if id == actor.ID && expiresAt.IsZero() {
+		for _, r := range readsUnpublishedWishes {
+			if wanted[r] && !held[r] {
+				return nil, ErrSelfGrantMustExpire
+			}
+		}
 	}
 
 	// Revoke first. If the caller is taking ADMIN away from somebody and giving it to

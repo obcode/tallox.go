@@ -54,6 +54,14 @@ type Querier interface {
 	// an address here and silently dropped every refused token — which is the half an administrator
 	// most wants to see, because a token being tried repeatedly is what a leaked one looks like.
 	AccessLogRefusedSignIns(ctx context.Context, arg AccessLogRefusedSignInsParams) ([]AccessLogRefusedSignInsRow, error)
+	// Roles that read other people's unpublished wishes, held by the person who granted them, and
+	// still in force at the end of the window.
+	//
+	// Not out of the access log, which stores field names and never arguments, and so cannot say whom
+	// a setPersonRoles was about. person_role can: granted_by = person_id is an administrator who gave
+	// it to themselves. Listed every night for as long as it holds, not only on the night it was made,
+	// because "somebody can read every wish right now" is the standing fact worth reading.
+	AccessSelfGrants(ctx context.Context, until time.Time) ([]AccessSelfGrantsRow, error)
 	// Move hours onto or off a part, in numeric rather than in float: what dividing takes off one part
 	// and puts on the other has to add up to the cent, or the instance's figure drifts by a rounding.
 	// A part with no hours stated is treated as zero, which only rejoining can meet: dividing refuses
@@ -955,6 +963,15 @@ type Querier interface {
 	// COALESCE with the cast outside, for the same reason as above — MAX over no rows is NULL, and
 	// an instance with no parts yet is the ordinary state of one whose module has an empty split.
 	NextInstancePartPosition(ctx context.Context, courseInstanceID uuid.UUID) (int32, error)
+	// The subject groups whose wish round is still open in one semester: active, with at least one
+	// instance planned in it, and no row saying the round is shut. An absent row is open, so this is
+	// every such group minus the closed ones, not a read of the rows.
+	//
+	// What publishing the wishes waits for. Published while a round is open, every entry made in it
+	// afterwards is visible the moment it is made — the race the confidentiality rule ends, back in
+	// that one group. A module in no subject group has no round anybody could close and does not hold
+	// publication up.
+	OpenWishWindowsOfSemester(ctx context.Context, semesterID uuid.UUID) ([]OpenWishWindowsOfSemesterRow, error)
 	// For each subject group the caller is in: how many of its compulsory modules the caller has
 	// stated they can teach. Only the caller's own rows are counted — the answer is their own number.
 	OwnCompulsoryCounts(ctx context.Context, personID uuid.UUID) ([]OwnCompulsoryCountsRow, error)
@@ -1289,7 +1306,7 @@ type Querier interface {
 	SetDesiredTeachingHours(ctx context.Context, arg SetDesiredTeachingHoursParams) (SetDesiredTeachingHoursRow, error)
 	SetInstancePartShared(ctx context.Context, arg SetInstancePartSharedParams) error
 	SetInstancePartTaughtBy(ctx context.Context, arg SetInstancePartTaughtByParams) error
-	// Mark a module as a project-based course (PBLV), or take the mark back. The faculty's own fact,
+	// Mark a module as a practice-accompanying course (PBLV), or take the mark back. The faculty's own fact,
 	// like the split: the import never writes this column.
 	SetModuleProjectBased(ctx context.Context, arg SetModuleProjectBasedParams) (int64, error)
 	// Over how many semesters a module runs. The faculty's own fact, like the split: the import never
@@ -1568,7 +1585,7 @@ type Querier interface {
 	//
 	// Only those: an absent row means open, so this list is the exceptions and not the state of every
 	// group. A caller that wants the state of one group asks for it and reads "open" when it is not
-	// here, which is what domain.WishWindowsBySubjectGroup does.
+	// here, which is what the wish write rule does (WishWriteContext, COALESCE(ww.open, true)).
 	WishWindowsOfSemester(ctx context.Context, semester string) ([]WishWindowsOfSemesterRow, error)
 	// Everything the wish write rule needs about one instance, in one statement.
 	//

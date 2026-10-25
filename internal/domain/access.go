@@ -212,6 +212,20 @@ type AccessSummary struct {
 	Refused []RefusedSignIn
 	// Mutations is everything that was changed, by whom and with which root field.
 	Mutations []MutationCount
+	// SelfGrants are the roles that read unpublished wishes and that somebody holds because they
+	// granted them to themselves, still in force at Until. An administrator who has to look does
+	// so with an expiry (ErrSelfGrantMustExpire), and this is where that becomes visible to more
+	// than the administrator.
+	SelfGrants []SelfGrant
+}
+
+// SelfGrant is one role somebody granted to themselves.
+type SelfGrant struct {
+	Mail      string
+	Role      string
+	GrantedAt time.Time
+	// ExpiresAt is the zero time for a grant without an expiry — one made before the rule.
+	ExpiresAt time.Time
 }
 
 // AccessStore is the persistence behind the access log.

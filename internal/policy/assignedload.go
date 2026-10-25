@@ -32,8 +32,11 @@ import (
 //
 // Read by the person, through either door; in an interactive session also by the lead of any
 // subject group the person is a member of, and by the dean's office; once the assignments are
-// published, by everybody through either door — they are public then, row by row. Never by a
-// programme lead on the strength of that role: they reach instances, not people.
+// published, by everybody in a signed-in session. Through a token only one's own, in every state:
+// the published assignments are public row by row, but a per-person total of the whole faculty in
+// one script call is the bulk export of personnel data rule 2 keeps off the token door (decided
+// 2026-10-25). Never by a programme lead on the strength of that role before publication: they
+// reach instances, not people.
 
 // AssignedLoad is the minimum of a person's load that the read rule needs.
 type AssignedLoad struct {
@@ -54,12 +57,10 @@ func CanSeeAssignedLoad(a principal.Actor, s SemesterState, l AssignedLoad) bool
 		return false
 	case a.Owns(l.OwnerID):
 		return true
-	case PartnerOnly(a):
+	case PartnerOnly(a), !a.Interactive():
 		return false
 	case s.AssignmentsPublished():
 		return true
-	case !a.Interactive():
-		return false
 	default:
 		groups := AssignmentScope(a)
 		return groups.All || slices.ContainsFunc(l.MemberOf, groups.Allows)
@@ -71,7 +72,7 @@ func AssignedLoadVisibility(a principal.Actor, s SemesterState) AssignedLoadFilt
 	switch {
 	case !a.Authenticated():
 		return AssignedLoadFilter{Scope: DesiredHoursScopeNone}
-	case PartnerOnly(a):
+	case PartnerOnly(a), !a.Interactive():
 		return AssignedLoadFilter{Scope: DesiredHoursScopeOwn, OwnerID: a.ID}
 	case s.AssignmentsPublished():
 		return AssignedLoadFilter{Scope: DesiredHoursScopeAll}

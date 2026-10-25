@@ -35,8 +35,12 @@ zusätzlich.
   Person. Es setzt `corrected_by`. Schreibt die Person selbst, wird `corrected_by` wieder NULL.
   Die Abweisung kommt bewusst aus der Domain als `FORBIDDEN` und nicht über `@interactiveOnly`,
   weil dessen `null` hier „zurückgenommen“ hieße.
-- Veröffentlicht: der Bereich ist für alle lesbar, durch beide Türen (wie veröffentlichte
-  Wünsche), nur nicht für PartnerOnly.
+- Veröffentlicht: der Bereich ist für alle lesbar, **nur im Browser**, nicht für PartnerOnly.
+  Über ein Token bleibt es in jedem Zustand die eigene Zeile, und `desiredHoursOverview` ist
+  `@interactiveOnly` (2026-10-25, Oliver: „nur Browser“). Grund: Regel 2, die Lehrplanung des
+  ganzen Kollegiums in einem Skriptaufruf ist stiller Massenexport. Bis dahin stand hier „durch
+  beide Türen, wie veröffentlichte Wünsche“ — und Einführung und API-Doku versprachen das
+  Gegenteil.
 
 **Die Notiz wird nie veröffentlicht.** Sie hat einen eigenen Filter
 (`DesiredHoursNoteVisibility`, die Regel von vorher: selbst, Leitungen der Fachgruppen der

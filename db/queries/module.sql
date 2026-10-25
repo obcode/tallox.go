@@ -318,7 +318,7 @@ WHERE degree IS NOT NULL
 ORDER BY code;
 
 -- name: SetModuleProjectBased :execrows
--- Mark a module as a project-based course (PBLV), or take the mark back. The faculty's own fact,
+-- Mark a module as a practice-accompanying course (PBLV), or take the mark back. The faculty's own fact,
 -- like the split: the import never writes this column.
 UPDATE module SET project_based = sqlc.arg(project_based)::bool, updated_at = now()
 WHERE id = sqlc.arg(id)::uuid;

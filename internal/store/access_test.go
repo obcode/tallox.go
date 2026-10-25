@@ -446,3 +446,44 @@ func TestAccessLogRefusesRolesOnARefusedSignIn(t *testing.T) {
 }
 
 func ptrOf(id uuid.UUID) *uuid.UUID { return &id }
+
+// The summary lists the wish-reading roles somebody holds because they granted them to
+// themselves — and not a role somebody else granted, not ADMIN, not one that has run out.
+func TestTheSummaryListsSelfGrantedRolesStillInForce(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	storetest.SeedPerson(t, s, testdata.Sechs, string(policy.RoleAdmin))
+	storetest.SeedPerson(t, s, testdata.Zwei, string(policy.RoleLecturer))
+	people := store.NewPeople(s.Pool)
+	ctx := t.Context()
+	now := time.Now()
+
+	grant := func(who testdata.Persona, role policy.Role, until time.Time) {
+		t.Helper()
+		if err := people.GrantRole(ctx, who.ID(), role, testdata.Sechs.ID(), until); err != nil {
+			t.Fatalf("cannot grant %s to %s: %v", role, who.Name, err)
+		}
+	}
+	grant(testdata.Sechs, policy.RoleDeansOffice, now.Add(48*time.Hour))
+	grant(testdata.Sechs, policy.RoleSubjectGroupLead, now.Add(time.Hour))
+	grant(testdata.Zwei, policy.RoleDeansOffice, time.Time{})
+	// One that has run out by the end of the window.
+	if _, err := s.Pool.Exec(ctx, `UPDATE person_role SET granted_at = now() - interval '2 days',
+		expires_at = now() - interval '1 day' WHERE person_id = $1 AND role = 'SUBJECT_GROUP_LEAD'`,
+		testdata.Sechs.ID()); err != nil {
+		t.Fatalf("cannot age the grant: %v", err)
+	}
+
+	summary, err := store.NewAccess(s.Pool).Summary(ctx, now.Add(-24*time.Hour), now)
+	if err != nil {
+		t.Fatalf("Summary: %v", err)
+	}
+	if len(summary.SelfGrants) != 1 {
+		t.Fatalf("self-grants = %+v, want Sechs's DEANS_OFFICE alone", summary.SelfGrants)
+	}
+	g := summary.SelfGrants[0]
+	if g.Mail != testdata.Sechs.Mail || g.Role != string(policy.RoleDeansOffice) || g.ExpiresAt.IsZero() {
+		t.Errorf("self-grant = %+v", g)
+	}
+}

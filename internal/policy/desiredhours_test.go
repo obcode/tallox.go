@@ -121,7 +121,8 @@ func desiredHoursStates() []policy.SemesterState {
 	}
 }
 
-// Publishing opens the range to everybody, through either door — and not the note.
+// Publishing opens the range to everybody in a signed-in session — and not the note. A token
+// stays on its own figure: the faculty's teaching plans in one script call are rule 2's case.
 func TestPublishedDesiredHoursAreEverybodysExceptTheNote(t *testing.T) {
 	t.Parallel()
 
@@ -134,10 +135,16 @@ func TestPublishedDesiredHoursAreEverybodysExceptTheNote(t *testing.T) {
 	colleagueByToken := testdata.Eins.Actor(principal.KindToken, string(policy.RoleLecturer))
 	partner := testdata.Eins.Actor(principal.KindInteractive, string(policy.RolePartnerReader))
 
+	if !policy.CanSeeDesiredHours(colleague, published, somebodyElse) {
+		t.Error("a colleague does not read a published figure")
+	}
+	if policy.CanSeeDesiredHours(colleagueByToken, published, somebodyElse) {
+		t.Error("a token reads somebody else's published figure")
+	}
+	if f := policy.DesiredHoursVisibility(colleagueByToken, published); f.Scope != policy.DesiredHoursScopeOwn {
+		t.Errorf("a token's filter on a published semester is %q, want own", f.Scope)
+	}
 	for _, actor := range []principal.Actor{colleague, colleagueByToken} {
-		if !policy.CanSeeDesiredHours(actor, published, somebodyElse) {
-			t.Errorf("%s (%s) does not read a published figure", actor, actor.Kind)
-		}
 		if policy.CanReadDesiredHoursNote(actor, somebodyElse) {
 			t.Errorf("%s (%s) reads somebody else's note", actor, actor.Kind)
 		}

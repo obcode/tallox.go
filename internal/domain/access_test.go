@@ -138,6 +138,13 @@ func TestWhatMakesANightWorthAMail(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "an administrator holds a wish-reading role they gave themselves",
+			summary: domain.AccessSummary{
+				SelfGrants: []domain.SelfGrant{{Mail: "prof.sechs@example.org", Role: "DEANS_OFFICE"}},
+			},
+			want: true,
+		},
+		{
 			name: "a token asked for more than it was minted for",
 			summary: domain.AccessSummary{
 				Counts: domain.AccessCounts{Total: 3, RefusedScope: 3},

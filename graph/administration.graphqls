@@ -169,7 +169,10 @@ extend type Mutation {
   anything.
 
   Refused with `LAST_ADMIN` when it would leave the installation with nobody who can
-  administer it.
+  administer it, and with `SELF_GRANT_MUST_EXPIRE` when an administrator adds `DEANS_OFFICE`,
+  `SUBJECT_GROUP_LEAD` or `PROGRAMME_LEAD` to their own set without `expiresAt`: each of those reads
+  other people's unpublished wishes, and an administrator who has to look does so for a limited
+  time, listed in the nightly access report.
   """
   setPersonRoles(id: ID!, roles: [Role!]!, expiresAt: Time): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 

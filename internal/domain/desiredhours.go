@@ -134,6 +134,12 @@ func (s *WishService) DesiredHoursOverview(ctx context.Context, actor principal.
 	if semesterCode == "" {
 		return nil, ErrSemesterRequired
 	}
+	// A partner faculty follows programmes, not people. The roster — names, mail addresses,
+	// subject groups — is the faculty's own, and narrowing to nothing is the shape the other
+	// partner reads take (withinReach), rather than a refusal.
+	if policy.PartnerOnly(actor) {
+		return nil, nil
+	}
 	semester, err := s.semesters.ByCode(ctx, actor, semesterCode)
 	if err != nil {
 		return nil, err

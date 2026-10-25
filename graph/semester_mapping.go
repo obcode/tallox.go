@@ -2,6 +2,7 @@ package graph
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
@@ -84,6 +85,8 @@ func semesterUserFacing(err error) error {
 				"Bitte die Seite neu laden.")
 	case errors.Is(err, domain.ErrPhaseUnknown):
 		return refusal("PHASE_UNKNOWN", "Diese Phase kennt der Server nicht.")
+	case errors.Is(err, domain.ErrWishWindowsOpen):
+		return refusal("WISH_WINDOWS_OPEN", wishWindowsOpenReason(err))
 	default:
 		// Everything else — a failing query, a driver error — gets a generic sentence. Those
 		// messages carry table names and constraint names, and the habit of not forwarding
@@ -119,4 +122,18 @@ func semesterRefusal(err error) error {
 				"voraus oder zurück lässt sich hier nicht planen.")
 	}
 	return nil
+}
+
+// wishWindowsOpenReason names the subject groups that hold publication up, so that the dean's
+// office knows whom to ask. Group names are no secret: every colleague reads the list of groups.
+func wishWindowsOpenReason(err error) string {
+	var open *domain.WishWindowsOpenError
+	names := []string{}
+	if errors.As(err, &open) {
+		for _, g := range open.Groups {
+			names = append(names, g.Name)
+		}
+	}
+	return "Veröffentlichen geht erst, wenn alle Fachgruppen ihre Wunschrunde geschlossen haben. " +
+		"Noch offen: " + strings.Join(names, ", ") + "."
 }

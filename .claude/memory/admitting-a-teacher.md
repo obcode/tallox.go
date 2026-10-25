@@ -72,14 +72,8 @@ gehängt. Siehe [[scope-enforcement]].
   Persona-Besetzung — eine, die zufällig zu einer Persona passt, würde von jedem Test
   zugelassen, der diese Persona seedet, und der Normalfall wäre lautlos nicht mehr abgedeckt.
 
-## Bekannter, nicht von hier stammender Befund
+## Bekannter, nicht von hier stammender Befund — behoben am 2026-10-25
 
-`TestTwoSyncsProduceOneWinner` und `TestTheLockIsReleasedForTheNextRun`
-(`internal/store/zpa_test.go`) fallen gelegentlich um, wenn die Suite parallel läuft: der
-ZPA-Sync-Lock ist ein `pg_advisory_lock` auf einer Konstanten und gilt **pro Datenbank**,
-während `storetest` pro **Schema** isoliert. Zwei parallele Tests, die ihn nehmen, kollidieren
-also echt. Reproduzierbar mit
-`go test ./internal/store/ -run 'TestTwoSyncsProduceOneWinner|TestTheLockIsReleasedForTheNextRun' -count=10`.
-Nicht durch diese Arbeit verursacht und hier bewusst nicht mitrepariert — der naheliegende
-Weg wäre, den Schlüssel aus `current_schema()` abzuleiten, und das ändert ein tragendes
-Produktionsmittel.
+`TestTwoSyncsProduceOneWinner` und `TestTheLockIsReleasedForTheNextRun` fielen gelegentlich um,
+weil der ZPA-Sync-Lock datenbankweit galt und `storetest` je Schema isoliert. Behoben, wie hier
+damals vorgeschlagen: der Schlüssel enthält jetzt `current_schema()`. Details in [[zpa-import]].

@@ -114,9 +114,8 @@ const runsQuery = `{ zpaSyncRuns(limit: 5) { id status trigger } }`
 // for it alongside something else still gets the rest of its answer. That is the whole reason
 // the list is typed nullable.
 func TestTheImportIsInteractiveOnly(t *testing.T) {
-	// Not parallel: the sync lock is a PostgreSQL advisory lock and therefore database-wide,
-	// while storetest isolates only a schema. Two of these at once would refuse each other
-	// for a reason that has nothing to do with what either asserts.
+	t.Parallel()
+
 	h := importHandler(t, true, grants{testdata.Sechs, []string{string(policy.RoleAdmin)}})
 
 	// A real run to ask about, so that a null below means "not through this door" and cannot
@@ -263,9 +262,8 @@ func followRun(t *testing.T, c *graphqltest.Client, id string) zpaRun {
 // because the caller asked for a new run and did not get one — answering "done" to that is how
 // a button teaches people it does nothing.
 func TestASecondSyncIsRefusedRatherThanRepeated(t *testing.T) {
-	// Not parallel: the sync lock is a PostgreSQL advisory lock and therefore database-wide,
-	// while storetest isolates only a schema. Two of these at once would refuse each other
-	// for a reason that has nothing to do with what either asserts.
+	t.Parallel()
+
 	gate := make(chan struct{})
 	h, _ := importStack(t, &stubZPASource{objects: oneRegulation(), gate: gate},
 		grants{testdata.Sechs, []string{string(policy.RoleAdmin)}})
@@ -308,9 +306,8 @@ func TestASecondSyncIsRefusedRatherThanRepeated(t *testing.T) {
 // inside the request: a closed tab or a proxy giving up cancelled it halfway, and its row
 // stayed RUNNING until the next restart.
 func TestARunOutlivesTheRequestThatStartedIt(t *testing.T) {
-	// Not parallel: the sync lock is a PostgreSQL advisory lock and therefore database-wide,
-	// while storetest isolates only a schema. Two of these at once would refuse each other
-	// for a reason that has nothing to do with what either asserts.
+	t.Parallel()
+
 	gate := make(chan struct{})
 	h, _ := importStack(t, &stubZPASource{objects: oneRegulation(), gate: gate},
 		grants{testdata.Sechs, []string{string(policy.RoleAdmin)}})

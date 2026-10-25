@@ -412,58 +412,37 @@ func runStatus(t *testing.T, z *store.ZPA, id uuid.UUID) domain.ZPASyncStatus {
 // try rather than the blocking form, so the loser is told and stops instead of queueing to
 // repeat the work that just finished.
 //
-// NOT t.Parallel(), unlike everything else in this file, and the reason is worth knowing: a
-// PostgreSQL advisory lock is database-wide, while storetest gives each test its own *schema*
-// inside one shared database. Two parallel tests taking this lock therefore contend for real,
-// and the loser fails for a reason that has nothing to do with what it was testing. migrate.go
-// documents the same trap from the other side, which is why Migrate is unlocked in the harness.
-//
-// Go runs the non-parallel tests one at a time, so this and the release test below cannot
-// overlap. Any future test that takes this lock has to join them.
+// The first holder takes the lock directly rather than in a goroutine that signals when it is
+// inside. That version waited forever whenever the first attempt was itself refused — which is
+// exactly what happened while the key was database-wide and bootstrap's sync tests held it
+// from another package. A refusal here now fails the test at once, with the reason.
 func TestTwoSyncsProduceOneWinner(t *testing.T) {
+	t.Parallel()
+
 	s := storetest.New(t)
 	ctx := t.Context()
 
-	inside := make(chan struct{})
-	release := make(chan struct{})
-	results := make(chan error, 2)
+	release, err := store.AcquireZPASyncLock(ctx, s.Pool)
+	if err != nil {
+		t.Fatalf("the first sync could not take the lock: %v", err)
+	}
 
-	go func() {
-		results <- store.WithZPASyncLock(ctx, s.Pool, func(context.Context) error {
-			close(inside)
-			<-release
-			return nil
-		})
-	}()
-
-	<-inside
-	results <- store.WithZPASyncLock(ctx, s.Pool, func(context.Context) error {
+	err = store.WithZPASyncLock(ctx, s.Pool, func(context.Context) error {
 		t.Error("the second sync ran while the first held the lock")
 		return nil
 	})
-	close(release)
+	release()
 
-	var winners, refused int
-	for range 2 {
-		switch err := <-results; {
-		case err == nil:
-			winners++
-		case errors.Is(err, store.ErrZPASyncLocked):
-			refused++
-		default:
-			t.Errorf("unexpected error: %v", err)
-		}
-	}
-	if winners != 1 || refused != 1 {
-		t.Errorf("got %d winners and %d refusals, want exactly one of each", winners, refused)
+	if !errors.Is(err, store.ErrZPASyncLocked) {
+		t.Errorf("the second sync got %v, want ErrZPASyncLocked", err)
 	}
 }
 
 // TestTheLockIsReleasedForTheNextRun. A lock held after the function returns would mean the
 // import runs once and never again until the container restarts.
-//
-// Not parallel, for the reason above.
 func TestTheLockIsReleasedForTheNextRun(t *testing.T) {
+	t.Parallel()
+
 	s := storetest.New(t)
 	ctx := t.Context()
 
@@ -472,6 +451,33 @@ func TestTheLockIsReleasedForTheNextRun(t *testing.T) {
 			t.Fatalf("attempt %d could not take the lock: %v", attempt, err)
 		}
 	}
+}
+
+// TestTheLockBelongsToTheSchema. The key includes current_schema(), so a sync in one schema
+// does not refuse a sync in another.
+//
+// In production there is one schema and this changes nothing. What it buys is a test suite
+// whose schemas are actually isolated: before, the key was database-wide, every test taking it
+// had to be non-parallel, and tests in *different* packages — which Go runs at the same time —
+// still collided. If this test fails, that trap is back.
+func TestTheLockBelongsToTheSchema(t *testing.T) {
+	t.Parallel()
+
+	a := storetest.New(t)
+	b := storetest.New(t)
+	ctx := t.Context()
+
+	releaseA, err := store.AcquireZPASyncLock(ctx, a.Pool)
+	if err != nil {
+		t.Fatalf("schema a could not take the lock: %v", err)
+	}
+	defer releaseA()
+
+	releaseB, err := store.AcquireZPASyncLock(ctx, b.Pool)
+	if err != nil {
+		t.Fatalf("schema b was refused while only schema a held its lock: %v", err)
+	}
+	releaseB()
 }
 
 // seedObject writes one cached object directly, so a view test can state exactly what it is

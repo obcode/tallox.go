@@ -120,10 +120,15 @@ Form: Zeile auskommentieren, und im Prozess existiert kein Timer, der sich irren
 Der Advisory-Lock (`pg_try_advisory_lock`, nicht die blockierende Form) sitzt **im Service**,
 damit Cron und Knopf nicht unterschiedliches Nebenläufigkeitsverhalten bekommen.
 
-**Fallstrick:** ein Advisory-Lock ist datenbankweit, `storetest` gibt aber je Test nur ein
-Schema in einer geteilten Datenbank. Die beiden Lock-Tests sind deshalb **nicht** `t.Parallel()`
-— sonst scheitert der Verlierer aus einem Grund, der nichts mit seiner Zusicherung zu tun hat.
-`migrate.go` beschreibt dieselbe Falle von der anderen Seite.
+**Der Lock gilt je Schema** (seit 2026-10-25): `pg_try_advisory_lock(zpaSyncLockKey,
+hashtext(current_schema()))`, also die Zwei-int-Form. In Produktion gibt es ein Schema, dort
+ändert sich nichts. Vorher war der Schlüssel datenbankweit, `storetest` isoliert aber nur je
+Schema — die Lock-Tests mussten seriell laufen, und trotzdem kollidierten `bootstrap` und
+`internal/store`, weil Go **Pakete** gleichzeitig laufen lässt. Auf einem 32-Kern-Host hing
+`TestTwoSyncsProduceOneWinner` damit in den meisten Läufen bis zum Timeout. Jetzt sind alle
+Lock-Tests `t.Parallel()`, und `TestTheLockBelongsToTheSchema` hält die Isolation fest (per
+Gegenprobe mit festem Schlüssel rot gesehen). `migrate.go`s Lock (goose, ein bigint) bleibt
+datenbankweit; die Zwei-int-Form liegt in einem anderen Schlüsselraum, kollidieren kann das nicht.
 
 ## Was den Import wirklich kaputt macht
 
@@ -160,8 +165,7 @@ Begründung zum Transport in `architecture-decisions.md` (tallox.dev). Messskrip
 eingecheckt — nachbauen mit `storetest.New` + `zpa.New` gegen einen `httptest`-Server über
 `TALLOX_ZPA_FIXTURE_DIR` und Zeitstempeln in einem `RecordRunKind`-Wrapper.
 
-**Testfallstricke:** die Tests mit gesperrter Quelle halten den datenbankweiten Advisory-Lock
-und sind deshalb nicht `t.Parallel()` (wie die Lock-Tests im Store). `importStack` registriert
+**Testfallstricke:** `importStack` registriert
 `Wait` als Cleanup **nach** `storetest.New`, damit kein Hintergrundlauf in ein schon gelöschtes
 Schema schreibt. Ein abgebrochener Request lässt sich mit `graphqltest` nicht spielen — dafür
 baut `TestARunOutlivesTheRequestThatStartedIt` den Request von Hand.

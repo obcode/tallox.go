@@ -101,7 +101,7 @@ Studiengangsleitung „was nehme ich von anderen". Gedeckte Kohorten bleiben dri
   einen Namen, höchstens 4 je Offering. Viele Namen tragen das Studiengangskürzel als Präfix
   („DA: Anwendungen“, „AISE: Schwerpunkt“), der Korb „FWP“ hat 208 Module. Drei Körbe heißen
   „PBLV …“ — dort steht PBLV für **Praxisbegleitende** Lehrveranstaltung (IF) bzw. „Praktische
-  Wirtschaftsinformatik“ (WT), nicht für projektbasiert; siehe die offene Frage im Glossar.
+  Wirtschaftsinformatik“ (WT), nicht für projektbasiert. Am 2026-10-25 geklärt: PBLV heißt in Tallox praxisbegleitend.
 - Module anderer **Fakultäten** wirken finanziell erst ab einer Mindestzahl Studierender je Modul.
   Es gibt keine Fakultätsspalte an `programme`; ungeklärt.
 

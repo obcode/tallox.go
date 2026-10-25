@@ -19,7 +19,7 @@ statt sie mit der ungescopten anzunähern. Die Wunschregel war, was gewartet hat
 
 **Mitgliedschaft und Leitung sind nicht ein Flag an einer Tabelle.** Sie beantworten
 verschiedene Fragen und werden durch verschiedene Akte vergeben: Mitgliedschaft sagt, in welchen
-Fächern jemand arbeitet, und berechtigt zu nichts; Leitung ist eine Rollenzuordnung und muss mit
+Fächern jemand arbeitet, und gibt keine Leserechte; Leitung ist eine Rollenzuordnung und muss mit
 der Rolle entziehbar sein.
 
 ## Warum die Leitung keine `lead_person_id`-Spalte ist
@@ -57,7 +57,7 @@ fakultätsweiten Zugriff auf fremde unveröffentlichte Wünsche bekommt.
 
 **Mitgliedschaft berechtigt zu nichts.** Der Kickoff-Satz „jeder in einer Fachgruppe müsste alles
 lesen können" gilt für Planungsdaten, nicht für unveröffentlichte Wünsche: das Windhundverfahren
-spielt sich *innerhalb* der Fachgruppe ab.
+spielt sich *innerhalb* der Fachgruppe ab. (Präzisiert 2026-10-25: Mitgliedschaft gibt keine *Leserechte*. Sie bestimmt aber, für welche Module jemand Kompetenzen angibt, und welche Leitung die Wunsch-SWS der Person liest — so steht es jetzt auch in der Hilfe.)
 
 ## Die View `person_role_scope`
 

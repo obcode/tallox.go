@@ -199,9 +199,11 @@ Refusals travel as `*gqlerror.Error` with an `extensions.code` (`INTERACTIVE_ONL
 gets reworded, and matching prose across a repository boundary breaks the first time somebody
 improves a message.
 
-Not reachable via token: the Deputat/overtime traffic light (personnel data), unpublished
-wishes of other people, free-text notes about people, **token management itself** (otherwise a
-leaked token mints its successors), user administration, the audit log.
+Not reachable via token: other people's desired and assigned teaching hours, also once published
+(the policy answers one's own; `desiredHoursOverview` is `@interactiveOnly`), unpublished wishes of
+other people, free-text notes about people, any future teaching-load traffic light, **token
+management itself** (otherwise a leaked token mints its successors), user administration, the
+audit log.
 
 Belt and braces: keep personnel data in its own root fields rather than hanging it off
 `Person`, so there is no traversal path in the first place.
@@ -278,8 +280,11 @@ no rule.
 There is **no DEVELOPER role and there will not be one**. `diagnoseAccess` answers the support
 question — why can my colleague not see this — with decisions and never with content, and an
 administrator who genuinely has to look grants themselves DEANS_OFFICE visibly and with an
-expiry (`person_role.expires_at`, at most 30 days). A role that sees everything is a line in the
-golden matrix that has to be defended to the colleagues the confidentiality rule protects.
+expiry (`person_role.expires_at`, at most 30 days). The expiry is enforced: a self-grant of
+DEANS_OFFICE, SUBJECT_GROUP_LEAD or PROGRAMME_LEAD without one is `SELF_GRANT_MUST_EXPIRE`, and the
+nightly access report lists every such grant while it holds. A role that sees everything is a
+line in the golden matrix that has to be defended to the colleagues the confidentiality rule
+protects.
 
 ## Configuration
 

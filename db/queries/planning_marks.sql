@@ -51,13 +51,33 @@ DELETE FROM demand_completion
 --
 -- Only those: an absent row means open, so this list is the exceptions and not the state of every
 -- group. A caller that wants the state of one group asks for it and reads "open" when it is not
--- here, which is what domain.WishWindowsBySubjectGroup does.
+-- here, which is what the wish write rule does (WishWriteContext, COALESCE(ww.open, true)).
 SELECT ww.semester_id, ww.subject_group_id, ww.open, ww.changed_at, ww.changed_by,
        g.code AS subject_group_code, g.name AS subject_group_name
 FROM wish_window ww
 JOIN subject_group g ON g.id = ww.subject_group_id
 JOIN semester s ON s.id = ww.semester_id
 WHERE s.code = sqlc.arg(semester)::text
+ORDER BY g.code;
+
+-- name: OpenWishWindowsOfSemester :many
+-- The subject groups whose wish round is still open in one semester: active, with at least one
+-- instance planned in it, and no row saying the round is shut. An absent row is open, so this is
+-- every such group minus the closed ones, not a read of the rows.
+--
+-- What publishing the wishes waits for. Published while a round is open, every entry made in it
+-- afterwards is visible the moment it is made — the race the confidentiality rule ends, back in
+-- that one group. A module in no subject group has no round anybody could close and does not hold
+-- publication up.
+SELECT DISTINCT g.code::text AS code, g.name::text AS name
+FROM course_instance ci
+JOIN module_subject_group msg ON msg.module_id = ci.module_id
+JOIN subject_group g ON g.id = msg.subject_group_id
+LEFT JOIN wish_window ww
+       ON ww.semester_id = ci.semester_id AND ww.subject_group_id = g.id
+WHERE ci.semester_id = sqlc.arg(semester_id)::uuid
+  AND g.active
+  AND COALESCE(ww.open, true)
 ORDER BY g.code;
 
 -- name: SetWishWindow :one

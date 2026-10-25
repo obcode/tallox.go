@@ -963,6 +963,15 @@ type Querier interface {
 	// COALESCE with the cast outside, for the same reason as above — MAX over no rows is NULL, and
 	// an instance with no parts yet is the ordinary state of one whose module has an empty split.
 	NextInstancePartPosition(ctx context.Context, courseInstanceID uuid.UUID) (int32, error)
+	// The subject groups whose wish round is still open in one semester: active, with at least one
+	// instance planned in it, and no row saying the round is shut. An absent row is open, so this is
+	// every such group minus the closed ones, not a read of the rows.
+	//
+	// What publishing the wishes waits for. Published while a round is open, every entry made in it
+	// afterwards is visible the moment it is made — the race the confidentiality rule ends, back in
+	// that one group. A module in no subject group has no round anybody could close and does not hold
+	// publication up.
+	OpenWishWindowsOfSemester(ctx context.Context, semesterID uuid.UUID) ([]OpenWishWindowsOfSemesterRow, error)
 	// For each subject group the caller is in: how many of its compulsory modules the caller has
 	// stated they can teach. Only the caller's own rows are counted — the answer is their own number.
 	OwnCompulsoryCounts(ctx context.Context, personID uuid.UUID) ([]OwnCompulsoryCountsRow, error)
@@ -1576,7 +1585,7 @@ type Querier interface {
 	//
 	// Only those: an absent row means open, so this list is the exceptions and not the state of every
 	// group. A caller that wants the state of one group asks for it and reads "open" when it is not
-	// here, which is what domain.WishWindowsBySubjectGroup does.
+	// here, which is what the wish write rule does (WishWriteContext, COALESCE(ww.open, true)).
 	WishWindowsOfSemester(ctx context.Context, semester string) ([]WishWindowsOfSemesterRow, error)
 	// Everything the wish write rule needs about one instance, in one statement.
 	//

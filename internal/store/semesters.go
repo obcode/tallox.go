@@ -133,6 +133,20 @@ func (s *Semesters) PublishSemesterWishes(ctx context.Context, id uuid.UUID,
 	return semesterFrom(row), nil
 }
 
+// OpenWishWindows names the subject groups whose wish round is still open in this semester. See
+// the query for what counts.
+func (s *Semesters) OpenWishWindows(ctx context.Context, id uuid.UUID) ([]domain.SubjectGroupName, error) {
+	rows, err := s.q.OpenWishWindowsOfSemester(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the open wish rounds: %w", err)
+	}
+	out := make([]domain.SubjectGroupName, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, domain.SubjectGroupName{Code: r.Code, Name: r.Name})
+	}
+	return out, nil
+}
+
 // PublishSemesterAssignments makes who holds what visible to everybody. Idempotent — see the
 // query.
 func (s *Semesters) PublishSemesterAssignments(ctx context.Context, id uuid.UUID,

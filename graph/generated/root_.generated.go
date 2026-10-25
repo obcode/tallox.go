@@ -8349,6 +8349,11 @@ extend type Mutation {
 
   **There is no way back.** Calling it twice is not an error and does not move the timestamp.
 
+  Refused with ` + "`" + `WISH_WINDOWS_OPEN` + "`" + `, naming the subject groups, while a subject group with an
+  instance in this semester has not closed its wish round (` + "`" + `setWishWindow` + "`" + `): published then, every
+  entry made in that round would be visible the moment it is made. A module in no subject group has
+  no round to close and does not hold it up.
+
   Only in a signed-in browser session: through a Personal Access Token this fails with
   ` + "`" + `INTERACTIVE_ONLY` + "`" + `.
   """

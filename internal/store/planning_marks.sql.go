@@ -138,6 +138,52 @@ func (q *Queries) DemandCompletionsOfSemester(ctx context.Context, semester stri
 	return items, nil
 }
 
+const openWishWindowsOfSemester = `-- name: OpenWishWindowsOfSemester :many
+SELECT DISTINCT g.code::text AS code, g.name::text AS name
+FROM course_instance ci
+JOIN module_subject_group msg ON msg.module_id = ci.module_id
+JOIN subject_group g ON g.id = msg.subject_group_id
+LEFT JOIN wish_window ww
+       ON ww.semester_id = ci.semester_id AND ww.subject_group_id = g.id
+WHERE ci.semester_id = $1::uuid
+  AND g.active
+  AND COALESCE(ww.open, true)
+ORDER BY g.code
+`
+
+type OpenWishWindowsOfSemesterRow struct {
+	Code string
+	Name string
+}
+
+// The subject groups whose wish round is still open in one semester: active, with at least one
+// instance planned in it, and no row saying the round is shut. An absent row is open, so this is
+// every such group minus the closed ones, not a read of the rows.
+//
+// What publishing the wishes waits for. Published while a round is open, every entry made in it
+// afterwards is visible the moment it is made — the race the confidentiality rule ends, back in
+// that one group. A module in no subject group has no round anybody could close and does not hold
+// publication up.
+func (q *Queries) OpenWishWindowsOfSemester(ctx context.Context, semesterID uuid.UUID) ([]OpenWishWindowsOfSemesterRow, error) {
+	rows, err := q.db.Query(ctx, openWishWindowsOfSemester, semesterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []OpenWishWindowsOfSemesterRow{}
+	for rows.Next() {
+		var i OpenWishWindowsOfSemesterRow
+		if err := rows.Scan(&i.Code, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const programmeIDByCode = `-- name: ProgrammeIDByCode :one
 SELECT id FROM programme WHERE code = $1::text
 `
@@ -263,7 +309,7 @@ type WishWindowsOfSemesterRow struct {
 //
 // Only those: an absent row means open, so this list is the exceptions and not the state of every
 // group. A caller that wants the state of one group asks for it and reads "open" when it is not
-// here, which is what domain.WishWindowsBySubjectGroup does.
+// here, which is what the wish write rule does (WishWriteContext, COALESCE(ww.open, true)).
 func (q *Queries) WishWindowsOfSemester(ctx context.Context, semester string) ([]WishWindowsOfSemesterRow, error) {
 	rows, err := q.db.Query(ctx, wishWindowsOfSemester, semester)
 	if err != nil {

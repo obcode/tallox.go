@@ -366,6 +366,10 @@ func (f *fakeSemesterStore) PublishSemesterWishes(context.Context, uuid.UUID) (d
 	return domain.Semester{}, errors.New("not part of this test")
 }
 
+func (f *fakeSemesterStore) OpenWishWindows(context.Context, uuid.UUID) ([]domain.SubjectGroupName, error) {
+	return nil, errors.New("not part of this test")
+}
+
 func (f *fakeSemesterStore) PublishSemesterAssignments(context.Context, uuid.UUID) (domain.Semester, error) {
 	return domain.Semester{}, errors.New("not part of this test")
 }

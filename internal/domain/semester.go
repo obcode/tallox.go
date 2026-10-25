@@ -130,6 +130,9 @@ type SemesterStore interface {
 	AdvanceSemesterPhase(ctx context.Context, id uuid.UUID, from, to policy.Phase) (Semester, error)
 	// PublishSemesterWishes is idempotent and keeps the first timestamp.
 	PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Semester, error)
+	// OpenWishWindows names the subject groups whose wish round in this semester nobody has
+	// closed, among those with something planned in it.
+	OpenWishWindows(ctx context.Context, id uuid.UUID) ([]SubjectGroupName, error)
 	// PublishSemesterAssignments is the same for the second mark.
 	PublishSemesterAssignments(ctx context.Context, id uuid.UUID) (Semester, error)
 	// FreezeSemesterDesiredHours is idempotent and keeps the first timestamp and its author.
@@ -346,7 +349,35 @@ func (s *SemesterService) SetPlanningSemester(ctx context.Context, actor princip
 	return s.store.SetPlanningSemester(ctx, existing.ID, actor.ID)
 }
 
+// SubjectGroupName is a subject group as a sentence names it.
+type SubjectGroupName struct {
+	Code string
+	Name string
+}
+
+// ErrWishWindowsOpen is what WishWindowsOpenError matches with errors.Is.
+var ErrWishWindowsOpen = errors.New("a subject group's wish round is still open")
+
+// WishWindowsOpenError refuses publishing the wishes while these subject groups still take them.
+type WishWindowsOpenError struct {
+	Groups []SubjectGroupName
+}
+
+func (e *WishWindowsOpenError) Error() string {
+	codes := make([]string, len(e.Groups))
+	for i, g := range e.Groups {
+		codes[i] = g.Code
+	}
+	return fmt.Sprintf("%s: %s", ErrWishWindowsOpen, strings.Join(codes, ", "))
+}
+
+// Is lets errors.Is(err, ErrWishWindowsOpen) find it.
+func (e *WishWindowsOpenError) Is(target error) bool { return target == ErrWishWindowsOpen }
+
 // PublishWishes ends the confidentiality window of a semester.
+//
+// Refused with a WishWindowsOpenError while a subject group with instances in the semester has not
+// closed its wish round.
 //
 // Idempotent by way of the store, so a second click is not an error and does not move the
 // timestamp. There is no counterpart: see policy.MayPublishWishes for why un-publishing is not
@@ -371,6 +402,19 @@ func (s *SemesterService) PublishWishes(ctx context.Context, actor principal.Act
 	existing, err := s.store.EnsureSemester(ctx, code)
 	if err != nil {
 		return Semester{}, err
+	}
+
+	// Not while a round is open: every wish entered in it afterwards would be visible the moment
+	// it is made, which is the race the whole rule is there to end, back in that subject group.
+	// Asked again on a published semester it answers as before — the fact is already in the world.
+	if existing.WishesPublishedAt.IsZero() {
+		open, err := s.store.OpenWishWindows(ctx, existing.ID)
+		if err != nil {
+			return Semester{}, err
+		}
+		if len(open) > 0 {
+			return Semester{}, &WishWindowsOpenError{Groups: open}
+		}
 	}
 	return s.store.PublishSemesterWishes(ctx, existing.ID)
 }

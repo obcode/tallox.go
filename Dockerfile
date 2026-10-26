@@ -21,7 +21,7 @@ RUN CGO_ENABLED=0 go build -trimpath \
 # Dependabot recognise an update. The PR becomes a fix(docker) commit, which produces a
 # patch release — and only that rebuilds and rolls out the image. With a floating tag a
 # base-image CVE would stay unfixed, because without a release nothing is ever rebuilt.
-FROM alpine:3.24.1
+FROM alpine:3.24.2
 
 # tzdata is mandatory, not a convenience: main.go sets time.Local to Europe/Berlin, and
 # milestone deadlines and phase transitions depend on it. Without tzdata the process would

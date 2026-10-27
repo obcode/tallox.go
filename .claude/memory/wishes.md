@@ -138,3 +138,27 @@ Windhund-Information. Das ist die vorsichtige Richtung: Lockern geht später, ei
 Notiz holt niemand zurück. Umgesetzt als Guard über die schon gefilterten Zeilen
 (`withoutDetailsFor` in `domain/wish.go`), die Query liefert dafür `subject_group_id` mit.
 Kontraktbruch: `createdAt`/`updatedAt` sind jetzt nullable.
+
+## „Einen der Züge, egal welcher“: die Obergrenze (2026-10-27)
+
+Collab-Wunsch: Software-Architektur mit Zug A und B, jemand übernimmt einen, egal welchen. Oliver
+hat zwischen drei Formen entschieden — Obergrenze je Zeile, Schalter „egal welcher Zug“, nur
+Notiz — und die **Obergrenze** genommen: man wünscht sich weiter jeden Zug einzeln mit eigener
+Stufe, und dazu „höchstens N davon“. Ein Schalter hätte genau einen Zug gemeint und die Zuteilung
+von Zug B den Wunsch auf Zug A mitlesen lassen; die Obergrenze sagt auch „2 von 3“ und
+„A gerne, B notfalls, höchstens einer“.
+
+- Tabelle `wish_track_limit`, Schlüssel (Person, Semester, Modul, Studiengang) — **nicht** an der
+  Instanz, damit sie beim Zusammenlegen von Zügen (`handOverWishes`) nicht mitwandert.
+- **Gelesen nur als Spalte der Wunschzeile** (`Wish.trackLimit`, LEFT JOIN in beiden gefilterten
+  Queries). Es gibt keine Query, die die Tabelle allein liest — damit ist sie sichtbar genau dort,
+  wo der Wunsch ist. Entscheidung Oliver: nach der Veröffentlichung **wie die Stufe sichtbar, nicht
+  wie die Notiz** — sie gehört zu „wer will was“ und sagt dem Kollegium, dass zwei Eintragungen ein
+  Angebot für einen Zug sind.
+- `setWishTrackLimit(courseInstanceId, maxTracks)`: benannt über irgendeinen der Züge, `null` hebt
+  auf, 1–9 (CHECK + `WISH_TRACK_LIMIT_INVALID`). Phase und Wunschrunde wie `setWish`. Ohne eigenen
+  Wunsch auf einen der Züge `WISH_TRACK_LIMIT_WITHOUT_WISHES` — eine Grenze auf nichts würde
+  ungelesen warten und Monate später einen neuen Wunsch einschränken. Aus demselben Grund räumt
+  `WithdrawWish` danach eigene Grenzen ohne Wunsch weg (`PruneOwnWishTrackLimits`).
+- Die Ablehnung liest nur eigene Wünsche; `TestABoundIsRefusedWhereAWishWouldBe` prüft, dass sie
+  gleich lautet, ob jemand anderes eingetragen ist oder nicht.

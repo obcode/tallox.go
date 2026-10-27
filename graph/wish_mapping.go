@@ -24,13 +24,14 @@ import (
 
 func wishModel(w domain.Wish) *model.Wish {
 	return &model.Wish{
-		ID:        w.ID.String(),
-		Person:    personModel(w.Person),
-		Instance:  courseInstanceModel(w.Instance),
-		Priority:  w.Priority,
-		Note:      w.Note,
-		CreatedAt: timeOrNil(w.CreatedAt),
-		UpdatedAt: timeOrNil(w.UpdatedAt),
+		ID:         w.ID.String(),
+		Person:     personModel(w.Person),
+		Instance:   courseInstanceModel(w.Instance),
+		Priority:   w.Priority,
+		Note:       w.Note,
+		TrackLimit: trackLimitOrNil(w.TrackLimit),
+		CreatedAt:  timeOrNil(w.CreatedAt),
+		UpdatedAt:  timeOrNil(w.UpdatedAt),
 	}
 }
 
@@ -141,6 +142,11 @@ func wishError(err error) error {
 		return refusal("WISH_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrWishNoteTooLong):
 		return refusal("WISH_NOTE_TOO_LONG", err.Error())
+	case errors.Is(err, domain.ErrWishTrackLimitInvalid):
+		return refusal("WISH_TRACK_LIMIT_INVALID", err.Error())
+	case errors.Is(err, domain.ErrWishTrackLimitWithoutWishes):
+		// Says nothing about anybody else: the WHERE behind it reads only the caller's own wishes.
+		return refusal("WISH_TRACK_LIMIT_WITHOUT_WISHES", err.Error())
 	case errors.Is(err, domain.ErrWishPriorityInvalid):
 		return refusal("WISH_PRIORITY_INVALID", err.Error())
 	case errors.Is(err, domain.ErrInstanceNotFound):
@@ -166,4 +172,12 @@ func timeOrNil(t time.Time) *time.Time {
 		return nil
 	}
 	return &t
+}
+
+// trackLimitOrNil is a bound for the schema, or null for none.
+func trackLimitOrNil(limit int) *int {
+	if limit == 0 {
+		return nil
+	}
+	return &limit
 }

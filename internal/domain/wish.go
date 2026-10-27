@@ -48,7 +48,19 @@ var (
 	// filter is built from one semester's publication date, so a query across all of them would
 	// apply one semester's answer to the others.
 	ErrSemesterRequired = errors.New("dafür fehlt das Semester")
+	// ErrWishTrackLimitInvalid is a bound outside 1 to 9. Zero would be "none of them", which is
+	// withdrawing the wishes, not bounding them.
+	ErrWishTrackLimitInvalid = errors.New(
+		"„höchstens“ geht von einem bis neun Zügen")
+	// ErrWishTrackLimitWithoutWishes is a bound on cohorts the caller has not wished for. Refused
+	// rather than stored, because a bound on nothing would wait unread and qualify wishes entered
+	// much later by somebody who has forgotten it.
+	ErrWishTrackLimitWithoutWishes = errors.New(
+		"„höchstens“ gilt für eingetragene Wünsche — zuerst einen der Züge wählen")
 )
+
+// MaxWishTrackLimit mirrors wish_track_limit_in_range.
+const MaxWishTrackLimit = 9
 
 // MaxWishNote mirrors wish_note_is_short. Checked here as well so that a paste gets a sentence
 // rather than a constraint violation.
@@ -129,6 +141,11 @@ type Wish struct {
 	// Note is the owner's own words. Read by whoever could read the wish before publication — see
 	// policy.CanReadWishDetails — and the empty string for everybody else.
 	Note string
+	// TrackLimit is the owner's bound on the cohorts of this module in this programme: "of the
+	// cohorts I wished for, at most this many". 0 for none. The same on every wish of the group,
+	// because it belongs to the group; visible wherever the wish is, like the priority — it is
+	// part of what somebody wants, not their own words.
+	TrackLimit int
 
 	// CreatedAt and UpdatedAt are the zero time where the reader may not see the details: the order
 	// in which people registered is the first-come information the rule exists to make irrelevant.
@@ -196,6 +213,10 @@ type WishStore interface {
 		note string) (*Wish, error)
 	// WithdrawWish removes the actor's own. Returns ErrWishNotFound for anything else.
 	WithdrawWish(ctx context.Context, id, personID uuid.UUID) error
+	// SetWishTrackLimit bounds the person's own wishes for the cohorts of the instance's module in
+	// its programme, or lifts the bound with nil. ErrWishTrackLimitWithoutWishes when the person
+	// has wished for none of them.
+	SetWishTrackLimit(ctx context.Context, instanceID, personID uuid.UUID, maxTracks *int) error
 	// WishWriteContext is what the write rule needs about an instance: which semester it is in,
 	// and whether its subject group is taking entries. Both at once, because deciding against two
 	// states read a moment apart is how a rule ends up describing neither.
@@ -330,6 +351,41 @@ func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID
 	}
 
 	return s.store.SetWish(ctx, instanceID, actor.ID, priority, note)
+}
+
+// SetTrackLimit bounds the actor's own wishes for the cohorts of an instance's module in its
+// programme — "einen der beiden Züge, egal welcher" — or lifts the bound with nil.
+//
+// Named through one of the cohorts because that is what a caller holds; the bound belongs to all
+// of them. Bound by the phase and the window like a wish, because it is part of one: a bound
+// changed after the round has shut is a wish changed after the round has shut.
+func (s *WishService) SetTrackLimit(ctx context.Context, actor principal.Actor,
+	instanceID uuid.UUID, maxTracks *int) error {
+	if !actor.Authenticated() {
+		return ErrNotAuthenticated
+	}
+	if policy.PartnerOnly(actor) {
+		return ErrPartnerWritesNothing
+	}
+	if maxTracks != nil && (*maxTracks < 1 || *maxTracks > MaxWishTrackLimit) {
+		return ErrWishTrackLimitInvalid
+	}
+
+	where, err := s.store.WishWriteContext(ctx, instanceID)
+	if err != nil {
+		return err
+	}
+	if !where.Found() {
+		return ErrInstanceNotFound
+	}
+	if !policy.MayWriteInPhase(policy.WriteAreaWishes, where.Semester.Phase, actor) {
+		return ErrWishPhaseClosed
+	}
+	if !where.WindowOpen {
+		return ErrWishWindowClosed
+	}
+
+	return s.store.SetWishTrackLimit(ctx, instanceID, actor.ID, maxTracks)
 }
 
 // Withdraw removes the actor's own wish.

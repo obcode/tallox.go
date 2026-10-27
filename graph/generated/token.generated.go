@@ -80,6 +80,7 @@ type MutationResolver interface {
 	SetSubjectGroupLeads(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error)
 	SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string) (*model.Wish, error)
 	WithdrawWish(ctx context.Context, id string) (string, error)
+	SetWishTrackLimit(ctx context.Context, courseInstanceID string, maxTracks *int) (*int, error)
 	SetDesiredTeachingHours(ctx context.Context, semester string, minHours *float64, maxHours *float64, hours *float64, note *string) (*model.DesiredTeachingHours, error)
 	CorrectDesiredTeachingHours(ctx context.Context, semester string, person string, minHours *float64, maxHours *float64, note *string) (*model.DesiredTeachingHours, error)
 	SyncZpaNow(ctx context.Context) (*model.ZpaSyncRun, error)
@@ -1371,6 +1372,28 @@ func (ec *executionContext) field_Mutation_setTeacherCompetence_args(ctx context
 		return nil, err
 	}
 	args["note"] = arg3
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setWishTrackLimit_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "courseInstanceId",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["courseInstanceId"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "maxTracks",
+		func(ctx context.Context, v any) (*int, error) {
+			return ec.unmarshalOInt2ᚖint(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["maxTracks"] = arg1
 	return args, nil
 }
 
@@ -4763,6 +4786,50 @@ func (ec *executionContext) fieldContext_Mutation_withdrawWish(ctx context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_setWishTrackLimit(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setWishTrackLimit(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetWishTrackLimit(ctx, fc.Args["courseInstanceId"].(string), fc.Args["maxTracks"].(*int))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setWishTrackLimit(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setWishTrackLimit_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_setDesiredTeachingHours(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5595,6 +5662,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 				return ec._Mutation_withdrawWish(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setWishTrackLimit":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setWishTrackLimit(ctx, field)
+			})
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		case "setDesiredTeachingHours":

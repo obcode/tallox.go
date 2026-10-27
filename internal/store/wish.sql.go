@@ -12,6 +12,27 @@ import (
 	"github.com/google/uuid"
 )
 
+const clearWishTrackLimit = `-- name: ClearWishTrackLimit :exec
+DELETE FROM wish_track_limit l
+USING course_instance ci
+WHERE ci.id = $1::uuid
+  AND l.person_id = $2::uuid
+  AND l.semester_id = ci.semester_id
+  AND l.module_id = ci.module_id
+  AND l.programme_id = ci.programme_id
+`
+
+type ClearWishTrackLimitParams struct {
+	InstanceID uuid.UUID
+	PersonID   uuid.UUID
+}
+
+// Lift one's own bound again, named through one of the cohorts like setting it.
+func (q *Queries) ClearWishTrackLimit(ctx context.Context, arg ClearWishTrackLimitParams) error {
+	_, err := q.db.Exec(ctx, clearWishTrackLimit, arg.InstanceID, arg.PersonID)
+	return err
+}
+
 const deleteOwnWish = `-- name: DeleteOwnWish :execrows
 DELETE FROM wish WHERE id = $1 AND person_id = $2
 `
@@ -30,6 +51,63 @@ type DeleteOwnWishParams struct {
 // confirmed to exist before the write is refused.
 func (q *Queries) DeleteOwnWish(ctx context.Context, arg DeleteOwnWishParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteOwnWish, arg.ID, arg.PersonID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const pruneOwnWishTrackLimits = `-- name: PruneOwnWishTrackLimits :exec
+DELETE FROM wish_track_limit l
+WHERE l.person_id = $1::uuid
+  AND NOT EXISTS (SELECT 1 FROM wish own
+                  JOIN course_instance sib ON sib.id = own.course_instance_id
+                  WHERE own.person_id = l.person_id
+                    AND sib.semester_id = l.semester_id
+                    AND sib.module_id = l.module_id
+                    AND sib.programme_id = l.programme_id)
+`
+
+// After a withdrawal: drop the caller's bounds that no longer qualify any wish of theirs, for the
+// reason SetWishTrackLimit refuses one on nothing.
+func (q *Queries) PruneOwnWishTrackLimits(ctx context.Context, personID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, pruneOwnWishTrackLimits, personID)
+	return err
+}
+
+const setWishTrackLimit = `-- name: SetWishTrackLimit :execrows
+INSERT INTO wish_track_limit (person_id, semester_id, module_id, programme_id, max_tracks)
+SELECT $1::uuid, ci.semester_id, ci.module_id, ci.programme_id,
+       $2::smallint
+FROM course_instance ci
+WHERE ci.id = $3::uuid
+  AND EXISTS (SELECT 1 FROM wish own
+              JOIN course_instance sib ON sib.id = own.course_instance_id
+              WHERE own.person_id = $1::uuid
+                AND sib.semester_id = ci.semester_id
+                AND sib.module_id = ci.module_id
+                AND sib.programme_id = ci.programme_id)
+ON CONFLICT (person_id, semester_id, module_id, programme_id) DO UPDATE
+SET max_tracks = EXCLUDED.max_tracks,
+    updated_at = now()
+`
+
+type SetWishTrackLimitParams struct {
+	PersonID   uuid.UUID
+	MaxTracks  int16
+	InstanceID uuid.UUID
+}
+
+// Bound one's own wishes for the cohorts of a module in a programme: "of these, at most this
+// many". Named through one of the cohorts, because that is what a caller holds; the bound itself
+// belongs to all of them together, so it is keyed by semester, module and programme.
+//
+// Only where the caller has wished for at least one of those cohorts. A bound on nothing would
+// lie in wait, unread, and qualify wishes entered months later by somebody who has forgotten it.
+// Zero rows written is that refusal; the service has already established that the instance is
+// there.
+func (q *Queries) SetWishTrackLimit(ctx context.Context, arg SetWishTrackLimitParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setWishTrackLimit, arg.PersonID, arg.MaxTracks, arg.InstanceID)
 	if err != nil {
 		return 0, err
 	}
@@ -106,7 +184,11 @@ SELECT
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
     person.mail AS person_mail, person.name AS person_name,
-    COALESCE(t.short_name, '')::text AS person_sort_name
+    COALESCE(t.short_name, '')::text AS person_sort_name,
+    -- "Of these cohorts, at most this many" (migration of 2026-10-27). Joined onto the wish row
+    -- rather than read on its own, so that it is visible exactly where the wish is and nowhere
+    -- else: there is no query for this table that does not start from a filtered wish.
+    l.max_tracks AS track_limit
 FROM wish w
 JOIN course_instance ci ON ci.id = w.course_instance_id
 JOIN semester sem ON sem.id = ci.semester_id
@@ -115,6 +197,9 @@ JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id
 JOIN person ON person.id = w.person_id
 LEFT JOIN teacher t ON t.mail = person.mail
+LEFT JOIN wish_track_limit l
+       ON l.person_id = w.person_id AND l.semester_id = ci.semester_id
+      AND l.module_id = ci.module_id AND l.programme_id = ci.programme_id
 WHERE w.id = $1::uuid
   AND (
       $2::text = 'all'
@@ -158,6 +243,7 @@ type WishByIDRow struct {
 	PersonMail        string
 	PersonName        string
 	PersonSortName    string
+	TrackLimit        *int16
 }
 
 // One wish, through the same filter. A detail view that skipped it would be the hole the list
@@ -195,6 +281,7 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 		&i.PersonMail,
 		&i.PersonName,
 		&i.PersonSortName,
+		&i.TrackLimit,
 	)
 	return i, err
 }
@@ -215,7 +302,11 @@ SELECT
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
     person.mail AS person_mail, person.name AS person_name,
-    COALESCE(t.short_name, '')::text AS person_sort_name
+    COALESCE(t.short_name, '')::text AS person_sort_name,
+    -- "Of these cohorts, at most this many" (migration of 2026-10-27). Joined onto the wish row
+    -- rather than read on its own, so that it is visible exactly where the wish is and nowhere
+    -- else: there is no query for this table that does not start from a filtered wish.
+    l.max_tracks AS track_limit
 FROM wish w
 JOIN course_instance ci ON ci.id = w.course_instance_id
 JOIN semester sem ON sem.id = ci.semester_id
@@ -224,6 +315,9 @@ JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id
 JOIN person ON person.id = w.person_id
 LEFT JOIN teacher t ON t.mail = person.mail
+LEFT JOIN wish_track_limit l
+       ON l.person_id = w.person_id AND l.semester_id = ci.semester_id
+      AND l.module_id = ci.module_id AND l.programme_id = ci.programme_id
 WHERE ($1::uuid IS NULL
        OR ci.semester_id = $1::uuid)
   AND ($2::text IS NULL OR prog.code = $2::text)
@@ -278,6 +372,7 @@ type WishesOfSemesterRow struct {
 	PersonMail        string
 	PersonName        string
 	PersonSortName    string
+	TrackLimit        *int16
 }
 
 // Wishes: one person's interest in one course instance.
@@ -367,6 +462,7 @@ func (q *Queries) WishesOfSemester(ctx context.Context, arg WishesOfSemesterPara
 			&i.PersonMail,
 			&i.PersonName,
 			&i.PersonSortName,
+			&i.TrackLimit,
 		); err != nil {
 			return nil, err
 		}

@@ -1509,6 +1509,18 @@ type Wish struct {
 	// in a signed-in session, the dean's office. Publication makes visible who wants what, not the
 	// owner's own words; for everybody else this is the empty string.
 	Note string `json:"note"`
+	// The owner's bound on the cohorts of this module in this programme: of the cohorts they wished
+	// for, they take **at most this many** — „einen der beiden Züge, egal welcher“ is a wish for each
+	// cohort and a `trackLimit` of 1. `null` for no bound, which is also what a bound of at least the
+	// number of wishes means.
+	//
+	// The same on every wish of the group, because it belongs to the group (`setWishTrackLimit`).
+	// Visible wherever the wish is, like `priority`: it is part of what somebody wants, and after
+	// publication it is what tells colleagues that two entries are an offer of one.
+	//
+	// Not a count of anything: it is the owner's own statement, and reading it tells nobody how many
+	// others there are.
+	TrackLimit *int `json:"trackLimit,omitempty"`
 	// When it was first registered. `null` where the note is empty for you: the order in which people
 	// registered is the first-come information the confidentiality rule exists to make irrelevant.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`

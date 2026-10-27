@@ -49,6 +49,19 @@ func (r *mutationResolver) WithdrawWish(ctx context.Context, id string) (string,
 	return id, nil
 }
 
+// SetWishTrackLimit is the resolver for the setWishTrackLimit field.
+func (r *mutationResolver) SetWishTrackLimit(ctx context.Context, courseInstanceID string, maxTracks *int) (*int, error) {
+	instanceID, err := parseID(courseInstanceID)
+	if err != nil {
+		return nil, err
+	}
+	// Whose bound it is comes from the actor, as with a wish.
+	if err := r.Wishes.SetTrackLimit(ctx, principal.From(ctx), instanceID, maxTracks); err != nil {
+		return nil, wishError(err)
+	}
+	return maxTracks, nil
+}
+
 // SetDesiredTeachingHours is the resolver for the setDesiredTeachingHours field.
 func (r *mutationResolver) SetDesiredTeachingHours(ctx context.Context, semester string, minHours *float64, maxHours *float64, hours *float64, note *string) (*model.DesiredTeachingHours, error) {
 	text := ""

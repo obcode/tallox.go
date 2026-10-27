@@ -422,6 +422,7 @@ type ComplexityRoot struct {
 		SetTeacherAdmitted            func(childComplexity int, teacherID string, admitted bool) int
 		SetTeacherCompetence          func(childComplexity int, moduleID string, teacherID string, level domain.CompetenceLevel, note *string) int
 		SetWish                       func(childComplexity int, courseInstanceID string, priority domain.WishPriority, note *string) int
+		SetWishTrackLimit             func(childComplexity int, courseInstanceID string, maxTracks *int) int
 		SetWishWindow                 func(childComplexity int, semester string, subjectGroupID string, open bool) int
 		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
 		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
@@ -659,13 +660,14 @@ type ComplexityRoot struct {
 	}
 
 	Wish struct {
-		CreatedAt func(childComplexity int) int
-		ID        func(childComplexity int) int
-		Instance  func(childComplexity int) int
-		Note      func(childComplexity int) int
-		Person    func(childComplexity int) int
-		Priority  func(childComplexity int) int
-		UpdatedAt func(childComplexity int) int
+		CreatedAt  func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Instance   func(childComplexity int) int
+		Note       func(childComplexity int) int
+		Person     func(childComplexity int) int
+		Priority   func(childComplexity int) int
+		TrackLimit func(childComplexity int) int
+		UpdatedAt  func(childComplexity int) int
 	}
 
 	WishWindow struct {
@@ -2730,6 +2732,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetWish(childComplexity, args["courseInstanceId"].(string), args["priority"].(domain.WishPriority), args["note"].(*string)), true
+	case "Mutation.setWishTrackLimit":
+		if e.ComplexityRoot.Mutation.SetWishTrackLimit == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setWishTrackLimit_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetWishTrackLimit(childComplexity, args["courseInstanceId"].(string), args["maxTracks"].(*int)), true
 	case "Mutation.setWishWindow":
 		if e.ComplexityRoot.Mutation.SetWishWindow == nil {
 			break
@@ -4052,6 +4065,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Wish.Priority(childComplexity), true
+	case "Wish.trackLimit":
+		if e.ComplexityRoot.Wish.TrackLimit == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.TrackLimit(childComplexity), true
 	case "Wish.updatedAt":
 		if e.ComplexityRoot.Wish.UpdatedAt == nil {
 			break
@@ -7698,7 +7717,8 @@ enum ScopeArea {
   semester, and confidential for the same reason. The desired teaching hours are here because
   they are stated on the wish screen, beside the wishes they belong to.
 
-  Fields: ` + "`" + `myWishes` + "`" + `, ` + "`" + `wishes` + "`" + `, ` + "`" + `setWish` + "`" + `, ` + "`" + `withdrawWish` + "`" + `, ` + "`" + `myCompetences` + "`" + `, ` + "`" + `myCompetenceStatus` + "`" + `,
+  Fields: ` + "`" + `myWishes` + "`" + `, ` + "`" + `wishes` + "`" + `, ` + "`" + `setWish` + "`" + `, ` + "`" + `withdrawWish` + "`" + `, ` + "`" + `setWishTrackLimit` + "`" + `,
+  ` + "`" + `myCompetences` + "`" + `, ` + "`" + `myCompetenceStatus` + "`" + `,
   ` + "`" + `competences` + "`" + `, ` + "`" + `competenceMemberStatus` + "`" + `, ` + "`" + `modulesWithoutCompetence` + "`" + `, ` + "`" + `setMyCompetence` + "`" + `,
   ` + "`" + `withdrawMyCompetence` + "`" + `, ` + "`" + `setTeacherCompetence` + "`" + `, ` + "`" + `withdrawTeacherCompetence` + "`" + `,
   ` + "`" + `myDesiredTeachingHours` + "`" + `, ` + "`" + `desiredTeachingHours` + "`" + `, ` + "`" + `desiredHoursOverview` + "`" + `,
@@ -8988,6 +9008,20 @@ type Wish {
   """
   note: String!
   """
+  The owner's bound on the cohorts of this module in this programme: of the cohorts they wished
+  for, they take **at most this many** — „einen der beiden Züge, egal welcher“ is a wish for each
+  cohort and a ` + "`" + `trackLimit` + "`" + ` of 1. ` + "`" + `null` + "`" + ` for no bound, which is also what a bound of at least the
+  number of wishes means.
+
+  The same on every wish of the group, because it belongs to the group (` + "`" + `setWishTrackLimit` + "`" + `).
+  Visible wherever the wish is, like ` + "`" + `priority` + "`" + `: it is part of what somebody wants, and after
+  publication it is what tells colleagues that two entries are an offer of one.
+
+  Not a count of anything: it is the owner's own statement, and reading it tells nobody how many
+  others there are.
+  """
+  trackLimit: Int
+  """
   When it was first registered. ` + "`" + `null` + "`" + ` where the note is empty for you: the order in which people
   registered is the first-come information the confidentiality rule exists to make irrelevant.
   """
@@ -9075,6 +9109,30 @@ extend type Mutation {
   Returns the id, so that a list can drop the row without asking again.
   """
   withdrawWish(id: ID!): ID! @scope(area: WISHES, verb: WRITE)
+
+  """
+  Bound your own wishes for the cohorts of a module in a study programme: „höchstens einen davon,
+  egal welchen“. Lift the bound with ` + "`" + `maxTracks: null` + "`" + `.
+
+  Named through any one of the cohorts, because that is what you hold; the bound belongs to all
+  cohorts of that module in that programme and semester, and every one of your wishes for them
+  carries it as ` + "`" + `trackLimit` + "`" + `. Your wishes themselves are unchanged — each cohort keeps its own
+  priority, so „A gerne, B notfalls, höchstens einer“ can be said.
+
+  Bound by the phase and the subject group's wish round like ` + "`" + `setWish` + "`" + ` (` + "`" + `WISH_PHASE_CLOSED` + "`" + `,
+  ` + "`" + `WISH_WINDOW_CLOSED` + "`" + `). ` + "`" + `WISH_TRACK_LIMIT_WITHOUT_WISHES` + "`" + ` while you have wished for none of these
+  cohorts — a bound on nothing would wait unread for a wish entered much later — and
+  ` + "`" + `WISH_TRACK_LIMIT_INVALID` + "`" + ` outside 1 to 9. Withdrawing your last wish for the cohorts drops the
+  bound with it.
+
+  Returns the bound now in force, ` + "`" + `null` + "`" + ` for none.
+  """
+  setWishTrackLimit(
+    "Any one of the cohorts the bound is for."
+    courseInstanceId: ID!
+    "At most this many of them, 1 to 9; ` + "`" + `null` + "`" + ` lifts the bound."
+    maxTracks: Int
+  ): Int @scope(area: WISHES, verb: WRITE)
 }
 
 """
@@ -10647,6 +10705,8 @@ func (ec *executionContext) childFields_Wish(ctx context.Context, field graphql.
 		return ec.fieldContext_Wish_priority(ctx, field)
 	case "note":
 		return ec.fieldContext_Wish_note(ctx, field)
+	case "trackLimit":
+		return ec.fieldContext_Wish_trackLimit(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_Wish_createdAt(ctx, field)
 	case "updatedAt":

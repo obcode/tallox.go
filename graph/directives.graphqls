@@ -167,7 +167,8 @@ enum ScopeArea {
   semester, and confidential for the same reason. The desired teaching hours are here because
   they are stated on the wish screen, beside the wishes they belong to.
 
-  Fields: `myWishes`, `wishes`, `setWish`, `withdrawWish`, `myCompetences`, `myCompetenceStatus`,
+  Fields: `myWishes`, `wishes`, `setWish`, `withdrawWish`, `setWishTrackLimit`,
+  `myCompetences`, `myCompetenceStatus`,
   `competences`, `competenceMemberStatus`, `modulesWithoutCompetence`, `setMyCompetence`,
   `withdrawMyCompetence`, `setTeacherCompetence`, `withdrawTeacherCompetence`,
   `myDesiredTeachingHours`, `desiredTeachingHours`, `desiredHoursOverview`,

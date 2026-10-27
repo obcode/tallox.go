@@ -193,6 +193,47 @@ func (w *Wishes) WithdrawWish(ctx context.Context, id, personID uuid.UUID) error
 		// telling them apart would say whose it is.
 		return domain.ErrWishNotFound
 	}
+	// A bound on cohorts the person no longer wishes for at all would come back to life with the
+	// next wish for one of them, months later and unasked.
+	if err := New(w.pool).PruneOwnWishTrackLimits(ctx, personID); err != nil {
+		return fmt.Errorf("cannot tidy the bounds: %w", err)
+	}
+	return nil
+}
+
+// trackLimitFrom is the stored bound, or 0 for none.
+func trackLimitFrom(stored *int16) int {
+	if stored == nil {
+		return 0
+	}
+	return int(*stored)
+}
+
+// SetWishTrackLimit bounds one person's own wishes for the cohorts of the instance's module in its
+// programme, or lifts the bound with nil.
+func (w *Wishes) SetWishTrackLimit(ctx context.Context, instanceID, personID uuid.UUID,
+	maxTracks *int) error {
+	q := New(w.pool)
+	if maxTracks == nil {
+		if err := q.ClearWishTrackLimit(ctx, ClearWishTrackLimitParams{
+			InstanceID: instanceID, PersonID: personID,
+		}); err != nil {
+			return fmt.Errorf("cannot lift the bound: %w", err)
+		}
+		return nil
+	}
+
+	written, err := q.SetWishTrackLimit(ctx, SetWishTrackLimitParams{
+		PersonID: personID, MaxTracks: int16(*maxTracks), InstanceID: instanceID,
+	})
+	if err != nil {
+		return fmt.Errorf("cannot set the bound: %w", err)
+	}
+	if written == 0 {
+		// The instance was there a moment ago (the service read its context), so this is the
+		// other half of the WHERE: no wish of this person's for any of its cohorts.
+		return domain.ErrWishTrackLimitWithoutWishes
+	}
 	return nil
 }
 
@@ -245,6 +286,7 @@ type wishRow struct {
 	PersonMail        string
 	PersonName        string
 	PersonSortName    string
+	TrackLimit        *int16
 }
 
 func wishFrom(row wishRow) domain.Wish {
@@ -275,6 +317,7 @@ func wishFrom(row wishRow) domain.Wish {
 		SubjectGroupID: row.SubjectGroupID.UUID,
 		Priority:       domain.WishPriorityFromLevel(row.Priority),
 		Note:           row.Note,
+		TrackLimit:     trackLimitFrom(row.TrackLimit),
 		CreatedAt:      row.CreatedAt,
 		UpdatedAt:      row.UpdatedAt,
 	}

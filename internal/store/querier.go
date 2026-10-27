@@ -276,6 +276,8 @@ type Querier interface {
 	// an administrator sets up a group, and a colleague says which subjects they work in. Both write
 	// this table and neither may quietly rewrite the other's rows.
 	ClearSubjectGroupsOfPerson(ctx context.Context, personID uuid.UUID) error
+	// Lift one's own bound again, named through one of the cohorts like setting it.
+	ClearWishTrackLimit(ctx context.Context, arg ClearWishTrackLimitParams) error
 	// One competence, through the same filter.
 	CompetenceByID(ctx context.Context, arg CompetenceByIDParams) (CompetenceByIDRow, error)
 	// What the write rule needs about a module: whether it may be stated for at all, its subject
@@ -1150,6 +1152,9 @@ type Querier interface {
 	// silently stopped working shows up as a number that stops moving rather than as a table that
 	// quietly grows for a year.
 	PruneAccessLog(ctx context.Context, cutoff time.Time) (int64, error)
+	// After a withdrawal: drop the caller's bounds that no longer qualify any wish of theirs, for the
+	// reason SetWishTrackLimit refuses one on nothing.
+	PruneOwnWishTrackLimits(ctx context.Context, personID uuid.UUID) error
 	// Idempotent, and it keeps the *first* timestamp. Same shape as PublishSemesterWishes, and the
 	// same argument: publishing twice is not an error, but the moment it happened is a fact about the
 	// process that a second call must not overwrite.
@@ -1344,6 +1349,15 @@ type Querier interface {
 	// updated_at stays put when nothing changed, so retiring a group that is already retired does not
 	// make the row look edited.
 	SetSubjectGroupActive(ctx context.Context, arg SetSubjectGroupActiveParams) (SetSubjectGroupActiveRow, error)
+	// Bound one's own wishes for the cohorts of a module in a programme: "of these, at most this
+	// many". Named through one of the cohorts, because that is what a caller holds; the bound itself
+	// belongs to all of them together, so it is keyed by semester, module and programme.
+	//
+	// Only where the caller has wished for at least one of those cohorts. A bound on nothing would
+	// lie in wait, unread, and qualify wishes entered months later by somebody who has forgotten it.
+	// Zero rows written is that refusal; the service has already established that the instance is
+	// there.
+	SetWishTrackLimit(ctx context.Context, arg SetWishTrackLimitParams) (int64, error)
 	// Open or shut one subject group's wish round.
 	//
 	// Upsert, and the row is kept when it is opened again rather than deleted. Unlike the

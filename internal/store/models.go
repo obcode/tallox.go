@@ -332,6 +332,15 @@ type Wish struct {
 	CourseInstanceID uuid.UUID
 }
 
+type WishTrackLimit struct {
+	PersonID    uuid.UUID
+	SemesterID  uuid.UUID
+	ModuleID    uuid.UUID
+	ProgrammeID uuid.UUID
+	MaxTracks   int16
+	UpdatedAt   time.Time
+}
+
 type WishWindow struct {
 	SemesterID     uuid.UUID
 	SubjectGroupID uuid.UUID

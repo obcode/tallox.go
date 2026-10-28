@@ -361,3 +361,44 @@ func TestTheZPAAddressLosesItsTrailingSlash(t *testing.T) {
 			cfg.ZPA.Token)
 	}
 }
+
+// TestAServerBlockWithoutItsGuardsIsRefused: zero is not "off". A file that sets either bound
+// to nothing is refused at startup, like every other configuration mistake.
+func TestAServerBlockWithoutItsGuardsIsRefused(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		yaml string
+		want string
+	}{
+		{"request bytes", "server:\n  maxrequestbytes: 0\n", "maxrequestbytes"},
+		{"complexity", "server:\n  maxcomplexity: -1\n", "maxcomplexity"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			path := filepath.Join(t.TempDir(), "tallox.yaml")
+			if err := os.WriteFile(path, []byte(tc.yaml), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			_, _, err := bootstrap.LoadConfigFrom(path)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("LoadConfigFrom accepted %q, or refused it for another reason: %v", tc.yaml, err)
+			}
+		})
+	}
+
+	// And a file that says nothing about either runs with the defaults, not with zero.
+	path := filepath.Join(t.TempDir(), "tallox.yaml")
+	if err := os.WriteFile(path, []byte("server:\n  port: 9090\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, _, err := bootstrap.LoadConfigFrom(path)
+	if err != nil {
+		t.Fatalf("a silent file was refused: %v", err)
+	}
+	if cfg.Server.MaxRequestBytes != 1<<20 || cfg.Server.MaxComplexity != 1000 {
+		t.Errorf("silent file ran with %d bytes / complexity %d, want the defaults",
+			cfg.Server.MaxRequestBytes, cfg.Server.MaxComplexity)
+	}
+}

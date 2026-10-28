@@ -29,6 +29,24 @@ import (
 // arch test that stops them is right to.
 type Pool = *pgxpool.Pool
 
+// sessionDefaults are the PostgreSQL session settings every pooled connection starts with,
+// unless the DSN names the same key. Exported through SessionDefaults for the test that reads
+// them back from a live session.
+var sessionDefaults = map[string]string{
+	"timezone":                            "Europe/Berlin",
+	"statement_timeout":                   "30s",
+	"idle_in_transaction_session_timeout": "1min",
+}
+
+// SessionDefaults is a copy of the session settings Open applies where the DSN is silent.
+func SessionDefaults() map[string]string {
+	out := make(map[string]string, len(sessionDefaults))
+	for k, v := range sessionDefaults {
+		out[k] = v
+	}
+	return out
+}
+
 // Open creates a connection pool and verifies it can actually reach the database.
 //
 // The ping is not ceremony: without it a wrong DSN surfaces later, on the first query, as a
@@ -40,15 +58,27 @@ func Open(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("cannot parse database url: %w", err)
 	}
 
+	// Session defaults, each only where the DSN is silent — a `?statement_timeout=5s` in the
+	// URL lands in RuntimeParams through ParseConfig and wins.
+	//
 	// Every session lands in Europe/Berlin, matching time.Local as pinned in main.go.
 	// Milestone deadlines and phase boundaries are local-time; a pool whose sessions default
 	// to UTC would make date_trunc and ::date in a query disagree with the same computation
 	// in Go, and only for the hours where it matters.
+	//
+	// The two timeouts are the database's own guard against a request that holds a connection
+	// for longer than any legitimate statement here takes. Request cancellation covers the
+	// client that goes away; it does not cover the client that waits, and a handful of those
+	// holding the pool is the outage this system actually has to fear in October. No single
+	// statement in this schema takes seconds, let alone thirty; migrations run on a separate
+	// connection (see Migrate) and are not bound by this.
 	if cfg.ConnConfig.RuntimeParams == nil {
 		cfg.ConnConfig.RuntimeParams = map[string]string{}
 	}
-	if _, set := cfg.ConnConfig.RuntimeParams["timezone"]; !set {
-		cfg.ConnConfig.RuntimeParams["timezone"] = "Europe/Berlin"
+	for key, value := range sessionDefaults {
+		if _, set := cfg.ConnConfig.RuntimeParams[key]; !set {
+			cfg.ConnConfig.RuntimeParams[key] = value
+		}
 	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)

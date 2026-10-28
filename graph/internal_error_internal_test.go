@@ -19,7 +19,8 @@ func TestAnUncodedErrorIsReplacedByINTERNAL(t *testing.T) {
 	raw := fmt.Errorf("cannot register the wish: %w",
 		errors.New(`ERROR: insert or update on table "wish" violates foreign key constraint "wish_course_instance_id_fkey" (SQLSTATE 23503)`))
 
-	ctx := graphql.WithPathContext(context.Background(), graphql.NewPathWithField("setWish"))
+	ctx := graphql.WithOperationContext(context.Background(), &graphql.OperationContext{})
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("setWish"))
 	got := PresentError(ctx, raw)
 
 	if got.Message != internalMessage {
@@ -66,6 +67,18 @@ func TestGqlgensOwnCodesPassThePresenter(t *testing.T) {
 	got := PresentError(context.Background(), in)
 	if got.Message != in.Message || len(got.Locations) != 1 {
 		t.Errorf("validation failure was rewritten: %+v", got)
+	}
+}
+
+// TestATransportErrorBeforeAnyOperationKeepsItsSentence: broken JSON is the caller's to
+// hear about, and nothing said before an operation exists can be about a row.
+func TestATransportErrorBeforeAnyOperationKeepsItsSentence(t *testing.T) {
+	t.Parallel()
+
+	in := gqlerror.Errorf("json request body could not be decoded: unexpected EOF")
+	got := PresentError(context.Background(), in)
+	if got.Message != in.Message {
+		t.Errorf("a transport error was rewritten to %q", got.Message)
 	}
 }
 

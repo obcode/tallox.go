@@ -52,6 +52,13 @@ func PresentError(ctx context.Context, err error) *gqlerror.Error {
 	if _, coded := presented.Extensions["code"]; coded {
 		return presented
 	}
+	// No operation yet: the transport could not read or decode the request, or a persisted
+	// query was not found. Those sentences are gqlgen's, about the request's shape, and say
+	// nothing about any row — and a client that sent broken JSON is better served by hearing
+	// so. Every error a resolver returns arrives inside an operation.
+	if !graphql.HasOperationContext(ctx) {
+		return presented
+	}
 
 	log.Error().Err(err).Str("path", presented.Path.String()).Msg("uncoded error replaced by INTERNAL")
 	return &gqlerror.Error{

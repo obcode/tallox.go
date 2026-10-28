@@ -162,3 +162,8 @@ von Zug B den Wunsch auf Zug A mitlesen lassen; die Obergrenze sagt auch „2 vo
   `WithdrawWish` danach eigene Grenzen ohne Wunsch weg (`PruneOwnWishTrackLimits`).
 - Die Ablehnung liest nur eigene Wünsche; `TestABoundIsRefusedWhereAWishWouldBe` prüft, dass sie
   gleich lautet, ob jemand anderes eingetragen ist oder nicht.
+
+## Nachtrag 2026-10-28
+
+„Über ein Token nur Eigenes“ gilt jetzt nur noch für **normale** Tokens. Ein Planungs-Token mit
+voller Reichweite liest, was die Person im Browser liest. Siehe [[full-reach-tokens]].

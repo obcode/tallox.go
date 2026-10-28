@@ -120,3 +120,10 @@ dort nennt jetzt beide.
 - Reihenfolge der Absagen: `INSUFFICIENT_SCOPE` gewinnt gegen `INTERACTIVE_ONLY`, weil
   AroundOperations vor jedem Resolver läuft. Per Test festgenagelt, damit Clients sich darauf
   verlassen können.
+
+## Nachtrag 2026-10-28: Planungs-Tokens
+
+Die Aussage „In der GUI werden nur `PROFILE` und `PLANNING` angeboten“ ist überholt: mit voller
+Reichweite erreicht ein Token auch Teile von `ADMIN` (ZPA, Fachgruppen) und `WISHES`. Scopes und
+volle Reichweite sind orthogonal — der Scope verengt die Fläche, die Reichweite die Tür. Siehe
+[[full-reach-tokens]].

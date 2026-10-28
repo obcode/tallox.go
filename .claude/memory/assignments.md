@@ -127,3 +127,9 @@ Siehe auch [[wishes]], [[subject-groups]], [[semester-and-phase]].
 
 Seit 2026-10-17 ist „den Teil teilen“ eine eigene Mutation (`divideInstancePart`), und ein Teil kann
 einer anderen Fakultät gehören (`taught_by`, nicht besetzbar) — siehe [[divided-parts]].
+
+## Nachtrag 2026-10-28
+
+`setAssignment`/`clearAssignment` sind nicht mehr `@interactiveOnly`, sondern `@fullReach`: ein
+Planungs-Token füllt Teile wie der Browser, ein normales Token weiterhin nicht. Siehe
+[[full-reach-tokens]].

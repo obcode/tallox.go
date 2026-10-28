@@ -119,7 +119,13 @@ func TestRevocationKeepsTheFirstMoment(t *testing.T) {
 	storetest.SeedToken(t, s, testdata.Eins, hash(3), storetest.TokenOptions{})
 
 	q := s.Queries()
-	if err := q.RevokeToken(t.Context(), testdata.Eins.TokenID); err != nil {
+	revoke := func() error {
+		_, err := q.RevokeTokenOfOwner(t.Context(), store.RevokeTokenOfOwnerParams{
+			TokenID: testdata.Eins.TokenID, OwnerID: testdata.Eins.ID(),
+		})
+		return err
+	}
+	if err := revoke(); err != nil {
 		t.Fatalf("cannot revoke: %v", err)
 	}
 	first, err := q.TokenByID(t.Context(), testdata.Eins.TokenID)
@@ -127,7 +133,7 @@ func TestRevocationKeepsTheFirstMoment(t *testing.T) {
 		t.Fatalf("cannot read back: %v", err)
 	}
 
-	if err := q.RevokeToken(t.Context(), testdata.Eins.TokenID); err != nil {
+	if err := revoke(); err != nil {
 		t.Fatalf("revoking twice failed: %v", err)
 	}
 	second, err := q.TokenByID(t.Context(), testdata.Eins.TokenID)

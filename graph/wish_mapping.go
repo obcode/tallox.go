@@ -112,7 +112,7 @@ func wishError(err error) error {
 	case err == nil:
 		return nil
 	case errors.Is(err, domain.ErrNotAuthenticated):
-		return err
+		return refusal("UNAUTHENTICATED", "Nicht angemeldet.")
 	case errors.Is(err, domain.ErrPartnerWritesNothing):
 		return refusal("PARTNER_READS_ONLY", policy.PartnerReason)
 	case errors.Is(err, domain.ErrDesiredHoursPhaseClosed):
@@ -158,11 +158,14 @@ func wishError(err error) error {
 		// Shared with the semester workflow and the demand: one meaning per code, and a German
 		// sentence rather than the English one domain.Err… carries for the log.
 		return semesterRefusal(err)
+	case coded(err):
+		return err
 	}
-	// Anything else keeps its own shape rather than being dressed up with a code that would then
-	// mean nothing. The database noise a driver error carries never reaches here: internal/store
-	// wraps it, and graphqltest.AssertNoLeak is what says so.
-	return err
+	// Anything else is ours, not the caller's. Wrapping with %w in internal/store keeps the
+	// driver's text in the chain, so what reaches here still says table, constraint and SQLSTATE;
+	// the generic sentence is what keeps it off the wire, and bootstrap.TestAStoreFailureSaysNothing
+	// is what says so.
+	return internalRefusal("wish", err)
 }
 
 // timeOrNil is a moment for the schema, or null where the domain left it zero — a timestamp the

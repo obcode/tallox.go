@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/vektah/gqlparser/v2/gqlerror"
 
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
@@ -41,8 +40,8 @@ func subjectGroupModels(groups []domain.SubjectGroup) []*model.SubjectGroup {
 // subjectGroupError maps the refusals this area produces to codes the interface branches on.
 //
 // The German sentence is the half that gets reworded after a support question; the code is the
-// stable half of the contract. Anything unrecognised is passed through as an ordinary error
-// rather than dressed up with a code that would then mean nothing.
+// stable half of the contract. Anything unrecognised is ours, not the caller's, and leaves as
+// the generic INTERNAL with the truth in the log.
 func subjectGroupError(err error) error {
 	switch {
 	case err == nil:
@@ -73,14 +72,12 @@ func subjectGroupError(err error) error {
 	case errors.Is(err, domain.ErrPartnerWritesNothing):
 		return refusal("PARTNER_READS_ONLY", policy.PartnerReason)
 	case errors.Is(err, domain.ErrNotAuthenticated):
+		return refusal("UNAUTHENTICATED", "Nicht angemeldet.")
+	case coded(err):
+		// A refusal another area built — parseID, the semester's — passing through on its way out.
 		return err
 	}
-
-	var gql *gqlerror.Error
-	if errors.As(err, &gql) {
-		return err
-	}
-	return err
+	return internalRefusal("subjectgroup", err)
 }
 
 // parseIDs turns a list of identifiers into uuids, refusing the whole list on the first one that

@@ -83,6 +83,11 @@ func (*ProxyAuthenticator) Asserted(r *http.Request) Asserted {
 
 // Authenticate resolves the header into an actor.
 func (a *ProxyAuthenticator) Authenticate(ctx context.Context, r *http.Request) (principal.Actor, error) {
+	// Exactly one or none. Header.Get would read the first value, and the first value is the
+	// one a client controls when a proxy appends its own instead of replacing.
+	if len(r.Header.Values(HeaderRemoteUser)) > 1 {
+		return principal.Anonymous, ErrAmbiguousIdentity
+	}
 	mail := strings.TrimSpace(r.Header.Get(HeaderRemoteUser))
 
 	if mail == "" {

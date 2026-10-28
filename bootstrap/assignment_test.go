@@ -1,6 +1,7 @@
 package bootstrap_test
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -12,6 +13,8 @@ import (
 	"github.com/obcode/tallox.go/internal/buildinfo"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/graphqltest"
+	"github.com/obcode/tallox.go/internal/policy"
+	"github.com/obcode/tallox.go/internal/principal"
 	"github.com/obcode/tallox.go/internal/store"
 	"github.com/obcode/tallox.go/internal/store/storetest"
 	"github.com/obcode/tallox.go/internal/testdata"
@@ -574,5 +577,44 @@ func TestReplacingWhatSomebodyElseChangedIsRefusedThroughTheAPI(t *testing.T) {
 	got := held(t, browser, f.semester)
 	if len(got) != 1 || got[0] != testdata.Zwei.Mail {
 		t.Errorf("after the refused write the part is held by %v, want %s", got, testdata.Zwei.Mail)
+	}
+}
+
+// TestTheAssignmentServiceRefusesATokenActorItself: TestEveryAssignmentMutationRefusesAToken
+// proves the directive; this proves the service, for the caller that is not a resolver. Before
+// 2026-10-28 a token actor handed to the service directly would have written the row and then
+// been told ASSIGNMENT_NOT_FOUND by the read-back.
+func TestTheAssignmentServiceRefusesATokenActorItself(t *testing.T) {
+	t.Parallel()
+
+	f := assignmentHandler(t,
+		grants{testdata.Eins, []string{"LECTURER"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+	)
+	f.leadGroup(t, testdata.Drei, f.group)
+
+	planning := domain.NewSemesterService(store.NewSemesters(f.schema.Pool), nil)
+	service := domain.NewAssignmentService(store.NewAssignments(f.schema.Pool), planning)
+	viaToken := testdata.Drei.Actor(principal.KindToken,
+		string(policy.RoleLecturer), string(policy.RoleSubjectGroupLead))
+	viaToken.RoleScopes = append(viaToken.RoleScopes, principal.RoleScope{
+		Role: string(policy.RoleSubjectGroupLead), SubjectGroupID: f.group,
+	})
+
+	part := uuid.MustParse(f.lecture)
+	_, err := service.Set(t.Context(), viaToken, part, domain.Assignee{PersonID: testdata.Eins.ID()}, "", uuid.Nil)
+	if !errors.Is(err, domain.ErrInteractiveOnly) {
+		t.Errorf("Set with a token actor: %v, want ErrInteractiveOnly", err)
+	}
+	if err := service.Clear(t.Context(), viaToken, uuid.New()); !errors.Is(err, domain.ErrInteractiveOnly) {
+		t.Errorf("Clear with a token actor: %v, want ErrInteractiveOnly", err)
+	}
+
+	var n int
+	if err := f.schema.Pool.QueryRow(t.Context(), `SELECT count(*) FROM assignment`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Errorf("a token actor wrote %d assignment(s) through the service", n)
 	}
 }

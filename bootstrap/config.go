@@ -65,6 +65,31 @@ type ServerConfig struct {
 	// editor completion, codegen and schema exploration work for the colleagues writing their
 	// own evaluations. See CLAUDE.md — the API is a product here.
 	Introspection bool
+	// MaxRequestBytes bounds the body of one GraphQL request, on both doors. A query is a few
+	// kilobytes; the largest legitimate request this server takes is planDemand with a whole
+	// programme's entries, well under a hundred. The default of one mebibyte is room, not a
+	// target. Anything larger is refused before it is read.
+	MaxRequestBytes int
+	// MaxComplexity bounds one operation's field count as gqlgen computes it: one per field,
+	// fragments resolved, aliases counted each. The largest GUI screen (the demand table) is
+	// under two hundred; the default of a thousand leaves colleagues' own evaluations room and
+	// stops an alias bomb from binding the pool. Measured on 2026-10-28 — measure again
+	// before lowering it.
+	MaxComplexity int
+}
+
+// Validate refuses a server block that would run without its guards.
+//
+// Zero is not "off": a limit that can be switched off by leaving a key empty is one that
+// will be, by a copied example file that predates it. Nothing here needs either guard off.
+func (s ServerConfig) Validate() error {
+	if s.MaxRequestBytes <= 0 {
+		return errors.New("server.maxrequestbytes must be positive")
+	}
+	if s.MaxComplexity <= 0 {
+		return errors.New("server.maxcomplexity must be positive")
+	}
+	return nil
 }
 
 // AuthConfig configures both doors, and the way back in when the database says otherwise.
@@ -198,9 +223,11 @@ type LogConfig struct {
 func DefaultConfig() Config {
 	return Config{
 		Server: ServerConfig{
-			Port:          8080,
-			Playground:    true,
-			Introspection: true,
+			Port:            8080,
+			Playground:      false,
+			Introspection:   true,
+			MaxRequestBytes: 1 << 20,
+			MaxComplexity:   1000,
 		},
 		Auth: AuthConfig{
 			Mode:    "proxy",
@@ -279,6 +306,17 @@ func LoadConfigFrom(explicitPath string, searchPaths ...string) (Config, string,
 	// Validated here rather than at the point of use, so that a malformed address fails the
 	// start instead of the first nightly import — which would be discovered a day later, by
 	// nobody, because a job that never ran sends no mail.
+	if err := cfg.Server.Validate(); err != nil {
+		return Config{}, "", fmt.Errorf("cannot read %s: %w", v.ConfigFileUsed(), err)
+	}
+	for i, admin := range cfg.Auth.ProtectedAdmins {
+		mail, err := normaliseProtectedMail(admin.Mail)
+		if err != nil {
+			return Config{}, "", fmt.Errorf("cannot read %s: auth.protectedadmins[%d]: %w",
+				v.ConfigFileUsed(), i, err)
+		}
+		cfg.Auth.ProtectedAdmins[i].Mail = mail
+	}
 	if err := cfg.ZPA.Validate(); err != nil {
 		return Config{}, "", fmt.Errorf("cannot read %s: %w", v.ConfigFileUsed(), err)
 	}
@@ -332,6 +370,23 @@ func ApplyFlagOverrides(cfg Config, set map[string]bool, f FlagOverrides) (Confi
 		cfg.Log.Level = "debug"
 	}
 	return cfg, nil
+}
+
+// normaliseProtectedMail trims the address and refuses one that could never match a header.
+//
+// The mail column is citext, so case is forgiven; whitespace is not. An entry with a stray
+// space would reconcile cleanly at every start — created, granted, logged as healthy — and
+// never match the proxy's X-Remote-User, which is the one moment the list exists for. A
+// mistake that looks like success is refused at startup instead.
+func normaliseProtectedMail(raw string) (string, error) {
+	mail := strings.TrimSpace(raw)
+	if mail == "" {
+		return "", errors.New("protected admin without a mail address")
+	}
+	if strings.ContainsAny(mail, " \t\r\n") {
+		return "", fmt.Errorf("protected admin mail %q contains whitespace", mail)
+	}
+	return mail, nil
 }
 
 // validateAddr checks that -addr is something net/http can listen on.

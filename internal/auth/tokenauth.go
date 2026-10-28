@@ -40,7 +40,16 @@ type TokenAuthenticator struct {
 	// inflight tracks the fire-and-forget last-used writes, so that a test and a graceful
 	// shutdown can both wait for them instead of racing a closing pool.
 	inflight sync.WaitGroup
+	// marked is when each token's use was last recorded, so that a script's burst of requests
+	// costs one write rather than one round trip per request. The statement itself only
+	// touches rows untouched for markUsedEvery, so this changes nothing about what is stored
+	// — it keeps the pool out of it.
+	marked sync.Map
 }
+
+// markUsedEvery is how often a token's use is worth a write. The same five minutes the query
+// behind MarkTokenUsed applies on its side.
+const markUsedEvery = 5 * time.Minute
 
 // NewTokenAuthenticator builds the token-door authenticator.
 func NewTokenAuthenticator(cfg Config) *TokenAuthenticator {
@@ -171,6 +180,12 @@ func (a *TokenAuthenticator) Authenticate(ctx context.Context, r *http.Request) 
 // writes. A fresh context with a short timeout is what makes the write independent of the
 // request that triggered it.
 func (a *TokenAuthenticator) markUsed(tokenID string) {
+	now := a.now()
+	if last, ok := a.marked.Load(tokenID); ok && now.Sub(last.(time.Time)) < markUsedEvery {
+		return
+	}
+	a.marked.Store(tokenID, now)
+
 	a.inflight.Add(1)
 	go func() {
 		defer a.inflight.Done()

@@ -55,6 +55,13 @@ var (
 	ErrNoSuchToken = errors.New("no such token")
 	// ErrNotAuthenticated: the caller has no identity to own a token.
 	ErrNotAuthenticated = errors.New("not authenticated")
+	// ErrInteractiveOnly: reached with a token, on a surface that is the browser's alone.
+	//
+	// The schema says the same with @interactiveOnly, and the generated code enforces that
+	// before any resolver runs. Repeated here for the caller that is not a resolver: a CLI, an
+	// export, a maintenance job that hands the service a token actor directly. The rule is the
+	// service's, not the transport's — see people.go, which has always checked it itself.
+	ErrInteractiveOnly = errors.New("only reachable in an interactive session")
 	// ErrScopeUnknown: a scope this build does not recognise. Refused rather than dropped —
 	// silently discarding one would mint a token narrower than the caller asked for, and they
 	// would find out from a refusal in a script weeks later.
@@ -134,6 +141,9 @@ func (s *TokenService) Create(ctx context.Context, actor principal.Actor,
 	if !actor.Authenticated() {
 		return CreatedToken{}, ErrNotAuthenticated
 	}
+	if !policy.MayReadInteractiveOnly(actor) {
+		return CreatedToken{}, ErrInteractiveOnly
+	}
 
 	description = strings.TrimSpace(description)
 	switch {
@@ -199,6 +209,9 @@ func (s *TokenService) List(ctx context.Context, actor principal.Actor) ([]Token
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
+	if !policy.MayReadInteractiveOnly(actor) {
+		return nil, ErrInteractiveOnly
+	}
 	return s.store.TokensOfOwner(ctx, actor.ID)
 }
 
@@ -211,6 +224,9 @@ func (s *TokenService) List(ctx context.Context, actor principal.Actor) ([]Token
 func (s *TokenService) Revoke(ctx context.Context, actor principal.Actor, tokenID string) (TokenRecord, error) {
 	if !actor.Authenticated() {
 		return TokenRecord{}, ErrNotAuthenticated
+	}
+	if !policy.MayReadInteractiveOnly(actor) {
+		return TokenRecord{}, ErrInteractiveOnly
 	}
 	return s.store.RevokeTokenOfOwner(ctx, tokenID, actor.ID)
 }

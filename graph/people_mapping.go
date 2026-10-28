@@ -169,6 +169,8 @@ func peopleFacing(err error) error {
 		return refusal("LAST_ADMIN", domain.LastAdminReason)
 	case errors.Is(err, domain.ErrSelfGrantMustExpire):
 		return refusal("SELF_GRANT_MUST_EXPIRE", domain.SelfGrantMustExpireReason)
+	case errors.Is(err, domain.ErrAdminGrantMustNotExpire):
+		return refusal("ADMIN_GRANT_MUST_NOT_EXPIRE", domain.AdminGrantMustNotExpireReason)
 	case errors.Is(err, domain.ErrInvalidMail):
 		return refusal("INVALID_MAIL",
 			"Das ist keine Adresse, mit der sich jemand anmelden kann.")

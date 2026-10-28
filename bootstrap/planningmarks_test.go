@@ -244,3 +244,34 @@ func TestWishWindowsListsOnlyWhatSomebodySwitched(t *testing.T) {
 	// And the round is open, which is what an absent row means.
 	f.register(t, testdata.Eins)
 }
+
+// TestARefusedAnnouncementLeavesNoSemesterBehind: recording a semester is a write, and until
+// 2026-10-28 it happened before the policy had its say — so anybody with an account could leave
+// a semester row for every code in the ±10-year window by asking and being refused.
+func TestARefusedAnnouncementLeavesNoSemesterBehind(t *testing.T) {
+	t.Parallel()
+
+	f := wishHandler(t, grants{testdata.Eins, []string{"LECTURER"}})
+	const far = "2035-WS"
+
+	rows := func(t *testing.T) int {
+		t.Helper()
+		var n int
+		if err := f.schema.Pool.QueryRow(t.Context(),
+			`SELECT count(*) FROM semester WHERE code = $1`, far).Scan(&n); err != nil {
+			t.Fatalf("cannot count semesters: %v", err)
+		}
+		return n
+	}
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			for _, mutation := range []string{setDemandCompleteMutation, setReviewCompleteMutation} {
+				resp := c.Do(t, mutation, map[string]any{"s": far, "p": f.programme, "c": true})
+				assertRefusal(t, resp, "NOT_YOUR_PROGRAMME")
+			}
+			if got := rows(t); got != 0 {
+				t.Errorf("two refused announcements left %d semester row(s) behind", got)
+			}
+		})
+}

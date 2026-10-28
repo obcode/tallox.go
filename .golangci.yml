@@ -14,6 +14,7 @@ linters:
     - bodyclose
     - errorlint
     - gocritic
+    - gosec
     - misspell
     - nilerr
     - revive
@@ -23,6 +24,12 @@ linters:
     - wastedassign
 
   settings:
+    gosec:
+      excludes:
+        # G115 flags every int -> int32/int16 conversion. Here those are sqlc parameters fed
+        # from values the domain has already bounded (limits, counts, a track limit of 1..9);
+        # a conversion that could overflow would be a validation bug, not a security one.
+        - G115
     revive:
       rules:
         - name: exported
@@ -36,9 +43,13 @@ linters:
       # Generated code is not ours to lint.
       - path: (graph/generated/|models_gen\.go|\.sql\.go)$
         linters: [revive, gocritic, unconvert, misspell, errorlint]
-      # Tests may shadow and ignore more freely.
+      # Tests may shadow and ignore more freely — and gosec's credential, file-permission and
+      # taint heuristics have nothing to find in fixtures and httptest handlers.
       - path: _test\.go$
-        linters: [errcheck, gocritic]
+        linters: [errcheck, gocritic, gosec]
+      # The golden harness writes committed test renderings; its permissions are the repo's.
+      - path: internal/golden/
+        linters: [gosec]
 
 formatters:
   enable:

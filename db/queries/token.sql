@@ -82,13 +82,6 @@ SET last_used_at = now()
 WHERE token_id = $1
   AND (last_used_at IS NULL OR last_used_at < now() - interval '5 minutes');
 
--- name: RevokeToken :exec
--- A timestamp, not a DELETE: the audit log has to keep resolving this token id afterwards.
--- Idempotent — revoking twice keeps the first moment, which is the one that matters.
-UPDATE personal_access_token
-SET revoked_at = now()
-WHERE token_id = $1 AND revoked_at IS NULL;
-
 -- name: RevokeTokenOfOwner :one
 -- Revokes a token, but only the caller's own.
 --

@@ -177,7 +177,29 @@ func (s *SubjectGroupService) List(ctx context.Context, actor principal.Actor,
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
-	return s.store.SubjectGroups(ctx, includeInactive)
+	groups, err := s.store.SubjectGroups(ctx, includeInactive)
+	if err != nil {
+		return nil, err
+	}
+	if policy.PartnerOnly(actor) {
+		for i := range groups {
+			groups[i] = withoutPeople(groups[i])
+		}
+	}
+	return groups, nil
+}
+
+// withoutPeople is a subject group as a partner faculty reads it: the structure, not the roster.
+//
+// The same line DesiredHoursOverview draws, for the same reason: who works in which group, with
+// name and mail address, is the faculty's own. A partner reads the groups because the modules
+// it plans with are filed under them, and reads nobody because it has no business with the
+// people. Leads and members come back empty rather than nil so that the schema's non-null
+// lists stay lists.
+func withoutPeople(g SubjectGroup) SubjectGroup {
+	g.Leads = []Person{}
+	g.Members = []Person{}
+	return g
 }
 
 // Mine is the groups the caller is a member of.
@@ -385,7 +407,15 @@ func (s *SubjectGroupService) Get(ctx context.Context, actor principal.Actor,
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
-	return s.get(ctx, id)
+	group, err := s.get(ctx, id)
+	if err != nil || group == nil {
+		return group, err
+	}
+	if policy.PartnerOnly(actor) {
+		bare := withoutPeople(*group)
+		return &bare, nil
+	}
+	return group, nil
 }
 
 // ModulesWithoutSubjectGroup is October's work list as a number.

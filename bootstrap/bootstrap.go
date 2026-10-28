@@ -3,11 +3,13 @@
 package bootstrap
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -66,6 +68,12 @@ const EnvSentryEnvironment = "SENTRY_ENVIRONMENT"
 type Options struct {
 	// Build is the version stamp, served by /healthz and by the buildInfo query.
 	Build buildinfo.Info
+	// MaxRequestBytes bounds one request body on both doors; zero leaves it unbounded, which
+	// only the tests that assemble Options by hand do. Serve always passes the validated value.
+	MaxRequestBytes int64
+	// MaxComplexity bounds one operation's complexity; zero means no limit, for the same
+	// reason and with the same caveat as MaxRequestBytes.
+	MaxComplexity int
 	// Playground enables the GraphQL playground at "/".
 	Playground bool
 	// DisableIntrospection turns schema introspection off.
@@ -119,7 +127,7 @@ func Serve(build buildinfo.Info) {
 		// Caddy routes only /query and /api/graphql to this container, so "/" is not
 		// reachable from outside anyway. Introspection is a separate matter and stays on —
 		// see CLAUDE.md, the API is a product here.
-		playgroundEnabled = flag.Bool("playground", true, "serve the GraphQL playground at /")
+		playgroundEnabled = flag.Bool("playground", false, "serve the GraphQL playground at /")
 		// The default is production. A server that falls back to dev mode when nobody
 		// configured it is a server that hands out an administrator on the day somebody
 		// forgets a flag.
@@ -358,6 +366,8 @@ func Serve(build buildinfo.Info) {
 		Addr: cfg.Server.Addr(),
 		Handler: Handler(Options{
 			Build:                build,
+			MaxRequestBytes:      int64(cfg.Server.MaxRequestBytes),
+			MaxComplexity:        cfg.Server.MaxComplexity,
 			Playground:           cfg.Server.Playground,
 			DisableIntrospection: !cfg.Server.Introspection,
 			Auth: auth.Config{
@@ -379,7 +389,14 @@ func Serve(build buildinfo.Info) {
 			Marks:         marks,
 			Access:        access,
 		}),
+		// The server's own guards against a connection that is held rather than used. The
+		// write timeout is the longest a request may take end to end; the ZPA sync and the
+		// catalogue projection start a run and return, so nothing legitimate comes near it.
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      2 * time.Minute,
+		IdleTimeout:       2 * time.Minute,
+		MaxHeaderBytes:    64 << 10,
 	}
 
 	go func() {
@@ -602,10 +619,14 @@ func router(opts Options) http.Handler {
 
 	refusals := refusalRecorder(opts.Access)
 
-	r.With(auth.Middleware(auth.NewProxyAuthenticator(opts.Auth), refusals)).Handle("/query", gql)
+	// The body bound sits outside the authenticator on purpose: an oversized request is
+	// refused before it costs a database round trip, whoever sent it.
+	limit := limitRequestBody(opts.MaxRequestBytes)
+
+	r.With(limit, auth.Middleware(auth.NewProxyAuthenticator(opts.Auth), refusals)).Handle("/query", gql)
 
 	if opts.Auth.Mode.TokenDoorEnabled() {
-		r.With(auth.Middleware(auth.NewTokenAuthenticator(opts.Auth), refusals)).
+		r.With(limit, auth.Middleware(auth.NewTokenAuthenticator(opts.Auth), refusals)).
 			Handle("/api/graphql", gql)
 	} else {
 		// Not mounted at all rather than mounted and refusing. The emergency stop has to
@@ -652,6 +673,11 @@ func graphqlHandler(opts Options) http.Handler {
 	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.POST{})
 
+	// The last thing every error passes, on both doors: anything without a code for the caller
+	// leaves as the generic INTERNAL. The areas map their own defaults already; this is the arm
+	// somebody forgets, and the errors — a panic recovered, a deadline — that pass no area at all.
+	srv.SetErrorPresenter(graph.PresentError)
+
 	// The scope check, once per operation, on the one handler both doors share. Unlike
 	// @interactiveOnly this is not a generated directive call — @scope is skip_runtime and read
 	// out of the field definitions here — so forgetting this line would not break loudly. What
@@ -683,7 +709,48 @@ func graphqlHandler(opts Options) http.Handler {
 	}
 	srv.Use(extension.AutomaticPersistedQuery{Cache: lru.New[string](100)})
 
+	// One operation's field budget, on the shared handler and therefore on both doors. The
+	// refusal carries COMPLEXITY_LIMIT_EXCEEDED, so a colleague whose evaluation grew past it
+	// reads what happened rather than a timeout.
+	if opts.MaxComplexity > 0 {
+		srv.Use(extension.FixedComplexityLimit(opts.MaxComplexity))
+	}
+
 	return srv
+}
+
+// limitRequestBody refuses a body larger than max before any handler reads it.
+//
+// A declared Content-Length over the bound is answered outright. A body without one — chunked,
+// or a client that lies — is read here up to one byte past the bound and refused the same way,
+// so that both shapes get the same 413 rather than one of them a decoder's sentence further
+// down. Reading it is what gqlgen's transport would do anyway, and the bound keeps it to a
+// mebibyte. Zero means unbounded, for the tests that assemble Options by hand.
+func limitRequestBody(max int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		if max <= 0 {
+			return next
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.ContentLength > max {
+				http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+				return
+			}
+			if r.Body != nil && r.Body != http.NoBody {
+				body, err := io.ReadAll(io.LimitReader(r.Body, max+1))
+				if err != nil {
+					http.Error(w, "cannot read request body", http.StatusBadRequest)
+					return
+				}
+				if int64(len(body)) > max {
+					http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+					return
+				}
+				r.Body = io.NopCloser(bytes.NewReader(body))
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

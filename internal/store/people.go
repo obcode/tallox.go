@@ -466,6 +466,11 @@ func (p *People) SetPersonActive(ctx context.Context, id uuid.UUID, active bool)
 // No guard: a grant can only ever add somebody who may administer the installation.
 func (p *People) GrantRole(ctx context.Context, personID uuid.UUID, role policy.Role,
 	grantedBy uuid.UUID, expiresAt time.Time) error {
+	// The domain refuses this first; here again so that the next caller of the store — a
+	// CLI, a repair script — meets the named refusal and not the CHECK constraint's wording.
+	if role == policy.RoleAdmin && !expiresAt.IsZero() {
+		return domain.ErrAdminGrantMustNotExpire
+	}
 	err := New(p.pool).GrantRole(ctx, GrantRoleParams{
 		PersonID:  personID,
 		Role:      string(role),

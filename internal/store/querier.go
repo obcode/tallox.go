@@ -673,6 +673,14 @@ type Querier interface {
 	//
 	// granted_at is refreshed with it. The row records the grant that is in force, and a
 	// timestamp that pointed at a superseded one would be the wrong answer to the audit question.
+	//
+	// A grant that had already run out is a different case: its row stayed (the scope tables
+	// cascade on DELETE, and an expiry deletes nothing), and with it every study programme and
+	// subject group the old grant was scoped to. Re-granting the role months later — for a
+	// different programme — would revive those, and with them the reading of that programme's
+	// unpublished wishes nobody chose this time. So the scopes of an expired grant go first, in
+	// the same statement. A grant still in force keeps its scopes: extending it is the ordinary
+	// case and must not drop what it was for.
 	GrantRole(ctx context.Context, arg GrantRoleParams) error
 	// The instances that could cover this one: same semester, same module, another programme, and not
 	// themselves covered.
@@ -1249,9 +1257,6 @@ type Querier interface {
 	// DemandCompletionsOfSemester, and public for the same reason.
 	ReviewCompletionsOfSemester(ctx context.Context, semester string) ([]ReviewCompletionsOfSemesterRow, error)
 	RevokeRole(ctx context.Context, arg RevokeRoleParams) error
-	// A timestamp, not a DELETE: the audit log has to keep resolving this token id afterwards.
-	// Idempotent — revoking twice keeps the first moment, which is the one that matters.
-	RevokeToken(ctx context.Context, tokenID string) error
 	// Revokes a token, but only the caller's own.
 	//
 	// Ownership is in the WHERE clause rather than in a read-then-write in Go, which collapses
@@ -1617,9 +1622,6 @@ type Querier interface {
 	// for the instance, and the note says which half. A covered cohort holds no parts at all and is
 	// not elsewhere by this; its teaching is ours, in another programme.
 	WishWriteContext(ctx context.Context, instanceID uuid.UUID) (WishWriteContextRow, error)
-	// The same, reached from a wish rather than from an instance. For withdrawing one — which stays
-	// possible on an instance taught elsewhere, so a wish from before the arrangement can be taken back.
-	WishWriteContextByWishID(ctx context.Context, id uuid.UUID) (WishWriteContextByWishIDRow, error)
 	// Wishes: one person's interest in one course instance.
 	//
 	// THE RULE THIS FILE IS MADE OF

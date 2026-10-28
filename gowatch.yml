@@ -19,6 +19,10 @@ appname: "tallox"
 # exercised daily instead of discovered in October.
 cmd_args:
   - "-auth-mode=dev"
+  # Off by default since 2026-10-28: the playground loads its assets from a CDN and answers
+  # without a session, and "/" being routed elsewhere was the only thing between it and the
+  # outside. The local loop is where it is wanted.
+  - "-playground=true"
 
 vendor_watch: false
 build_pkg: ""

@@ -147,6 +147,20 @@ func (q *Queries) EnsurePerson(ctx context.Context, arg EnsurePersonParams) (Per
 }
 
 const grantRole = `-- name: GrantRole :exec
+WITH expired AS (
+    SELECT 1
+    FROM person_role
+    WHERE person_id = $1 AND role = $2
+      AND expires_at IS NOT NULL AND expires_at <= now()
+),
+dropped_programmes AS (
+    DELETE FROM person_programme_scope
+    WHERE person_id = $1 AND role = $2 AND EXISTS (SELECT 1 FROM expired)
+),
+dropped_groups AS (
+    DELETE FROM person_subject_group_scope
+    WHERE person_id = $1 AND role = $2 AND EXISTS (SELECT 1 FROM expired)
+)
 INSERT INTO person_role (person_id, role, granted_by, expires_at)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (person_id, role) DO UPDATE
@@ -168,6 +182,14 @@ type GrantRoleParams struct {
 //
 // granted_at is refreshed with it. The row records the grant that is in force, and a
 // timestamp that pointed at a superseded one would be the wrong answer to the audit question.
+//
+// A grant that had already run out is a different case: its row stayed (the scope tables
+// cascade on DELETE, and an expiry deletes nothing), and with it every study programme and
+// subject group the old grant was scoped to. Re-granting the role months later — for a
+// different programme — would revive those, and with them the reading of that programme's
+// unpublished wishes nobody chose this time. So the scopes of an expired grant go first, in
+// the same statement. A grant still in force keeps its scopes: extending it is the ordinary
+// case and must not drop what it was for.
 func (q *Queries) GrantRole(ctx context.Context, arg GrantRoleParams) error {
 	_, err := q.db.Exec(ctx, grantRole,
 		arg.PersonID,

@@ -130,3 +130,99 @@ func TestAPartnerWritesNothing(t *testing.T) {
 	mustRefuseWith(t, c, `mutation($g: [ID!]!) { setMySubjectGroups(subjectGroupIds: $g) { id } }`,
 		map[string]any{"g": []string{f.group.String()}}, "PARTNER_READS_ONLY")
 }
+
+const rosterReads = `query {
+	subjectGroups(includeInactive: true) { code leads { mail } members { mail } }
+	programmes { code leads { mail } }
+	teachers(includeInactive: true) { mail }
+}`
+
+type rosterView struct {
+	SubjectGroups []struct {
+		Code    string
+		Leads   []struct{ Mail string }
+		Members []struct{ Mail string }
+	}
+	Programmes []struct {
+		Code  string
+		Leads []struct{ Mail string }
+	}
+	Teachers []struct{ Mail string }
+}
+
+// TestAPartnerReadsTheStructureButNotTheRoster: subject groups, programmes and the module
+// catalogue are what a partner plans with; who leads and works in them, with mail addresses,
+// is the faculty's own — the line desiredHoursOverview draws, now on the side fields too.
+func TestAPartnerReadsTheStructureButNotTheRoster(t *testing.T) {
+	t.Parallel()
+
+	f := wishHandler(t,
+		grants{testdata.Eins, []string{"LECTURER"}},
+		grants{testdata.Zwei, []string{"PARTNER_READER"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+	)
+	f.partnerOf(t, testdata.Zwei, f.programme)
+	f.leadGroup(t, testdata.Drei, f.group)
+	if _, err := f.schema.Pool.Exec(t.Context(),
+		`INSERT INTO person_programme_scope (person_id, role, programme_id)
+		 SELECT $1, 'PROGRAMME_LEAD', id FROM programme WHERE code = $2`,
+		testdata.Vier.ID(), f.programme); err != nil {
+		t.Fatalf("cannot scope the programme lead: %v", err)
+	}
+	if _, err := f.schema.Pool.Exec(t.Context(),
+		`INSERT INTO person_subject_group (person_id, subject_group_id) VALUES ($1, $2)`,
+		testdata.Eins.ID(), f.group); err != nil {
+		t.Fatalf("cannot add a member: %v", err)
+	}
+
+	graphqltest.EachDoor(t, f.handler, testdata.Zwei.Mail, testdata.Zwei.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out rosterView
+			c.MustQuery(t, rosterReads, nil, &out)
+			if len(out.SubjectGroups) == 0 || len(out.Programmes) == 0 {
+				t.Fatalf("the partner lost the structure itself: %+v", out)
+			}
+			for _, g := range out.SubjectGroups {
+				if len(g.Leads)+len(g.Members) != 0 {
+					t.Errorf("a partner reads the people of subject group %s: %+v", g.Code, g)
+				}
+			}
+			for _, p := range out.Programmes {
+				if len(p.Leads) != 0 {
+					t.Errorf("a partner reads who leads %s: %+v", p.Code, p.Leads)
+				}
+			}
+			if len(out.Teachers) != 0 {
+				t.Errorf("a partner reads the faculty roster: %d teachers", len(out.Teachers))
+			}
+
+			var one struct {
+				SubjectGroup struct {
+					Leads   []struct{ Mail string }
+					Members []struct{ Mail string }
+				}
+			}
+			c.MustQuery(t, `query($id: ID!) { subjectGroup(id: $id) { leads { mail } members { mail } } }`,
+				map[string]any{"id": f.group.String()}, &one)
+			if len(one.SubjectGroup.Leads)+len(one.SubjectGroup.Members) != 0 {
+				t.Errorf("a partner reads the people of a subject group by id: %+v", one.SubjectGroup)
+			}
+		})
+
+	// And the rule did not over-shoot: an ordinary account reads all of it.
+	var everybody rosterView
+	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t, rosterReads, nil, &everybody)
+	var leads, members, programmeLeads int
+	for _, g := range everybody.SubjectGroups {
+		leads += len(g.Leads)
+		members += len(g.Members)
+	}
+	for _, p := range everybody.Programmes {
+		programmeLeads += len(p.Leads)
+	}
+	if leads == 0 || members == 0 || programmeLeads == 0 || len(everybody.Teachers) == 0 {
+		t.Errorf("an ordinary account reads %d leads, %d members, %d programme leads, %d teachers; the partner rule leaked the other way",
+			leads, members, programmeLeads, len(everybody.Teachers))
+	}
+}

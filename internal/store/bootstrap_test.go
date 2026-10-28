@@ -1,6 +1,7 @@
 package store_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -159,40 +160,25 @@ func TestReconcileLetsARemovedAdministratorBackIn(t *testing.T) {
 	}
 }
 
-// TestReconcileTreatsAnExpiredGrantAsNoGrant.
+// TestReconcileCannotMeetAnExpiredAdminGrant.
 //
-// A grant that has run out lets nobody in, so a protected administrator whose ADMIN expired is
-// exactly as locked out as one whose ADMIN was revoked. The reconciliation has to read it the
-// same way, or the one mechanism that repairs a lock-out decides there is nothing wrong.
-func TestReconcileTreatsAnExpiredGrantAsNoGrant(t *testing.T) {
+// Until 2026-10-28 this test seeded an ADMIN grant that had run out and asserted that the
+// reconciliation treated it as no grant. That state can no longer exist: ADMIN is granted
+// without an expiry or not at all (migration 20261028100000, audit finding L1), so the one way a
+// protected administrator is locked out is a revocation — covered above. What stays here is the
+// precondition, so that the migration's constraint cannot go missing without a test noticing.
+func TestReconcileCannotMeetAnExpiredAdminGrant(t *testing.T) {
 	t.Parallel()
 
 	s := storetest.New(t)
 	storetest.SeedPerson(t, s, testdata.Eins)
 
-	id := mustPersonID(t, s, testdata.Eins.Mail)
-	if _, err := s.Pool.Exec(t.Context(),
+	_, err := s.Pool.Exec(t.Context(),
 		`INSERT INTO person_role (person_id, role, granted_at, expires_at)
 		 VALUES ($1, 'ADMIN', now() - interval '2 days', now() - interval '1 day')`,
-		id); err != nil {
-		t.Fatalf("cannot seed the expired grant: %v", err)
-	}
-
-	outcomes, err := store.ReconcileProtectedAdmins(t.Context(), s.Pool,
-		[]store.ProtectedAdmin{{Mail: testdata.Eins.Mail}})
-	if err != nil {
-		t.Fatalf("reconcile failed: %v", err)
-	}
-	if !outcomes[0].Granted {
-		t.Fatal("reconcile saw an expired ADMIN grant and decided nothing was wrong")
-	}
-
-	got, err := s.Queries().PersonByMail(t.Context(), testdata.Eins.Mail)
-	if err != nil {
-		t.Fatalf("cannot read back: %v", err)
-	}
-	if !hasRoleString(got.Roles, string(policy.RoleAdmin)) {
-		t.Errorf("roles are %v after the repair, want ADMIN in force", got.Roles)
+		mustPersonID(t, s, testdata.Eins.Mail))
+	if err == nil || !strings.Contains(err.Error(), "person_role_admin_never_expires") {
+		t.Errorf("an expiring ADMIN grant was written: %v", err)
 	}
 }
 
@@ -296,9 +282,28 @@ func TestReconcileRefusesAnEntryWithoutAMail(t *testing.T) {
 
 	s := storetest.New(t)
 
+	for _, mail := range []string{"", "   ", "dek anat@example.org"} {
+		if _, err := store.ReconcileProtectedAdmins(t.Context(), s.Pool,
+			[]store.ProtectedAdmin{{Mail: mail}}); err == nil {
+			t.Errorf("mail %q was accepted; it could never match a header", mail)
+		}
+	}
+}
+
+// TestReconcileTrimsTheMail: a stray space in tallox.yaml is the one mistake this list could
+// make that looks like success — created, granted, logged healthy, and never matching the
+// proxy. The row has to be the address the proxy will send.
+func TestReconcileTrimsTheMail(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+
 	if _, err := store.ReconcileProtectedAdmins(t.Context(), s.Pool,
-		[]store.ProtectedAdmin{{Mail: ""}}); err == nil {
-		t.Error("an empty mail address was accepted")
+		[]store.ProtectedAdmin{{Mail: "  " + testdata.Sechs.Mail + "\n", Name: testdata.Sechs.Name}}); err != nil {
+		t.Fatalf("a padded mail was refused rather than trimmed: %v", err)
+	}
+	if _, err := s.Queries().PersonByMail(t.Context(), testdata.Sechs.Mail); err != nil {
+		t.Errorf("the row does not carry the trimmed address: %v", err)
 	}
 }
 

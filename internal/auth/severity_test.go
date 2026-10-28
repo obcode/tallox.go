@@ -33,6 +33,11 @@ func TestSeverityMakesTheRightThingsVisible(t *testing.T) {
 			why:  "nobody's credential is broken, the database is — that is an operational event",
 		},
 		{
+			err:  ErrAmbiguousIdentity,
+			want: zerolog.WarnLevel,
+			why:  "no client can cause it through Caddy; seeing it means the proxy or the network is not what deploy/ says",
+		},
+		{
 			err:  ErrUnknownUser,
 			want: zerolog.InfoLevel,
 			why:  "a real person is being turned away; this is the line somebody greps for",

@@ -3,6 +3,7 @@ package store_test
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -793,5 +794,54 @@ func TestAWishCarriesTheTopicOfItsCohort(t *testing.T) {
 	}
 	if len(seen) != 1 || seen[0].Instance.Topic != "AI Fundamentals" {
 		t.Errorf("the wish list reads %+v, want the one wish for AI Fundamentals", seen)
+	}
+}
+
+// TestNoOtherQueryFileReadsWishes is the other half of TestEveryWishQueryIsFiltered: that one
+// checks every read in wish.sql carries the filter, this one checks that every read of the wish
+// table is in wish.sql. A query that selected from wish in another file would pass the first
+// test by never being looked at — which is how WishWriteContextByWishID sat unfiltered in
+// planning_marks.sql until the audit of 2026-10-28 (dead code, but dead code is one caller
+// away from being a leak).
+//
+// Writes are allowed elsewhere: merging two cohorts moves and drops wishes without reading any
+// back, and the demand area owns that. What must not happen outside wish.sql is a :one or
+// :many over the table.
+func TestNoOtherQueryFileReadsWishes(t *testing.T) {
+	t.Parallel()
+
+	files, err := filepath.Glob("../../db/queries/*.sql")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("cannot list the query files: %v", err)
+	}
+
+	header := regexp.MustCompile(`(?m)^-- name: (\w+) :(\w+)$`)
+	// The table itself, as a FROM or JOIN target — not wish_window, not wish_track_limit.
+	readsWish := regexp.MustCompile(`(?i)\b(FROM|JOIN)\s+wish\b`)
+	comments := regexp.MustCompile(`(?m)--.*$`)
+
+	for _, file := range files {
+		if filepath.Base(file) == "wish.sql" {
+			continue
+		}
+		raw, err := os.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sql := string(raw)
+		blocks := header.FindAllStringSubmatchIndex(sql, -1)
+		for i, block := range blocks {
+			name, kind := sql[block[2]:block[3]], sql[block[4]:block[5]]
+			end := len(sql)
+			if i+1 < len(blocks) {
+				end = blocks[i+1][0]
+			}
+			// Statements only: a comment that says "the same join wish.sql makes" is prose.
+			body := comments.ReplaceAllString(sql[block[1]:end], "")
+			if (kind == "one" || kind == "many") && readsWish.MatchString(body) {
+				t.Errorf("%s: %s reads the wish table outside wish.sql; move it there, where "+
+					"TestEveryWishQueryIsFiltered will insist on the filter", filepath.Base(file), name)
+			}
+		}
 	}
 }

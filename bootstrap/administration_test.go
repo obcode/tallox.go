@@ -227,6 +227,30 @@ func TestAnAdministratorGrantsThemselvesWishReadingRolesOnlyWithAnExpiry(t *test
 	}
 }
 
+// TestAdminIsGrantedWithoutAnExpiryOrNotAtAll is the audit's scenario: the only administrator
+// grants somebody ADMIN until tomorrow and steps down today, and tomorrow there is nobody. The
+// grant with a date is refused; the same grant without one is the ordinary one.
+func TestAdminIsGrantedWithoutAnExpiryOrNotAtAll(t *testing.T) {
+	t.Parallel()
+
+	c := graphqltest.New(adminHandler(t)).AsUser(testdata.Sechs.Mail)
+	const withExpiry = `mutation ($id: ID!, $roles: [Role!]!, $until: Time) {
+		setPersonRoles(id: $id, roles: $roles, expiresAt: $until) { id roles }
+	}`
+	tomorrow := time.Now().Add(24 * time.Hour).Format(time.RFC3339)
+
+	mustRefuseWith(t, c, withExpiry, map[string]any{
+		"id": testdata.Zwei.ID().String(), "roles": []string{"LECTURER", "ADMIN"}, "until": tomorrow,
+	}, "ADMIN_GRANT_MUST_NOT_EXPIRE")
+
+	var got struct{ SetPersonRoles struct{ Roles []string } }
+	c.MustQuery(t, setRolesMutation,
+		map[string]any{"id": testdata.Zwei.ID().String(), "roles": []string{"LECTURER", "ADMIN"}}, &got)
+	if !slices.Contains(got.SetPersonRoles.Roles, "ADMIN") {
+		t.Errorf("a permanent ADMIN grant was not applied: %v", got.SetPersonRoles.Roles)
+	}
+}
+
 // TestSessionAnswersBeforeAnybodyIsSignedIn: the interface renders its signed-out state from
 // this field, so a query that failed would leave it nothing to render from.
 func TestSessionAnswersBeforeAnybodyIsSignedIn(t *testing.T) {

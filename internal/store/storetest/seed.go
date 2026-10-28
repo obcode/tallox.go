@@ -106,7 +106,9 @@ func SeedToken(t *testing.T, s *Schema, p testdata.Persona, secretHash []byte, o
 	}
 
 	if opts.Revoked {
-		if err := q.RevokeToken(t.Context(), p.TokenID); err != nil {
+		if _, err := q.RevokeTokenOfOwner(t.Context(), store.RevokeTokenOfOwnerParams{
+			TokenID: p.TokenID, OwnerID: p.ID(),
+		}); err != nil {
 			t.Fatalf("cannot revoke the seeded token of %s: %v", p.Name, err)
 		}
 	}

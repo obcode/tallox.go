@@ -395,51 +395,6 @@ func (q *Queries) WishWriteContext(ctx context.Context, instanceID uuid.UUID) (W
 	return i, err
 }
 
-const wishWriteContextByWishID = `-- name: WishWriteContextByWishID :one
-SELECT s.id, s.code, s.phase, s.wishes_published_at,
-       msg.subject_group_id,
-       COALESCE(ww.open, true)::boolean AS wish_window_open,
-       (EXISTS (SELECT 1 FROM instance_part ip WHERE ip.course_instance_id = ci.id)
-        AND NOT EXISTS (SELECT 1 FROM instance_part ip
-                        WHERE ip.course_instance_id = ci.id AND ip.taught_by IS NULL)
-       )::boolean AS taught_elsewhere
-FROM wish w
-JOIN course_instance ci ON ci.id = w.course_instance_id
-JOIN semester s ON s.id = ci.semester_id
-JOIN module m ON m.id = ci.module_id
-LEFT JOIN module_subject_group msg ON msg.module_id = m.id
-LEFT JOIN wish_window ww
-       ON ww.semester_id = s.id AND ww.subject_group_id = msg.subject_group_id
-WHERE w.id = $1::uuid
-`
-
-type WishWriteContextByWishIDRow struct {
-	ID                uuid.UUID
-	Code              string
-	Phase             string
-	WishesPublishedAt pgtype.Timestamptz
-	SubjectGroupID    uuid.NullUUID
-	WishWindowOpen    bool
-	TaughtElsewhere   bool
-}
-
-// The same, reached from a wish rather than from an instance. For withdrawing one — which stays
-// possible on an instance taught elsewhere, so a wish from before the arrangement can be taken back.
-func (q *Queries) WishWriteContextByWishID(ctx context.Context, id uuid.UUID) (WishWriteContextByWishIDRow, error) {
-	row := q.db.QueryRow(ctx, wishWriteContextByWishID, id)
-	var i WishWriteContextByWishIDRow
-	err := row.Scan(
-		&i.ID,
-		&i.Code,
-		&i.Phase,
-		&i.WishesPublishedAt,
-		&i.SubjectGroupID,
-		&i.WishWindowOpen,
-		&i.TaughtElsewhere,
-	)
-	return i, err
-}
-
 const withdrawDemandComplete = `-- name: WithdrawDemandComplete :execrows
 DELETE FROM demand_completion
  WHERE semester_id = (SELECT id FROM semester WHERE code = $1::text)

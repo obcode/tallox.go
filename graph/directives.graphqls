@@ -148,7 +148,7 @@ enum ScopeArea {
   # setAssignment and clearAssignment are here and are @fullReach: their refusals answer
   # "is this part taken", which through a plain token the read rule would not.
 
-  `assignments`, `myAssignments`, `assignedTeachingHours`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`,
+  `assignments`, `myAssignments`, `assignedTeachingHours`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`, `setCourseInstanceCiE`,
   `setModuleComponents`, `applyModuleSplitToInstances`, `setModuleProjectBased`,
   `setModuleSemesterSpan`, `createLocalModule`, `changeLocalModule`,
   `setProgrammePlanningStatus`, `setProgrammeDegree`, `declareCourseInstance`, `duplicateCourseInstance`,

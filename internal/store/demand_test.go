@@ -2416,3 +2416,91 @@ func TestHowACohortIsTaughtFollowsItsCohorts(t *testing.T) {
 	}
 	expect(blockInEnglish)
 }
+
+// A cohort listed as a course in English keeps the listing where the format goes too: into a
+// cohort added to the row, into a duplicate, and into the copy from the previous semester. A new
+// declaration is not listed.
+func TestTheCiEListingFollowsItsCohorts(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+
+	listed := func(semester string) []bool {
+		t.Helper()
+		instances, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme,
+			SemesterCode: semester, Programme: storetest.FixtureProgrammeA,
+		})
+		if err != nil {
+			t.Fatalf("cannot read the demand: %v", err)
+		}
+		out := []bool{}
+		for _, i := range instances {
+			out = append(out, i.CiE)
+		}
+		return out
+	}
+	expect := func(semester string, want ...bool) {
+		t.Helper()
+		if got := listed(semester); !slices.Equal(got, want) {
+			t.Fatalf("the cohorts of %s are listed %v, want %v", semester, got, want)
+		}
+	}
+
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("A", 1))}, uuid.Nil, false); err != nil {
+		t.Fatalf("planning gave %v", err)
+	}
+	expect(f.semester.Code, false)
+
+	instance, err := f.demand.SetCourseInstanceCiE(ctx, f.instances(t)[0].ID, true)
+	if err != nil {
+		t.Fatalf("listing gave %v", err)
+	}
+	if !instance.CiE || instance.TaughtInEnglish() {
+		t.Errorf("the listing is CiE %v and English %v, want listed and still German",
+			instance.CiE, instance.TaughtInEnglish())
+	}
+	expect(f.semester.Code, true)
+
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("A", 1), track("B", 1))},
+		uuid.Nil, false); err != nil {
+		t.Fatalf("adding a cohort gave %v", err)
+	}
+	expect(f.semester.Code, true, true)
+
+	if _, err := f.demand.DuplicateCourseInstance(ctx, f.instances(t)[1].ID, "C", "",
+		uuid.Nil); err != nil {
+		t.Fatalf("duplicating gave %v", err)
+	}
+	expect(f.semester.Code, true, true, true)
+
+	if _, err := f.demand.SetCourseInstanceCiE(ctx, f.instances(t)[2].ID, false); err != nil {
+		t.Fatalf("taking off the list gave %v", err)
+	}
+	expect(f.semester.Code, true, true, false)
+
+	// The copy: last semester's listed cohort arrives listed.
+	if _, err := f.demand.PlanDemand(ctx, f.previous.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module, track("", 1))}, uuid.Nil, false); err != nil {
+		t.Fatalf("planning last semester gave %v", err)
+	}
+	last, err := f.demand.CourseInstances(ctx, domain.DemandFilter{Reach: everyProgramme,
+		SemesterCode: f.previous.Code, Programme: storetest.FixtureProgrammeA,
+	})
+	if err != nil || len(last) != 1 {
+		t.Fatalf("cannot read last semester: %v (%d)", err, len(last))
+	}
+	if _, err := f.demand.SetCourseInstanceCiE(ctx, last[0].ID, true); err != nil {
+		t.Fatalf("listing last semester gave %v", err)
+	}
+	if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{planEntry(f.module)}, uuid.Nil, false); err != nil {
+		t.Fatalf("emptying this semester gave %v", err)
+	}
+	if _, err := f.demand.CopyDemand(ctx, f.previous, f.semester, f.programme, uuid.Nil); err != nil {
+		t.Fatalf("copying gave %v", err)
+	}
+	expect(f.semester.Code, true)
+}

@@ -33,6 +33,14 @@ Test: `TestHowACohortIsTaughtFollowsItsCohorts`.
 Gemessen am 2026-10-23 an den Produktionsdaten: `std_lang` ist nur `DE` (485) oder `EN` (24), die Projektion stimmt damit überein (ein Modul ohne Angabe → `NULL`). Nichts zu tun. Früher stand hier: echte `std_lang`-Werte waren lokal nicht messbar (ZPA-Cache leer). Nach dem ersten
 Produktiv-Sync den Bericht auf `LANGUAGE_UNMAPPED` prüfen und `languagePhrases` erweitern.
 
+**CiE (Courses in English)** seit 2026-10-28: eigene Spalte `course_instance.cie` (boolean,
+Default false), **nicht** dasselbe wie `taught_in_english` — eine ausdrücklich gesetzte Listung,
+kein Override gegen einen Katalogwert. Je Zug, eigene Mutation `setCourseInstanceCiE`, gleiche
+Schreibregel wie das Format (`DemandService.formatWritable`). Mitnahme wie das Format (Duplikat,
+Geschwister beim Planen, Kopie), Test `TestTheCiEListingFollowsItsCohorts`. Gewünscht ist noch die
+Bedingung „nur setzbar, wenn das Modulhandbuch Englisch als mögliche Sprache nennt“ — gemessen
+am 2026-10-29, siehe unten.
+
 **ZPA `languages` ist die *weitere* mögliche Sprache, nicht die Liste aller** (gemessen am
 2026-10-29 an den Produktionsdaten, für die CiE-Bedingung aus Issue #41):
 

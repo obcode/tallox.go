@@ -182,6 +182,7 @@ type ComplexityRoot struct {
 	CourseInstance struct {
 		AlsoPlannedSeparately     func(childComplexity int) int
 		BorrowedParts             func(childComplexity int) int
+		Cie                       func(childComplexity int) int
 		CoveredBy                 func(childComplexity int) int
 		Covers                    func(childComplexity int) int
 		CreatedAt                 func(childComplexity int) int
@@ -398,6 +399,7 @@ type ComplexityRoot struct {
 		RequestInstanceCoverage       func(childComplexity int, id string, coveredBy string) int
 		RevokePersonalAccessToken     func(childComplexity int, id string) int
 		SetAssignment                 func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
+		SetCourseInstanceCiE          func(childComplexity int, id string, cie bool) int
 		SetCourseInstanceFormat       func(childComplexity int, id string, delivery domain.Delivery, taughtInEnglish *bool) int
 		SetCourseInstanceTopic        func(childComplexity int, id string, topic string) int
 		SetDemandComplete             func(childComplexity int, semester string, programme string, complete bool) int
@@ -1317,6 +1319,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CourseInstance.BorrowedParts(childComplexity), true
+	case "CourseInstance.cie":
+		if e.ComplexityRoot.CourseInstance.Cie == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.Cie(childComplexity), true
 	case "CourseInstance.coveredBy":
 		if e.ComplexityRoot.CourseInstance.CoveredBy == nil {
 			break
@@ -2460,6 +2468,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetAssignment(childComplexity, args["instancePartId"].(string), args["personId"].(*string), args["teacherId"].(*string), args["note"].(*string), args["replacing"].(*string)), true
+	case "Mutation.setCourseInstanceCiE":
+		if e.ComplexityRoot.Mutation.SetCourseInstanceCiE == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setCourseInstanceCiE_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetCourseInstanceCiE(childComplexity, args["id"].(string), args["cie"].(bool)), true
 	case "Mutation.setCourseInstanceFormat":
 		if e.ComplexityRoot.Mutation.SetCourseInstanceFormat == nil {
 			break
@@ -5265,6 +5284,21 @@ extend type Mutation {
   ): CourseInstance! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
+  List a cohort as a course in English (CiE), or take it off the list.
+
+  Bound by the same rule as ` + "`" + `setCourseInstanceFormat` + "`" + `: the lead of the module's subject group, the
+  lead of the instance's study programme, or the dean's office, while the semester is not ` + "`" + `FINAL` + "`" + `.
+
+  Refusals: ` + "`" + `INSTANCE_NOT_FOUND` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + `, ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + `.
+  """
+  setCourseInstanceCiE(
+    "The cohort."
+    id: ID!
+    "Whether it is listed as a course in English."
+    cie: Boolean!
+  ): CourseInstance! @fullReach @scope(area: PLANNING, verb: WRITE)
+
+  """
   Give a part back: remove an assignment.
 
   Bound by the same phase and the same responsibility as making one. A list that may be added to
@@ -6858,6 +6892,13 @@ type CourseInstance {
   """
   taughtInEnglishOverridden: Boolean!
   """
+  Whether this cohort is listed as a course in English (CiE): an explicit listing, set by hand.
+
+  Not the same as ` + "`" + `taughtInEnglish` + "`" + `. A cohort may run in English without being listed, and the
+  listing is what the faculty offers as a course in English. ` + "`" + `false` + "`" + ` unless somebody set it.
+  """
+  cie: Boolean!
+  """
   Which seminar this cohort is, or ` + "`" + `null` + "`" + ` for the ordinary cohort whose module's name says what it
   is.
 
@@ -7719,7 +7760,7 @@ enum ScopeArea {
   # setAssignment and clearAssignment are here and are @fullReach: their refusals answer
   # "is this part taken", which through a plain token the read rule would not.
 
-  ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `assignedTeachingHours` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `,
+  ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `assignedTeachingHours` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `, ` + "`" + `setCourseInstanceCiE` + "`" + `,
   ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `applyModuleSplitToInstances` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `,
   ` + "`" + `setModuleSemesterSpan` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `setProgrammeDegree` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
@@ -10081,6 +10122,8 @@ func (ec *executionContext) childFields_CourseInstance(ctx context.Context, fiel
 		return ec.fieldContext_CourseInstance_taughtInEnglish(ctx, field)
 	case "taughtInEnglishOverridden":
 		return ec.fieldContext_CourseInstance_taughtInEnglishOverridden(ctx, field)
+	case "cie":
+		return ec.fieldContext_CourseInstance_cie(ctx, field)
 	case "topic":
 		return ec.fieldContext_CourseInstance_topic(ctx, field)
 	case "parts":

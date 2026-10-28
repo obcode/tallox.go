@@ -455,6 +455,11 @@ type CourseInstance struct {
 	// `false` means the cohort follows the catalogue, and keeps following it when the catalogue
 	// changes. A decision that agrees with the catalogue is not stored as one.
 	TaughtInEnglishOverridden bool `json:"taughtInEnglishOverridden"`
+	// Whether this cohort is listed as a course in English (CiE): an explicit listing, set by hand.
+	//
+	// Not the same as `taughtInEnglish`. A cohort may run in English without being listed, and the
+	// listing is what the faculty offers as a course in English. `false` unless somebody set it.
+	Cie bool `json:"cie"`
 	// Which seminar this cohort is, or `null` for the ordinary cohort whose module's name says what it
 	// is.
 	//

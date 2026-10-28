@@ -652,6 +652,11 @@ func graphqlHandler(opts Options) http.Handler {
 	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.POST{})
 
+	// The last thing every error passes, on both doors: anything without a code for the caller
+	// leaves as the generic INTERNAL. The areas map their own defaults already; this is the arm
+	// somebody forgets, and the errors — a panic recovered, a deadline — that pass no area at all.
+	srv.SetErrorPresenter(graph.PresentError)
+
 	// The scope check, once per operation, on the one handler both doors share. Unlike
 	// @interactiveOnly this is not a generated directive call — @scope is skip_runtime and read
 	// out of the field definitions here — so forgetting this line would not break loudly. What

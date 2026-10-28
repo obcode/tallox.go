@@ -88,7 +88,7 @@ func assignmentError(err error) error {
 	case err == nil:
 		return nil
 	case errors.Is(err, domain.ErrNotAuthenticated):
-		return err
+		return refusal("UNAUTHENTICATED", "Nicht angemeldet.")
 	case errors.Is(err, domain.ErrAssignmentPhaseClosed):
 		return refusal("ASSIGNMENT_PHASE_CLOSED", err.Error())
 	case errors.Is(err, domain.ErrNotYourSubject):
@@ -115,11 +115,11 @@ func assignmentError(err error) error {
 	case semesterRefusal(err) != nil:
 		// Shared with the semester workflow, the demand and the wishes: one meaning per code.
 		return semesterRefusal(err)
+	case coded(err):
+		return err
 	}
-	// Anything else keeps its own shape rather than being dressed up with a code that would then
-	// mean nothing. The database noise a driver error carries never reaches here: internal/store
-	// wraps it, and graphqltest.AssertNoLeak is what says so.
-	return err
+	// Anything else is ours, not the caller's: the generic sentence, and the truth in the log.
+	return internalRefusal("assignment", err)
 }
 
 // partArrangementError maps the refusals of dividing a part and of handing it to another faculty.

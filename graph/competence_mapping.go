@@ -54,7 +54,7 @@ func competenceError(err error) error {
 	case err == nil:
 		return nil
 	case errors.Is(err, domain.ErrNotAuthenticated):
-		return err
+		return refusal("UNAUTHENTICATED", "Nicht angemeldet.")
 	case errors.Is(err, domain.ErrCompetenceNotFound):
 		return refusal("COMPETENCE_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrPartnerWritesNothing):
@@ -77,6 +77,8 @@ func competenceError(err error) error {
 		return refusal("MODULE_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrAssigneeNotFound):
 		return refusal("ASSIGNEE_NOT_FOUND", err.Error())
+	case coded(err):
+		return err
 	}
-	return err
+	return internalRefusal("competence", err)
 }

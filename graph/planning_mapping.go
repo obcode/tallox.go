@@ -73,7 +73,7 @@ func planningMarkError(actor principal.Actor, err error) error {
 	case err == nil:
 		return nil
 	case errors.Is(err, domain.ErrNotAuthenticated):
-		return err
+		return refusal("UNAUTHENTICATED", "Nicht angemeldet.")
 	case errors.Is(err, domain.ErrNotYourProgramme):
 		if policy.HoldsProgrammeLeadWithoutScope(actor) {
 			return refusal("PROGRAMME_SCOPE_MISSING", policy.ProgrammeScopeMissingReason)
@@ -90,6 +90,8 @@ func planningMarkError(actor principal.Actor, err error) error {
 		return refusal("SUBJECT_GROUP_NOT_FOUND", err.Error())
 	case semesterRefusal(err) != nil:
 		return semesterRefusal(err)
+	case coded(err):
+		return err
 	}
-	return err
+	return internalRefusal("planning", err)
 }

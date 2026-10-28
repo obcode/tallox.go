@@ -10,7 +10,8 @@
 # A wish is visible if and only if it belongs to you, or the wishes of that semester have been
 # published, or you are responsible for it — you lead the study programme whose demand the
 # instance is, or the subject group its module belongs to, or you are the dean's office — and
-# then only in a signed-in browser session, never through a Personal Access Token.
+# then only in a signed-in browser session or through a token minted with full reach, never
+# through a plain Personal Access Token.
 #
 # WHAT A WISH POINTS AT
 #
@@ -83,7 +84,7 @@ type Wish {
   about two people, and turning it into a field would ask one of them to decide it alone.
 
   Read by whoever could read the wish before publication: the owner, the leads responsible for it
-  in a signed-in session, the dean's office. Publication makes visible who wants what, not the
+  with full reach (a signed-in session or a full-reach token), the dean's office. Publication makes visible who wants what, not the
   owner's own words; for everybody else this is the empty string.
   """
   note: String!
@@ -137,9 +138,10 @@ extend type Query {
   "refused" and "empty" is exactly the fact being protected, so a refusal would turn this field
   into an oracle for it.
 
-  Through a Personal Access Token this collapses to your own entries whatever your role — a
+  Through a plain Personal Access Token this collapses to your own entries whatever your role — a
   long-lived token in a script makes silent bulk export possible and decouples "who saw this" from
-  any login event. Your own stay readable, because they are your data.
+  any login event. Your own stay readable, because they are your data. A token minted with
+  `fullReach` reads what your roles allow in the browser.
   """
   wishes(
     "Four digits, a hyphen and SS or WS, for example `2027-SS`."
@@ -226,7 +228,7 @@ means "not stated", which is different from `0`.
 Three states, set by the dean's office on the semester:
 
 - **Open** — the person states and changes their own. Read by the person, through either door; in
-  an interactive session also by the lead of any subject group the person is a member of, and by
+  a session with full reach also by the lead of any subject group the person is a member of, and by
   the dean's office.
 - **Frozen** (`Semester.desiredHoursFrozenAt`) — only the dean's office changes a figure, with
   `correctDesiredTeachingHours`, after agreeing it with the person.
@@ -247,7 +249,7 @@ type DesiredTeachingHours {
   """
   The person's own words: „gern als Block“, „Forschungssemester im Herbst“. Empty when you may read
   the range but not the note — which is everybody but the person, the leads of their subject groups
-  and the dean's office, in an interactive session.
+  and the dean's office, with full reach.
   """
   note: String!
   """
@@ -298,10 +300,11 @@ extend type Query {
   The desired teaching hours of a semester, as many as you may see.
 
   **Not an error when you may see none**, for the reason `wishes` gives: whether a colleague has
-  stated a figure is the fact the rule protects. Through a Personal Access Token this is your own
-  entry whatever your role and whatever the state of the semester. Once the dean's office publishes
-  the figures, everybody reads them in a signed-in session; a script does not, because the whole
-  faculty's teaching plans in one call are personnel data in bulk.
+  stated a figure is the fact the rule protects. Through a plain Personal Access Token this is your
+  own entry whatever your role and whatever the state of the semester. Once the dean's office
+  publishes the figures, everybody reads them with full reach — a signed-in session or a token
+  minted with `fullReach`; a plain token does not, because the whole faculty's teaching plans in
+  one call are personnel data in bulk.
   """
   desiredTeachingHours(
     "Four digits, a hyphen and SS or WS."
@@ -319,13 +322,13 @@ extend type Query {
   everybody for the dean's office. A partner faculty gets an empty list: the faculty's roster is
   not what it follows.
 
-  Signed-in sessions only: a roster of the faculty with everybody's teaching plans is the bulk
-  export a token must not make possible.
+  With full reach only (`@fullReach`): a roster of the faculty with everybody's teaching plans is
+  the bulk export a plain token must not make possible.
   """
   desiredHoursOverview(
     "Four digits, a hyphen and SS or WS."
     semester: String!
-  ): [DesiredHoursOverviewRow!]! @interactiveOnly @scope(area: WISHES, verb: READ)
+  ): [DesiredHoursOverviewRow!]! @fullReach @scope(area: WISHES, verb: READ)
 }
 
 extend type Mutation {
@@ -355,8 +358,8 @@ extend type Mutation {
   Change somebody's figure after the freeze: what the dean's office agreed with the person in the
   plausibility check. Both ends `null` takes it back. Recorded as a correction (`correctedBy`).
 
-  The dean's office in a signed-in session only — through a Personal Access Token `FORBIDDEN`, said
-  as a refusal rather than the `null` of `@interactiveOnly`, because `null` here already means "taken
+  The dean's office with full reach only — through a plain Personal Access Token `FORBIDDEN`, said
+  as a refusal rather than the `null` of `@fullReach`, because `null` here already means "taken
   back". `DESIRED_HOURS_NOT_FROZEN` while the figures are still the people's own to change,
   `DESIRED_HOURS_PHASE_CLOSED` once the semester is finished.
   """

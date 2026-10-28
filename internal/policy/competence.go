@@ -12,7 +12,7 @@ import (
 // semester — "Kollege X will auch Verteilte Systeme" is exactly the first-come signal the wish
 // rule exists to suppress — and because there is no semester, nothing ever lifts it. Decided
 // 2026-09-26: read by the holder, by whoever is responsible for the module, and by the dean's
-// office; through a token only one's own.
+// office; through a plain token only one's own.
 //
 // Responsible means the same two axes as for a wish, with one substitution: a competence has no
 // instance, so the programme is the module's home programme rather than the demanding one.
@@ -80,7 +80,7 @@ func (f CompetenceFilter) Matches(c Competence) bool {
 
 // CanSeeCompetence reports whether the actor may see this competence. The guard form.
 //
-// Visible iff one's own, or — in an interactive session — the actor is responsible for the
+// Visible iff one's own, or — with full reach — the actor is responsible for the
 // module. There is no publication clause, which is the whole difference from CanSeeWish.
 func CanSeeCompetence(a principal.Actor, c Competence) bool {
 	switch {
@@ -88,7 +88,7 @@ func CanSeeCompetence(a principal.Actor, c Competence) bool {
 		return false
 	case a.Owns(c.OwnerID):
 		return true
-	case !a.Interactive():
+	case !a.ActsWithFullReach():
 		return false
 	default:
 		programmes, groups := CompetenceReadScope(a)
@@ -101,7 +101,7 @@ func CompetenceVisibility(a principal.Actor) CompetenceFilter {
 	switch {
 	case !a.Authenticated():
 		return CompetenceFilter{Scope: CompetenceScopeNone}
-	case !a.Interactive():
+	case !a.ActsWithFullReach():
 		return CompetenceFilter{Scope: CompetenceScopeOwn, OwnerID: a.ID}
 	}
 
@@ -135,9 +135,9 @@ func CompetenceReadScope(a principal.Actor) (ProgrammeScope, SubjectGroupScope) 
 //
 // Only through the subject group axis: a programme lead reaches the modules of their programme,
 // which cut across groups, so they may read some of a group's rows but not count all of them.
-// Interactive only, like every read of other people's statements.
+// With full reach only, like every read of other people's statements.
 func MayReadSubjectGroupCompetences(a principal.Actor, subjectGroupID uuid.UUID) bool {
-	if !a.Authenticated() || !a.Interactive() {
+	if !a.Authenticated() || !a.ActsWithFullReach() {
 		return false
 	}
 	_, groups := CompetenceReadScope(a)
@@ -157,10 +157,10 @@ func MayStateOwnCompetence(a principal.Actor, moduleInAGroupOfMine bool) bool {
 }
 
 // MayStateCompetenceForTeacher is the write rule for a teacher without an account: the lead of the
-// module's subject group, or the dean's office. Interactive only — a token reads only its owner's
-// statements, and a write path it could reach would be one more place for the two to part.
+// module's subject group, or the dean's office. With full reach only — a plain token reads only its
+// owner's statements, and a write path it could reach would be one more place for the two to part.
 func MayStateCompetenceForTeacher(a principal.Actor, subjectGroupID uuid.UUID) bool {
-	return a.Authenticated() && a.Interactive() && AssignmentScope(a).Allows(subjectGroupID)
+	return a.Authenticated() && a.ActsWithFullReach() && AssignmentScope(a).Allows(subjectGroupID)
 }
 
 // CompetenceForTeacherReason is the refusal when somebody may not write for a teacher.

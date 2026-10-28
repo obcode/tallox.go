@@ -156,6 +156,12 @@ type Actor struct {
 	Scopes []string
 	// Kind is how this actor authenticated.
 	Kind Kind
+	// FullReach is set for a Personal Access Token its owner minted with full reach, and never
+	// otherwise. Such a token is judged like its owner's browser session everywhere except the
+	// few surfaces that are the browser's alone (token management, person and role
+	// administration, the access log). Uninterpreted here like everything else: what it
+	// permits is internal/policy's question, asked through ActsWithFullReach.
+	FullReach bool
 	// TokenID is the public part of the Personal Access Token used, empty for an interactive
 	// session. It is what lets the audit log say which token did something after that token
 	// has been revoked — which is why revocation sets a timestamp instead of deleting a row.
@@ -183,6 +189,16 @@ func (a Actor) Authenticated() bool { return a.ID != uuid.Nil }
 // A plain accessor, not a rule: what interactivity *permits* is a question for
 // internal/policy.
 func (a Actor) Interactive() bool { return a.Kind == KindInteractive }
+
+// ActsWithFullReach reports whether the caller reaches what a browser session reaches: a person
+// in a browser, or a token minted with full reach.
+//
+// A plain accessor like Interactive. FullReach on an actor that is not a token means nothing and
+// is ignored, so that a stray flag on an interactive or anonymous actor cannot be read as a
+// grant of anything.
+func (a Actor) ActsWithFullReach() bool {
+	return a.Interactive() || (a.Kind == KindToken && a.FullReach)
+}
 
 // Narrowed reports whether this actor asked to be judged by fewer roles than they hold.
 //

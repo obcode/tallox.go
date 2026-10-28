@@ -39,6 +39,37 @@ type caller struct {
 	actor  principal.Actor
 }
 
+// matrixDoor is one way in, for the matrices: the browser, a plain token, and a token minted with
+// full reach. The third is a token by Kind and a browser by reach, which is exactly the claim the
+// matrices have to show — its rows should read like the interactive ones and nothing else.
+type matrixDoor struct {
+	label     string
+	kind      principal.Kind
+	fullReach bool
+}
+
+var matrixDoors = []matrixDoor{
+	{"interactive", principal.KindInteractive, false},
+	{"token", principal.KindToken, false},
+	{"full reach", principal.KindToken, true},
+}
+
+// on puts an actor through this door.
+func (d matrixDoor) on(a principal.Actor) principal.Actor {
+	a.FullReach = d.fullReach
+	return a
+}
+
+// doorLabel names the door an actor came through, as the matrices print it.
+func doorLabel(a principal.Actor) string {
+	for _, d := range matrixDoors {
+		if a.Kind == d.kind && a.FullReach == d.fullReach {
+			return d.label
+		}
+	}
+	return string(a.Kind)
+}
+
 func callers() []caller {
 	out := []caller{{
 		label: "(not signed in)",
@@ -47,17 +78,11 @@ func callers() []caller {
 	}}
 
 	for _, role := range policy.AllRoles() {
-		for _, door := range []struct {
-			label string
-			kind  principal.Kind
-		}{
-			{"interactive", principal.KindInteractive},
-			{"token", principal.KindToken},
-		} {
+		for _, door := range matrixDoors {
 			out = append(out, caller{
 				label: string(role),
 				door:  door.label,
-				actor: testdata.Eins.Actor(door.kind, string(role)),
+				actor: door.on(testdata.Eins.Actor(door.kind, string(role))),
 			})
 
 			// The scoped variant, for the two roles that have a subject. Showing one for the
@@ -65,7 +90,7 @@ func callers() []caller {
 			// only in the state nobody is meant to stay in.
 			switch role {
 			case policy.RoleProgrammeLead:
-				scoped := testdata.Eins.Actor(door.kind, string(role))
+				scoped := door.on(testdata.Eins.Actor(door.kind, string(role)))
 				scoped.RoleScopes = []principal.RoleScope{
 					{Role: string(role), ProgrammeID: programmeOne},
 				}
@@ -73,7 +98,7 @@ func callers() []caller {
 					label: string(role), door: door.label, scoped: "programme 1", actor: scoped,
 				})
 			case policy.RoleSubjectGroupLead:
-				scoped := testdata.Eins.Actor(door.kind, string(role))
+				scoped := door.on(testdata.Eins.Actor(door.kind, string(role)))
 				scoped.RoleScopes = []principal.RoleScope{
 					{Role: string(role), SubjectGroupID: groupOne},
 				}
@@ -174,7 +199,8 @@ A wish is visible if and only if
     (semester.wishes_published_at IS NOT NULL), or
   · the person is responsible for it — they lead the study programme whose demand the instance
     is, or the subject group the instance's module belongs to, or they are the dean's office
-    — and then only in an interactive session, never through a Personal Access Token.
+    — and then only with full reach: in a browser session, or through a token its owner minted
+    with full reach — never through a plain Personal Access Token.
 
 The purpose is to end the first-come-first-served race: a new colleague should be able to
 register interest without it looking like an attack on somebody who has taught the subject
@@ -234,9 +260,13 @@ Notes
   · ADMIN is deliberately not a wish reader. Running the system is a different job from
     planning with it; an administrator who genuinely needs to look is granted DEANS_OFFICE,
     visibly.
-  · Through a Personal Access Token, even a lead sees only their own wishes until publication.
-    A long-lived token in a script makes silent bulk export possible and decouples "who saw
-    this" from any login event.
+  · Through a plain Personal Access Token, even a lead sees only their own wishes until
+    publication. A long-lived token in a script makes silent bulk export possible and decouples
+    "who saw this" from any login event.
+  · The door "full reach" is a token minted with createPersonalAccessToken(fullReach: true): at
+    most 90 days, listed in the nightly access report. Its rows are the interactive rows, line
+    for line — it widens the door and never the role. Since 2026-10-28, so that programme leads
+    can plan through the API.
   · **Being in a subject group is not leading it.** Membership decides what the wish screen
     offers first and grants nothing here. The kickoff sentence "jeder in einer Fachgruppe
     müsste alles lesen können" is about planning data: if it covered wishes, the rule would

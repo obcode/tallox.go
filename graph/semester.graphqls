@@ -231,11 +231,11 @@ extend type Mutation {
     code: String!
   ): Semester! @scope(area: PLANNING, verb: WRITE)
 
-  # @interactiveOnly, unlike the two mutations above, and it is the only asymmetry in this
-  # file. Not because it needs a stronger role — it is the same one — but because it is the
-  # only semester operation that cannot be undone, and it is the moment the confidentiality
-  # rule stops applying. An act that cannot be walked back should be attributable to a sign-in
-  # rather than to a string in a script.
+  # @fullReach, unlike the two mutations above. Until 2026-10-28 it was @interactiveOnly, because
+  # it cannot be undone and is the moment the confidentiality rule stops applying. The faculty
+  # decided that the dean's office may do it from a token too — but only one minted with full
+  # reach, which is an explicit, short-lived choice listed in the nightly report, and never from
+  # a plain one. The access log records which token did it.
   """
   End the confidentiality window: make the wishes of this semester visible to everybody.
 
@@ -246,30 +246,29 @@ extend type Mutation {
   entry made in that round would be visible the moment it is made. A module in no subject group has
   no round to close and does not hold it up.
 
-  Only in a signed-in browser session: through a Personal Access Token this fails with
-  `INTERACTIVE_ONLY`.
+  In a signed-in browser session or with a token minted with `fullReach`; through a plain token
+  this fails with `FULL_REACH_REQUIRED`.
   """
-  publishWishes(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  publishWishes(code: String!): Semester! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   End the confidentiality window over the assignments: make who holds what visible to everybody.
 
   **There is no way back.** Calling it twice is not an error and does not move the timestamp.
 
-  `@interactiveOnly` for the same reason `publishWishes` is: it cannot be undone, and it is the
-  moment a confidentiality rule stops applying. An act that cannot be walked back should be
-  attributable to a sign-in rather than to a string in a script.
+  `@fullReach` like `publishWishes`: it cannot be undone and is the moment a confidentiality rule
+  stops applying, so a plain token does not get it; a token minted with `fullReach` does.
   """
-  publishAssignments(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  publishAssignments(code: String!): Semester! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   Freeze the desired teaching hours of this semester: from now on only the dean's office changes a
   figure. The deadline, made an act.
 
   **There is no way back.** Calling it twice is not an error and does not move the timestamp.
-  Interactive only, like the publications.
+  `@fullReach`, like the publications.
   """
-  freezeDesiredHours(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  freezeDesiredHours(code: String!): Semester! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   Make the desired teaching hours of this semester visible to everybody — the range, not the
@@ -277,5 +276,5 @@ extend type Mutation {
 
   **There is no way back.** Calling it twice is not an error and does not move the timestamp.
   """
-  publishDesiredHours(code: String!): Semester! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  publishDesiredHours(code: String!): Semester! @fullReach @scope(area: PLANNING, verb: WRITE)
 }

@@ -136,7 +136,8 @@ An assignment is visible if and only if
     (semester.assignments_published_at IS NOT NULL), or
   · the person is responsible for it — they lead the study programme whose demand the instance
     is, or the subject group the instance's module belongs to, or they are the dean's office
-    — and then only in an interactive session, never through a Personal Access Token.
+    — and then only with full reach (a browser session or a full-reach token), never through a
+    plain Personal Access Token.
 
 Word for word the wish rule with one noun changed, and deliberately so: two rules that read the
 same are two rules a reader can hold in their head at once. What differs is why they exist.
@@ -186,9 +187,10 @@ sides of "is this mine" are then the nil id.
 The one that surprises people
 -----------------------------
 
-**A Personal Access Token never reads somebody else's unpublished assignment**, not even for the
-dean's office. A token is long-lived, sits in a script, and decouples "who saw this" from any
-login event. What one holds oneself stays readable through both doors — that is one's own
+**A plain Personal Access Token never reads somebody else's unpublished assignment**, not even for
+the dean's office. A token is long-lived, sits in a script, and decouples "who saw this" from any
+login event. A token minted with full reach reads what its owner reads in the browser — the
+"full reach" rows equal the "interactive" ones. What one holds oneself stays readable through both doors — that is one's own
 timetable, and building a calendar from it is the first script a colleague will write.
 
 **ADMIN is not on the exception list.** Running the system is a different job from planning with

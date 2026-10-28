@@ -20,7 +20,7 @@ import (
 // region    ************************** generated!.gotpl **************************
 
 type MutationResolver interface {
-	CreatePersonalAccessToken(ctx context.Context, description string, expiresInDays *int, scopes []*model.ScopeGrantInput) (*model.CreatedPersonalAccessToken, error)
+	CreatePersonalAccessToken(ctx context.Context, description string, expiresInDays *int, scopes []*model.ScopeGrantInput, fullReach bool) (*model.CreatedPersonalAccessToken, error)
 	RevokePersonalAccessToken(ctx context.Context, id string) (*model.PersonalAccessToken, error)
 	CreatePerson(ctx context.Context, mail string, name *string) (*model.Person, error)
 	RenamePerson(ctx context.Context, id string, name string) (*model.Person, error)
@@ -414,6 +414,14 @@ func (ec *executionContext) field_Mutation_createPersonalAccessToken_args(ctx co
 		return nil, err
 	}
 	args["scopes"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "fullReach",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["fullReach"] = arg3
 	return args, nil
 }
 
@@ -1610,7 +1618,7 @@ func (ec *executionContext) _Mutation_createPersonalAccessToken(ctx context.Cont
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().CreatePersonalAccessToken(ctx, fc.Args["description"].(string), fc.Args["expiresInDays"].(*int), fc.Args["scopes"].([]*model.ScopeGrantInput))
+			return ec.Resolvers.Mutation().CreatePersonalAccessToken(ctx, fc.Args["description"].(string), fc.Args["expiresInDays"].(*int), fc.Args["scopes"].([]*model.ScopeGrantInput), fc.Args["fullReach"].(bool))
 		},
 		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
 			directive0 := next
@@ -2072,11 +2080,11 @@ func (ec *executionContext) _Mutation_setAssignment(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.Assignment
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2129,11 +2137,11 @@ func (ec *executionContext) _Mutation_setCourseInstanceFormat(ctx context.Contex
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2186,11 +2194,11 @@ func (ec *executionContext) _Mutation_clearAssignment(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal string
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2243,11 +2251,11 @@ func (ec *executionContext) _Mutation_divideInstancePart(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2300,11 +2308,11 @@ func (ec *executionContext) _Mutation_rejoinInstancePart(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2357,11 +2365,11 @@ func (ec *executionContext) _Mutation_setInstancePartTaughtBy(ctx context.Contex
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2634,11 +2642,11 @@ func (ec *executionContext) _Mutation_applyModuleSplitToInstances(ctx context.Co
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.ModuleSplitApplication
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2867,11 +2875,11 @@ func (ec *executionContext) _Mutation_setTeacherCompetence(ctx context.Context, 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.Competence
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2924,11 +2932,11 @@ func (ec *executionContext) _Mutation_withdrawTeacherCompetence(ctx context.Cont
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal string
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3025,11 +3033,11 @@ func (ec *executionContext) _Mutation_planDemand(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.DemandPlanReport
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3082,11 +3090,11 @@ func (ec *executionContext) _Mutation_declareCourseInstance(ctx context.Context,
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3139,11 +3147,11 @@ func (ec *executionContext) _Mutation_duplicateCourseInstance(ctx context.Contex
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3196,11 +3204,11 @@ func (ec *executionContext) _Mutation_changeCourseInstance(ctx context.Context, 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3253,11 +3261,11 @@ func (ec *executionContext) _Mutation_setCourseInstanceTopic(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3310,11 +3318,11 @@ func (ec *executionContext) _Mutation_withdrawCourseInstance(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal string
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3367,11 +3375,11 @@ func (ec *executionContext) _Mutation_addInstancePart(ctx context.Context, field
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3424,11 +3432,11 @@ func (ec *executionContext) _Mutation_changeInstancePart(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3481,11 +3489,11 @@ func (ec *executionContext) _Mutation_removeInstancePart(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3538,11 +3546,11 @@ func (ec *executionContext) _Mutation_shareInstancePartAcrossTracks(ctx context.
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3595,11 +3603,11 @@ func (ec *executionContext) _Mutation_splitInstancePartAcrossTracks(ctx context.
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3652,11 +3660,11 @@ func (ec *executionContext) _Mutation_requestInstanceCoverage(ctx context.Contex
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3709,11 +3717,11 @@ func (ec *executionContext) _Mutation_acceptInstanceCoverage(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3766,11 +3774,11 @@ func (ec *executionContext) _Mutation_releaseInstanceCoverage(ctx context.Contex
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CourseInstance
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3823,11 +3831,11 @@ func (ec *executionContext) _Mutation_copyDemandFromSemester(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.CopyDemandReport
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4100,11 +4108,11 @@ func (ec *executionContext) _Mutation_publishWishes(ctx context.Context, field g
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.Semester
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4157,11 +4165,11 @@ func (ec *executionContext) _Mutation_publishAssignments(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.Semester
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4214,11 +4222,11 @@ func (ec *executionContext) _Mutation_freezeDesiredHours(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.Semester
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4271,11 +4279,11 @@ func (ec *executionContext) _Mutation_publishDesiredHours(ctx context.Context, f
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.Semester
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4328,11 +4336,11 @@ func (ec *executionContext) _Mutation_createSubjectGroup(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.SubjectGroup
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4385,11 +4393,11 @@ func (ec *executionContext) _Mutation_renameSubjectGroup(ctx context.Context, fi
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.SubjectGroup
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4442,11 +4450,11 @@ func (ec *executionContext) _Mutation_setSubjectGroupActive(ctx context.Context,
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.SubjectGroup
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4499,11 +4507,11 @@ func (ec *executionContext) _Mutation_setModulesSubjectGroup(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.SubjectGroupAssignmentReport
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4556,11 +4564,11 @@ func (ec *executionContext) _Mutation_setSubjectGroupMembers(ctx context.Context
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.SubjectGroup
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4657,11 +4665,11 @@ func (ec *executionContext) _Mutation_setSubjectGroupLeads(ctx context.Context, 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.SubjectGroup
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4933,11 +4941,11 @@ func (ec *executionContext) _Mutation_syncZpaNow(ctx context.Context, field grap
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.ZpaSyncRun
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -4978,11 +4986,11 @@ func (ec *executionContext) _Mutation_projectZpaCatalogue(ctx context.Context, f
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.ZpaCatalogueProjection
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -5075,6 +5083,29 @@ func (ec *executionContext) _PersonalAccessToken_scopes(ctx context.Context, fie
 }
 func (ec *executionContext) fieldContext_PersonalAccessToken_scopes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _PersonalAccessToken_fullReach(ctx context.Context, field graphql.CollectedField, obj *model.PersonalAccessToken) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PersonalAccessToken_fullReach(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.FullReach, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PersonalAccessToken_fullReach(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _PersonalAccessToken_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.PersonalAccessToken) (ret graphql.Marshaler) {
@@ -5744,6 +5775,11 @@ func (ec *executionContext) _PersonalAccessToken(ctx context.Context, sel ast.Se
 			}
 		case "scopes":
 			out.Values[i] = ec._PersonalAccessToken_scopes(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "fullReach":
+			out.Values[i] = ec._PersonalAccessToken_fullReach(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

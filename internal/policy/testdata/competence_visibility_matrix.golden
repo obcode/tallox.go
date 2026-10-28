@@ -12,8 +12,8 @@ A competence — "I can teach this module" or "I would like to, one day" — is 
 
   · it is the caller's own statement, or
   · the caller is responsible for the module — they lead its home study programme, or the
-    subject group it belongs to, or they are the dean's office — and then only in an
-    interactive session, never through a Personal Access Token.
+    subject group it belongs to, or they are the dean's office — and then only with full reach
+    (a browser session or a full-reach token), never through a plain Personal Access Token.
 
 The wish rule without its publication clause. "Would like to" is a wish without a semester: a
 colleague who can read it knows who else is eyeing a subject, which is the first-come race the
@@ -49,22 +49,30 @@ Role                Door         Responsible for  own   prog. 1  group 1  teache
 
 LECTURER            interactive  —                yes   no       no       no       no       own only
 LECTURER            token        —                yes   no       no       no       no       own only
+LECTURER            full reach   —                yes   no       no       no       no       own only
 
 SUBJECT_GROUP_LEAD  interactive  —                yes   no       no       no       no       own only
 SUBJECT_GROUP_LEAD  interactive  group 1          yes   no       yes      yes      no       own + scoped
 SUBJECT_GROUP_LEAD  token        —                yes   no       no       no       no       own only
 SUBJECT_GROUP_LEAD  token        group 1          yes   no       no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                yes   no       no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   group 1          yes   no       yes      yes      no       own + scoped
 
 PROGRAMME_LEAD      interactive  —                yes   no       no       no       no       own only
 PROGRAMME_LEAD      interactive  programme 1      yes   yes      no       no       no       own + scoped
 PROGRAMME_LEAD      token        —                yes   no       no       no       no       own only
 PROGRAMME_LEAD      token        programme 1      yes   no       no       no       no       own only
+PROGRAMME_LEAD      full reach   —                yes   no       no       no       no       own only
+PROGRAMME_LEAD      full reach   programme 1      yes   yes      no       no       no       own + scoped
 
 DEANS_OFFICE        interactive  —                yes   yes      yes      yes      yes      all
 DEANS_OFFICE        token        —                yes   no       no       no       no       own only
+DEANS_OFFICE        full reach   —                yes   yes      yes      yes      yes      all
 
 PARTNER_READER      interactive  —                yes   no       no       no       no       own only
 PARTNER_READER      token        —                yes   no       no       no       no       own only
+PARTNER_READER      full reach   —                yes   no       no       no       no       own only
 
 ADMIN               interactive  —                yes   no       no       no       no       own only
 ADMIN               token        —                yes   no       no       no       no       own only
+ADMIN               full reach   —                yes   no       no       no       no       own only

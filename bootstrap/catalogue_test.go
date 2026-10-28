@@ -945,7 +945,7 @@ func TestProjectingIsInteractiveOnlyAndAdministrative(t *testing.T) {
 	t.Run("the same administrator through a token may not", func(t *testing.T) {
 		resp := graphqltest.New(f.handler).WithToken(testdata.Sechs.Token).On(graphqltest.Token).
 			Do(t, mutation, nil)
-		assertRefusal(t, resp, "INTERACTIVE_ONLY")
+		assertRefusal(t, resp, "FULL_REACH_REQUIRED")
 	})
 
 	t.Run("a lecturer may not", func(t *testing.T) {
@@ -957,7 +957,7 @@ func TestProjectingIsInteractiveOnlyAndAdministrative(t *testing.T) {
 	t.Run("reading the reports is interactive-only too", func(t *testing.T) {
 		resp := graphqltest.New(f.handler).WithToken(testdata.Sechs.Token).On(graphqltest.Token).
 			Do(t, `{ zpaCatalogueProjections { status } }`, nil)
-		assertRefusal(t, resp, "INTERACTIVE_ONLY")
+		assertRefusal(t, resp, "FULL_REACH_REQUIRED")
 	})
 }
 

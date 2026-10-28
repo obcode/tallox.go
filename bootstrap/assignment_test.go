@@ -365,7 +365,7 @@ func TestEveryAssignmentMutationRefusesAToken(t *testing.T) {
 		map[string]any{
 			"p": f.lecture, "who": testdata.Eins.ID().String(), "note": nil, "replacing": nil,
 		})
-	assertRefusal(t, resp, "INTERACTIVE_ONLY")
+	assertRefusal(t, resp, "FULL_REACH_REQUIRED")
 
 	// And nothing was written, which matters more than the refusal: a half-successful probe
 	// would be worse than an answered one.
@@ -603,11 +603,11 @@ func TestTheAssignmentServiceRefusesATokenActorItself(t *testing.T) {
 
 	part := uuid.MustParse(f.lecture)
 	_, err := service.Set(t.Context(), viaToken, part, domain.Assignee{PersonID: testdata.Eins.ID()}, "", uuid.Nil)
-	if !errors.Is(err, domain.ErrInteractiveOnly) {
-		t.Errorf("Set with a token actor: %v, want ErrInteractiveOnly", err)
+	if !errors.Is(err, domain.ErrFullReachRequired) {
+		t.Errorf("Set with a token actor: %v, want ErrFullReachRequired", err)
 	}
-	if err := service.Clear(t.Context(), viaToken, uuid.New()); !errors.Is(err, domain.ErrInteractiveOnly) {
-		t.Errorf("Clear with a token actor: %v, want ErrInteractiveOnly", err)
+	if err := service.Clear(t.Context(), viaToken, uuid.New()); !errors.Is(err, domain.ErrFullReachRequired) {
+		t.Errorf("Clear with a token actor: %v, want ErrFullReachRequired", err)
 	}
 
 	var n int

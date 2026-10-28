@@ -171,12 +171,13 @@ type AccessSummary struct {
 // the modules they hold them in.
 //
 // **Readable before the assignments are published, by more than the person**, which no other sum over
-// assignments is: in a signed-in session the lead of any subject group the person is a member of reads
+// assignments is: with full reach the lead of any subject group the person is a member of reads
 // it, and the dean's office — so that whoever fills an instance can see that a colleague is already
 // full in another group, and whom to talk to. It names no module, instance or part. Once
-// `Semester.assignmentsPublishedAt` is set, everybody reads everybody's in a signed-in session.
-// Through a Personal Access Token it is your own in every state: the published assignments are public
-// row by row, but everybody's totals in one call are personnel data in bulk.
+// `Semester.assignmentsPublishedAt` is set, everybody reads everybody's with full reach.
+// Through a plain Personal Access Token it is your own in every state: the published assignments are
+// public row by row, but everybody's totals in one call are personnel data in bulk. "With full reach"
+// means a signed-in browser session or a token minted with `fullReach`.
 type AssignedLoad struct {
 	// Whose load it is.
 	Person *Person `json:"person"`
@@ -712,7 +713,7 @@ type DesiredHoursOverviewRow struct {
 // Three states, set by the dean's office on the semester:
 //
 //   - **Open** — the person states and changes their own. Read by the person, through either door; in
-//     an interactive session also by the lead of any subject group the person is a member of, and by
+//     a session with full reach also by the lead of any subject group the person is a member of, and by
 //     the dean's office.
 //   - **Frozen** (`Semester.desiredHoursFrozenAt`) — only the dean's office changes a figure, with
 //     `correctDesiredTeachingHours`, after agreeing it with the person.
@@ -731,7 +732,7 @@ type DesiredTeachingHours struct {
 	Hours float64 `json:"hours"`
 	// The person's own words: „gern als Block“, „Forschungssemester im Herbst“. Empty when you may read
 	// the range but not the note — which is everybody but the person, the leads of their subject groups
-	// and the dean's office, in an interactive session.
+	// and the dean's office, with full reach.
 	Note string `json:"note"`
 	// The name of whoever in the dean's office last corrected the figure after the freeze, or empty
 	// while it stands as the person stated it. Empty, too, where the note is.
@@ -975,15 +976,17 @@ type ModuleWithoutCompetence struct {
 
 // Everything that changes something.
 //
-// All of it is `@interactiveOnly` for now: writing happens in a signed-in browser session, not
-// through a Personal Access Token.
+// Most of it is `@fullReach`: it answers in a signed-in browser session and through a token minted
+// with `fullReach`, and refuses a plain token with `FULL_REACH_REQUIRED`. Token management, person and
+// role administration are `@interactiveOnly` and answer no token at all. Writing your own wishes,
+// competences and desired hours works through every token. Each field says which applies.
 type Mutation struct {
 }
 
 // A person in the planning.
 //
 // Carries identity and roles, nothing else. Teaching hours and notes about people are not
-// reachable here — see the `@interactiveOnly` note in the API documentation.
+// reachable here — see the `@fullReach` note in the API documentation.
 type Person struct {
 	ID string `json:"id"`
 	// The address the university's login asserts. Case-insensitive, and the key we match on.
@@ -1056,7 +1059,12 @@ type PersonalAccessToken struct {
 	// Scopes only ever narrow. They are chosen when the token is created (`scopes` on
 	// `createPersonalAccessToken`); a token created without any carries the empty list and is
 	// bounded by its owner's roles alone.
-	Scopes    []string  `json:"scopes"`
+	Scopes []string `json:"scopes"`
+	// Whether this token was minted with full reach: it reaches what you reach in a signed-in browser
+	// session — the planning moves marked `@fullReach`, and the unpublished rows your roles let you
+	// read — except token management, person and role administration and the access log. Fixed at
+	// creation.
+	FullReach bool      `json:"fullReach"`
 	CreatedAt time.Time `json:"createdAt"`
 	// When this token stops working. There is no token without an expiry: 90 days by default, 365
 	// at most.
@@ -1348,6 +1356,12 @@ type Session struct {
 	// `false` means the `@interactiveOnly` fields will answer `null` — worth checking before
 	// concluding that something is empty.
 	Interactive bool `json:"interactive"`
+	// Whether this caller reaches what a signed-in browser session reaches: `true` in the browser and
+	// for a token minted with `fullReach`, `false` for a plain token.
+	//
+	// `false` means the `@fullReach` fields will answer `null` or `FULL_REACH_REQUIRED`. The
+	// `@interactiveOnly` fields follow `interactive`, whatever this says.
+	FullReach bool `json:"fullReach"`
 }
 
 // A subject the faculty groups modules and people by.
@@ -1506,7 +1520,7 @@ type Wish struct {
 	// about two people, and turning it into a field would ask one of them to decide it alone.
 	//
 	// Read by whoever could read the wish before publication: the owner, the leads responsible for it
-	// in a signed-in session, the dean's office. Publication makes visible who wants what, not the
+	// with full reach (a signed-in session or a full-reach token), the dean's office. Publication makes visible who wants what, not the
 	// owner's own words; for everybody else this is the empty string.
 	Note string `json:"note"`
 	// The owner's bound on the cohorts of this module in this programme: of the cohorts they wished

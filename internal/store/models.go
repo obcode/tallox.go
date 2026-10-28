@@ -229,6 +229,7 @@ type PersonalAccessToken struct {
 	ExpiresAt   time.Time
 	LastUsedAt  pgtype.Timestamptz
 	RevokedAt   pgtype.Timestamptz
+	FullReach   bool
 }
 
 type Programme struct {

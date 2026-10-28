@@ -30,9 +30,9 @@ import (
 // members of the lead's groups. It is the person-directed shape of DesiredHoursNoteVisibility, not
 // the instance-directed one of AssignmentVisibility.
 //
-// Read by the person, through either door; in an interactive session also by the lead of any
+// Read by the person, through either door; with full reach also by the lead of any
 // subject group the person is a member of, and by the dean's office; once the assignments are
-// published, by everybody in a signed-in session. Through a token only one's own, in every state:
+// published, by everybody with full reach. Through a plain token only one's own, in every state:
 // the published assignments are public row by row, but a per-person total of the whole faculty in
 // one script call is the bulk export of personnel data rule 2 keeps off the token door (decided
 // 2026-10-25). Never by a programme lead on the strength of that role before publication: they
@@ -57,7 +57,7 @@ func CanSeeAssignedLoad(a principal.Actor, s SemesterState, l AssignedLoad) bool
 		return false
 	case a.Owns(l.OwnerID):
 		return true
-	case PartnerOnly(a), !a.Interactive():
+	case PartnerOnly(a), !a.ActsWithFullReach():
 		return false
 	case s.AssignmentsPublished():
 		return true
@@ -72,13 +72,13 @@ func AssignedLoadVisibility(a principal.Actor, s SemesterState) AssignedLoadFilt
 	switch {
 	case !a.Authenticated():
 		return AssignedLoadFilter{Scope: DesiredHoursScopeNone}
-	case PartnerOnly(a), !a.Interactive():
+	case PartnerOnly(a), !a.ActsWithFullReach():
 		return AssignedLoadFilter{Scope: DesiredHoursScopeOwn, OwnerID: a.ID}
 	case s.AssignmentsPublished():
 		return AssignedLoadFilter{Scope: DesiredHoursScopeAll}
 	default:
 		// The note's rule, and on purpose the same function: "the person, the leads of their
-		// groups, the dean's office, interactively" is one sentence, and two copies of it would
+		// groups, the dean's office, with full reach" is one sentence, and two copies of it would
 		// drift.
 		return DesiredHoursNoteVisibility(a)
 	}

@@ -19,6 +19,19 @@ func MayAdministerPeople(a principal.Actor) bool {
 	return MayReadInteractiveOnly(a) && RolesOf(a).Has(RoleAdmin)
 }
 
+// MayAdministerSubjectGroups reports whether an actor may create, rename, retire and staff the
+// faculty's subject groups — including who leads one.
+//
+// ADMIN, as before, but through the full-reach Kind term rather than the browser-only one: the
+// faculty decided on 2026-10-28 that running the subject groups is part of the planning an
+// administrator may do from a script or an assistant. Setting the leads is a grant — it decides
+// who reads the group's unpublished wishes — and that was part of the decision, not overlooked.
+// What stays browser-only is the access itself: who has an account and which roles it holds
+// (MayAdministerPeople).
+func MayAdministerSubjectGroups(a principal.Actor) bool {
+	return MayActWithFullReach(a) && RolesOf(a).Has(RoleAdmin)
+}
+
 // AdminReason is what a caller who failed that check is told. German, like every other string
 // a person reads.
 const AdminReason = "Nur die Administration darf Personen und Rollen verwalten."

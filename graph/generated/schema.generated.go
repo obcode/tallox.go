@@ -1752,11 +1752,11 @@ func (ec *executionContext) _Query_competenceMemberStatus(ctx context.Context, f
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal []*model.MemberCompetenceStatus
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -1809,11 +1809,11 @@ func (ec *executionContext) _Query_modulesWithoutCompetence(ctx context.Context,
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal []*model.ModuleWithoutCompetence
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2777,11 +2777,11 @@ func (ec *executionContext) _Query_desiredHoursOverview(ctx context.Context, fie
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal []*model.DesiredHoursOverviewRow
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2834,11 +2834,11 @@ func (ec *executionContext) _Query_zpaSyncRuns(ctx context.Context, field graphq
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal []*model.ZpaSyncRun
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2891,11 +2891,11 @@ func (ec *executionContext) _Query_zpaSyncRun(ctx context.Context, field graphql
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal *model.ZpaSyncRun
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -2948,11 +2948,11 @@ func (ec *executionContext) _Query_zpaChanges(ctx context.Context, field graphql
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal []*model.ZpaChange
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1
@@ -3005,11 +3005,11 @@ func (ec *executionContext) _Query_zpaCatalogueProjections(ctx context.Context, 
 			directive0 := next
 
 			directive1 := func(ctx context.Context) (any, error) {
-				if ec.Directives.InteractiveOnly == nil {
+				if ec.Directives.FullReach == nil {
 					var zeroVal []*model.ZpaCatalogueProjection
-					return zeroVal, errors.New("directive interactiveOnly is not implemented")
+					return zeroVal, errors.New("directive fullReach is not implemented")
 				}
-				return ec.Directives.InteractiveOnly(ctx, nil, directive0)
+				return ec.Directives.FullReach(ctx, nil, directive0)
 			}
 
 			next = directive1

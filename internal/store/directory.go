@@ -91,6 +91,7 @@ func (d *Directory) TokenByID(ctx context.Context, tokenID string) (*auth.Token,
 		ID:         row.TokenID,
 		SecretHash: row.SecretHash,
 		Scopes:     row.Scopes,
+		FullReach:  row.FullReach,
 		ExpiresAt:  row.ExpiresAt,
 		RevokedAt:  nullableTime(row.RevokedAt),
 		Owner: auth.Person{

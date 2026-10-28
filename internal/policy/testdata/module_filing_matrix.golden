@@ -11,7 +11,8 @@ The rule
 Somebody may move a module from the subject group it is in today into the one it should be in if
 
   · they are an administrator — any module, any group, and
-  · in a signed-in browser session either way: through a Personal Access Token, nobody, or
+  · with full reach either way (a browser session or a full-reach token): through a plain
+    Personal Access Token, nobody, or
   · they lead subject groups, and **both** ends of the move are groups they lead.
 
 "No group" counts as an end that is always in reach: a module nobody has sorted yet may be
@@ -85,20 +86,27 @@ Role                Door          Leads   none→none   none→1   1→none   1�
 
 LECTURER            interactive   —       no          no       no       no     no     no
 LECTURER            token         —       no          no       no       no     no     no
+LECTURER            full reach    —       no          no       no       no     no     no
 
 SUBJECT_GROUP_LEAD  interactive   —       no          no       no       no     no     no
 SUBJECT_GROUP_LEAD  interactive   one     yes         yes      yes      yes    no     no
 SUBJECT_GROUP_LEAD  token         —       no          no       no       no     no     no
 SUBJECT_GROUP_LEAD  token         one     no          no       no       no     no     no
+SUBJECT_GROUP_LEAD  full reach    —       no          no       no       no     no     no
+SUBJECT_GROUP_LEAD  full reach    one     yes         yes      yes      yes    no     no
 
 PROGRAMME_LEAD      interactive   —       no          no       no       no     no     no
 PROGRAMME_LEAD      token         —       no          no       no       no     no     no
+PROGRAMME_LEAD      full reach    —       no          no       no       no     no     no
 
 DEANS_OFFICE        interactive   —       yes         yes      yes      yes    yes    yes
 DEANS_OFFICE        token         —       no          no       no       no     no     no
+DEANS_OFFICE        full reach    —       yes         yes      yes      yes    yes    yes
 
 PARTNER_READER      interactive   —       no          no       no       no     no     no
 PARTNER_READER      token         —       no          no       no       no     no     no
+PARTNER_READER      full reach    —       no          no       no       no     no     no
 
 ADMIN               interactive   —       yes         yes      yes      yes    yes    yes
 ADMIN               token         —       no          no       no       no     no     no
+ADMIN               full reach    —       yes         yes      yes      yes    yes    yes

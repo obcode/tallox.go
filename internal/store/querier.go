@@ -19,6 +19,14 @@ type Querier interface {
 	// has since pointed somewhere else, no rows come back and the caller is told rather than silently
 	// agreeing to something else.
 	AcceptInstanceCoverage(ctx context.Context, arg AcceptInstanceCoverageParams) (int64, error)
+	// Personal Access Tokens minted with full reach and still valid at the end of the window, with
+	// what each did inside it.
+	//
+	// Such a token reads other people's unpublished wishes and may publish a semester, so — like a
+	// self-granted role — "this credential exists right now" is the standing fact worth reading every
+	// night, not only on the night it was minted. The counts come from the access log by token id,
+	// which is what the log keeps the public half for; arguments are not there and are not needed.
+	AccessFullReachTokens(ctx context.Context, arg AccessFullReachTokensParams) ([]AccessFullReachTokensRow, error)
 	// How much happened under each role, for one window.
 	//
 	// Over the EFFECTIVE roles, so a narrowed session counts under what it was narrowed to. That is

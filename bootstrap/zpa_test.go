@@ -139,8 +139,8 @@ func TestTheImportIsInteractiveOnly(t *testing.T) {
 
 	t.Run("token", func(t *testing.T) {
 		c := graphqltest.New(h).WithToken(testdata.Sechs.Token).On(graphqltest.Token)
-		assertRefusal(t, c.Do(t, runsQuery, nil), "INTERACTIVE_ONLY")
-		assertRefusal(t, c.Do(t, `mutation { syncZpaNow { id } }`, nil), "INTERACTIVE_ONLY")
+		assertRefusal(t, c.Do(t, runsQuery, nil), "FULL_REACH_REQUIRED")
+		assertRefusal(t, c.Do(t, `mutation { syncZpaNow { id } }`, nil), "FULL_REACH_REQUIRED")
 
 		// Following a run is as interactive as starting one. The field is nullable, so a
 		// token gets null rather than an error, for a run that exists.

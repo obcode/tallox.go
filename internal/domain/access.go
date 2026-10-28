@@ -53,7 +53,8 @@ const (
 	AccessRefusedAuth AccessOutcome = "REFUSED_AUTH"
 	// AccessRefusedScope is a token whose scopes did not cover what the operation asked for.
 	AccessRefusedScope AccessOutcome = "REFUSED_SCOPE"
-	// AccessRefusedInteractive is a token reaching for an @interactiveOnly field.
+	// AccessRefusedInteractive is a token reaching past its door: an @interactiveOnly field, or a
+	// @fullReach field through a plain token. The error code says which.
 	AccessRefusedInteractive AccessOutcome = "REFUSED_INTERACTIVE"
 )
 
@@ -217,6 +218,22 @@ type AccessSummary struct {
 	// so with an expiry (ErrSelfGrantMustExpire), and this is where that becomes visible to more
 	// than the administrator.
 	SelfGrants []SelfGrant
+	// FullReachTokens are the Personal Access Tokens minted with full reach and valid at Until,
+	// with what each did in the window. They read what their owner reads in a browser, so their
+	// existence is reported every night while they hold.
+	FullReachTokens []FullReachToken
+}
+
+// FullReachToken is one valid token with full reach. No description: that is the owner's words,
+// and the report needs only who, which and until when.
+type FullReachToken struct {
+	Mail      string
+	TokenID   string
+	CreatedAt time.Time
+	ExpiresAt time.Time
+	// Operations is everything the token did in the window, Changes the successful mutations.
+	Operations int64
+	Changes    int64
 }
 
 // SelfGrant is one role somebody granted to themselves.

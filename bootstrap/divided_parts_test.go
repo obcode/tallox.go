@@ -126,9 +126,9 @@ func TestArrangingAPartRefusesAToken(t *testing.T) {
 	f.leadGroup(t, testdata.Drei, f.group)
 	token := graphqltest.New(f.handler).WithToken(testdata.Drei.Token)
 
-	assertRefusal(t, token.Do(t, dividePartMutation, map[string]any{"p": f.lab, "h": 1.0}), "INTERACTIVE_ONLY")
-	assertRefusal(t, token.Do(t, taughtByMutation, map[string]any{"p": f.lab, "f": "FK 04"}), "INTERACTIVE_ONLY")
-	assertRefusal(t, token.Do(t, rejoinMutation, map[string]any{"p": f.lab}), "INTERACTIVE_ONLY")
+	assertRefusal(t, token.Do(t, dividePartMutation, map[string]any{"p": f.lab, "h": 1.0}), "FULL_REACH_REQUIRED")
+	assertRefusal(t, token.Do(t, taughtByMutation, map[string]any{"p": f.lab, "f": "FK 04"}), "FULL_REACH_REQUIRED")
+	assertRefusal(t, token.Do(t, rejoinMutation, map[string]any{"p": f.lab}), "FULL_REACH_REQUIRED")
 
 	// Nothing was written.
 	var out struct {

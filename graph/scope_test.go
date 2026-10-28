@@ -1,6 +1,7 @@
 package graph_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -282,16 +283,16 @@ func assertEnumMatches(t *testing.T, schema *ast.Schema, name string, known []st
 
 // TestEveryDemandMutationRefusesAToken pins a rule that is deliberately file-shaped.
 //
-// Every mutation defined in graph/demand.graphqls is @interactiveOnly, and the annotation goes on
-// all of them rather than on the four that can raise INSTANCE_IN_USE. The reason is the same one
-// the scope fallback has: a rule that applies to a hand-picked subset is a rule somebody forgets
-// on the next member, and the next member is the one nobody reviewed.
+// Every mutation defined in graph/demand.graphqls is @fullReach, and the annotation goes on all of
+// them rather than on the four that can raise INSTANCE_IN_USE. The reason is the same one the scope
+// fallback has: a rule that applies to a hand-picked subset is a rule somebody forgets on the next
+// member, and the next member is the one nobody reviewed.
 //
 // Why the demand writes at all — the argument is about wishes and not about the demand. A
-// withdrawal refused with INSTANCE_IN_USE says that somebody wants the instance. Interactively
+// withdrawal refused with INSTANCE_IN_USE says that somebody wants the instance. With full reach
 // that reveals nothing, because whoever may write a programme's demand may already read its
-// unpublished wishes. Through a Personal Access Token they are deliberately not the same set, so
-// `planDemand(dryRun: true)` would have been a free, traceless enumeration of which instances are
+// unpublished wishes. Through a plain Personal Access Token they are deliberately not the same
+// set, so `planDemand(dryRun: true)` would be a free, traceless enumeration of which instances are
 // wished for.
 //
 // Which file a field came from is read off the parsed position rather than matched against the
@@ -313,11 +314,11 @@ func TestEveryDemandMutationRefusesAToken(t *testing.T) {
 		}
 		checked++
 
-		if field.Directives.ForName("interactiveOnly") == nil {
-			t.Errorf("Mutation.%s is declared in demand.graphqls without @interactiveOnly.\n"+
+		if field.Directives.ForName("fullReach") == nil && field.Directives.ForName("interactiveOnly") == nil {
+			t.Errorf("Mutation.%s is declared in demand.graphqls without @fullReach.\n"+
 				"Every mutation in that file carries it, because a refusal of INSTANCE_IN_USE "+
-				"is an answer about who wants an instance — and through a token the wish rule "+
-				"reaches only your own. See the note at the top of the file.", field.Name)
+				"is an answer about who wants an instance — and through a plain token the wish "+
+				"rule reaches only your own. See the note at the top of the file.", field.Name)
 		}
 	}
 
@@ -328,5 +329,52 @@ func TestEveryDemandMutationRefusesAToken(t *testing.T) {
 	if checked < 14 {
 		t.Errorf("found %d mutations declared in demand.graphqls, want at least 14 — this test "+
 			"is defending less than it claims", checked)
+	}
+}
+
+// interactiveOnlyFields is the whole list of what no token reaches, not even one with full reach.
+//
+// Written out on purpose. Full reach made every other Kind restriction a matter of minting the
+// right token, so these are the fields where a sign-in is the only way in — token management
+// (a token that mints its successors outlives its own expiry), who has an account and with
+// which roles, and the access log. Adding a field here is cheap and needs no argument; taking
+// one away is a change to that decision and should be the visible diff it is.
+var interactiveOnlyFields = []string{
+	"Mutation.createPerson", "Mutation.createPersonalAccessToken", "Mutation.renamePerson",
+	"Mutation.revokePersonalAccessToken", "Mutation.setPersonActive", "Mutation.setPersonProgrammes",
+	"Mutation.setPersonRoles", "Mutation.setTeacherAdmitted",
+	"Query.accessLog", "Query.accessSummary", "Query.diagnoseAccess", "Query.myTokens",
+	"Query.people", "Query.person", "Query.roleGrants", "Query.teacherAccounts",
+}
+
+// TestOnlyAccessStaysInteractiveOnly pins the browser-only surface to the list above, in both
+// directions, and keeps the two Kind directives apart: a field carrying both would answer by
+// whichever ran first, and the reader of the schema could not tell which was meant.
+func TestOnlyAccessStaysInteractiveOnly(t *testing.T) {
+	t.Parallel()
+
+	schema := generated.NewExecutableSchema(generated.Config{Resolvers: &graph.Resolver{}}).Schema()
+
+	var got []string
+	for _, root := range []*ast.Definition{schema.Query, schema.Mutation} {
+		for _, field := range root.Fields {
+			interactive := field.Directives.ForName("interactiveOnly") != nil
+			full := field.Directives.ForName("fullReach") != nil
+			if interactive && full {
+				t.Errorf("%s.%s carries both @interactiveOnly and @fullReach", root.Name, field.Name)
+			}
+			if interactive {
+				got = append(got, root.Name+"."+field.Name)
+			}
+		}
+	}
+	slices.Sort(got)
+
+	want := slices.Clone(interactiveOnlyFields)
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		t.Errorf("the @interactiveOnly fields are\n  %v\nwant\n  %v\n"+
+			"A field leaving this list becomes reachable by a full-reach token; one joining it is "+
+			"refused to every token. Either way, update interactiveOnlyFields on purpose.", got, want)
 	}
 }

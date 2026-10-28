@@ -82,7 +82,7 @@ func TestOnlyTheResponsibleSayHowACohortIsTaught(t *testing.T) {
 
 	// The token door is refused even for somebody who may do this in the browser.
 	resp := graphqltest.New(f.handler).WithToken(testdata.Drei.Token).Do(t, setFormatMutation, vars)
-	assertRefusal(t, resp, "INTERACTIVE_ONLY")
+	assertRefusal(t, resp, "FULL_REACH_REQUIRED")
 
 	// A finished semester refuses the lead too.
 	if _, err := f.schema.Pool.Exec(t.Context(),

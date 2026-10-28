@@ -8,7 +8,8 @@
 # An assignment is visible if and only if you hold it yourself, or the assignments of that
 # semester have been published, or you are responsible for it — you lead the study programme whose
 # demand the instance is, or the subject group its module belongs to, or you are the dean's office
-# — and then only in a signed-in browser session, never through a Personal Access Token.
+# — and then only in a signed-in browser session or through a token minted with full reach, never
+# through a plain Personal Access Token.
 #
 # Word for word the wish rule with one noun changed, and deliberately so. What differs is why it
 # exists: the wish window ends a first-come-first-served race, the assignment window keeps a
@@ -36,17 +37,16 @@
 # somebody who can see all of it. What actually opens and shuts is `wishWindow`, one mark per
 # subject group. `internal/policy/testdata/write_matrix.golden` has the phases.
 #
-# WRITING IS BROWSER-ONLY
+# WRITING NEEDS FULL REACH
 #
-# Both mutations here are `@interactiveOnly`, and the reason is not that filling a part is
-# privileged — it is the same role either way — but that their refusals are answers about who
-# holds what.
+# Both mutations here are `@fullReach`, and the reason is not that filling a part is privileged —
+# it is the same role either way — but that their refusals are answers about who holds what.
 #
-# `PART_ALREADY_ASSIGNED` tells a caller that a part is taken. Through a token the read rule
+# `PART_ALREADY_ASSIGNED` tells a caller that a part is taken. Through a plain token the read rule
 # collapses to "your own", so a script could name one part after another and learn the staffing of
-# a whole semester from the refusals, without a login event and without reading a single row. That
-# is the shape of leak `planDemand(dryRun:)` had before the demand mutations were closed, and it
-# is closed here before it exists rather than after.
+# a whole semester from the refusals, without a login event and without reading a single row. A
+# token minted with full reach reads what its owner reads in a browser, so its refusals tell it
+# nothing new, and it may fill parts like the browser does (since 2026-10-28).
 #
 # Reading stays open through both doors, narrowed by the policy rather than by the door: what one
 # holds oneself is one's own timetable.
@@ -163,12 +163,13 @@ How many hours a week one person already holds in a semester: in total, and by t
 the modules they hold them in.
 
 **Readable before the assignments are published, by more than the person**, which no other sum over
-assignments is: in a signed-in session the lead of any subject group the person is a member of reads
+assignments is: with full reach the lead of any subject group the person is a member of reads
 it, and the dean's office — so that whoever fills an instance can see that a colleague is already
 full in another group, and whom to talk to. It names no module, instance or part. Once
-`Semester.assignmentsPublishedAt` is set, everybody reads everybody's in a signed-in session.
-Through a Personal Access Token it is your own in every state: the published assignments are public
-row by row, but everybody's totals in one call are personnel data in bulk.
+`Semester.assignmentsPublishedAt` is set, everybody reads everybody's with full reach.
+Through a plain Personal Access Token it is your own in every state: the published assignments are
+public row by row, but everybody's totals in one call are personnel data in bulk. "With full reach"
+means a signed-in browser session or a token minted with `fullReach`.
 """
 type AssignedLoad {
   "Whose load it is."
@@ -272,7 +273,7 @@ extend type Mutation {
     The assignment being replaced, or omitted when the part is believed to be free.
     """
     replacing: ID
-  ): Assignment! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  ): Assignment! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   Say how a cohort is taught: across the semester or in a block, and whether in English.
@@ -294,7 +295,7 @@ extend type Mutation {
     delivery: DeliveryFormat!
     "Whether in English, or `null` for the catalogue's default."
     taughtInEnglish: Boolean
-  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  ): CourseInstance! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   Give a part back: remove an assignment.
@@ -305,7 +306,7 @@ extend type Mutation {
   Returns the id of what was removed. `ASSIGNMENT_NOT_FOUND` covers both "there is no such
   assignment" and "that one is not yours" — deliberately the same answer.
   """
-  clearAssignment(id: ID!): ID! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  clearAssignment(id: ID!): ID! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   Cut a piece off a part: the same kind, `teachingHours` of its hours, and the part keeps the
@@ -331,7 +332,7 @@ extend type Mutation {
     id: ID!
     "The hours of the new piece."
     teachingHours: Float!
-  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  ): CourseInstance! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   Put a piece back: its hours return to the part it was cut from, and the piece is gone.
@@ -339,7 +340,7 @@ extend type Mutation {
   Refusals: `PART_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`, `PART_NOT_DIVIDED`
   for a part that is not a piece, `PART_ASSIGNED` while somebody holds the piece.
   """
-  rejoinInstancePart(id: ID!): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  rejoinInstancePart(id: ID!): CourseInstance! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   Say that another faculty teaches this part — `"FK 04"` — or, with `null`, that we do again.
@@ -358,5 +359,5 @@ extend type Mutation {
     id: ID!
     "Who teaches it, or `null` for this faculty."
     faculty: String
-  ): CourseInstance! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  ): CourseInstance! @fullReach @scope(area: PLANNING, verb: WRITE)
 }

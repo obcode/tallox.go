@@ -157,6 +157,21 @@ func (a *Access) Summary(ctx context.Context, from, until time.Time) (domain.Acc
 		summary.SelfGrants = append(summary.SelfGrants, g)
 	}
 
+	fullReach, err := a.q.AccessFullReachTokens(ctx, AccessFullReachTokensParams{From: from, Until: until})
+	if err != nil {
+		return domain.AccessSummary{}, fmt.Errorf("cannot read the full-reach tokens: %w", err)
+	}
+	for _, row := range fullReach {
+		summary.FullReachTokens = append(summary.FullReachTokens, domain.FullReachToken{
+			Mail:       row.Mail,
+			TokenID:    row.TokenID,
+			CreatedAt:  row.CreatedAt,
+			ExpiresAt:  row.ExpiresAt,
+			Operations: row.Operations,
+			Changes:    row.Changes,
+		})
+	}
+
 	return summary, nil
 }
 

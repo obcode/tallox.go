@@ -21,9 +21,9 @@ import "github.com/obcode/tallox.go/internal/principal"
 // Narrowing this later is not a breaking change to the schema, and widening it would be a
 // decision made under pressure in October. So it starts as the union.
 //
-// Interactive only, like everything else about running the installation.
+// With full reach only: a browser session or a token minted with full reach.
 func MayReadZPAImport(a principal.Actor) bool {
-	if !MayReadInteractiveOnly(a) {
+	if !MayActWithFullReach(a) {
 		return false
 	}
 	roles := RolesOf(a)

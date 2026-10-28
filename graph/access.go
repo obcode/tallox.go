@@ -152,9 +152,11 @@ func operationNameOf(oc *graphql.OperationContext) string {
 // The first error's code, and only the code. The message is German prose that gets reworded,
 // and a log that stored it would be a second place those sentences have to match.
 //
-// The three refusal codes map to their own outcomes because they are three different events for
-// whoever reads the log: a scope refusal is a token minted too narrowly, an interactive-only
-// refusal is a script reaching for personnel data, and everything else is a fault.
+// The refusal codes map to their own outcomes because they are different events for whoever reads
+// the log: a scope refusal is a token minted too narrowly, a Kind refusal is a script reaching past
+// its door, and everything else is a fault. INTERACTIVE_ONLY and FULL_REACH_REQUIRED are both Kind
+// refusals and share an outcome — the code column keeps them apart, and the outcome is what the
+// database constrains and the nightly report counts.
 func outcomeOf(resp *graphql.Response) (domain.AccessOutcome, string) {
 	if resp == nil || len(resp.Errors) == 0 {
 		return domain.AccessOK, ""
@@ -164,7 +166,7 @@ func outcomeOf(resp *graphql.Response) (domain.AccessOutcome, string) {
 	switch code {
 	case "INSUFFICIENT_SCOPE":
 		return domain.AccessRefusedScope, code
-	case "INTERACTIVE_ONLY":
+	case "INTERACTIVE_ONLY", "FULL_REACH_REQUIRED":
 		return domain.AccessRefusedInteractive, code
 	default:
 		return domain.AccessError, code

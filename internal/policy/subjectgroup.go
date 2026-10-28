@@ -213,12 +213,12 @@ func MayFileModule(a principal.Actor, from, to uuid.UUID) bool {
 // cartesian product, which is the realistic way this arrangement breaks: somebody changes one
 // of them.
 //
-// Through a token it reaches nothing — not even for an administrator. The mutation carries
-// @interactiveOnly and the rule repeats it rather than leaving it to the directive alone:
-// re-filing a module moves who may read the unpublished wishes on its instances, and a
-// long-lived token in a script could do that quietly and in bulk.
+// Through a plain token it reaches nothing — not even for an administrator. The mutation carries
+// @fullReach and the rule repeats it rather than leaving it to the directive alone: re-filing a
+// module moves who may read the unpublished wishes on its instances, and a plain long-lived token
+// in a script could do that quietly and in bulk. A full-reach token may, like the browser.
 func FilingScope(a principal.Actor) SubjectGroupScope {
-	if !MayReadInteractiveOnly(a) {
+	if !MayActWithFullReach(a) {
 		return SubjectGroupScope{}
 	}
 	if RolesOf(a).Has(RoleAdmin) {

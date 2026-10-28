@@ -3,31 +3,59 @@
 # a rule. Implementation in graph/directives.go, decision in policy.MayReadInteractiveOnly.
 
 """
-Marks a field that only answers in a signed-in browser session, never through a Personal
-Access Token.
+Marks a field that only answers in a signed-in browser session, never through any Personal
+Access Token — not even one with full reach.
 
 **On a nullable field you get `null`**, and the rest of your query still answers — so a script
 that asks for something interactive-only alongside other fields keeps the other fields. On a
 field that cannot be null, and on every mutation, the call is refused with the error code
 `INTERACTIVE_ONLY`.
 
-Behind it: other people's unpublished wishes, other people's desired and assigned teaching hours,
-the faculty roster with those hours, free-text notes about people, the audit log, token management itself, and every mutation that writes the demand.
-A long-lived token in a script is a different risk from a login: it makes silent bulk export
-possible and separates "who saw this" from any sign-in. Token management is on the list because a
-leaked token that can mint its successors would outlive its own expiry date.
+Behind it is deliberately little: token management itself, who has an account and which roles
+it holds, and the access log. A leaked token that can mint its successors would outlive its own
+expiry date; one that can grant roles or read the record of what tokens did would be the one
+credential the audit cannot catch up with.
 
-Writing the demand is on it for a less obvious reason, and it is worth reading once: a withdrawal
-refused with `INSTANCE_IN_USE` is an answer about wishes. Interactively that gives nothing away —
-whoever may write a programme's demand may already read its unpublished wishes — but through a
-token the wish rule reaches only your own, so a dry-run plan would have been a free, traceless
-enumeration of which instances somebody wants. See the note at the top of `demand.graphqls`.
+Everything else a browser session can do, a token minted with `fullReach` can do too — see
+`@fullReach`.
 """
 directive @interactiveOnly on FIELD_DEFINITION
 
+# The second Kind directive, and the one most fields carry. Generated like @interactiveOnly, for
+# the same reason: no resolver can forget it. Implementation in graph/directives.go, decision in
+# policy.MayActWithFullReach.
+#
+# The pairing it enforces is the argument for opening planning to tokens at all. A planning
+# mutation's refusal — INSTANCE_IN_USE, PART_ALREADY_ASSIGNED, PART_ASSIGNED — answers a question
+# about rows, and it is harmless exactly when the caller may read those rows already. A plain
+# token reads only its owner's own, so it gets neither; a full-reach token reads what its owner
+# reads in a browser, so it gets both. Opening the mutations to a plain token would turn every
+# refusal into a traceless enumeration of who wants or holds what.
+
+"""
+Marks a field that answers in a signed-in browser session **and** through a Personal Access
+Token minted with `fullReach: true` — but not through a plain token.
+
+**On a nullable field a plain token gets `null`**, and the rest of the query still answers. On a
+field that cannot be null, and on every mutation, the call is refused with the error code
+`FULL_REACH_REQUIRED`.
+
+Behind it: the planning itself — declaring and changing the demand, filling and clearing parts,
+dividing them, the coverage handshake, applying a module split — other people's desired and
+assigned teaching hours, the competences of teachers without an account, publishing and freezing
+a semester, running the subject groups and the module import. Your roles decide all of it as
+they do in the browser; full reach only removes the difference between the two doors.
+
+Why a plain token does not get these: through it, other people's unpublished wishes, assignments
+and competences collapse to your own, and a refusal like `INSTANCE_IN_USE` would tell it what
+the rows do not. A full-reach token reads what you read in the browser, so its refusals tell it
+nothing new. Mint one under „API-Tokens“, for at most 90 days.
+"""
+directive @fullReach on FIELD_DEFINITION
+
 # Not a runtime directive: `skip_runtime: true` in gqlgen.yml keeps it out of the generated
-# DirectiveRoot on purpose, which is the opposite of the choice made for @interactiveOnly one
-# declaration above. Two reasons, and both are about the *operation* rather than the field:
+# DirectiveRoot on purpose, which is the opposite of the choice made for @interactiveOnly and
+# @fullReach above. Two reasons, and both are about the *operation* rather than the field:
 #
 #   1. A field directive runs when that field resolves, so an operation asking for three root
 #      fields would execute two of them and refuse the third. A credential that may not make
@@ -106,15 +134,19 @@ enum ScopeArea {
   groups, and — as they arrive — the demand, the assignments and the statistics.
 
   The first area worth narrowing a token to. `PUBLIC` and `PROFILE` are you describing
-  yourself; `TOKENS` and `ADMIN` are unreachable through a token at all.
+  yourself; `TOKENS` is unreachable through a token at all, and `ADMIN` partly.
+
+  Every planning move is in this area, and the ones whose refusals answer questions about other
+  people's rows are `@fullReach`: a plain token reads them, a token minted with full reach
+  also makes them.
 
   Fields: `semesters`, `semester`, `planningSemester`, `programmes`, `programme`, `modules`,
   `module`, `teachers`,
   `courseInstances`, `courseInstance`, `teachingLoad`, `studyYearLoad`, `programmeQuotas`, `setProgrammeQuota`,
   `advanceSemesterPhase`, `setPlanningSemester`,
   `publishWishes`, `publishAssignments`,
-  # setAssignment and clearAssignment are here and are @interactiveOnly: their refusals answer
-  # "is this part taken", which through a token the read rule would not.
+  # setAssignment and clearAssignment are here and are @fullReach: their refusals answer
+  # "is this part taken", which through a plain token the read rule would not.
 
   `assignments`, `myAssignments`, `assignedTeachingHours`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`,
   `setModuleComponents`, `applyModuleSplitToInstances`, `setModuleProjectBased`,
@@ -123,15 +155,15 @@ enum ScopeArea {
   `changeCourseInstance`, `setCourseInstanceTopic`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
 
-  # Dividing a part and handing it to another faculty are @interactiveOnly like setAssignment:
+  # Dividing a part and handing it to another faculty are @fullReach like setAssignment:
   # both answer PART_ASSIGNED, which says whether somebody holds the part.
 
   `divideInstancePart`, `rejoinInstancePart`, `setInstancePartTaughtBy`,
 
-  # The coverage handshake is here and is @interactiveOnly for the same reason setAssignment is:
+  # The coverage handshake is here and is @fullReach for the same reason setAssignment is:
   # agreeing can answer `PART_ASSIGNED`, which says a part of the asking cohort is already filled.
-  # Interactively that reveals nothing to somebody who may already read that programme's
-  # assignments; through a token it would.
+  # With full reach that reveals nothing to somebody who may already read that programme's
+  # assignments; through a plain token it would.
 
   `requestInstanceCoverage`, `acceptInstanceCoverage`, `releaseInstanceCoverage`,
   `copyDemandFromSemester`, `planDemand`,
@@ -140,10 +172,10 @@ enum ScopeArea {
   `subjectGroups`, `subjectGroup`, `mySubjectGroups`, `modulesWithoutSubjectGroup`,
   `subjectGroupsWithoutLead`, `setMySubjectGroups`, `setModulesSubjectGroup`,
 
-  # The dean's office's three acts on the desired teaching hours, all browser-only: there is no
+  # The dean's office's three acts on the desired teaching hours, all @fullReach: there is no
   # unfreezing and no un-publishing, and a correction changes somebody else's statement. The
-  # correction refuses a token in the domain rather than by @interactiveOnly, whose null would
-  # read as "taken back".
+  # correction refuses a plain token in the domain rather than by the directive, whose null
+  # would read as "taken back".
 
   `freezeDesiredHours`, `publishDesiredHours`, `correctDesiredTeachingHours`.
   """
@@ -159,8 +191,9 @@ enum ScopeArea {
   faculty with it. The reverse matters more — an evaluation script scoped to `PLANNING` does not
   thereby reach anybody's wishes.
 
-  What this area does **not** do is decide what is visible. Through a token the wish rule collapses
-  to your own entries whatever the scope says: the area bounds the surface, the policy bounds the
+  What this area does **not** do is decide what is visible. Through a plain token the wish rule
+  collapses to your own entries whatever the scope says; through one minted with full reach it
+  is what your roles allow in the browser. The area bounds the surface, the policy bounds the
   rows.
 
   Competences are here and not under `PROFILE` because "würde ich gern halten" is a wish without a
@@ -185,15 +218,20 @@ enum ScopeArea {
   TOKENS
 
   """
-  Running the installation: user and role administration, the module import, and the access
-  log. Also `@interactiveOnly`, for the same reason.
+  Running the installation: user and role administration, the subject groups, the module
+  import, and the access log. All of it needs ADMIN (reading the import also the dean's office).
+
+  Split by the Kind directives. Who has an account, which roles it holds, admitting teachers
+  without one, and the access log are `@interactiveOnly` — granting access and reading the record
+  of what tokens did stay tied to a sign-in. The subject groups and the module import are
+  `@fullReach`: an administrator may run them from a token minted with full reach.
 
   The import is here rather than under `PLANNING` because what these fields expose is the
   operation — did the nightly job run, what did it change, run it now, what did it make of the
   untidy parts — and not the catalogue it produces. The catalogue itself is planning data and
-  lives under `PLANNING`. An area of its own was considered and rejected: every field it could
-  hold is unreachable through a token anyway, so it would be a promise in an enum that
-  colleagues can read via introspection and never use.
+  lives under `PLANNING`. An area of its own was considered and rejected when every field it
+  could hold was unreachable through a token; it may be worth having now that the import is
+  reachable with full reach, and would arrive with the scope dialog that needs it.
 
   Fields: `people`, `person`, `roleGrants`, `diagnoseAccess`, `teacherAccounts`,
   `createPerson`, `renamePerson`, `setPersonRoles`, `setPersonActive`, `setPersonProgrammes`,

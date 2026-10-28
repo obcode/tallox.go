@@ -96,7 +96,7 @@ func TestTheStoreRoundTripsWhatTheServiceStores(t *testing.T) {
 	expires := time.Now().Add(30 * 24 * time.Hour)
 
 	created, err := tokens.CreateToken(t.Context(), "FFFFFFFFFFFFFFFF", testdata.Eins.ID(),
-		auth.HashSecret("irrelevant here"), "Notebook", []string{}, expires)
+		auth.HashSecret("irrelevant here"), "Notebook", []string{}, false, expires)
 	if err != nil {
 		t.Fatalf("cannot create: %v", err)
 	}

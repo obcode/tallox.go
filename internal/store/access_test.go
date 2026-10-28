@@ -487,3 +487,51 @@ func TestTheSummaryListsSelfGrantedRolesStillInForce(t *testing.T) {
 		t.Errorf("self-grant = %+v", g)
 	}
 }
+
+// The summary lists the tokens minted with full reach that are still valid, with what each did —
+// and not a plain token, a revoked one or one that has run out.
+func TestTheSummaryListsValidFullReachTokens(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	storetest.SeedPerson(t, s, testdata.Vier, string(policy.RoleProgrammeLead))
+	ctx := t.Context()
+	now := time.Now()
+
+	hash := make([]byte, 32)
+	seed := func(id string, opts storetest.TokenOptions) {
+		t.Helper()
+		opts.TokenID = id
+		storetest.SeedToken(t, s, testdata.Vier, hash, opts)
+	}
+	seed("FULLFULLFULLFULL", storetest.TokenOptions{FullReach: true})
+	seed("PLAINPLAINPLAIN0", storetest.TokenOptions{})
+	seed("REVOKEDREVOKED00", storetest.TokenOptions{FullReach: true, Revoked: true})
+	seed("EXPIREDEXPIRED00", storetest.TokenOptions{FullReach: true, ExpiresAt: now.Add(-time.Hour)})
+
+	access := store.NewAccess(s.Pool)
+	id := testdata.Vier.ID()
+	for _, mutation := range []bool{true, false, false} {
+		if err := access.Record(ctx, domain.AccessRecord{
+			ActorID: &id, ActorMail: testdata.Vier.Mail, Door: domain.AccessDoorToken,
+			TokenID: "FULLFULLFULLFULL", Roles: []string{string(policy.RoleProgrammeLead)},
+			Operation: "Plan", Fields: []string{"planDemand"}, Mutation: mutation,
+			Outcome: domain.AccessOK,
+		}); err != nil {
+			t.Fatalf("cannot record: %v", err)
+		}
+	}
+
+	summary, err := access.Summary(ctx, now.Add(-24*time.Hour), now.Add(time.Minute))
+	if err != nil {
+		t.Fatalf("Summary: %v", err)
+	}
+	if len(summary.FullReachTokens) != 1 {
+		t.Fatalf("full-reach tokens = %+v, want the one valid full-reach token alone", summary.FullReachTokens)
+	}
+	tok := summary.FullReachTokens[0]
+	if tok.TokenID != "FULLFULLFULLFULL" || tok.Mail != testdata.Vier.Mail ||
+		tok.Operations != 3 || tok.Changes != 1 {
+		t.Errorf("full-reach token = %+v, want Vier's with 3 operations and 1 change", tok)
+	}
+}

@@ -46,14 +46,8 @@ func renderAssignmentMatrix() string {
 
 	var rows []situation
 	for _, role := range policy.AllRoles() {
-		for _, door := range []struct {
-			label string
-			kind  principal.Kind
-		}{
-			{"interactive", principal.KindInteractive},
-			{"token", principal.KindToken},
-		} {
-			plain := testdata.Drei.Actor(door.kind, string(role))
+		for _, door := range matrixDoors {
+			plain := door.on(testdata.Drei.Actor(door.kind, string(role)))
 			rows = append(rows, situation{label: string(role), actor: plain})
 
 			// Only one role has a subject group dimension. Showing the scoped variant for the
@@ -62,12 +56,12 @@ func renderAssignmentMatrix() string {
 				rows = append(rows, situation{
 					label:  string(role),
 					scoped: []string{"one"},
-					actor:  headOf(testdata.Drei, door.kind, groupOne),
+					actor:  door.on(headOf(testdata.Drei, door.kind, groupOne)),
 				})
 				rows = append(rows, situation{
 					label:  string(role),
 					scoped: []string{"one, two"},
-					actor:  headOf(testdata.Drei, door.kind, groupOne, groupTwo),
+					actor:  door.on(headOf(testdata.Drei, door.kind, groupOne, groupTwo)),
 				})
 			}
 		}
@@ -87,7 +81,7 @@ func renderAssignmentMatrix() string {
 
 		door := "—"
 		if s.actor.Kind != "" {
-			door = string(s.actor.Kind)
+			door = doorLabel(s.actor)
 		}
 
 		scoped := "—"

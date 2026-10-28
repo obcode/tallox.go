@@ -126,7 +126,7 @@ func TestWhoMayStateACompetenceForATeacher(t *testing.T) {
 		got := policy.MayStateCompetenceForTeacher(c.actor, groupOne)
 
 		roles := policy.RolesOf(c.actor)
-		want := c.actor.Interactive() &&
+		want := c.actor.ActsWithFullReach() &&
 			(roles.Has(policy.RoleDeansOffice) ||
 				(roles.Has(policy.RoleSubjectGroupLead) && c.scoped == "group 1"))
 		if got != want {
@@ -266,8 +266,8 @@ A competence — "I can teach this module" or "I would like to, one day" — is 
 
   · it is the caller's own statement, or
   · the caller is responsible for the module — they lead its home study programme, or the
-    subject group it belongs to, or they are the dean's office — and then only in an
-    interactive session, never through a Personal Access Token.
+    subject group it belongs to, or they are the dean's office — and then only with full reach
+    (a browser session or a full-reach token), never through a plain Personal Access Token.
 
 The wish rule without its publication clause. "Would like to" is a wish without a semester: a
 colleague who can read it knows who else is eyeing a subject, which is the first-come race the

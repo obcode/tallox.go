@@ -76,7 +76,7 @@ func printAccessReport(out io.Writer, report domain.AccessReport, since time.Dur
 	w.printf("  davon Token           %6d\n", c.Token)
 	w.printf("  davon Änderungen      %6d\n", c.Mutations)
 	w.printf("  Fehler                %6d\n", c.Errors)
-	w.printf("  Abgewiesen: Anmeldung %6d, Scope %d, nur interaktiv %d\n",
+	w.printf("  Abgewiesen: Anmeldung %6d, Scope %d, Tür (Browser/Planungs-Token) %d\n",
 		c.RefusedAuth, c.RefusedScope, c.RefusedInteractive)
 
 	if len(s.Roles) > 0 {
@@ -122,6 +122,18 @@ func printAccessReport(out io.Writer, report domain.AccessReport, since time.Dur
 		}
 		w.printf("\n  Diese Rollen lesen unveröffentlichte Wünsche. Wer administriert, gibt sie sich\n")
 		w.printf("  nur befristet; eine unbefristete stammt aus der Zeit vor dieser Regel.\n")
+	}
+
+	// Names people for the reason SELBST VERGEBENE ROLLEN does: such a token reads what its
+	// owner reads in a browser, and its existence is the standing fact.
+	if len(s.FullReachTokens) > 0 {
+		w.printf("\nPLANUNGS-TOKENS MIT VOLLER REICHWEITE\n")
+		for _, tok := range s.FullReachTokens {
+			w.printf("  %-40s %-16s bis %s  %4d Zugriffe, %d Änderungen\n",
+				tok.Mail, tok.TokenID, tok.ExpiresAt.Format("2006-01-02"), tok.Operations, tok.Changes)
+		}
+		w.printf("\n  Diese Tokens lesen, was die Person im Browser liest — auch unveröffentlichte\n")
+		w.printf("  Wünsche — und dürfen planen. Widerrufen kann sie nur die Person selbst.\n")
 	}
 
 	w.printf("\nAufbewahrung: %s. Gelöscht wurden %d Einträge vor dem %s.\n",

@@ -245,7 +245,7 @@ func (s *SubjectGroupService) Led(ctx context.Context,
 // Create adds a subject group.
 func (s *SubjectGroupService) Create(ctx context.Context, actor principal.Actor,
 	code, name string) (*SubjectGroup, error) {
-	if !policy.MayAdministerPeople(actor) {
+	if !policy.MayAdministerSubjectGroups(actor) {
 		return nil, ErrNotAdministrator
 	}
 
@@ -260,7 +260,7 @@ func (s *SubjectGroupService) Create(ctx context.Context, actor principal.Actor,
 // scripts — and moving it is not a rename but a different group.
 func (s *SubjectGroupService) Rename(ctx context.Context, actor principal.Actor,
 	id uuid.UUID, name string) (*SubjectGroup, error) {
-	if !policy.MayAdministerPeople(actor) {
+	if !policy.MayAdministerSubjectGroups(actor) {
 		return nil, ErrNotAdministrator
 	}
 
@@ -277,7 +277,7 @@ func (s *SubjectGroupService) Rename(ctx context.Context, actor principal.Actor,
 // to render in the planning it was part of, and its modules keep their assignment.
 func (s *SubjectGroupService) SetActive(ctx context.Context, actor principal.Actor,
 	id uuid.UUID, active bool) (*SubjectGroup, error) {
-	if !policy.MayAdministerPeople(actor) {
+	if !policy.MayAdministerSubjectGroups(actor) {
 		return nil, ErrNotAdministrator
 	}
 	return s.store.SetSubjectGroupActive(ctx, id, active)
@@ -321,7 +321,7 @@ func (s *SubjectGroupService) AssignModules(ctx context.Context, actor principal
 // organisation looks like, not a preference somebody sets for themselves.
 func (s *SubjectGroupService) SetMembers(ctx context.Context, actor principal.Actor,
 	groupID uuid.UUID, people []uuid.UUID) (*SubjectGroup, error) {
-	if !policy.MayAdministerPeople(actor) {
+	if !policy.MayAdministerSubjectGroups(actor) {
 		return nil, ErrNotAdministrator
 	}
 	if err := s.store.SetSubjectGroupMembers(ctx, groupID, dedupe(people), actor.ID); err != nil {
@@ -351,7 +351,7 @@ func (s *SubjectGroupService) get(ctx context.Context, id uuid.UUID) (*SubjectGr
 // from any sign-in.
 func (s *SubjectGroupService) SetLeads(ctx context.Context, actor principal.Actor,
 	groupID uuid.UUID, people []uuid.UUID) (*SubjectGroup, error) {
-	if !policy.MayAdministerPeople(actor) {
+	if !policy.MayAdministerSubjectGroups(actor) {
 		return nil, ErrNotAdministrator
 	}
 	if err := s.store.SetSubjectGroupLeads(ctx, groupID, dedupe(people), actor.ID); err != nil {

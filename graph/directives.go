@@ -19,7 +19,7 @@ import (
 // declaring `@interactiveOnly` in the schema and forgetting to implement it does not compile
 // into a server that quietly allows everything.
 func Directives() generated.DirectiveRoot {
-	return generated.DirectiveRoot{InteractiveOnly: interactiveOnly}
+	return generated.DirectiveRoot{InteractiveOnly: interactiveOnly, FullReach: fullReach}
 }
 
 // interactiveOnly refuses a field to anything that is not an audited browser session.
@@ -42,7 +42,24 @@ func interactiveOnly(ctx context.Context, _ any, next graphql.Resolver) (any, er
 	if policy.MayReadInteractiveOnly(principal.From(ctx)) {
 		return next(ctx)
 	}
+	return refuseField(ctx, "INTERACTIVE_ONLY", policy.InteractiveOnlyReason)
+}
 
+// fullReach refuses a field to a plain Personal Access Token: it answers a browser session and a
+// token minted with full reach.
+//
+// The decision is policy.MayActWithFullReach; the null-or-error choice is interactiveOnly's, for
+// the same reasons.
+func fullReach(ctx context.Context, _ any, next graphql.Resolver) (any, error) {
+	if policy.MayActWithFullReach(principal.From(ctx)) {
+		return next(ctx)
+	}
+	return refuseField(ctx, "FULL_REACH_REQUIRED", policy.FullReachReason)
+}
+
+// refuseField says no in the shape the field allows: null on a nullable field, an error with a
+// code on a non-null one.
+func refuseField(ctx context.Context, code, reason string) (any, error) {
 	// The field's own type decides how the refusal can be expressed. GetFieldContext is nil
 	// only outside field resolution, which cannot happen for a FIELD_DEFINITION directive —
 	// but a nil dereference in an authorization path would fail open, so it is checked.
@@ -50,7 +67,7 @@ func interactiveOnly(ctx context.Context, _ any, next graphql.Resolver) (any, er
 		return nil, nil
 	}
 	return nil, &gqlerror.Error{
-		Message:    policy.InteractiveOnlyReason,
-		Extensions: map[string]any{"code": "INTERACTIVE_ONLY"},
+		Message:    reason,
+		Extensions: map[string]any{"code": code},
 	}
 }

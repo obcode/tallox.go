@@ -148,3 +148,26 @@ func TestTheReportSaysWhetherItIsWorthReading(t *testing.T) {
 		})
 	}
 }
+
+// A valid full-reach token is named every night while it holds, with what it did.
+func TestTheNightlyReportNamesFullReachTokens(t *testing.T) {
+	t.Parallel()
+
+	report := reportWith(nil, nil)
+	report.Summary.FullReachTokens = []domain.FullReachToken{{
+		Mail: "prof.vier@example.org", TokenID: "AAAAAAAAAAAAAAAA",
+		CreatedAt:  time.Date(2026, 10, 28, 9, 0, 0, 0, time.Local),
+		ExpiresAt:  time.Date(2027, 1, 26, 9, 0, 0, 0, time.Local),
+		Operations: 12, Changes: 3,
+	}}
+
+	var out strings.Builder
+	bootstrap.PrintAccessReportForTest(&out, report, 24*time.Hour)
+	text := out.String()
+	for _, want := range []string{"PLANUNGS-TOKENS MIT VOLLER REICHWEITE", "prof.vier@example.org",
+		"AAAAAAAAAAAAAAAA", "bis 2027-01-26", "12 Zugriffe, 3 Änderungen", "Berichtenswert: ja"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the report does not mention %q:\n%s", want, text)
+		}
+	}
+}

@@ -32,14 +32,14 @@ enum Role {
 
 # Deliberately lean, and it stays that way. Personnel data — desired and assigned teaching hours,
 # free-text notes — gets root fields of its own rather than being hung off this type, so that
-# there is no traversal path to it and @interactiveOnly is a second line of defence instead of
+# there is no traversal path to it and @fullReach is a second line of defence instead of
 # the only one.
 
 """
 A person in the planning.
 
 Carries identity and roles, nothing else. Teaching hours and notes about people are not
-reachable here — see the `@interactiveOnly` note in the API documentation.
+reachable here — see the `@fullReach` note in the API documentation.
 """
 type Person {
   id: ID!

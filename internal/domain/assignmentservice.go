@@ -117,11 +117,11 @@ func (s *AssignmentService) Set(ctx context.Context, actor principal.Actor,
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
-	// The schema's @interactiveOnly says this already for every resolver; here for the caller
-	// that is not one. Without it a token actor would write and then be told ASSIGNMENT_NOT_FOUND
-	// by the read-back, because AssignmentVisibility collapses a token to its own rows.
-	if !policy.MayReadInteractiveOnly(actor) {
-		return nil, ErrInteractiveOnly
+	// The schema's @fullReach says this already for every resolver; here for the caller that is
+	// not one. Without it a plain token would write and then be told ASSIGNMENT_NOT_FOUND by the
+	// read-back, because AssignmentVisibility collapses a plain token to its own rows.
+	if !policy.MayActWithFullReach(actor) {
+		return nil, ErrFullReachRequired
 	}
 
 	note = strings.TrimSpace(note)
@@ -184,8 +184,8 @@ func (s *AssignmentService) Clear(ctx context.Context, actor principal.Actor, id
 	if !actor.Authenticated() {
 		return ErrNotAuthenticated
 	}
-	if !policy.MayReadInteractiveOnly(actor) {
-		return ErrInteractiveOnly
+	if !policy.MayActWithFullReach(actor) {
+		return ErrFullReachRequired
 	}
 
 	where, err := s.store.AssignmentWriteContext(ctx, id)

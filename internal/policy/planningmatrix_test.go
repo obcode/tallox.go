@@ -44,14 +44,8 @@ func renderPlanningMatrix() string {
 
 	var rows []situation
 	for _, role := range policy.AllRoles() {
-		for _, door := range []struct {
-			label string
-			kind  principal.Kind
-		}{
-			{"interactive", principal.KindInteractive},
-			{"token", principal.KindToken},
-		} {
-			plain := testdata.Vier.Actor(door.kind, string(role))
+		for _, door := range matrixDoors {
+			plain := door.on(testdata.Vier.Actor(door.kind, string(role)))
 			rows = append(rows, situation{label: string(role), actor: plain})
 
 			// Only one role has a programme dimension today. Showing the scoped variant for the
@@ -60,12 +54,12 @@ func renderPlanningMatrix() string {
 				rows = append(rows, situation{
 					label:  string(role),
 					scoped: []string{"one"},
-					actor:  leadOf(testdata.Vier, door.kind, programmeOne),
+					actor:  door.on(leadOf(testdata.Vier, door.kind, programmeOne)),
 				})
 				rows = append(rows, situation{
 					label:  string(role),
 					scoped: []string{"one", "two"},
-					actor:  leadOf(testdata.Vier, door.kind, programmeOne, programmeTwo),
+					actor:  door.on(leadOf(testdata.Vier, door.kind, programmeOne, programmeTwo)),
 				})
 			}
 		}
@@ -85,7 +79,7 @@ func renderPlanningMatrix() string {
 
 		door := "—"
 		if s.actor.Kind != "" {
-			door = string(s.actor.Kind)
+			door = doorLabel(s.actor)
 		}
 
 		scoped := "—"

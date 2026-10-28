@@ -1,6 +1,7 @@
 // Package auth turns a request into a principal.Actor. Two doors, one middleware.
 //
-//	/query, /download/*   X-Remote-User, set by the auth proxy in front of this server
+//	/query                X-Remote-User, set by the auth proxy in front of this server
+//	                      (/download/* is reserved for exports on the same door; not mounted yet)
 //	/api/graphql          Authorization: Bearer tallox_…, verified here
 //
 // Authentication is all this package does. It decides *who* is calling and never *what they

@@ -8819,9 +8819,9 @@ type PersonalAccessToken {
   The ` + "`" + `area:verb` + "`" + ` grants this token carries — see the ` + "`" + `@scope` + "`" + ` directive.
 
   **An empty list means unrestricted**: the token may do everything its owner's roles allow.
-  Scopes only ever narrow. There is currently no way to choose them when creating a token, so
-  in practice this list is empty; the enforcement is live, and tokens created now keep working
-  when the choice arrives.
+  Scopes only ever narrow. They are chosen when the token is created (` + "`" + `scopes` + "`" + ` on
+  ` + "`" + `createPersonalAccessToken` + "`" + `); a token created without any carries the empty list and is
+  bounded by its owner's roles alone.
   """
   scopes: [String!]!
   createdAt: Time!

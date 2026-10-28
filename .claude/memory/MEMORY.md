@@ -6,6 +6,7 @@ Wissensbasis des Backends. Übergreifendes und Betriebswissen liegt im privaten 
 **Dieses Repo ist öffentlich.** Keine Hostnamen, keine Zugangsdaten, keine Namen aus dem
 Kollegium — das gehört nach `tallox.dev`.
 
+- [Security-Audit 2026-10](security-audit-2026-10.md) — was gefunden und gebaut wurde (Presenter, Grenzen, ADMIN unbefristet, Partner ohne Roster), und welche Hinweise bewusst offen bleiben
 - [Layering-Regel](layering-rule.md) — warum nur `internal/store` an die Datenbank darf und wie das erzwungen wird
 - [Identität und Autorisierung](identity-and-auth.md) — was der erste Fachschritt gebaut hat, welche Entscheidungen darin stecken, welche Fallstricke Zeit gekostet haben
 - [Scope-Durchsetzung](scope-enforcement.md) — `@scope` per Operation, warum leer „unbeschränkt" heißt, und warum PUBLIC nicht wegnehmbar ist

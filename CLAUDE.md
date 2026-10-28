@@ -92,7 +92,8 @@ oauth2-proxy → OIDC (`sso.hm.edu`), which injects a trusted `X-Remote-User`. S
 authenticates Personal Access Tokens itself on a distinct path.
 
 ```
-/query, /download/*   ← browser + SvelteKit SSR, X-Remote-User (proxy-verified)
+/query                ← browser + SvelteKit SSR, X-Remote-User (proxy-verified)
+/download/*           ← reserved for exports on the same door; nothing is mounted there yet
 /api/graphql          ← Personal Access Token, Bearer ONLY, no fallback
 ```
 
@@ -181,9 +182,11 @@ Four things carry this design:
    died on the deploy that shipped it.
 
 Consequence of (4): **the minting path is where scoping becomes real.**
-`createPersonalAccessToken` cannot choose scopes yet, so every token in existence carries an
-empty list and the term does not bite outside tests. Introspection is exempt — it is what makes
-editor completion and codegen work for colleagues, and it is deliberately on in production.
+`createPersonalAccessToken` takes the scopes a token is to carry (validated, deduplicated, and
+never checked against the owner's roles — a scope is a restriction the holder puts on their own
+credential). A token minted without any carries the empty list. Introspection is exempt — it is
+what makes editor completion and codegen work for colleagues, and it is deliberately on in
+production.
 
 ### `@interactiveOnly`
 
@@ -199,11 +202,24 @@ Refusals travel as `*gqlerror.Error` with an `extensions.code` (`INTERACTIVE_ONL
 gets reworded, and matching prose across a repository boundary breaks the first time somebody
 improves a message.
 
-Not reachable via token: other people's desired and assigned teaching hours, also once published
-(the policy answers one's own; `desiredHoursOverview` is `@interactiveOnly`), unpublished wishes of
-other people, free-text notes about people, any future teaching-load traffic light, **token
-management itself** (otherwise a leaked token mints its successors), user administration, the
-audit log.
+Not reachable via token: other people's desired and assigned teaching hours as *fields* — the
+`assignedLoad` sum and `desiredHoursOverview` are `@interactiveOnly`, the policy answers one's
+own. (Published assignments are readable by token and carry `teachingHours` per part, so the
+sum is *computable* from them; what the token door withholds is the ready-made per-person
+figure, not the arithmetic.) Also unpublished wishes of other people, free-text notes about
+people, any future teaching-load traffic light, **token management itself** (otherwise a leaked
+token mints its successors — refused by the service as well as by the directive), user
+administration, the audit log.
+
+**Errors leave with a code or not at all.** Every area's mapping ends in `internalRefusal`, and
+`graph.PresentError` replaces whatever still has no `extensions.code` with `INTERNAL` and the
+generic sentence — the original goes to the log. A driver error wrapped with `%w` keeps table,
+constraint and SQLSTATE in its text, and before 2026-10-28 five areas let that through.
+
+**The endpoint has bounds:** `server.maxrequestbytes` (1 MiB) on both doors before the
+authenticator, `server.maxcomplexity` (1000; the largest GUI screen is under 200) on the shared
+handler, server read/write/idle timeouts, and `statement_timeout`/
+`idle_in_transaction_session_timeout` on every pooled session. Zero is not "off" for either key.
 
 Belt and braces: keep personnel data in its own root fields rather than hanging it off
 `Person`, so there is no traversal path in the first place.
@@ -285,6 +301,13 @@ DEANS_OFFICE, SUBJECT_GROUP_LEAD or PROGRAMME_LEAD without one is `SELF_GRANT_MU
 nightly access report lists every such grant while it holds. A role that sees everything is a
 line in the golden matrix that has to be defended to the colleagues the confidentiality rule
 protects.
+
+**ADMIN is granted without an expiry or not at all** (`ADMIN_GRANT_MUST_NOT_EXPIRE`, and a CHECK
+in the database). A temporary ADMIN counted for the last-administrator guard until the minute it
+ran out, which is how the only administrator could have left the installation with nobody. And
+re-granting a role whose grant had run out drops the old grant's programme and subject-group
+scopes first — an expiry deletes nothing, so they would otherwise come back for a programme
+nobody chose this time.
 
 ## Configuration
 

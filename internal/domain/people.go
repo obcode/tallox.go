@@ -102,11 +102,24 @@ var (
 	// out, and the nightly access report lists it — so "the developer can read everybody's
 	// wishes" is a threshold with a date on it rather than a standing possibility.
 	ErrSelfGrantMustExpire = errors.New("a role that reads unpublished wishes is granted to oneself only with an expiry")
+	// ErrAdminGrantMustNotExpire: ADMIN with an expiry.
+	//
+	// The mirror image of ErrSelfGrantMustExpire, and for the mirror-image reason. The
+	// last-administrator guard counts every grant that has not run out yet, so a temporary
+	// ADMIN counts until the minute it ends: the only administrator could grant somebody ADMIN
+	// until tomorrow, step down today, and leave the installation with nobody tomorrow. The
+	// role whose point is to let people back in is granted for good, or not at all. The
+	// database says the same in a CHECK (migration 20261028100000).
+	ErrAdminGrantMustNotExpire = errors.New("ADMIN is granted without an expiry or not at all")
 )
 
 // SelfGrantMustExpireReason is what that refusal says.
 const SelfGrantMustExpireReason = "Leitungs- und Dekanatsrollen kannst Du Dir selbst nur " +
 	"befristet geben. Bitte ein Ablaufdatum setzen (höchstens 30 Tage)."
+
+// AdminGrantMustNotExpireReason is what ErrAdminGrantMustNotExpire says to the administrator.
+const AdminGrantMustNotExpireReason = "Die Administrationsrolle lässt sich nicht befristen: " +
+	"sie ist die Rolle, die alle anderen wieder hereinlässt. Entweder ohne Ablaufdatum oder gar nicht."
 
 // readsUnpublishedWishes are the roles an administrator may give themselves only with an expiry:
 // each of them reads other people's wishes before publication.
@@ -418,6 +431,12 @@ func (s *PeopleService) SetRoles(ctx context.Context, actor principal.Actor,
 				return nil, ErrSelfGrantMustExpire
 			}
 		}
+	}
+	// A new ADMIN with a date is refused; a held one is not touched by this call and keeps
+	// its own terms, which is what lets an administrator give themselves DEANS_OFFICE for a
+	// week in one call without the ADMIN in the same list being re-granted.
+	if !expiresAt.IsZero() && wanted[policy.RoleAdmin] && !held[policy.RoleAdmin] {
+		return nil, ErrAdminGrantMustNotExpire
 	}
 
 	// Revoke first. If the caller is taking ADMIN away from somebody and giving it to

@@ -309,6 +309,14 @@ func LoadConfigFrom(explicitPath string, searchPaths ...string) (Config, string,
 	if err := cfg.Server.Validate(); err != nil {
 		return Config{}, "", fmt.Errorf("cannot read %s: %w", v.ConfigFileUsed(), err)
 	}
+	for i, admin := range cfg.Auth.ProtectedAdmins {
+		mail, err := normaliseProtectedMail(admin.Mail)
+		if err != nil {
+			return Config{}, "", fmt.Errorf("cannot read %s: auth.protectedadmins[%d]: %w",
+				v.ConfigFileUsed(), i, err)
+		}
+		cfg.Auth.ProtectedAdmins[i].Mail = mail
+	}
 	if err := cfg.ZPA.Validate(); err != nil {
 		return Config{}, "", fmt.Errorf("cannot read %s: %w", v.ConfigFileUsed(), err)
 	}
@@ -362,6 +370,23 @@ func ApplyFlagOverrides(cfg Config, set map[string]bool, f FlagOverrides) (Confi
 		cfg.Log.Level = "debug"
 	}
 	return cfg, nil
+}
+
+// normaliseProtectedMail trims the address and refuses one that could never match a header.
+//
+// The mail column is citext, so case is forgiven; whitespace is not. An entry with a stray
+// space would reconcile cleanly at every start — created, granted, logged as healthy — and
+// never match the proxy's X-Remote-User, which is the one moment the list exists for. A
+// mistake that looks like success is refused at startup instead.
+func normaliseProtectedMail(raw string) (string, error) {
+	mail := strings.TrimSpace(raw)
+	if mail == "" {
+		return "", errors.New("protected admin without a mail address")
+	}
+	if strings.ContainsAny(mail, " \t\r\n") {
+		return "", fmt.Errorf("protected admin mail %q contains whitespace", mail)
+	}
+	return mail, nil
 }
 
 // validateAddr checks that -addr is something net/http can listen on.

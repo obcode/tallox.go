@@ -183,11 +183,6 @@ func (s *PlanningMarkService) SetDemandComplete(ctx context.Context, actor princ
 		return nil, ErrNotAuthenticated
 	}
 
-	semester, err := s.semesters.EnsureRecorded(ctx, actor, semesterCode)
-	if err != nil {
-		return nil, err
-	}
-
 	programmeID, err := s.store.ProgrammeIDByCode(ctx, programme)
 	if err != nil {
 		return nil, err
@@ -197,6 +192,13 @@ func (s *PlanningMarkService) SetDemandComplete(ctx context.Context, actor princ
 	}
 	if !policy.MayAnnounceDemandComplete(actor, programmeID) {
 		return nil, ErrNotYourProgramme
+	}
+
+	// Only now: recording the semester is a write, and a refused caller must leave no row
+	// behind — see SetWishWindow, which has always done it in this order.
+	semester, err := s.semesters.EnsureRecorded(ctx, actor, semesterCode)
+	if err != nil {
+		return nil, err
 	}
 
 	if !complete {
@@ -236,11 +238,6 @@ func (s *PlanningMarkService) SetReviewComplete(ctx context.Context, actor princ
 		return nil, ErrNotAuthenticated
 	}
 
-	semester, err := s.semesters.EnsureRecorded(ctx, actor, semesterCode)
-	if err != nil {
-		return nil, err
-	}
-
 	programmeID, err := s.store.ProgrammeIDByCode(ctx, programme)
 	if err != nil {
 		return nil, err
@@ -250,6 +247,13 @@ func (s *PlanningMarkService) SetReviewComplete(ctx context.Context, actor princ
 	}
 	if !policy.MayAnnounceReviewComplete(actor, programmeID) {
 		return nil, ErrNotYourProgramme
+	}
+
+	// Only now: recording the semester is a write, and a refused caller must leave no row
+	// behind — see SetWishWindow, which has always done it in this order.
+	semester, err := s.semesters.EnsureRecorded(ctx, actor, semesterCode)
+	if err != nil {
+		return nil, err
 	}
 
 	if !complete {

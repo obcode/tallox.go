@@ -673,6 +673,14 @@ type Querier interface {
 	//
 	// granted_at is refreshed with it. The row records the grant that is in force, and a
 	// timestamp that pointed at a superseded one would be the wrong answer to the audit question.
+	//
+	// A grant that had already run out is a different case: its row stayed (the scope tables
+	// cascade on DELETE, and an expiry deletes nothing), and with it every study programme and
+	// subject group the old grant was scoped to. Re-granting the role months later — for a
+	// different programme — would revive those, and with them the reading of that programme's
+	// unpublished wishes nobody chose this time. So the scopes of an expired grant go first, in
+	// the same statement. A grant still in force keeps its scopes: extending it is the ordinary
+	// case and must not drop what it was for.
 	GrantRole(ctx context.Context, arg GrantRoleParams) error
 	// The instances that could cover this one: same semester, same module, another programme, and not
 	// themselves covered.

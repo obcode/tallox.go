@@ -100,24 +100,97 @@ func TestAnInactiveAdminDoesNotCountAsOne(t *testing.T) {
 
 // TestAnExpiredAdminGrantDoesNotCountAsOne, for the same reason: a grant that has run out
 // grants nothing, so somebody holding one is not a way back into this installation.
-func TestAnExpiredAdminGrantDoesNotCountAsOne(t *testing.T) {
+// TestAnAdminGrantCannotExpire closes the hole the last-administrator guard had: a temporary
+// ADMIN counted as one until the minute it ran out, so the only administrator could grant
+// somebody ADMIN until tomorrow, step down today, and leave nobody tomorrow. The store refuses
+// it by name, and the database refuses it for everybody the store does not see.
+func TestAnAdminGrantCannotExpire(t *testing.T) {
 	t.Parallel()
 
 	s := storetest.New(t)
 	storetest.SeedPerson(t, s, testdata.Eins, string(policy.RoleAdmin))
 	storetest.SeedPerson(t, s, testdata.Zwei)
+	zwei := mustPersonID(t, s, testdata.Zwei.Mail)
 
-	if _, err := s.Pool.Exec(t.Context(),
-		`INSERT INTO person_role (person_id, role, granted_at, expires_at)
-		 VALUES ($1, 'ADMIN', now() - interval '2 days', now() - interval '1 day')`,
-		mustPersonID(t, s, testdata.Zwei.Mail)); err != nil {
-		t.Fatalf("cannot seed the expired grant: %v", err)
+	people := store.NewPeople(s.Pool)
+	err := people.GrantRole(t.Context(), zwei, policy.RoleAdmin, uuid.Nil, time.Now().Add(24*time.Hour))
+	if !errors.Is(err, domain.ErrAdminGrantMustNotExpire) {
+		t.Errorf("GrantRole accepted ADMIN with an expiry: %v", err)
+	}
+
+	// And the row cannot be written past the store either — psql included.
+	_, err = s.Pool.Exec(t.Context(),
+		`INSERT INTO person_role (person_id, role, expires_at) VALUES ($1, 'ADMIN', now() + interval '1 day')`,
+		zwei)
+	if err == nil || !strings.Contains(err.Error(), "person_role_admin_never_expires") {
+		t.Errorf("the database accepted an expiring ADMIN grant: %v", err)
+	}
+
+	// Without a date it is the ordinary grant.
+	if err := people.GrantRole(t.Context(), zwei, policy.RoleAdmin, uuid.Nil, time.Time{}); err != nil {
+		t.Errorf("a permanent ADMIN grant was refused: %v", err)
+	}
+}
+
+// TestRegrantingAnExpiredRoleDropsItsOldScopes: an expiry deletes nothing, so a grant that ran
+// out keeps its row and its programme scopes; granting the role again months later — for a
+// different programme — must not revive the old one and its unpublished wishes with it. A grant
+// still in force keeps its scopes, because extending it is the ordinary case.
+func TestRegrantingAnExpiredRoleDropsItsOldScopes(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	ctx := t.Context()
+	storetest.SeedPerson(t, s, testdata.Eins, string(policy.RoleProgrammeLead))
+	storetest.SeedZPACatalogue(t, s)
+	if _, err := store.NewCatalogue(s.Pool).Project(ctx, nil); err != nil {
+		t.Fatalf("cannot project the catalogue: %v", err)
+	}
+	eins := mustPersonID(t, s, testdata.Eins.Mail)
+
+	scope := func(t *testing.T) int {
+		t.Helper()
+		var n int
+		if err := s.Pool.QueryRow(ctx,
+			`SELECT count(*) FROM person_programme_scope WHERE person_id = $1 AND role = 'PROGRAMME_LEAD'`,
+			eins).Scan(&n); err != nil {
+			t.Fatalf("cannot count scopes: %v", err)
+		}
+		return n
+	}
+	grantScope := func(t *testing.T) {
+		t.Helper()
+		if _, err := s.Pool.Exec(ctx,
+			`INSERT INTO person_programme_scope (person_id, role, programme_id)
+			 SELECT $1, 'PROGRAMME_LEAD', id FROM programme WHERE code = $2`,
+			eins, storetest.FixtureProgrammeA); err != nil {
+			t.Fatalf("cannot scope the lead: %v", err)
+		}
 	}
 
 	people := store.NewPeople(s.Pool)
-	err := people.RevokeRole(t.Context(), mustPersonID(t, s, testdata.Eins.Mail), policy.RoleAdmin)
-	if !errors.Is(err, domain.ErrLastAdmin) {
-		t.Errorf("revoking returned %v — an expired ADMIN grant was counted as a live one", err)
+
+	// In force, extended: the scope stays.
+	grantScope(t)
+	if err := people.GrantRole(ctx, eins, policy.RoleProgrammeLead, uuid.Nil, time.Now().Add(48*time.Hour)); err != nil {
+		t.Fatalf("cannot extend the grant: %v", err)
+	}
+	if got := scope(t); got != 1 {
+		t.Errorf("extending a live grant left %d scopes, want the one it had", got)
+	}
+
+	// Run out, granted again: the old scope goes with the old grant.
+	if _, err := s.Pool.Exec(ctx,
+		`UPDATE person_role SET granted_at = now() - interval '2 days', expires_at = now() - interval '1 day'
+		 WHERE person_id = $1 AND role = 'PROGRAMME_LEAD'`,
+		eins); err != nil {
+		t.Fatalf("cannot expire the grant: %v", err)
+	}
+	if err := people.GrantRole(ctx, eins, policy.RoleProgrammeLead, uuid.Nil, time.Time{}); err != nil {
+		t.Fatalf("cannot re-grant: %v", err)
+	}
+	if got := scope(t); got != 0 {
+		t.Errorf("re-granting an expired role revived %d old scopes, want none", got)
 	}
 }
 

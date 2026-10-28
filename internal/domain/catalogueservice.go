@@ -195,6 +195,11 @@ func (s *CatalogueService) ProgrammeLeads(ctx context.Context, actor principal.A
 	if err := mayRead(actor); err != nil {
 		return nil, err
 	}
+	// The roster is the faculty's own: a partner reads which programmes exist, not who leads
+	// them. Same line as SubjectGroupService.List and DesiredHoursOverview.
+	if policy.PartnerOnly(actor) {
+		return []Person{}, nil
+	}
 	code = normaliseProgrammeCode(code)
 	leads, err := s.store.ProgrammeLeads(ctx, []string{code})
 	if err != nil {
@@ -221,6 +226,12 @@ func (s *CatalogueService) Modules(ctx context.Context, actor principal.Actor, f
 func (s *CatalogueService) Teachers(ctx context.Context, actor principal.Actor, filter TeacherFilter) ([]Teacher, error) {
 	if err := mayRead(actor); err != nil {
 		return nil, err
+	}
+	// Name, mail address and employment category of everybody who teaches here: the faculty's
+	// own. The partner meets the people it needs to on the published assignments of its own
+	// programmes, which is where DemandReadScope draws the line.
+	if policy.PartnerOnly(actor) {
+		return []Teacher{}, nil
 	}
 	return s.store.Teachers(ctx, filter)
 }

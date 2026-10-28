@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -68,8 +69,15 @@ func ReconcileProtectedAdmins(ctx context.Context, pool *pgxpool.Pool,
 	outcomes := make([]ReconcileOutcome, 0, len(admins))
 
 	for _, admin := range admins {
+		// The configuration layer has normalised this already; again here, because a row
+		// that can never match a header is the one failure of this list that looks like
+		// success at every start.
+		admin.Mail = strings.TrimSpace(admin.Mail)
 		if admin.Mail == "" {
 			return nil, errors.New("protected admin without a mail address")
+		}
+		if strings.ContainsAny(admin.Mail, " \t\r\n") {
+			return nil, fmt.Errorf("protected admin mail %q contains whitespace", admin.Mail)
 		}
 		outcome, err := reconcileOne(ctx, pool, admin)
 		if err != nil {

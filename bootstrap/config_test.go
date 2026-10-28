@@ -402,3 +402,34 @@ func TestAServerBlockWithoutItsGuardsIsRefused(t *testing.T) {
 			cfg.Server.MaxRequestBytes, cfg.Server.MaxComplexity)
 	}
 }
+
+// TestAProtectedAdminMailIsTrimmedAndNeverContainsWhitespace: the list exists for the moment
+// the proxy's header has to match a row, and a padded address would match nothing while every
+// start reports it healthy.
+func TestAProtectedAdminMailIsTrimmedAndNeverContainsWhitespace(t *testing.T) {
+	t.Parallel()
+
+	write := func(t *testing.T, yaml string) string {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "tallox.yaml")
+		if err := os.WriteFile(path, []byte(yaml), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+
+	cfg, _, err := bootstrap.LoadConfigFrom(write(t, "auth:\n  protectedadmins:\n    - mail: \"  admin@example.org \"\n"))
+	if err != nil {
+		t.Fatalf("a padded address was refused rather than trimmed: %v", err)
+	}
+	if got := cfg.Auth.ProtectedAdmins[0].Mail; got != "admin@example.org" {
+		t.Errorf("mail = %q, want it trimmed", got)
+	}
+
+	for _, bad := range []string{"\"   \"", "\"ad min@example.org\""} {
+		_, _, err := bootstrap.LoadConfigFrom(write(t, "auth:\n  protectedadmins:\n    - mail: "+bad+"\n"))
+		if err == nil || !strings.Contains(err.Error(), "protectedadmins") {
+			t.Errorf("mail %s was accepted, or refused for another reason: %v", bad, err)
+		}
+	}
+}

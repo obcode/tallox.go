@@ -127,7 +127,7 @@ func Serve(build buildinfo.Info) {
 		// Caddy routes only /query and /api/graphql to this container, so "/" is not
 		// reachable from outside anyway. Introspection is a separate matter and stays on —
 		// see CLAUDE.md, the API is a product here.
-		playgroundEnabled = flag.Bool("playground", true, "serve the GraphQL playground at /")
+		playgroundEnabled = flag.Bool("playground", false, "serve the GraphQL playground at /")
 		// The default is production. A server that falls back to dev mode when nobody
 		// configured it is a server that hands out an administrator on the day somebody
 		// forgets a flag.

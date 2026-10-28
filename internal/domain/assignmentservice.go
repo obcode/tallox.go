@@ -117,6 +117,12 @@ func (s *AssignmentService) Set(ctx context.Context, actor principal.Actor,
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
+	// The schema's @interactiveOnly says this already for every resolver; here for the caller
+	// that is not one. Without it a token actor would write and then be told ASSIGNMENT_NOT_FOUND
+	// by the read-back, because AssignmentVisibility collapses a token to its own rows.
+	if !policy.MayReadInteractiveOnly(actor) {
+		return nil, ErrInteractiveOnly
+	}
 
 	note = strings.TrimSpace(note)
 	if len(note) > MaxAssignmentNoteLength {
@@ -161,9 +167,9 @@ func (s *AssignmentService) Set(ctx context.Context, actor principal.Actor,
 		return nil, err
 	}
 	if written == nil {
-		// Unreachable by the rule: writing here required responsibility, and responsibility reads.
-		// Kept because "unreachable" is a claim about two functions agreeing, and this is the
-		// cheap place to stop being wrong about it.
+		// Unreachable by the rule: writing here required responsibility and an interactive
+		// session, and both of those read. Kept because "unreachable" is a claim about three
+		// functions agreeing, and this is the cheap place to stop being wrong about it.
 		return nil, ErrAssignmentNotFound
 	}
 	return written, nil
@@ -177,6 +183,9 @@ func (s *AssignmentService) Set(ctx context.Context, actor principal.Actor,
 func (s *AssignmentService) Clear(ctx context.Context, actor principal.Actor, id uuid.UUID) error {
 	if !actor.Authenticated() {
 		return ErrNotAuthenticated
+	}
+	if !policy.MayReadInteractiveOnly(actor) {
+		return ErrInteractiveOnly
 	}
 
 	where, err := s.store.AssignmentWriteContext(ctx, id)

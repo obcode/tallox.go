@@ -137,19 +137,6 @@ func (q *Queries) MarkTokenUsed(ctx context.Context, tokenID string) error {
 	return err
 }
 
-const revokeToken = `-- name: RevokeToken :exec
-UPDATE personal_access_token
-SET revoked_at = now()
-WHERE token_id = $1 AND revoked_at IS NULL
-`
-
-// A timestamp, not a DELETE: the audit log has to keep resolving this token id afterwards.
-// Idempotent — revoking twice keeps the first moment, which is the one that matters.
-func (q *Queries) RevokeToken(ctx context.Context, tokenID string) error {
-	_, err := q.db.Exec(ctx, revokeToken, tokenID)
-	return err
-}
-
 const revokeTokenOfOwner = `-- name: RevokeTokenOfOwner :one
 UPDATE personal_access_token
 SET revoked_at = COALESCE(revoked_at, now())

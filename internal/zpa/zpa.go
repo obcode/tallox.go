@@ -204,7 +204,8 @@ func (c *Client) getWithRetry(ctx context.Context, target string) ([]byte, error
 			// 1s, 4s, with jitter. Bounded and short: this runs from a nightly job, and a
 			// client that keeps trying for minutes turns one unavailable night into a long one.
 			backoff := time.Duration(1<<(2*(attempt-1))) * time.Second
-			jitter := time.Duration(rand.Int64N(int64(backoff / 4)))
+			// math/rand on purpose: jitter on a retry backoff needs spread, not secrecy.
+			jitter := time.Duration(rand.Int64N(int64(backoff / 4))) //nolint:gosec
 			if err := c.sleep(ctx, backoff+jitter); err != nil {
 				return nil, err
 			}

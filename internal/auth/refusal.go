@@ -51,7 +51,7 @@ const (
 	CodeInactiveUser   = "INACTIVE_USER"
 	CodeExpiredToken   = "EXPIRED_TOKEN"
 	CodeRevokedToken   = "REVOKED_TOKEN"
-	CodeMalformedToken = "MALFORMED_TOKEN"
+	CodeMalformedToken = "MALFORMED_TOKEN" //nolint:gosec // a refusal code, not a credential
 	CodeInvalidToken   = "INVALID_TOKEN"
 	CodeUnavailable    = "UNAVAILABLE"
 )

@@ -70,6 +70,8 @@ func userFacing(err error) error {
 		return refusal("SCOPE_REPEATED", "Jeder Scope darf nur einmal angegeben werden.")
 	case errors.Is(err, domain.ErrNotAuthenticated):
 		return refusal("UNAUTHENTICATED", "Nicht angemeldet.")
+	case errors.Is(err, domain.ErrInteractiveOnly):
+		return refusal("INTERACTIVE_ONLY", policy.InteractiveOnlyReason)
 	default:
 		return refusal("INTERNAL", "Die Aktion konnte nicht ausgeführt werden.")
 	}

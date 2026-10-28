@@ -273,6 +273,30 @@ func TestAnonymousCallersOwnNothing(t *testing.T) {
 // Written as one table because the cases are each other's context: the empty list is not a
 // degenerate case of the others but the *default*, and reading it next to the narrowing ones is
 // what makes that visible.
+// TestTokenManagementIsInteractiveAtTheServiceToo: @interactiveOnly guards the resolvers; this
+// guards the next caller that is not one. A token that could mint tokens would be a credential
+// that renews itself.
+func TestTokenManagementIsInteractiveAtTheServiceToo(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeStore{}
+	s := service(store)
+	viaToken := testdata.Eins.Actor(principal.KindToken, string(policy.RoleLecturer))
+
+	if _, err := s.Create(t.Context(), viaToken, "x", nil, nil); !errors.Is(err, domain.ErrInteractiveOnly) {
+		t.Errorf("Create: %v", err)
+	}
+	if _, err := s.List(t.Context(), viaToken); !errors.Is(err, domain.ErrInteractiveOnly) {
+		t.Errorf("List: %v", err)
+	}
+	if _, err := s.Revoke(t.Context(), viaToken, "x"); !errors.Is(err, domain.ErrInteractiveOnly) {
+		t.Errorf("Revoke: %v", err)
+	}
+	if len(store.created)+len(store.revoked) != 0 {
+		t.Error("a token actor reached the store")
+	}
+}
+
 func TestScopesAreStoredAsTheyWereAsked(t *testing.T) {
 	t.Parallel()
 

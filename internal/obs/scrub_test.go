@@ -1,6 +1,7 @@
 package obs
 
 import (
+	"strings"
 	"testing"
 
 	sentry "github.com/getsentry/sentry-go"
@@ -160,5 +161,28 @@ func TestNoUserIsEverAttached(t *testing.T) {
 
 	if got := scrub.scrub(e, nil); got.User.Email != "" || got.User.Name != "" {
 		t.Errorf("a user survived: %+v", got.User)
+	}
+}
+
+// A pgx connection error names the user, the database and the host. The password it redacts
+// itself; the rest is operational detail of the production stack, and the collector is a
+// different trust zone from the server's own log.
+func TestConnectionDetailsAreRedactedInFreeText(t *testing.T) {
+	e := event()
+	e.Message = "cannot reach database: failed to connect to `user=tallox database=tallox`:\n\t10.0.0.5:5432 (postgres): dial error"
+	e.Exception = []sentry.Exception{{
+		Type:  "pool",
+		Value: "host=postgres user=tallox dbname=tallox password=xxxxx sslmode=disable",
+	}}
+
+	got := scrub.scrub(e, nil)
+
+	for _, leak := range []string{"user=tallox", "database=tallox", "dbname=tallox", "host=postgres", "password=xxxxx"} {
+		if strings.Contains(got.Message, leak) || strings.Contains(got.Exception[0].Value, leak) {
+			t.Errorf("%q survived: message=%q exception=%q", leak, got.Message, got.Exception[0].Value)
+		}
+	}
+	if !strings.Contains(got.Message, "dial error") {
+		t.Errorf("the readable part of the message was lost: %q", got.Message)
 	}
 }

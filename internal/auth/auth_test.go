@@ -329,6 +329,32 @@ func TestTokenDoorAuthenticatesItsOwner(t *testing.T) {
 	}
 }
 
+// TestTokenUseIsRecordedOncePerInterval: a script that fires a hundred requests a minute is
+// the ordinary user of this door, and a hundred bookkeeping round trips a minute for one
+// row that changes every five is the pool spent on nothing.
+func TestTokenUseIsRecordedOncePerInterval(t *testing.T) {
+	t.Parallel()
+
+	owner := person(testdata.Vier, policy.RoleLecturer)
+	used := make(chan string, 8)
+	tokens := fakeTokens{
+		tokens: map[string]*auth.Token{testdata.Vier.TokenID: tokenFor(t, testdata.Vier, owner)},
+		used:   used,
+	}
+	a := auth.NewTokenAuthenticator(auth.Config{Mode: auth.ModeProxy, Tokens: tokens})
+
+	for range 5 {
+		if _, err := a.Authenticate(t.Context(), request("Authorization", "Bearer "+testdata.Vier.Token)); err != nil {
+			t.Fatalf("authentication failed: %v", err)
+		}
+	}
+	a.Wait()
+
+	if got := len(used); got != 1 {
+		t.Errorf("five requests in a burst recorded use %d times, want once", got)
+	}
+}
+
 // TestTokenDoorRefusals is the table that matters most on this door: every way a token can
 // fail, and what the caller is told.
 //

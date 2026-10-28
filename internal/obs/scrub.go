@@ -99,11 +99,18 @@ var allowedContexts = map[string]bool{
 // than the first.
 var reEmail = regexp.MustCompile(`(?i)[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}`)
 
+// reConnKey matches the key=value pairs pgx puts into a connection error — `failed to connect
+// to `user=tallox database=tallox`: host (…)`. Never the password (pgx redacts that itself), but
+// the user, the database and the host are operational detail of the production stack, and the
+// collector is a different trust zone from the server's own log.
+var reConnKey = regexp.MustCompile(`(?i)\b(user|password|database|dbname|host|hostaddr)=\S+`)
+
 func redact(s string) string {
 	if s == "" {
 		return s
 	}
-	return reEmail.ReplaceAllString(s, "[email]")
+	s = reEmail.ReplaceAllString(s, "[email]")
+	return reConnKey.ReplaceAllString(s, "$1=[redacted]")
 }
 
 // scrubber is the BeforeSend hook. Its zero value is the safe configuration, so

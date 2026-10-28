@@ -1257,9 +1257,6 @@ type Querier interface {
 	// DemandCompletionsOfSemester, and public for the same reason.
 	ReviewCompletionsOfSemester(ctx context.Context, semester string) ([]ReviewCompletionsOfSemesterRow, error)
 	RevokeRole(ctx context.Context, arg RevokeRoleParams) error
-	// A timestamp, not a DELETE: the audit log has to keep resolving this token id afterwards.
-	// Idempotent — revoking twice keeps the first moment, which is the one that matters.
-	RevokeToken(ctx context.Context, tokenID string) error
 	// Revokes a token, but only the caller's own.
 	//
 	// Ownership is in the WHERE clause rather than in a read-then-write in Go, which collapses
@@ -1625,9 +1622,6 @@ type Querier interface {
 	// for the instance, and the note says which half. A covered cohort holds no parts at all and is
 	// not elsewhere by this; its teaching is ours, in another programme.
 	WishWriteContext(ctx context.Context, instanceID uuid.UUID) (WishWriteContextRow, error)
-	// The same, reached from a wish rather than from an instance. For withdrawing one — which stays
-	// possible on an instance taught elsewhere, so a wish from before the arrangement can be taken back.
-	WishWriteContextByWishID(ctx context.Context, id uuid.UUID) (WishWriteContextByWishIDRow, error)
 	// Wishes: one person's interest in one course instance.
 	//
 	// THE RULE THIS FILE IS MADE OF

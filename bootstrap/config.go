@@ -224,7 +224,7 @@ func DefaultConfig() Config {
 	return Config{
 		Server: ServerConfig{
 			Port:            8080,
-			Playground:      true,
+			Playground:      false,
 			Introspection:   true,
 			MaxRequestBytes: 1 << 20,
 			MaxComplexity:   1000,

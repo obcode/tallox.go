@@ -7,6 +7,7 @@ import (
 
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/policy"
 	"github.com/obcode/tallox.go/internal/principal"
 )
 
@@ -89,6 +90,8 @@ func assignmentError(err error) error {
 		return nil
 	case errors.Is(err, domain.ErrNotAuthenticated):
 		return refusal("UNAUTHENTICATED", "Nicht angemeldet.")
+	case errors.Is(err, domain.ErrInteractiveOnly):
+		return refusal("INTERACTIVE_ONLY", policy.InteractiveOnlyReason)
 	case errors.Is(err, domain.ErrAssignmentPhaseClosed):
 		return refusal("ASSIGNMENT_PHASE_CLOSED", err.Error())
 	case errors.Is(err, domain.ErrNotYourSubject):

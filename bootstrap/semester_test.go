@@ -465,7 +465,7 @@ func TestPublishingIsBrowserOnly(t *testing.T) {
 
 		resp := graphqltest.New(h).WithToken(testdata.Fuenf.Token).
 			Do(t, publishWishes, map[string]any{"code": "2027-SS"})
-		assertRefusal(t, resp, "INTERACTIVE_ONLY")
+		assertRefusal(t, resp, "FULL_REACH_REQUIRED")
 	})
 
 	t.Run("browser", func(t *testing.T) {

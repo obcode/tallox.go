@@ -62,17 +62,11 @@ func renderModuleFilingMatrix() string {
 	rows := []situation{{label: "(not signed in)", actor: principal.Anonymous}}
 
 	for _, role := range policy.AllRoles() {
-		for _, door := range []struct {
-			label string
-			kind  principal.Kind
-		}{
-			{"interactive", principal.KindInteractive},
-			{"token", principal.KindToken},
-		} {
+		for _, door := range matrixDoors {
 			rows = append(rows, situation{
 				label: string(role),
 				leads: "—",
-				actor: testdata.Drei.Actor(door.kind, string(role)),
+				actor: door.on(testdata.Drei.Actor(door.kind, string(role))),
 			})
 
 			// Only the lead has a subject group dimension; showing a scoped variant of the
@@ -81,7 +75,7 @@ func renderModuleFilingMatrix() string {
 				rows = append(rows, situation{
 					label: string(role),
 					leads: "one",
-					actor: headOf(testdata.Drei, door.kind, groupOne),
+					actor: door.on(headOf(testdata.Drei, door.kind, groupOne)),
 				})
 			}
 		}
@@ -96,7 +90,7 @@ func renderModuleFilingMatrix() string {
 
 		door := "—"
 		if s.actor.Kind != "" {
-			door = string(s.actor.Kind)
+			door = doorLabel(s.actor)
 		}
 		leads := s.leads
 		if leads == "" {
@@ -142,7 +136,8 @@ The rule
 Somebody may move a module from the subject group it is in today into the one it should be in if
 
   · they are an administrator — any module, any group, and
-  · in a signed-in browser session either way: through a Personal Access Token, nobody, or
+  · with full reach either way (a browser session or a full-reach token): through a plain
+    Personal Access Token, nobody, or
   · they lead subject groups, and **both** ends of the move are groups they lead.
 
 "No group" counts as an end that is always in reach: a module nobody has sorted yet may be

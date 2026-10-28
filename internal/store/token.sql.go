@@ -16,10 +16,10 @@ import (
 const createToken = `-- name: CreateToken :one
 
 INSERT INTO personal_access_token (
-    token_id, owner_id, secret_hash, description, scopes, expires_at
+    token_id, owner_id, secret_hash, description, scopes, expires_at, full_reach
 )
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING token_id, owner_id, description, scopes, created_at, expires_at,
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING token_id, owner_id, description, scopes, full_reach, created_at, expires_at,
           last_used_at, revoked_at
 `
 
@@ -30,6 +30,7 @@ type CreateTokenParams struct {
 	Description string
 	Scopes      []string
 	ExpiresAt   time.Time
+	FullReach   bool
 }
 
 type CreateTokenRow struct {
@@ -37,6 +38,7 @@ type CreateTokenRow struct {
 	OwnerID     uuid.UUID
 	Description string
 	Scopes      []string
+	FullReach   bool
 	CreatedAt   time.Time
 	ExpiresAt   time.Time
 	LastUsedAt  pgtype.Timestamptz
@@ -54,6 +56,7 @@ func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) (Creat
 		arg.Description,
 		arg.Scopes,
 		arg.ExpiresAt,
+		arg.FullReach,
 	)
 	var i CreateTokenRow
 	err := row.Scan(
@@ -61,6 +64,7 @@ func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) (Creat
 		&i.OwnerID,
 		&i.Description,
 		&i.Scopes,
+		&i.FullReach,
 		&i.CreatedAt,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
@@ -70,7 +74,7 @@ func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) (Creat
 }
 
 const listTokensOfPerson = `-- name: ListTokensOfPerson :many
-SELECT token_id, owner_id, description, scopes, created_at, expires_at,
+SELECT token_id, owner_id, description, scopes, full_reach, created_at, expires_at,
        last_used_at, revoked_at
 FROM personal_access_token
 WHERE owner_id = $1
@@ -82,6 +86,7 @@ type ListTokensOfPersonRow struct {
 	OwnerID     uuid.UUID
 	Description string
 	Scopes      []string
+	FullReach   bool
 	CreatedAt   time.Time
 	ExpiresAt   time.Time
 	LastUsedAt  pgtype.Timestamptz
@@ -104,6 +109,7 @@ func (q *Queries) ListTokensOfPerson(ctx context.Context, ownerID uuid.UUID) ([]
 			&i.OwnerID,
 			&i.Description,
 			&i.Scopes,
+			&i.FullReach,
 			&i.CreatedAt,
 			&i.ExpiresAt,
 			&i.LastUsedAt,
@@ -141,7 +147,7 @@ const revokeTokenOfOwner = `-- name: RevokeTokenOfOwner :one
 UPDATE personal_access_token
 SET revoked_at = COALESCE(revoked_at, now())
 WHERE token_id = $1 AND owner_id = $2
-RETURNING token_id, owner_id, description, scopes, created_at, expires_at,
+RETURNING token_id, owner_id, description, scopes, full_reach, created_at, expires_at,
           last_used_at, revoked_at
 `
 
@@ -155,6 +161,7 @@ type RevokeTokenOfOwnerRow struct {
 	OwnerID     uuid.UUID
 	Description string
 	Scopes      []string
+	FullReach   bool
 	CreatedAt   time.Time
 	ExpiresAt   time.Time
 	LastUsedAt  pgtype.Timestamptz
@@ -179,6 +186,7 @@ func (q *Queries) RevokeTokenOfOwner(ctx context.Context, arg RevokeTokenOfOwner
 		&i.OwnerID,
 		&i.Description,
 		&i.Scopes,
+		&i.FullReach,
 		&i.CreatedAt,
 		&i.ExpiresAt,
 		&i.LastUsedAt,
@@ -193,6 +201,7 @@ SELECT
     t.owner_id,
     t.secret_hash,
     t.scopes,
+    t.full_reach,
     t.expires_at,
     t.revoked_at,
     p.mail,
@@ -225,6 +234,7 @@ type TokenByIDRow struct {
 	OwnerID    uuid.UUID
 	SecretHash []byte
 	Scopes     []string
+	FullReach  bool
 	ExpiresAt  time.Time
 	RevokedAt  pgtype.Timestamptz
 	Mail       string
@@ -261,6 +271,7 @@ func (q *Queries) TokenByID(ctx context.Context, tokenID string) (TokenByIDRow, 
 		&i.OwnerID,
 		&i.SecretHash,
 		&i.Scopes,
+		&i.FullReach,
 		&i.ExpiresAt,
 		&i.RevokedAt,
 		&i.Mail,

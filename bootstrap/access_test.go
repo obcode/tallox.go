@@ -353,3 +353,43 @@ func TestARefusedSignInIsRecordedWhateverItAskedFor(t *testing.T) {
 		t.Errorf("outcome = %q, want REFUSED_AUTH", entries[0].Outcome)
 	}
 }
+
+// A plain token reaching for a @fullReach field is a refusal by door, like @interactiveOnly — not a
+// fault. The code says which of the two it was.
+func TestAFullReachRefusalIsLoggedAsARefusalByDoor(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	storetest.SeedPerson(t, s, testdata.Sechs, string(policy.RoleAdmin))
+
+	parsed, err := auth.ParseToken(testdata.Sechs.Token)
+	if err != nil {
+		t.Fatalf("fixture token does not parse: %v", err)
+	}
+	storetest.SeedToken(t, s, testdata.Sechs, auth.HashSecret(parsed.Secret),
+		storetest.TokenOptions{Description: "plain"})
+
+	directory := store.NewDirectory(s.Pool)
+	access := store.NewAccess(s.Pool)
+	handler := bootstrap.Handler(bootstrap.Options{
+		Build:  buildinfo.Info{Version: "test"},
+		Auth:   auth.Config{Mode: auth.ModeProxy, Users: directory, Tokens: directory},
+		Access: domain.NewAccessService(access),
+	})
+
+	resp := graphqltest.New(handler).WithToken(testdata.Sechs.Token).On(graphqltest.Token).
+		Do(t, `mutation { syncZpaNow { id } }`, nil)
+	assertRefusal(t, resp, "FULL_REACH_REQUIRED")
+
+	entries, err := access.Entries(t.Context(), domain.AccessFilter{})
+	if err != nil {
+		t.Fatalf("cannot read the log: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("recorded %d entries, want 1: %+v", len(entries), entries)
+	}
+	if entries[0].Outcome != domain.AccessRefusedInteractive || entries[0].ErrorCode != "FULL_REACH_REQUIRED" {
+		t.Errorf("logged outcome %q with code %q, want REFUSED_INTERACTIVE with FULL_REACH_REQUIRED",
+			entries[0].Outcome, entries[0].ErrorCode)
+	}
+}

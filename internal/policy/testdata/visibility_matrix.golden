@@ -15,7 +15,8 @@ A wish is visible if and only if
     (semester.wishes_published_at IS NOT NULL), or
   · the person is responsible for it — they lead the study programme whose demand the instance
     is, or the subject group the instance's module belongs to, or they are the dean's office
-    — and then only in an interactive session, never through a Personal Access Token.
+    — and then only with full reach: in a browser session, or through a token its owner minted
+    with full reach — never through a plain Personal Access Token.
 
 The purpose is to end the first-come-first-served race: a new colleague should be able to
 register interest without it looking like an attack on somebody who has taught the subject
@@ -75,9 +76,13 @@ Notes
   · ADMIN is deliberately not a wish reader. Running the system is a different job from
     planning with it; an administrator who genuinely needs to look is granted DEANS_OFFICE,
     visibly.
-  · Through a Personal Access Token, even a lead sees only their own wishes until publication.
-    A long-lived token in a script makes silent bulk export possible and decouples "who saw
-    this" from any login event.
+  · Through a plain Personal Access Token, even a lead sees only their own wishes until
+    publication. A long-lived token in a script makes silent bulk export possible and decouples
+    "who saw this" from any login event.
+  · The door "full reach" is a token minted with createPersonalAccessToken(fullReach: true): at
+    most 90 days, listed in the nightly access report. Its rows are the interactive rows, line
+    for line — it widens the door and never the role. Since 2026-10-28, so that programme leads
+    can plan through the API.
   · **Being in a subject group is not leading it.** Membership decides what the wish screen
     offers first and grants nothing here. The kickoff sentence "jeder in einer Fachgruppe
     müsste alles lesen können" is about planning data: if it covered wishes, the rule would
@@ -119,6 +124,17 @@ LECTURER            token        —                WISHES           published  
 LECTURER            token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
 LECTURER            token        —                REVIEW           published    yes   yes      yes      yes      all
 LECTURER            token        —                FINAL            published    yes   yes      yes      yes      all
+
+LECTURER            full reach   —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+LECTURER            full reach   —                WISHES           unpublished  yes   no       no       no       own only
+LECTURER            full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+LECTURER            full reach   —                REVIEW           unpublished  yes   no       no       no       own only
+LECTURER            full reach   —                FINAL            unpublished  yes   no       no       no       own only
+LECTURER            full reach   —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+LECTURER            full reach   —                WISHES           published    yes   yes      yes      yes      all
+LECTURER            full reach   —                ASSIGNMENT       published    yes   yes      yes      yes      all
+LECTURER            full reach   —                REVIEW           published    yes   yes      yes      yes      all
+LECTURER            full reach   —                FINAL            published    yes   yes      yes      yes      all
 
 
 SUBJECT_GROUP_LEAD  interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
@@ -165,6 +181,28 @@ SUBJECT_GROUP_LEAD  token        group 1          ASSIGNMENT       published    
 SUBJECT_GROUP_LEAD  token        group 1          REVIEW           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  token        group 1          FINAL            published    yes   yes      yes      yes      all
 
+SUBJECT_GROUP_LEAD  full reach   —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                WISHES           unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                REVIEW           unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                FINAL            unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  full reach   —                WISHES           published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  full reach   —                ASSIGNMENT       published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  full reach   —                REVIEW           published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  full reach   —                FINAL            published    yes   yes      yes      yes      all
+
+SUBJECT_GROUP_LEAD  full reach   group 1          DEMAND_PLANNING  unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  full reach   group 1          WISHES           unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  full reach   group 1          ASSIGNMENT       unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  full reach   group 1          REVIEW           unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  full reach   group 1          FINAL            unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  full reach   group 1          DEMAND_PLANNING  published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  full reach   group 1          WISHES           published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  full reach   group 1          ASSIGNMENT       published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  full reach   group 1          REVIEW           published    yes   yes      yes      yes      all
+SUBJECT_GROUP_LEAD  full reach   group 1          FINAL            published    yes   yes      yes      yes      all
+
 
 PROGRAMME_LEAD      interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      interactive  —                WISHES           unpublished  yes   no       no       no       own only
@@ -210,6 +248,28 @@ PROGRAMME_LEAD      token        programme 1      ASSIGNMENT       published    
 PROGRAMME_LEAD      token        programme 1      REVIEW           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      token        programme 1      FINAL            published    yes   yes      yes      yes      all
 
+PROGRAMME_LEAD      full reach   —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      full reach   —                WISHES           unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      full reach   —                REVIEW           unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      full reach   —                FINAL            unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      full reach   —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      full reach   —                WISHES           published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      full reach   —                ASSIGNMENT       published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      full reach   —                REVIEW           published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      full reach   —                FINAL            published    yes   yes      yes      yes      all
+
+PROGRAMME_LEAD      full reach   programme 1      DEMAND_PLANNING  unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      full reach   programme 1      WISHES           unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      full reach   programme 1      ASSIGNMENT       unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      full reach   programme 1      REVIEW           unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      full reach   programme 1      FINAL            unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      full reach   programme 1      DEMAND_PLANNING  published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      full reach   programme 1      WISHES           published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      full reach   programme 1      ASSIGNMENT       published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      full reach   programme 1      REVIEW           published    yes   yes      yes      yes      all
+PROGRAMME_LEAD      full reach   programme 1      FINAL            published    yes   yes      yes      yes      all
+
 
 DEANS_OFFICE        interactive  —                DEMAND_PLANNING  unpublished  yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                WISHES           unpublished  yes   yes      yes      yes      all
@@ -232,6 +292,17 @@ DEANS_OFFICE        token        —                WISHES           published  
 DEANS_OFFICE        token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
 DEANS_OFFICE        token        —                REVIEW           published    yes   yes      yes      yes      all
 DEANS_OFFICE        token        —                FINAL            published    yes   yes      yes      yes      all
+
+DEANS_OFFICE        full reach   —                DEMAND_PLANNING  unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                WISHES           unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                ASSIGNMENT       unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                REVIEW           unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                FINAL            unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                WISHES           published    yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                ASSIGNMENT       published    yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                REVIEW           published    yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                FINAL            published    yes   yes      yes      yes      all
 
 
 PARTNER_READER      interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
@@ -256,6 +327,17 @@ PARTNER_READER      token        —                ASSIGNMENT       published  
 PARTNER_READER      token        —                REVIEW           published    yes   no       no       no       own only
 PARTNER_READER      token        —                FINAL            published    yes   no       no       no       own only
 
+PARTNER_READER      full reach   —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+PARTNER_READER      full reach   —                WISHES           unpublished  yes   no       no       no       own only
+PARTNER_READER      full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+PARTNER_READER      full reach   —                REVIEW           unpublished  yes   no       no       no       own only
+PARTNER_READER      full reach   —                FINAL            unpublished  yes   no       no       no       own only
+PARTNER_READER      full reach   —                DEMAND_PLANNING  published    yes   no       no       no       own only
+PARTNER_READER      full reach   —                WISHES           published    yes   no       no       no       own only
+PARTNER_READER      full reach   —                ASSIGNMENT       published    yes   no       no       no       own only
+PARTNER_READER      full reach   —                REVIEW           published    yes   no       no       no       own only
+PARTNER_READER      full reach   —                FINAL            published    yes   no       no       no       own only
+
 
 ADMIN               interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 ADMIN               interactive  —                WISHES           unpublished  yes   no       no       no       own only
@@ -278,3 +360,14 @@ ADMIN               token        —                WISHES           published  
 ADMIN               token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
 ADMIN               token        —                REVIEW           published    yes   yes      yes      yes      all
 ADMIN               token        —                FINAL            published    yes   yes      yes      yes      all
+
+ADMIN               full reach   —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+ADMIN               full reach   —                WISHES           unpublished  yes   no       no       no       own only
+ADMIN               full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+ADMIN               full reach   —                REVIEW           unpublished  yes   no       no       no       own only
+ADMIN               full reach   —                FINAL            unpublished  yes   no       no       no       own only
+ADMIN               full reach   —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
+ADMIN               full reach   —                WISHES           published    yes   yes      yes      yes      all
+ADMIN               full reach   —                ASSIGNMENT       published    yes   yes      yes      yes      all
+ADMIN               full reach   —                REVIEW           published    yes   yes      yes      yes      all
+ADMIN               full reach   —                FINAL            published    yes   yes      yes      yes      all

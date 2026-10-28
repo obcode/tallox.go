@@ -8,7 +8,8 @@
 #
 # A competence is visible if and only if it is your own statement, or you are responsible for the
 # module — you lead its home study programme or its subject group, or you are the dean's office —
-# and then only in a signed-in browser session. The wish rule without its publication date:
+# and then only in a signed-in browser session or through a token minted with full reach. The
+# wish rule without its publication date:
 # "würde gern" is a wish without a semester, so nothing ever makes it public. Read the whole thing
 # in `internal/policy/testdata/competence_visibility_matrix.golden`.
 #
@@ -140,14 +141,14 @@ extend type Query {
   of them.
   """
   competenceMemberStatus(subjectGroup: ID!): [MemberCompetenceStatus!]!
-    @interactiveOnly @scope(area: WISHES, verb: READ)
+    @fullReach @scope(area: WISHES, verb: READ)
 
   """
   The active modules of a subject group that nobody can teach: „wenn es brennt, kann es niemand“.
   On the same terms as `competenceMemberStatus`.
   """
   modulesWithoutCompetence(subjectGroup: ID!): [ModuleWithoutCompetence!]!
-    @interactiveOnly @scope(area: WISHES, verb: READ)
+    @fullReach @scope(area: WISHES, verb: READ)
 }
 
 extend type Mutation {
@@ -180,11 +181,11 @@ extend type Mutation {
     teacherId: ID!
     level: CompetenceLevel!
     note: String
-  ): Competence! @interactiveOnly @scope(area: WISHES, verb: WRITE)
+  ): Competence! @fullReach @scope(area: WISHES, verb: WRITE)
 
   """
   Withdraw a statement about a teacher without an account. On the terms of `setTeacherCompetence`;
   anything else answers `COMPETENCE_NOT_FOUND`.
   """
-  withdrawTeacherCompetence(id: ID!): ID! @interactiveOnly @scope(area: WISHES, verb: WRITE)
+  withdrawTeacherCompetence(id: ID!): ID! @fullReach @scope(area: WISHES, verb: WRITE)
 }

@@ -205,15 +205,14 @@ extend type Mutation {
   """
   Create a subject group.
 
-  Administration, and only in a signed-in browser session — the same terms as every other act
-  that shapes who may do what here.
+  Administration, in a signed-in browser session or with a token minted with `fullReach`.
   """
   createSubjectGroup(
     "Up to sixteen characters: upper case, digits, dot, underscore or hyphen. Upper-cased and trimmed for you."
     code: String!
     "The name a person reads."
     name: String!
-  ): SubjectGroup! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+  ): SubjectGroup! @fullReach @scope(area: ADMIN, verb: WRITE)
 
   """
   Change a subject group's name.
@@ -222,7 +221,7 @@ extend type Mutation {
   colleagues' scripts — and moving it is not a rename but a different group.
   """
   renameSubjectGroup(id: ID!, name: String!): SubjectGroup!
-    @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+    @fullReach @scope(area: ADMIN, verb: WRITE)
 
   """
   Retire a subject group, or bring it back.
@@ -231,7 +230,7 @@ extend type Mutation {
   retire the old one — three steps, none of which loses anything.
   """
   setSubjectGroupActive(id: ID!, active: Boolean!): SubjectGroup!
-    @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+    @fullReach @scope(area: ADMIN, verb: WRITE)
 
   """
   Put a batch of modules into one subject group, or take them out of every group.
@@ -266,7 +265,7 @@ extend type Mutation {
     moduleIds: [ID!]!
     "The group to put them in, or `null` to take them out of every group."
     subjectGroup: ID
-  ): SubjectGroupAssignmentReport! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  ): SubjectGroupAssignmentReport! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   Replace the **members** of one subject group.
@@ -280,7 +279,7 @@ extend type Mutation {
   not a preference somebody sets for themselves.
   """
   setSubjectGroupMembers(id: ID!, personIds: [ID!]!): SubjectGroup!
-    @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+    @fullReach @scope(area: ADMIN, verb: WRITE)
 
   """
   Replace the subject groups **you** are in.
@@ -317,5 +316,5 @@ extend type Mutation {
   office.
   """
   setSubjectGroupLeads(id: ID!, personIds: [ID!]!): SubjectGroup!
-    @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+    @fullReach @scope(area: ADMIN, verb: WRITE)
 }

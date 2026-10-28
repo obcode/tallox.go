@@ -50,33 +50,34 @@ func MayAdministerSemesters(a principal.Actor) bool {
 // assignments says the plan is settled enough to be read as one. The day the faculty wants those
 // to be different acts by different people, this is where that happens.
 //
-// Interactive only, for the reason below: it cannot be undone.
+// With full reach only, for the reason below: it cannot be undone.
 func MayPublishAssignments(a principal.Actor) bool {
-	return MayAdministerSemesters(a) && a.Interactive()
+	return MayAdministerSemesters(a) && a.ActsWithFullReach()
 }
 
 // MayPublishWishes reports whether an actor may end the confidentiality window of a semester.
 //
-// MayAdministerSemesters *and* an interactive session. This is the one semester operation that
-// is interactive-only, and the reason is not that it is more privileged — it is the same role
-// — but that it is the only one that cannot be undone.
+// MayAdministerSemesters *and* full reach — a browser session or a token minted with full reach,
+// never a plain token. It is the same role as every other semester operation; the extra condition
+// is there because it is the only one that cannot be undone.
 //
 // Publishing is irreversible as a fact about the world rather than as a property of the
 // schema: once colleagues have seen each other's entries, clearing the timestamp would only be
-// a lie about it. An act that cannot be walked back should not be issuable by a string in a
-// script that outlives the afternoon it was written on, and it should be attributable to a
-// sign-in rather than to a credential.
+// a lie about it. Until 2026-10-28 that made it browser-only. The faculty decided the dean's
+// office may also do it from a script or an assistant — but only through a token minted for
+// exactly that: an explicit choice, at most 90 days, listed in the nightly access report, and
+// recorded in the access log by its token id. A plain token in a forgotten cron job still cannot.
 //
-// It is also the moment the project's politically load-bearing rule stops applying. If there is
-// one action in this system that should require somebody to be present, it is that one.
+// It is also the moment the project's politically load-bearing rule stops applying, which is why
+// the access log and the nightly report are part of this rule and not an afterthought.
 func MayPublishWishes(a principal.Actor) bool {
-	return MayReadInteractiveOnly(a) && RolesOf(a).Has(RoleDeansOffice)
+	return MayActWithFullReach(a) && RolesOf(a).Has(RoleDeansOffice)
 }
 
 // MayFreezeDesiredHours reports whether an actor may close the desired teaching hours of a
 // semester to everybody but the dean's office.
 //
-// The dean's office, interactive only, for the reason MayPublishWishes gives: there is no
+// The dean's office, with full reach only, for the reason MayPublishWishes gives: there is no
 // unfreezing. A deadline that can be reopened is not one, and the corrections it would be reopened
 // for go through MayCorrectDesiredHours instead.
 func MayFreezeDesiredHours(a principal.Actor) bool {
@@ -92,11 +93,11 @@ func MayPublishDesiredHours(a principal.Actor) bool {
 
 // FreezeDesiredHoursReason is what a caller who failed MayFreezeDesiredHours is told.
 const FreezeDesiredHoursReason = "Nur das Dekanat darf die Wunsch-SWS einfrieren. " +
-	"Das geht ausschließlich im Browser, nicht über ein Personal Access Token."
+	"Das geht im Browser oder mit einem Planungs-Token mit voller Reichweite."
 
 // PublishDesiredHoursReason is what a caller who failed MayPublishDesiredHours is told.
 const PublishDesiredHoursReason = "Nur das Dekanat darf die Wunsch-SWS veröffentlichen. " +
-	"Das geht ausschließlich im Browser, nicht über ein Personal Access Token."
+	"Das geht im Browser oder mit einem Planungs-Token mit voller Reichweite."
 
 // SemesterAdminReason is what a caller who failed MayAdministerSemesters is told.
 //
@@ -117,18 +118,18 @@ const PlanningSemesterReason = "Nur das Dekanat darf festlegen, welches Semester
 // PublishWishesReason is what a caller who failed MayPublishWishes is told.
 //
 // Deliberately two sentences: the first names the role, the second names the door, because the
-// caller who hits this is most often somebody who *has* the role and is using a token. Telling
+// caller who hits this is most often somebody who *has* the role and is using a plain token. Telling
 // them only "the dean's office may do this" would send them to ask for a grant they already
 // hold.
 const PublishWishesReason = "Nur das Dekanat darf Wünsche veröffentlichen. " +
-	"Das geht ausschließlich im Browser, nicht über ein Personal Access Token."
+	"Das geht im Browser oder mit einem Planungs-Token mit voller Reichweite."
 
 // PublishAssignmentsReason is what a caller who failed MayPublishAssignments is told.
 //
 // Two sentences for the reason PublishWishesReason gives: the caller who hits this is most often
 // somebody who holds the role and is using a token.
 const PublishAssignmentsReason = "Nur das Dekanat darf Zuteilungen veröffentlichen. " +
-	"Das geht ausschließlich im Browser, nicht über ein Personal Access Token."
+	"Das geht im Browser oder mit einem Planungs-Token mit voller Reichweite."
 
 // PhaseTransitionReason is what a caller attempting an illegal phase change is told.
 func PhaseTransitionReason(from, to Phase) string {

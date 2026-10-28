@@ -37,6 +37,7 @@ type createdCall struct {
 	secretHash  []byte
 	description string
 	scopes      []string
+	fullReach   bool
 	expiresAt   time.Time
 }
 
@@ -46,17 +47,18 @@ type revokedCall struct {
 }
 
 func (f *fakeStore) CreateToken(_ context.Context, tokenID string, ownerID uuid.UUID,
-	secretHash []byte, description string, scopes []string, expiresAt time.Time,
+	secretHash []byte, description string, scopes []string, fullReach bool, expiresAt time.Time,
 ) (domain.TokenRecord, error) {
 	if f.createErr != nil {
 		return domain.TokenRecord{}, f.createErr
 	}
 	f.created = append(f.created,
-		createdCall{tokenID, ownerID, secretHash, description, scopes, expiresAt})
+		createdCall{tokenID, ownerID, secretHash, description, scopes, fullReach, expiresAt})
 	return domain.TokenRecord{
 		ID:          tokenID,
 		Description: description,
 		Scopes:      scopes,
+		FullReach:   fullReach,
 		CreatedAt:   time.Now(),
 		ExpiresAt:   expiresAt,
 	}, nil
@@ -94,7 +96,7 @@ func TestCreatedTokensAreUsableAndStoredAsAHash(t *testing.T) {
 	store := &fakeStore{}
 	actor := testdata.Eins.Actor(principal.KindInteractive, "LECTURER")
 
-	created, err := service(store).Create(t.Context(), actor, "Auswertung", nil, nil)
+	created, err := service(store).Create(t.Context(), actor, "Auswertung", nil, nil, false)
 	if err != nil {
 		t.Fatalf("cannot create: %v", err)
 	}
@@ -152,7 +154,7 @@ func TestLifetimes(t *testing.T) {
 			store := &fakeStore{}
 			actor := testdata.Eins.Actor(principal.KindInteractive, "LECTURER")
 
-			_, err := service(store).Create(t.Context(), actor, "Auswertung", tc.request, nil)
+			_, err := service(store).Create(t.Context(), actor, "Auswertung", tc.request, nil, false)
 
 			if tc.wantErr != nil {
 				if !errors.Is(err, tc.wantErr) {
@@ -197,7 +199,7 @@ func TestDescriptionsAreRequiredAndBounded(t *testing.T) {
 			t.Parallel()
 
 			store := &fakeStore{}
-			_, err := service(store).Create(t.Context(), actor, tc.description, nil, nil)
+			_, err := service(store).Create(t.Context(), actor, tc.description, nil, nil, false)
 
 			if tc.wantErr == nil {
 				if err != nil {
@@ -213,7 +215,7 @@ func TestDescriptionsAreRequiredAndBounded(t *testing.T) {
 
 	// Trimmed on the way in, so a leading space is not a second, different description.
 	store := &fakeStore{}
-	if _, err := service(store).Create(t.Context(), actor, "  CI-Lauf  ", nil, nil); err != nil {
+	if _, err := service(store).Create(t.Context(), actor, "  CI-Lauf  ", nil, nil, false); err != nil {
 		t.Fatalf("cannot create: %v", err)
 	}
 	if store.created[0].description != "CI-Lauf" {
@@ -254,7 +256,7 @@ func TestAnonymousCallersOwnNothing(t *testing.T) {
 	store := &fakeStore{}
 	s := service(store)
 
-	if _, err := s.Create(t.Context(), principal.Anonymous, "x", nil, nil); !errors.Is(err, domain.ErrNotAuthenticated) {
+	if _, err := s.Create(t.Context(), principal.Anonymous, "x", nil, nil, false); !errors.Is(err, domain.ErrNotAuthenticated) {
 		t.Errorf("Create: %v", err)
 	}
 	if _, err := s.List(t.Context(), principal.Anonymous); !errors.Is(err, domain.ErrNotAuthenticated) {
@@ -283,7 +285,7 @@ func TestTokenManagementIsInteractiveAtTheServiceToo(t *testing.T) {
 	s := service(store)
 	viaToken := testdata.Eins.Actor(principal.KindToken, string(policy.RoleLecturer))
 
-	if _, err := s.Create(t.Context(), viaToken, "x", nil, nil); !errors.Is(err, domain.ErrInteractiveOnly) {
+	if _, err := s.Create(t.Context(), viaToken, "x", nil, nil, false); !errors.Is(err, domain.ErrInteractiveOnly) {
 		t.Errorf("Create: %v", err)
 	}
 	if _, err := s.List(t.Context(), viaToken); !errors.Is(err, domain.ErrInteractiveOnly) {
@@ -367,7 +369,7 @@ func TestScopesAreStoredAsTheyWereAsked(t *testing.T) {
 			store := &fakeStore{}
 			actor := testdata.Eins.Actor(principal.KindInteractive, "LECTURER")
 
-			_, err := service(store).Create(t.Context(), actor, "Auswertung", nil, tt.scopes)
+			_, err := service(store).Create(t.Context(), actor, "Auswertung", nil, tt.scopes, false)
 
 			if tt.wantErr != nil {
 				if !errors.Is(err, tt.wantErr) {
@@ -410,12 +412,80 @@ func TestScopesAreNotCheckedAgainstTheOwnersRoles(t *testing.T) {
 	lecturer := testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer))
 
 	_, err := service(store).Create(t.Context(), lecturer, "Auswertung", nil,
-		[]policy.Scope{{Area: policy.ScopeAreaAdmin, Verb: policy.ScopeVerbWrite}})
+		[]policy.Scope{{Area: policy.ScopeAreaAdmin, Verb: policy.ScopeVerbWrite}}, false)
 	if err != nil {
 		t.Fatalf("minting a scope the owner cannot use is not an error, but it failed: %v", err)
 	}
 
 	if got := store.created[0].scopes; strings.Join(got, ",") != "ADMIN:WRITE" {
 		t.Errorf("stored %v, want ADMIN:WRITE", got)
+	}
+}
+
+// TestFullReachIsStoredAndShortLived: the opt-in arrives at the store as asked, and a full-reach
+// token cannot outlive its ceiling — refused rather than clamped, like every other lifetime.
+func TestFullReachIsStoredAndShortLived(t *testing.T) {
+	t.Parallel()
+
+	days := func(n int) *int { return &n }
+	for _, tc := range []struct {
+		name      string
+		request   *int
+		fullReach bool
+		wantErr   error
+	}{
+		{"plain token, default", nil, false, nil},
+		{"full reach, default", nil, true, nil},
+		{"full reach at the ceiling", days(domain.MaxFullReachTokenDays), true, nil},
+		{"full reach past the ceiling", days(domain.MaxFullReachTokenDays + 1), true, domain.ErrFullReachLifetime},
+		{"plain token past the full-reach ceiling", days(domain.MaxFullReachTokenDays + 1), false, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := &fakeStore{}
+			actor := testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleProgrammeLead))
+
+			created, err := service(store).Create(t.Context(), actor, "Planung", tc.request, nil, tc.fullReach)
+			if tc.wantErr != nil {
+				if !errors.Is(err, tc.wantErr) {
+					t.Fatalf("got %v, want %v", err, tc.wantErr)
+				}
+				if len(store.created) != 0 {
+					t.Error("a refused token was stored anyway")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("cannot create: %v", err)
+			}
+			if store.created[0].fullReach != tc.fullReach || created.Record.FullReach != tc.fullReach {
+				t.Errorf("full reach stored %v, returned %v, want %v",
+					store.created[0].fullReach, created.Record.FullReach, tc.fullReach)
+			}
+		})
+	}
+}
+
+// TestAFullReachTokenStillCannotManageTokens: full reach is the browser's reach for planning, not
+// for credentials. A token that could mint its successors would outlive its own 90 days.
+func TestAFullReachTokenStillCannotManageTokens(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeStore{}
+	s := service(store)
+	fullReach := testdata.Eins.FullReachActor(string(policy.RoleDeansOffice))
+
+	if _, err := s.Create(t.Context(), fullReach, "x", nil, nil, true); !errors.Is(err, domain.ErrInteractiveOnly) {
+		t.Errorf("Create: %v", err)
+	}
+	if _, err := s.List(t.Context(), fullReach); !errors.Is(err, domain.ErrInteractiveOnly) {
+		t.Errorf("List: %v", err)
+	}
+	if _, err := s.Revoke(t.Context(), fullReach, "x"); !errors.Is(err, domain.ErrInteractiveOnly) {
+		t.Errorf("Revoke: %v", err)
+	}
+	if len(store.created)+len(store.revoked) != 0 {
+		t.Error("a full-reach token reached the store")
 	}
 }

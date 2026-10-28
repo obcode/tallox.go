@@ -163,6 +163,7 @@ func (a *TokenAuthenticator) Authenticate(ctx context.Context, r *http.Request) 
 		Roles:      stored.Owner.Roles,
 		RoleScopes: stored.Owner.RoleScopes,
 		Scopes:     stored.Scopes,
+		FullReach:  stored.FullReach,
 		Kind:       principal.KindToken,
 		TokenID:    stored.ID,
 	}, nil

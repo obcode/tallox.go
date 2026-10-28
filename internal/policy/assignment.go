@@ -128,10 +128,10 @@ func (f AssignmentFilter) holds(a Assignment) bool {
 //
 // Reads as the sentence it implements: visible iff one holds it oneself, or the assignments of the
 // semester have been published, or the caller is one of the people the process requires to look
-// early — and then only in an interactive session.
+// early — and then only with full reach: a browser session or a full-reach token.
 //
-// The Kind condition is the same clause CanSeeWish carries and is there for the same reason: a
-// Personal Access Token is long-lived, sits in a script, and decouples "who saw this" from any
+// The Kind condition is the same clause CanSeeWish carries and is there for the same reason, with
+// the same exception for a full-reach token: a plain Personal Access Token is long-lived, sits in a script, and decouples "who saw this" from any
 // login event. What one holds oneself stays readable through both doors.
 func CanSeeAssignment(actor principal.Actor, s SemesterState, a Assignment) bool {
 	switch {
@@ -144,7 +144,7 @@ func CanSeeAssignment(actor principal.Actor, s SemesterState, a Assignment) bool
 		return s.AssignmentsPublished() && DemandReadScope(actor).Allows(a.ProgrammeID)
 	case s.AssignmentsPublished():
 		return true
-	case !actor.Interactive():
+	case !actor.ActsWithFullReach():
 		return false
 	default:
 		programmes, groups := UnpublishedAssignmentScope(actor)
@@ -176,7 +176,7 @@ func AssignmentVisibility(actor principal.Actor, s SemesterState) AssignmentFilt
 		}
 	case s.AssignmentsPublished():
 		return AssignmentFilter{Scope: AssignmentReadScopeAll}
-	case !actor.Interactive():
+	case !actor.ActsWithFullReach():
 		return AssignmentFilter{Scope: AssignmentReadScopeOwn, AssigneeID: actor.ID}
 	}
 

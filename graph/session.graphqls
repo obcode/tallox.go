@@ -44,6 +44,14 @@ type Session {
   concluding that something is empty.
   """
   interactive: Boolean!
+  """
+  Whether this caller reaches what a signed-in browser session reaches: `true` in the browser and
+  for a token minted with `fullReach`, `false` for a plain token.
+
+  `false` means the `@fullReach` fields will answer `null` or `FULL_REACH_REQUIRED`. The
+  `@interactiveOnly` fields follow `interactive`, whatever this says.
+  """
+  fullReach: Boolean!
 }
 
 extend type Query {

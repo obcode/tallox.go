@@ -93,6 +93,7 @@ Role                Door          Scoped to   own   other  Query scope
 
 LECTURER            interactive   —           no    no     none
 LECTURER            token         —           no    no     none
+LECTURER            full reach    —           no    no     none
 
 SUBJECT_GROUP_LEAD  interactive   —           no    no     none
 SUBJECT_GROUP_LEAD  interactive   one         yes   no     1 group
@@ -100,15 +101,22 @@ SUBJECT_GROUP_LEAD  interactive   one, two    yes   yes    2 groups
 SUBJECT_GROUP_LEAD  token         —           no    no     none
 SUBJECT_GROUP_LEAD  token         one         yes   no     1 group
 SUBJECT_GROUP_LEAD  token         one, two    yes   yes    2 groups
+SUBJECT_GROUP_LEAD  full reach    —           no    no     none
+SUBJECT_GROUP_LEAD  full reach    one         yes   no     1 group
+SUBJECT_GROUP_LEAD  full reach    one, two    yes   yes    2 groups
 
 PROGRAMME_LEAD      interactive   —           no    no     none
 PROGRAMME_LEAD      token         —           no    no     none
+PROGRAMME_LEAD      full reach    —           no    no     none
 
 DEANS_OFFICE        interactive   —           yes   yes    every group
 DEANS_OFFICE        token         —           yes   yes    every group
+DEANS_OFFICE        full reach    —           yes   yes    every group
 
 PARTNER_READER      interactive   —           no    no     none
 PARTNER_READER      token         —           no    no     none
+PARTNER_READER      full reach    —           no    no     none
 
 ADMIN               interactive   —           no    no     none
 ADMIN               token         —           no    no     none
+ADMIN               full reach    —           no    no     none

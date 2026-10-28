@@ -171,14 +171,17 @@ func (f WishFilter) owns(w Wish) bool {
 //
 // Reads as the sentence it implements: visible iff owner, or the wishes of the semester have
 // been published, or the caller is one of the people the process requires to look early — and
-// then only in an interactive session.
+// then only with full reach: a browser session or a full-reach token.
 //
 // The Kind condition is the least obvious clause and the one most likely to be dropped by
-// somebody tidying up. It is there because a Personal Access Token is a different risk class
-// from a browser session: it is long-lived, it sits in a script, and it makes silent bulk
-// export possible while decoupling "who saw this" from any login event. A planner reading
-// unpublished wishes in the GUI leaves a session behind; the same person's token in a cron
-// job does not. Their own wishes stay readable through both doors — that is their data.
+// somebody tidying up. It is there because a plain Personal Access Token is a different risk
+// class from a browser session: it is long-lived, it sits in a script, and it makes silent bulk
+// export possible while decoupling "who saw this" from any login event. Their own wishes stay
+// readable through both doors — that is their data.
+//
+// A token minted with full reach passes it (ActsWithFullReach). That is an explicit, short-lived
+// choice its owner made in a browser so that they can plan through the API, listed in the nightly
+// report while it holds — the risk is taken knowingly, not by default. Since 2026-10-28.
 func CanSeeWish(a principal.Actor, s SemesterState, w Wish) bool {
 	switch {
 	case !a.Authenticated():
@@ -191,7 +194,7 @@ func CanSeeWish(a principal.Actor, s SemesterState, w Wish) bool {
 		return false
 	case s.WishesPublished():
 		return true
-	case !a.Interactive():
+	case !a.ActsWithFullReach():
 		return false
 	default:
 		programmes, groups := UnpublishedWishScope(a)
@@ -225,7 +228,7 @@ func WishVisibility(a principal.Actor, s SemesterState) WishFilter {
 		return WishFilter{Scope: WishScopeOwn, OwnerID: a.ID}
 	case s.WishesPublished():
 		return WishFilter{Scope: WishScopeAll}
-	case !a.Interactive():
+	case !a.ActsWithFullReach():
 		return WishFilter{Scope: WishScopeOwn, OwnerID: a.ID}
 	}
 

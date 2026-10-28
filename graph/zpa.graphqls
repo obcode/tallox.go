@@ -183,17 +183,17 @@ extend type Query {
   failure this import will actually have is not a wrong result — it is a job that quietly
   stopped weeks ago, while everything looks healthy and the planning uses stale data.
   """
-  zpaSyncRuns(limit: Int = 20): [ZpaSyncRun!]! @interactiveOnly @scope(area: ADMIN, verb: READ)
+  zpaSyncRuns(limit: Int = 20): [ZpaSyncRun!]! @fullReach @scope(area: ADMIN, verb: READ)
 
   """
   One import run, or `null` if there is no such run.
   """
-  zpaSyncRun(id: ID!): ZpaSyncRun @interactiveOnly @scope(area: ADMIN, verb: READ)
+  zpaSyncRun(id: ID!): ZpaSyncRun @fullReach @scope(area: ADMIN, verb: READ)
 
   """
   What one run changed.
   """
-  zpaChanges(runId: ID!): [ZpaChange!]! @interactiveOnly @scope(area: ADMIN, verb: READ)
+  zpaChanges(runId: ID!): [ZpaChange!]! @fullReach @scope(area: ADMIN, verb: READ)
 }
 
 extend type Mutation {
@@ -209,10 +209,10 @@ extend type Mutation {
   while after a successful run, because this reaches into another institution's system and a
   button that can be held down should not be able to hammer it.
 
-  Interactive only. It is an outbound call using a shared credential, and the record of who
-  asked for it should be a person who signed in rather than a token in a script.
+  `@fullReach`: in a signed-in browser session or with a token minted with `fullReach`. It is an
+  outbound call using a shared credential; the access log records which token asked for it.
   """
-  syncZpaNow: ZpaSyncRun! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+  syncZpaNow: ZpaSyncRun! @fullReach @scope(area: ADMIN, verb: WRITE)
 }
 
 # The projection is a second thing that can be stale, and it is deliberately visible as one.
@@ -371,7 +371,7 @@ extend type Query {
   failed projection means fresh payloads behind a stale catalogue, and only this field says so.
   """
   zpaCatalogueProjections(limit: Int = 20): [ZpaCatalogueProjection!]!
-    @interactiveOnly @scope(area: ADMIN, verb: READ)
+    @fullReach @scope(area: ADMIN, verb: READ)
 }
 
 extend type Mutation {
@@ -383,8 +383,8 @@ extend type Mutation {
   3861 objects that have not moved.
 
   Unlike `syncZpaNow` this reaches nothing outside this database, so there is nothing to hammer
-  and no cooling-off period. Interactive only all the same — it rewrites the catalogue everybody
-  plans with, and that should be attributable to somebody who signed in.
+  and no cooling-off period. `@fullReach` like `syncZpaNow` — it rewrites the catalogue everybody
+  plans with, so a plain token does not get it.
   """
-  projectZpaCatalogue: ZpaCatalogueProjection! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
+  projectZpaCatalogue: ZpaCatalogueProjection! @fullReach @scope(area: ADMIN, verb: WRITE)
 }

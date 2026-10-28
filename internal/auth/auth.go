@@ -115,7 +115,10 @@ type Token struct {
 	ID         string
 	SecretHash []byte
 	Scopes     []string
-	ExpiresAt  time.Time
+	// FullReach marks a token its owner minted to reach what they reach in a browser — see
+	// principal.Actor.FullReach.
+	FullReach bool
+	ExpiresAt time.Time
 	// RevokedAt is the zero time for a token that has not been revoked.
 	RevokedAt time.Time
 	Owner     Person

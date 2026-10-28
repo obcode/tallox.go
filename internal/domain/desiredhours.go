@@ -213,7 +213,7 @@ func (s *WishService) CorrectDesiredHours(ctx context.Context, actor principal.A
 	if semesterCode == "" {
 		return nil, ErrSemesterRequired
 	}
-	if !policy.MayReadInteractiveOnly(actor) || !policy.RolesOf(actor).Has(policy.RoleDeansOffice) {
+	if !policy.MayActWithFullReach(actor) || !policy.RolesOf(actor).Has(policy.RoleDeansOffice) {
 		return nil, ErrForbidden
 	}
 	low, high, clear, err := desiredRange(minHours, maxHours)

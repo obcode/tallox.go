@@ -111,8 +111,8 @@ func TestApplyingASplitThroughTheAPI(t *testing.T) {
 
 	t.Run("not through a token, because it can answer PART_ASSIGNED", func(t *testing.T) {
 		resp := graphqltest.New(f.handler).WithToken(testdata.Vier.Token).Do(t, applySplitMutation, args(true))
-		if code := errorCode(t, resp); code != "INTERACTIVE_ONLY" {
-			t.Errorf("through a token it was answered with %s, want INTERACTIVE_ONLY", code)
+		if code := errorCode(t, resp); code != "FULL_REACH_REQUIRED" {
+			t.Errorf("through a token it was answered with %s, want FULL_REACH_REQUIRED", code)
 		}
 	})
 

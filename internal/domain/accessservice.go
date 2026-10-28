@@ -88,5 +88,6 @@ func (s *AccessService) Report(ctx context.Context, now time.Time, window time.D
 // weight, and stays notable for as long as it holds.
 func (r AccessReport) Notable() bool {
 	return len(r.Summary.Refused) > 0 || len(r.Summary.Mutations) > 0 || len(r.Summary.SelfGrants) > 0 ||
+		len(r.Summary.FullReachTokens) > 0 ||
 		r.Summary.Counts.RefusedScope > 0 || r.Summary.Counts.RefusedInteractive > 0
 }

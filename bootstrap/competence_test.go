@@ -255,8 +255,8 @@ func TestTheLeadEntersForATeacherInTheBrowserOnly(t *testing.T) {
 	vars := map[string]any{"m": f.module, "t": teacher.String()}
 
 	resp := graphqltest.New(f.handler).WithToken(testdata.Drei.Token).Do(t, mutation, vars)
-	if code := errorCode(t, resp); code != "INTERACTIVE_ONLY" {
-		t.Errorf("through a token: code %q, want INTERACTIVE_ONLY", code)
+	if code := errorCode(t, resp); code != "FULL_REACH_REQUIRED" {
+		t.Errorf("through a token: code %q, want FULL_REACH_REQUIRED", code)
 	}
 
 	var out struct {
@@ -296,8 +296,8 @@ func TestTheGroupCountsAreTheLeads(t *testing.T) {
 		t.Errorf("a member: code %q, want COMPETENCE_GROUP_REFUSED", code)
 	}
 	resp = graphqltest.New(f.handler).WithToken(testdata.Drei.Token).Do(t, query, vars)
-	if code := errorCode(t, resp); code != "INTERACTIVE_ONLY" {
-		t.Errorf("the lead through a token: code %q, want INTERACTIVE_ONLY", code)
+	if code := errorCode(t, resp); code != "FULL_REACH_REQUIRED" {
+		t.Errorf("the lead through a token: code %q, want FULL_REACH_REQUIRED", code)
 	}
 
 	var out struct {

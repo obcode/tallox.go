@@ -935,14 +935,14 @@ extend type Mutation {
   read — nothing is removed there at all, so the answer says nothing about whether anybody holds
   it). A cohort covered by another programme holds no parts and is skipped.
 
-  Allowed for whoever may call `setModuleComponents`. `@interactiveOnly` because it can answer
+  Allowed for whoever may call `setModuleComponents`. `@fullReach` because it can answer
   `PART_ASSIGNED`, like every write that can. `MODULE_NOT_DECOMPOSED` where there is no split.
   """
   applyModuleSplitToInstances(
     moduleId: ID!
     "Report what would happen and write nothing."
     dryRun: Boolean! = false
-  ): ModuleSplitApplication! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  ): ModuleSplitApplication! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   Mark a module as a practice-accompanying course (PBLV), or take the mark back.

@@ -4,10 +4,10 @@
 -- The secret is generated and hashed by the caller (internal/auth), never here: a secret that
 -- travelled through a query is a secret in a log somewhere.
 INSERT INTO personal_access_token (
-    token_id, owner_id, secret_hash, description, scopes, expires_at
+    token_id, owner_id, secret_hash, description, scopes, expires_at, full_reach
 )
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING token_id, owner_id, description, scopes, created_at, expires_at,
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING token_id, owner_id, description, scopes, full_reach, created_at, expires_at,
           last_used_at, revoked_at;
 
 -- name: TokenByID :one
@@ -35,6 +35,7 @@ SELECT
     t.owner_id,
     t.secret_hash,
     t.scopes,
+    t.full_reach,
     t.expires_at,
     t.revoked_at,
     p.mail,
@@ -64,7 +65,7 @@ GROUP BY t.token_id, p.id;
 -- name: ListTokensOfPerson :many
 -- The token list in the GUI. The secret hash is not in the projection: nothing outside
 -- authentication has a use for it, and a column that is never selected cannot be logged.
-SELECT token_id, owner_id, description, scopes, created_at, expires_at,
+SELECT token_id, owner_id, description, scopes, full_reach, created_at, expires_at,
        last_used_at, revoked_at
 FROM personal_access_token
 WHERE owner_id = $1
@@ -96,5 +97,5 @@ WHERE token_id = $1
 UPDATE personal_access_token
 SET revoked_at = COALESCE(revoked_at, now())
 WHERE token_id = $1 AND owner_id = $2
-RETURNING token_id, owner_id, description, scopes, created_at, expires_at,
+RETURNING token_id, owner_id, description, scopes, full_reach, created_at, expires_at,
           last_used_at, revoked_at;

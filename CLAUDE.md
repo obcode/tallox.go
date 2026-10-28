@@ -188,12 +188,30 @@ credential). A token minted without any carries the empty list. Introspection is
 what makes editor completion and codegen work for colleagues, and it is deliberately on in
 production.
 
-### `@interactiveOnly`
+### `@interactiveOnly` and `@fullReach`: three doors' worth of Kind
 
-A real gqlgen field directive, so *generated* code calls it and no resolver can forget it. On
-nullable fields it returns `null` rather than erroring the whole operation, so scripts stay
-useful and the schema documents the boundary itself. Implemented in `graph/directives.go`,
-decided in `policy.MayReadInteractiveOnly`, wired in `bootstrap` — gqlgen fails closed on a
+Since 2026-10-28 the Kind term distinguishes three callers: a browser session, a **plain**
+Personal Access Token, and a token minted with **full reach**
+(`createPersonalAccessToken(fullReach: true)`, at most 90 days, fixed at creation, listed in the
+nightly access report). `principal.Actor.ActsWithFullReach()` is true for the browser and the
+full-reach token; `policy.MayActWithFullReach` is the rule.
+
+- **`@fullReach`** (code `FULL_REACH_REQUIRED`) is on almost every field that used to be
+  `@interactiveOnly`: demand, assignment, coverage, module split, publishing and freezing, desired
+  and assigned hours of others, teachers' competences, subject groups, the module import. The
+  reach rules (`CanSeeWish`, `AssignmentVisibility`, competences, desired hours, assigned load)
+  ask the same predicate. **The pairing is the argument:** those mutations' refusals answer
+  questions about rows, and a caller gets the mutation exactly when it may read the rows. A plain
+  token gets neither; never open such a mutation to a plain token on its own.
+- **`@interactiveOnly`** (code `INTERACTIVE_ONLY`) is left on token management, person and role
+  administration (including admitting teachers) and the access log — nothing else.
+  `graph.TestOnlyAccessStaysInteractiveOnly` pins that list in both directions.
+
+Both are real gqlgen field directives, so *generated* code calls them and no resolver can forget
+them. On nullable fields they return `null` rather than erroring the whole operation, so scripts
+stay useful and the schema documents the boundary itself. Implemented in `graph/directives.go`,
+decided in `policy.MayReadInteractiveOnly` and `policy.MayActWithFullReach`, wired in
+`bootstrap` — gqlgen fails closed on a
 directive with no implementation, so forgetting the wiring breaks the field loudly rather
 than serving it.
 
@@ -202,14 +220,14 @@ Refusals travel as `*gqlerror.Error` with an `extensions.code` (`INTERACTIVE_ONL
 gets reworded, and matching prose across a repository boundary breaks the first time somebody
 improves a message.
 
-Not reachable via token: other people's desired and assigned teaching hours as *fields* — the
-`assignedLoad` sum and `desiredHoursOverview` are `@interactiveOnly`, the policy answers one's
-own. (Published assignments are readable by token and carry `teachingHours` per part, so the
-sum is *computable* from them; what the token door withholds is the ready-made per-person
-figure, not the arithmetic.) Also unpublished wishes of other people, free-text notes about
-people, any future teaching-load traffic light, **token management itself** (otherwise a leaked
-token mints its successors — refused by the service as well as by the directive), user
-administration, the audit log.
+Not reachable via a **plain** token: other people's desired and assigned teaching hours as
+*fields* — the `assignedLoad` sum and `desiredHoursOverview` are `@fullReach`, the policy answers
+one's own. (Published assignments are readable by token and carry `teachingHours` per part, so
+the sum is *computable* from them; what the plain token door withholds is the ready-made
+per-person figure, not the arithmetic.) Also unpublished wishes of other people and every
+planning mutation. Not reachable via **any** token: **token management itself** (otherwise a
+leaked token mints its successors — refused by the service as well as by the directive), person
+and role administration, the access log.
 
 **Errors leave with a code or not at all.** Every area's mapping ends in `internalRefusal`, and
 `graph.PresentError` replaces whatever still has no `extensions.code` with `INTERNAL` and the
@@ -227,16 +245,18 @@ Belt and braces: keep personnel data in its own root fields rather than hanging 
 ## Policy: the rule that carries the project
 
 Wishes are confidential until published. Visible iff owner ∨ (a planning role or the dean's
-office, **and** an interactive session) ∨ `semester.wishes_published_at IS NOT NULL`. The
-purpose is to end the first-come-first-served race — a leak here is political damage, not a
+office, **and** full reach — a browser session or a full-reach token) ∨
+`semester.wishes_published_at IS NOT NULL`. The purpose is to end the first-come-first-served race — a leak here is political damage, not a
 bug.
 
 Two decisions inside that rule are decisions rather than mechanics, and both are visible in
 the golden matrix:
 
-- A **Personal Access Token never reads somebody else's unpublished wish**, not even for a
+- A **plain Personal Access Token never reads somebody else's unpublished wish**, not even for a
   planner. A token is long-lived, sits in a script, and decouples "who saw this" from any
-  login event. Own entries stay readable through both doors — that is their own data.
+  login event. Own entries stay readable through both doors — that is their own data. A token
+  minted with full reach reads what its owner reads in a browser: an explicit, short-lived,
+  reported choice, so that programme leads can plan from scripts and assistants (2026-10-28).
 - **ADMIN is not on the exception list.** Running the system is a different job from planning
   with it; an administrator who needs to look is granted DEANS_OFFICE, visibly.
 
@@ -268,7 +288,9 @@ derived from the calendar**.
 
 ### Administration, and the two things that protect it
 
-`policy.MayAdministerPeople` is ADMIN **and** an interactive session. Administration is
+`policy.MayAdministerPeople` is ADMIN **and** an interactive session — a full-reach token does
+not count. (`policy.MayAdministerSubjectGroups`, for the subject groups and their leads, does
+accept full reach: decided 2026-10-28.) Administration is
 `@interactiveOnly` because granting somebody a role from a long-lived token in a script would
 decouple "who did this" from any sign-in, and the act it decouples is the granting of access
 itself.
@@ -398,7 +420,10 @@ query leaks.
 **Every rule gets tested through both doors.** `graphqltest.EachDoor` runs the assertion once
 per mount for the same principal. The realistic failure is not a wrong answer — it is a rule
 someone adds for the browser and forgets on the token path. Where the doors are *supposed* to
-differ (`@interactiveOnly`), assert per door explicitly rather than quietly covering one.
+differ (`@interactiveOnly`, `@fullReach`), assert per door explicitly rather than quietly
+covering one — and for `@fullReach`, assert all three: browser, plain token, full-reach token
+(`storetest.TokenOptions{FullReach: true}`, `testdata.Persona.FullReachActor`). The golden
+matrices carry a `full reach` door whose rows must equal the `interactive` ones.
 
 **Test the leak channels, not just the rows.** For any visibility rule, that means a case for
 the count as well as the list, and `graphqltest.AssertNoLeak(t, msg, append(graphqltest.DatabaseNoise(), testdata.Mails(testdata.Others(owner))...)...)`

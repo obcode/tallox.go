@@ -22,6 +22,7 @@ func tokenModel(record domain.TokenRecord) *model.PersonalAccessToken {
 		ID:          record.ID,
 		Description: record.Description,
 		Scopes:      record.Scopes,
+		FullReach:   record.FullReach,
 		CreatedAt:   record.CreatedAt,
 		ExpiresAt:   record.ExpiresAt,
 	}
@@ -60,6 +61,10 @@ func userFacing(err error) error {
 		return refusal("TOKEN_LIFETIME_OUT_OF_RANGE",
 			fmt.Sprintf("Die Gültigkeit muss zwischen %d und %d Tagen liegen.",
 				domain.MinTokenDays, domain.MaxTokenDays))
+	case errors.Is(err, domain.ErrFullReachLifetime):
+		return refusal("TOKEN_LIFETIME_OUT_OF_RANGE",
+			fmt.Sprintf("Ein Planungs-Token mit voller Reichweite gilt höchstens %d Tage.",
+				domain.MaxFullReachTokenDays))
 	case errors.Is(err, domain.ErrNoSuchToken):
 		// The same code and the same sentence for "does not exist" and "belongs to somebody
 		// else" — the difference is not information the caller is entitled to.

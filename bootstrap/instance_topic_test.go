@@ -81,7 +81,7 @@ func TestOnlyTheResponsibleNameASeminar(t *testing.T) {
 
 	// The token door is refused even for somebody who may do this in the browser.
 	resp := graphqltest.New(f.handler).WithToken(testdata.Vier.Token).Do(t, setTopicMutation, vars)
-	assertRefusal(t, resp, "INTERACTIVE_ONLY")
+	assertRefusal(t, resp, "FULL_REACH_REQUIRED")
 
 	// A heading, not a paragraph.
 	resp = graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).Do(t, setTopicMutation,

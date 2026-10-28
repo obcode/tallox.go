@@ -151,6 +151,32 @@ WHERE r.granted_by = r.person_id
   AND (r.expires_at IS NULL OR r.expires_at > sqlc.arg('until')::timestamptz)
 ORDER BY r.granted_at DESC, p.mail, r.role;
 
+-- name: AccessFullReachTokens :many
+-- Personal Access Tokens minted with full reach and still valid at the end of the window, with
+-- what each did inside it.
+--
+-- Such a token reads other people's unpublished wishes and may publish a semester, so — like a
+-- self-granted role — "this credential exists right now" is the standing fact worth reading every
+-- night, not only on the night it was minted. The counts come from the access log by token id,
+-- which is what the log keeps the public half for; arguments are not there and are not needed.
+SELECT p.mail::text AS mail,
+       t.token_id,
+       t.created_at,
+       t.expires_at,
+       count(a.id)::bigint AS operations,
+       count(a.id) FILTER (WHERE a.mutation AND a.outcome = 'OK')::bigint AS changes
+FROM personal_access_token t
+JOIN person p ON p.id = t.owner_id
+LEFT JOIN access_log a
+    ON a.token_id = t.token_id
+   AND a.at >= sqlc.arg('from')::timestamptz
+   AND a.at < sqlc.arg('until')::timestamptz
+WHERE t.full_reach
+  AND t.revoked_at IS NULL
+  AND t.expires_at > sqlc.arg('until')::timestamptz
+GROUP BY p.mail, t.token_id
+ORDER BY t.created_at DESC;
+
 -- name: PruneAccessLog :one
 -- Delete what is older than the cutoff and say how much that was.
 --

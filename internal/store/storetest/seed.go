@@ -51,6 +51,11 @@ type TokenOptions struct {
 	Scopes []string
 	// Description is what the owner called it.
 	Description string
+	// FullReach mints the token with full reach — judged like the owner's browser session.
+	FullReach bool
+	// TokenID overrides the persona's fixture token id, for a second token of the same persona
+	// (a full-reach one beside the plain one). Empty means p.TokenID.
+	TokenID string
 }
 
 // SeedToken inserts a Personal Access Token belonging to a persona.
@@ -69,6 +74,11 @@ func SeedToken(t *testing.T, s *Schema, p testdata.Persona, secretHash []byte, o
 		opts.Scopes = []string{}
 	}
 
+	tokenID := p.TokenID
+	if opts.TokenID != "" {
+		tokenID = opts.TokenID
+	}
+
 	q := s.Queries()
 
 	// Insert with a valid expiry even when the test wants an expired token: the database
@@ -81,12 +91,13 @@ func SeedToken(t *testing.T, s *Schema, p testdata.Persona, secretHash []byte, o
 	}
 
 	if _, err := q.CreateToken(t.Context(), store.CreateTokenParams{
-		TokenID:     p.TokenID,
+		TokenID:     tokenID,
 		OwnerID:     p.ID(),
 		SecretHash:  secretHash,
 		Description: opts.Description,
 		Scopes:      opts.Scopes,
 		ExpiresAt:   insertExpiry,
+		FullReach:   opts.FullReach,
 	}); err != nil {
 		t.Fatalf("cannot seed a token for %s: %v", p.Name, err)
 	}
@@ -99,7 +110,7 @@ func SeedToken(t *testing.T, s *Schema, p testdata.Persona, secretHash []byte, o
 			`UPDATE personal_access_token
 			    SET created_at = $2::timestamptz - interval '1 hour', expires_at = $2
 			  WHERE token_id = $1`,
-			p.TokenID, opts.ExpiresAt)
+			tokenID, opts.ExpiresAt)
 		if err != nil {
 			t.Fatalf("cannot age the token of %s: %v", p.Name, err)
 		}
@@ -107,7 +118,7 @@ func SeedToken(t *testing.T, s *Schema, p testdata.Persona, secretHash []byte, o
 
 	if opts.Revoked {
 		if _, err := q.RevokeTokenOfOwner(t.Context(), store.RevokeTokenOfOwnerParams{
-			TokenID: p.TokenID, OwnerID: p.ID(),
+			TokenID: tokenID, OwnerID: p.ID(),
 		}); err != nil {
 			t.Fatalf("cannot revoke the seeded token of %s: %v", p.Name, err)
 		}

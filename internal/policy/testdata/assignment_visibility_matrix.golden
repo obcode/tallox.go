@@ -15,7 +15,8 @@ An assignment is visible if and only if
     (semester.assignments_published_at IS NOT NULL), or
   · the person is responsible for it — they lead the study programme whose demand the instance
     is, or the subject group the instance's module belongs to, or they are the dean's office
-    — and then only in an interactive session, never through a Personal Access Token.
+    — and then only with full reach (a browser session or a full-reach token), never through a
+    plain Personal Access Token.
 
 Word for word the wish rule with one noun changed, and deliberately so: two rules that read the
 same are two rules a reader can hold in their head at once. What differs is why they exist.
@@ -65,9 +66,10 @@ sides of "is this mine" are then the nil id.
 The one that surprises people
 -----------------------------
 
-**A Personal Access Token never reads somebody else's unpublished assignment**, not even for the
-dean's office. A token is long-lived, sits in a script, and decouples "who saw this" from any
-login event. What one holds oneself stays readable through both doors — that is one's own
+**A plain Personal Access Token never reads somebody else's unpublished assignment**, not even for
+the dean's office. A token is long-lived, sits in a script, and decouples "who saw this" from any
+login event. A token minted with full reach reads what its owner reads in the browser — the
+"full reach" rows equal the "interactive" ones. What one holds oneself stays readable through both doors — that is one's own
 timetable, and building a calendar from it is the first script a colleague will write.
 
 **ADMIN is not on the exception list.** Running the system is a different job from planning with
@@ -97,6 +99,9 @@ LECTURER            interactive  —                published      yes   yes    
 LECTURER            token        —                confidential   yes   no       no       no       own only
 LECTURER            token        —                published      yes   yes      yes      yes      all
 
+LECTURER            full reach   —                confidential   yes   no       no       no       own only
+LECTURER            full reach   —                published      yes   yes      yes      yes      all
+
 
 SUBJECT_GROUP_LEAD  interactive  —                confidential   yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  interactive  —                published      yes   yes      yes      yes      all
@@ -109,6 +114,12 @@ SUBJECT_GROUP_LEAD  token        —                published      yes   yes    
 
 SUBJECT_GROUP_LEAD  token        group 1          confidential   yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        group 1          published      yes   yes      yes      yes      all
+
+SUBJECT_GROUP_LEAD  full reach   —                confidential   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                published      yes   yes      yes      yes      all
+
+SUBJECT_GROUP_LEAD  full reach   group 1          confidential   yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  full reach   group 1          published      yes   yes      yes      yes      all
 
 
 PROGRAMME_LEAD      interactive  —                confidential   yes   no       no       no       own only
@@ -123,12 +134,21 @@ PROGRAMME_LEAD      token        —                published      yes   yes    
 PROGRAMME_LEAD      token        programme 1      confidential   yes   no       no       no       own only
 PROGRAMME_LEAD      token        programme 1      published      yes   yes      yes      yes      all
 
+PROGRAMME_LEAD      full reach   —                confidential   yes   no       no       no       own only
+PROGRAMME_LEAD      full reach   —                published      yes   yes      yes      yes      all
+
+PROGRAMME_LEAD      full reach   programme 1      confidential   yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      full reach   programme 1      published      yes   yes      yes      yes      all
+
 
 DEANS_OFFICE        interactive  —                confidential   yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                published      yes   yes      yes      yes      all
 
 DEANS_OFFICE        token        —                confidential   yes   no       no       no       own only
 DEANS_OFFICE        token        —                published      yes   yes      yes      yes      all
+
+DEANS_OFFICE        full reach   —                confidential   yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                published      yes   yes      yes      yes      all
 
 
 PARTNER_READER      interactive  —                confidential   yes   no       no       no       own only
@@ -137,9 +157,15 @@ PARTNER_READER      interactive  —                published      yes   no     
 PARTNER_READER      token        —                confidential   yes   no       no       no       own only
 PARTNER_READER      token        —                published      yes   no       no       no       own only
 
+PARTNER_READER      full reach   —                confidential   yes   no       no       no       own only
+PARTNER_READER      full reach   —                published      yes   no       no       no       own only
+
 
 ADMIN               interactive  —                confidential   yes   no       no       no       own only
 ADMIN               interactive  —                published      yes   yes      yes      yes      all
 
 ADMIN               token        —                confidential   yes   no       no       no       own only
 ADMIN               token        —                published      yes   yes      yes      yes      all
+
+ADMIN               full reach   —                confidential   yes   no       no       no       own only
+ADMIN               full reach   —                published      yes   yes      yes      yes      all

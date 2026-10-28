@@ -29,7 +29,7 @@ var _ domain.TokenStore = (*Tokens)(nil)
 // CreateToken stores a freshly minted token. The secret itself never reaches this layer —
 // only its hash, which is the whole point of hashing it in the layer that generated it.
 func (t *Tokens) CreateToken(ctx context.Context, tokenID string, ownerID uuid.UUID,
-	secretHash []byte, description string, scopes []string, expiresAt time.Time,
+	secretHash []byte, description string, scopes []string, fullReach bool, expiresAt time.Time,
 ) (domain.TokenRecord, error) {
 	row, err := t.q.CreateToken(ctx, CreateTokenParams{
 		TokenID:     tokenID,
@@ -38,6 +38,7 @@ func (t *Tokens) CreateToken(ctx context.Context, tokenID string, ownerID uuid.U
 		Description: description,
 		Scopes:      scopes,
 		ExpiresAt:   expiresAt,
+		FullReach:   fullReach,
 	})
 	if err != nil {
 		return domain.TokenRecord{}, fmt.Errorf("cannot insert token: %w", err)
@@ -47,6 +48,7 @@ func (t *Tokens) CreateToken(ctx context.Context, tokenID string, ownerID uuid.U
 		ID:          row.TokenID,
 		Description: row.Description,
 		Scopes:      row.Scopes,
+		FullReach:   row.FullReach,
 		CreatedAt:   row.CreatedAt,
 		ExpiresAt:   row.ExpiresAt,
 		LastUsedAt:  nullableTime(row.LastUsedAt),
@@ -68,6 +70,7 @@ func (t *Tokens) TokensOfOwner(ctx context.Context, ownerID uuid.UUID) ([]domain
 			ID:          row.TokenID,
 			Description: row.Description,
 			Scopes:      row.Scopes,
+			FullReach:   row.FullReach,
 			CreatedAt:   row.CreatedAt,
 			ExpiresAt:   row.ExpiresAt,
 			LastUsedAt:  nullableTime(row.LastUsedAt),
@@ -99,6 +102,7 @@ func (t *Tokens) RevokeTokenOfOwner(ctx context.Context, tokenID string, ownerID
 		ID:          row.TokenID,
 		Description: row.Description,
 		Scopes:      row.Scopes,
+		FullReach:   row.FullReach,
 		CreatedAt:   row.CreatedAt,
 		ExpiresAt:   row.ExpiresAt,
 		LastUsedAt:  nullableTime(row.LastUsedAt),

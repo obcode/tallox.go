@@ -23,6 +23,13 @@ type PersonalAccessToken {
   bounded by its owner's roles alone.
   """
   scopes: [String!]!
+  """
+  Whether this token was minted with full reach: it reaches what you reach in a signed-in browser
+  session — the planning moves marked `@fullReach`, and the unpublished rows your roles let you
+  read — except token management, person and role administration and the access log. Fixed at
+  creation.
+  """
+  fullReach: Boolean!
   createdAt: Time!
   """
   When this token stops working. There is no token without an expiry: 90 days by default, 365
@@ -74,8 +81,10 @@ extend type Query {
 """
 Everything that changes something.
 
-All of it is `@interactiveOnly` for now: writing happens in a signed-in browser session, not
-through a Personal Access Token.
+Most of it is `@fullReach`: it answers in a signed-in browser session and through a token minted
+with `fullReach`, and refuses a plain token with `FULL_REACH_REQUIRED`. Token management, person and
+role administration are `@interactiveOnly` and answer no token at all. Writing your own wishes,
+competences and desired hours works through every token. Each field says which applies.
 """
 type Mutation {
   """
@@ -106,6 +115,17 @@ type Mutation {
     never two different things.
     """
     scopes: [ScopeGrantInput!]
+    """
+    Mint a token with full reach: it reaches what you reach in a signed-in browser session —
+    other people's unpublished wishes, assignments and competences as far as your roles allow,
+    and every planning move marked `@fullReach` (declaring demand, filling parts, publishing).
+    Token management, person and role administration and the access log stay browser-only.
+
+    For planning from a script or an assistant. **At most 90 days** (`TOKEN_LIFETIME_OUT_OF_RANGE`
+    otherwise), fixed at creation, and listed in the nightly access report while it is valid.
+    Whatever reads the token's answers reads confidential data — an assistant included.
+    """
+    fullReach: Boolean! = false
   ): CreatedPersonalAccessToken! @interactiveOnly @scope(area: TOKENS, verb: WRITE)
 
   """

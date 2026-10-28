@@ -100,14 +100,14 @@ func TestTheDesiredHoursProcessThroughBothDoors(t *testing.T) {
 	}
 	mustRefuseWith(t, graphqltest.New(f.handler).WithToken(testdata.Zwei.Token),
 		`query($s: String!) { desiredHoursOverview(semester: $s) { person { id } } }`,
-		map[string]any{"s": f.semester}, "INTERACTIVE_ONLY")
+		map[string]any{"s": f.semester}, "FULL_REACH_REQUIRED")
 
 	// Publishing before the freeze is refused, and so is freezing through a token.
 	mustRefuseWith(t, deans, `mutation($s: String!) { publishDesiredHours(code: $s) { code } }`,
 		map[string]any{"s": f.semester}, "DESIRED_HOURS_NOT_FROZEN")
 	mustRefuseWith(t, graphqltest.New(f.handler).WithToken(testdata.Fuenf.Token),
 		`mutation($s: String!) { freezeDesiredHours(code: $s) { code } }`,
-		map[string]any{"s": f.semester}, "INTERACTIVE_ONLY")
+		map[string]any{"s": f.semester}, "FULL_REACH_REQUIRED")
 
 	var frozen struct {
 		FreezeDesiredHours struct{ DesiredHoursFrozenAt *string }
@@ -167,7 +167,7 @@ func TestTheDesiredHoursProcessThroughBothDoors(t *testing.T) {
 	}
 	mustRefuseWith(t, byToken,
 		`query($s: String!) { desiredHoursOverview(semester: $s) { person { id } } }`,
-		map[string]any{"s": f.semester}, "INTERACTIVE_ONLY")
+		map[string]any{"s": f.semester}, "FULL_REACH_REQUIRED")
 
 	// The person sees their own note and who corrected it, through either door.
 	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,

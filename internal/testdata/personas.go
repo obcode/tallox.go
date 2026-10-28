@@ -93,6 +93,14 @@ func (p Persona) Actor(kind principal.Kind, roles ...string) principal.Actor {
 	return a
 }
 
+// FullReachActor is the persona behind a Personal Access Token minted with full reach — the third
+// Kind every rule has to be read against, beside the browser and the plain token.
+func (p Persona) FullReachActor(roles ...string) principal.Actor {
+	a := p.Actor(principal.KindToken, roles...)
+	a.FullReach = true
+	return a
+}
+
 // The cast. Deliberately small: a fixture set large enough that nobody remembers who is who
 // is a fixture set where tests get written against the wrong person.
 var (

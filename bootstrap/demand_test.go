@@ -446,8 +446,8 @@ func TestTheDemandIsReadableByAnybodyWithAnAccount(t *testing.T) {
 		})
 
 	resp := graphqltest.New(f.handler).WithToken(testdata.Eins.Token).Do(t, withdraw, variables)
-	if code := errorCode(t, resp); code != "INTERACTIVE_ONLY" {
-		t.Errorf("through a token the withdrawal was answered with %s, want INTERACTIVE_ONLY — "+
+	if code := errorCode(t, resp); code != "FULL_REACH_REQUIRED" {
+		t.Errorf("through a token the withdrawal was answered with %s, want FULL_REACH_REQUIRED — "+
 			"a refusal that reached the instance would be an answer about who wants it", code)
 	}
 }

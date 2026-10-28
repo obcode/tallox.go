@@ -253,12 +253,51 @@ func TestTokenRulesTheDatabaseEnforces(t *testing.T) {
 				ExpiresAt:  time.Now().Add(time.Hour),
 			},
 		},
+		{
+			// A token with full reach reads unpublished wishes; the domain caps it at 90 days and
+			// this is the backstop for every other way into the table. A plain token may live
+			// that long — the next test proves the constraint is about the flag.
+			name: "full reach beyond 91 days",
+			params: store.CreateTokenParams{
+				TokenID:    "XXXXXXXXXXXXXXXX",
+				OwnerID:    testdata.Eins.ID(),
+				SecretHash: hash(7),
+				Scopes:     []string{},
+				ExpiresAt:  time.Now().Add(120 * 24 * time.Hour),
+				FullReach:  true,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, err := s.Queries().CreateToken(t.Context(), tc.params); err == nil {
 				t.Error("the database accepted it")
 			}
 		})
+	}
+}
+
+// TestAPlainTokenMayOutliveTheFullReachCeiling keeps the constraint above honest: it refuses a long
+// lifetime because of full reach, not because of the lifetime.
+func TestAPlainTokenMayOutliveTheFullReachCeiling(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	storetest.SeedPerson(t, s, testdata.Eins)
+
+	params := store.CreateTokenParams{
+		TokenID:    "WWWWWWWWWWWWWWWW",
+		OwnerID:    testdata.Eins.ID(),
+		SecretHash: hash(8),
+		Scopes:     []string{},
+		ExpiresAt:  time.Now().Add(120 * 24 * time.Hour),
+	}
+	if _, err := s.Queries().CreateToken(t.Context(), params); err != nil {
+		t.Fatalf("a plain token of 120 days was refused: %v", err)
+	}
+	params.TokenID, params.SecretHash, params.FullReach = "VVVVVVVVVVVVVVVV", hash(9), true
+	params.ExpiresAt = time.Now().Add(90 * 24 * time.Hour)
+	if _, err := s.Queries().CreateToken(t.Context(), params); err != nil {
+		t.Fatalf("a full-reach token of 90 days was refused: %v", err)
 	}
 }
 

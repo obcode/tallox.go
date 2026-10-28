@@ -31,6 +31,7 @@ func (r *queryResolver) Session(ctx context.Context) (*model.Session, error) {
 		GrantedRoles:   policy.RolesOf(actor).Sorted(),
 		Narrowed:       actor.Narrowed(),
 		Interactive:    actor.Interactive(),
+		FullReach:      actor.ActsWithFullReach(),
 	}
 
 	if actor.Narrowed() {

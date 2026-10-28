@@ -14,6 +14,74 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const accessFullReachTokens = `-- name: AccessFullReachTokens :many
+SELECT p.mail::text AS mail,
+       t.token_id,
+       t.created_at,
+       t.expires_at,
+       count(a.id)::bigint AS operations,
+       count(a.id) FILTER (WHERE a.mutation AND a.outcome = 'OK')::bigint AS changes
+FROM personal_access_token t
+JOIN person p ON p.id = t.owner_id
+LEFT JOIN access_log a
+    ON a.token_id = t.token_id
+   AND a.at >= $1::timestamptz
+   AND a.at < $2::timestamptz
+WHERE t.full_reach
+  AND t.revoked_at IS NULL
+  AND t.expires_at > $2::timestamptz
+GROUP BY p.mail, t.token_id
+ORDER BY t.created_at DESC
+`
+
+type AccessFullReachTokensParams struct {
+	From  time.Time
+	Until time.Time
+}
+
+type AccessFullReachTokensRow struct {
+	Mail       string
+	TokenID    string
+	CreatedAt  time.Time
+	ExpiresAt  time.Time
+	Operations int64
+	Changes    int64
+}
+
+// Personal Access Tokens minted with full reach and still valid at the end of the window, with
+// what each did inside it.
+//
+// Such a token reads other people's unpublished wishes and may publish a semester, so — like a
+// self-granted role — "this credential exists right now" is the standing fact worth reading every
+// night, not only on the night it was minted. The counts come from the access log by token id,
+// which is what the log keeps the public half for; arguments are not there and are not needed.
+func (q *Queries) AccessFullReachTokens(ctx context.Context, arg AccessFullReachTokensParams) ([]AccessFullReachTokensRow, error) {
+	rows, err := q.db.Query(ctx, accessFullReachTokens, arg.From, arg.Until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AccessFullReachTokensRow{}
+	for rows.Next() {
+		var i AccessFullReachTokensRow
+		if err := rows.Scan(
+			&i.Mail,
+			&i.TokenID,
+			&i.CreatedAt,
+			&i.ExpiresAt,
+			&i.Operations,
+			&i.Changes,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const accessLogByRole = `-- name: AccessLogByRole :many
 SELECT role::text AS role, count(*)::bigint AS operations
 FROM access_log, unnest(roles) AS role

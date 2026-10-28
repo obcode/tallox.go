@@ -21,13 +21,13 @@ import (
 // So there are three states, and each rule below is one of them:
 //
 //   - Open: the person states and changes their own (MayStateDesiredHours). Read by the person, by
-//     the lead of any of their subject groups and by the dean's office; through a token only
+//     the lead of any of their subject groups and by the dean's office; through a plain token only
 //     one's own. The competence rule turned towards the person: there is no module and no
 //     instance, so responsibility runs through the subject groups the person is a member of.
 //   - Frozen: only the dean's office changes a figure, anybody's (MayCorrectDesiredHours). The
 //     correction is agreed with the person and recorded as the dean's office's.
-//   - Published: everybody reads the range in a signed-in session. Still frozen — the figures
-//     colleagues plan against do not move under them. Through a token it stays one's own: the
+//   - Published: everybody reads the range with full reach. Still frozen — the figures
+//     colleagues plan against do not move under them. Through a plain token it stays one's own: the
 //     whole faculty's teaching plans in one script call is the silent bulk export rule 2 exists
 //     against, and nothing in the process needs it (decided 2026-10-25).
 //
@@ -91,7 +91,7 @@ func CanSeeDesiredHours(a principal.Actor, s SemesterState, d DesiredHours) bool
 		return false
 	case a.Owns(d.OwnerID):
 		return true
-	case PartnerOnly(a), !a.Interactive():
+	case PartnerOnly(a), !a.ActsWithFullReach():
 		return false
 	case s.DesiredHoursPublished():
 		return true
@@ -108,7 +108,7 @@ func CanReadDesiredHoursNote(a principal.Actor, d DesiredHours) bool {
 		return false
 	case a.Owns(d.OwnerID):
 		return true
-	case !a.Interactive():
+	case !a.ActsWithFullReach():
 		return false
 	default:
 		groups := AssignmentScope(a)
@@ -118,14 +118,14 @@ func CanReadDesiredHoursNote(a principal.Actor, d DesiredHours) bool {
 
 // DesiredHoursVisibility returns the read rule for the range as a query filter.
 //
-// Published, it is everybody's in a signed-in session, except a partner faculty's, which reads its
-// own and nothing else — the line WishVisibility draws, for the reason it gives. A token reads its
+// Published, it is everybody's with full reach, except a partner faculty's, which reads its
+// own and nothing else — the line WishVisibility draws, for the reason it gives. A plain token reads its
 // own in every state. Before publication it is the note's rule.
 func DesiredHoursVisibility(a principal.Actor, s SemesterState) DesiredHoursFilter {
 	switch {
 	case !a.Authenticated():
 		return DesiredHoursFilter{Scope: DesiredHoursScopeNone}
-	case PartnerOnly(a), !a.Interactive():
+	case PartnerOnly(a), !a.ActsWithFullReach():
 		return DesiredHoursFilter{Scope: DesiredHoursScopeOwn, OwnerID: a.ID}
 	case s.DesiredHoursPublished():
 		return DesiredHoursFilter{Scope: DesiredHoursScopeAll}
@@ -144,7 +144,7 @@ func DesiredHoursNoteVisibility(a principal.Actor) DesiredHoursFilter {
 	switch {
 	case !a.Authenticated():
 		return DesiredHoursFilter{Scope: DesiredHoursScopeNone}
-	case !a.Interactive():
+	case !a.ActsWithFullReach():
 		return DesiredHoursFilter{Scope: DesiredHoursScopeOwn, OwnerID: a.ID}
 	}
 
@@ -175,12 +175,13 @@ func MayStateDesiredHours(a principal.Actor, s SemesterState) bool {
 
 // MayCorrectDesiredHours reports whether the actor may change somebody's figure after the freeze.
 //
-// The dean's office, in a signed-in session, in a frozen semester that is not finished. Only after
+// The dean's office, with full reach, in a frozen semester that is not finished. Only after
 // the freeze: before it the figure is the person's to change, and a correction then would be
-// overwritten by the next thing they type. Interactive only, because it is a change to somebody
-// else's statement and the person will ask who made it — that should be a sign-in, not a script.
+// overwritten by the next thing they type. With full reach only, because it is a change to
+// somebody else's statement and the person will ask who made it — a sign-in, or a token minted for
+// planning whose id the access log keeps; never a plain token in a script.
 func MayCorrectDesiredHours(a principal.Actor, s SemesterState) bool {
-	return MayReadInteractiveOnly(a) && RolesOf(a).Has(RoleDeansOffice) &&
+	return MayActWithFullReach(a) && RolesOf(a).Has(RoleDeansOffice) &&
 		s.DesiredHoursFrozen() && s.Phase != PhaseFinal
 }
 
@@ -190,4 +191,4 @@ const DesiredHoursFrozenReason = "Die Wunsch-SWS dieses Semesters sind eingefror
 
 // CorrectDesiredHoursReason is what a caller who failed MayCorrectDesiredHours is told.
 const CorrectDesiredHoursReason = "Nur das Dekanat kann eingefrorene Wunsch-SWS ändern, und " +
-	"nur im Browser, nicht über ein Personal Access Token."
+	"nur im Browser oder mit einem Planungs-Token mit voller Reichweite."

@@ -211,6 +211,35 @@ func TestProxyDoorIgnoresBearerTokens(t *testing.T) {
 	}
 }
 
+// TestTwoIdentityHeadersAreRefusedNotPicked is the second line behind the proxy: a request
+// that asserts two identities is nobody, not the first of them. The shape is what a proxy that
+// appends X-Remote-User produces — the client's value first, the verified one second — and
+// reading the first would hand the client whichever account it named.
+func TestTwoIdentityHeadersAreRefusedNotPicked(t *testing.T) {
+	t.Parallel()
+
+	users := fakeUsers{people: map[string]*auth.Person{
+		testdata.Eins.Mail: person(testdata.Eins, policy.RoleLecturer),
+		testdata.Zwei.Mail: person(testdata.Zwei, policy.RoleLecturer),
+	}}
+
+	for _, mode := range []auth.Mode{auth.ModeProxy, auth.ModeDev} {
+		a := auth.NewProxyAuthenticator(auth.Config{Mode: mode, Users: users})
+
+		r := request(auth.HeaderRemoteUser, testdata.Zwei.Mail)
+		r.Header.Add(auth.HeaderRemoteUser, testdata.Eins.Mail)
+
+		got, err := a.Authenticate(t.Context(), r)
+		if !errors.Is(err, auth.ErrAmbiguousIdentity) {
+			t.Errorf("mode %s: two X-Remote-User headers authenticated %s (err=%v), want a refusal",
+				mode, got, err)
+		}
+		if got.Authenticated() {
+			t.Errorf("mode %s: an ambiguous request became %s", mode, got.Mail)
+		}
+	}
+}
+
 // TestDevModeInjectsAUserButKeepsTheHeaderWorking covers both halves of auth.mode=dev.
 //
 // Without a header there is a development user, so the GUI is usable without an auth proxy.

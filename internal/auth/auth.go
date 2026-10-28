@@ -18,6 +18,10 @@
 // reachable directly. That is a deployment property, and it is asserted in deploy/ rather
 // than here.
 //
+// One thing is checked here all the same, because it costs a line and catches the proxy that
+// appends instead of replacing: a request carrying the header more than once is refused
+// rather than read from the first value. A correctly configured proxy sets exactly one.
+//
 // The token door is different: nothing in front of it verifies anything, so this package does.
 //
 // # Errors are answers, not surprises
@@ -189,6 +193,10 @@ var (
 	// how a leaver loses everything at once, tokens included, so this is checked on both
 	// doors.
 	ErrInactiveUser = errors.New("account is deactivated")
+	// ErrAmbiguousIdentity: the browser door saw X-Remote-User more than once. A proxy that
+	// appends rather than replaces, or a request that did not pass the proxy at all — either
+	// way nothing here is trusted.
+	ErrAmbiguousIdentity = errors.New("more than one identity asserted")
 	// ErrMalformedToken: the Authorization header is not a Tallox token.
 	ErrMalformedToken = errors.New("token is malformed")
 	// ErrInvalidToken: no such token, or the secret does not match. Deliberately one error
@@ -269,6 +277,10 @@ func severity(err error) zerolog.Level {
 	switch {
 	case errors.Is(err, ErrUnavailable):
 		return zerolog.ErrorLevel
+	case errors.Is(err, ErrAmbiguousIdentity):
+		// Not something a client can cause from outside: Caddy strips the header before any
+		// branch. Seeing it means the proxy or the network is not what deploy/ says it is.
+		return zerolog.WarnLevel
 	case errors.Is(err, ErrUnknownUser),
 		errors.Is(err, ErrInactiveUser),
 		errors.Is(err, ErrExpiredToken),
@@ -298,6 +310,9 @@ func refusal(err error) (int, string) {
 	case errors.Is(err, ErrInactiveUser):
 		return http.StatusUnauthorized,
 			"Dieses Konto ist deaktiviert."
+	case errors.Is(err, ErrAmbiguousIdentity):
+		return http.StatusUnauthorized,
+			"Die Anmeldung ist nicht eindeutig. Bitte neu anmelden."
 	case errors.Is(err, ErrExpiredToken):
 		return http.StatusUnauthorized,
 			"Das Token ist abgelaufen. Bitte ein neues anlegen."

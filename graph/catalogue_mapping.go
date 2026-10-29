@@ -80,6 +80,7 @@ func moduleModel(m domain.Module) *model.Module {
 		Source:                  m.Source,
 		Kind:                    m.Kind,
 		ProjectBased:            m.ProjectBased,
+		EnglishPossible:         m.EnglishPossible(),
 		SemesterSpan:            max(m.SemesterSpan, 1),
 		ContactHoursPerSemester: m.ContactHoursPerSemester(),
 		Domain:                  m,

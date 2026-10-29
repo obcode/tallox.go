@@ -117,7 +117,11 @@ SELECT s.id, s.code, s.phase, s.wishes_published_at,
        (EXISTS (SELECT 1 FROM instance_part ip WHERE ip.course_instance_id = ci.id)
         AND NOT EXISTS (SELECT 1 FROM instance_part ip
                         WHERE ip.course_instance_id = ci.id AND ip.taught_by IS NULL)
-       )::boolean AS taught_elsewhere
+       )::boolean AS taught_elsewhere,
+       -- What the module description says about language, for the rule that CiE may only be
+       -- offered where it names English (domain.Module.EnglishPossible decides).
+       m.source AS module_source, m.teaching_language AS module_teaching_language,
+       m.other_language AS module_other_language
 FROM course_instance ci
 JOIN semester s ON s.id = ci.semester_id
 JOIN module m ON m.id = ci.module_id

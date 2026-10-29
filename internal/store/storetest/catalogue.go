@@ -249,10 +249,11 @@ func moduleResponsibleTo(id int64, owner, courseType, frequency string, sws, cre
 			// over: the projection has to resolve it to a teacher, and the test that asserts it
 			// never lands in the module table needs a row that has one.
 			"responsible": responsible,
-			"languages":   "DE",
-			"std_lang":    "DE",
-			"effort":      "30 Präsenzstunden Vorlesung, 30 Präsenzstunden Praktikum",
-			"content":     "Beispielhafte Inhalte.",
+			// The commonest real case: German by default, English possible (295 of 509 modules).
+			"languages": "EN",
+			"std_lang":  "DE",
+			"effort":    "30 Präsenzstunden Vorlesung, 30 Präsenzstunden Praktikum",
+			"content":   "Beispielhafte Inhalte.",
 		},
 	}
 }

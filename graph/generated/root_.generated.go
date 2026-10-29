@@ -295,6 +295,7 @@ type ComplexityRoot struct {
 		CourseType              func(childComplexity int) int
 		Credits                 func(childComplexity int) int
 		DutyStatus              func(childComplexity int, programme string) int
+		EnglishPossible         func(childComplexity int) int
 		Frequency               func(childComplexity int) int
 		HandbookURL             func(childComplexity int) int
 		HomeProgramme           func(childComplexity int) int
@@ -424,7 +425,7 @@ type ComplexityRoot struct {
 		SetSubjectGroupMembers        func(childComplexity int, id string, personIds []string) int
 		SetTeacherAdmitted            func(childComplexity int, teacherID string, admitted bool) int
 		SetTeacherCompetence          func(childComplexity int, moduleID string, teacherID string, level domain.CompetenceLevel, note *string) int
-		SetWish                       func(childComplexity int, courseInstanceID string, priority domain.WishPriority, note *string) int
+		SetWish                       func(childComplexity int, courseInstanceID string, priority domain.WishPriority, note *string, cie bool) int
 		SetWishTrackLimit             func(childComplexity int, courseInstanceID string, maxTracks *int) int
 		SetWishWindow                 func(childComplexity int, semester string, subjectGroupID string, open bool) int
 		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
@@ -665,6 +666,7 @@ type ComplexityRoot struct {
 	}
 
 	Wish struct {
+		Cie        func(childComplexity int) int
 		CreatedAt  func(childComplexity int) int
 		ID         func(childComplexity int) int
 		Instance   func(childComplexity int) int
@@ -1820,6 +1822,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.DutyStatus(childComplexity, args["programme"].(string)), true
+	case "Module.englishPossible":
+		if e.ComplexityRoot.Module.EnglishPossible == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.EnglishPossible(childComplexity), true
 	case "Module.frequency":
 		if e.ComplexityRoot.Module.Frequency == nil {
 			break
@@ -2753,7 +2761,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.SetWish(childComplexity, args["courseInstanceId"].(string), args["priority"].(domain.WishPriority), args["note"].(*string)), true
+		return e.ComplexityRoot.Mutation.SetWish(childComplexity, args["courseInstanceId"].(string), args["priority"].(domain.WishPriority), args["note"].(*string), args["cie"].(bool)), true
 	case "Mutation.setWishTrackLimit":
 		if e.ComplexityRoot.Mutation.SetWishTrackLimit == nil {
 			break
@@ -4063,6 +4071,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.TeachingLoadShare.TeachingHours(childComplexity), true
 
+	case "Wish.cie":
+		if e.ComplexityRoot.Wish.Cie == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.Cie(childComplexity), true
 	case "Wish.createdAt":
 		if e.ComplexityRoot.Wish.CreatedAt == nil {
 			break
@@ -5272,7 +5286,11 @@ extend type Mutation {
   office's catalogue. A value equal to that default is stored as ` + "`" + `null` + "`" + ` too, so the cohort keeps
   following the catalogue.
 
-  Refusals: ` + "`" + `INSTANCE_NOT_FOUND` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + `, ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + `.
+  English only where the module description names it (` + "`" + `Module.englishPossible` + "`" + `). A cohort that
+  already runs in English keeps it when its delivery is saved.
+
+  Refusals: ` + "`" + `INSTANCE_NOT_FOUND` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + `, ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + `,
+  ` + "`" + `ENGLISH_NOT_OFFERED` + "`" + `.
   """
   setCourseInstanceFormat(
     "The cohort."
@@ -5286,10 +5304,15 @@ extend type Mutation {
   """
   List a cohort as a course in English (CiE), or take it off the list.
 
-  Bound by the same rule as ` + "`" + `setCourseInstanceFormat` + "`" + `: the lead of the module's subject group, the
-  lead of the instance's study programme, or the dean's office, while the semester is not ` + "`" + `FINAL` + "`" + `.
+  The rule of ` + "`" + `setCourseInstanceFormat` + "`" + ` — the lead of the module's subject group, the lead of the
+  instance's study programme, or the dean's office — and in addition whoever teaches a part of the
+  cohort (a lecture shared with the parallel cohorts included), while the semester is not ` + "`" + `FINAL` + "`" + `.
 
-  Refusals: ` + "`" + `INSTANCE_NOT_FOUND` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + `, ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + `.
+  Listing needs a module whose description names English (` + "`" + `Module.englishPossible` + "`" + `); taking a
+  cohort off the list never does.
+
+  Refusals: ` + "`" + `INSTANCE_NOT_FOUND` + "`" + `, ` + "`" + `NOT_YOUR_SUBJECT` + "`" + `, ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + `,
+  ` + "`" + `ENGLISH_NOT_OFFERED` + "`" + `.
   """
   setCourseInstanceCiE(
     "The cohort."
@@ -5697,6 +5720,14 @@ type Module {
   meaning: it does not mean project-based, and ` + "`" + `courseType: PROJECT` + "`" + ` is a different thing.
   """
   projectBased: Boolean!
+  """
+  Whether the module description names English, as the default language or as the other one the
+  module may be taught in. Only then may a cohort be marked as taught in English, listed as a
+  course in English (CiE), or offered as one with a wish — ` + "`" + `ENGLISH_NOT_OFFERED` + "`" + ` otherwise.
+
+  Always ` + "`" + `true` + "`" + ` for a module of the faculty's own (` + "`" + `source: LOCAL` + "`" + `): it has no description to read.
+  """
+  englishPossible: Boolean!
   """
   Over how many semesters the module runs: 1, or 2 for one the examination office states with the
   hours of both semesters added up — 8 SWS, taught 4 in the winter and 4 in the summer. Such a
@@ -9149,6 +9180,13 @@ type Wish {
   """
   trackLimit: Int
   """
+  The owner's offer to give the cohort as a course in English (CiE). An offer and nothing more: it
+  does not list the cohort (` + "`" + `CourseInstance.cie` + "`" + `) and is no criterion of the assignment.
+
+  Visible wherever the wish is, like ` + "`" + `priority` + "`" + `.
+  """
+  cie: Boolean!
+  """
   When it was first registered. ` + "`" + `null` + "`" + ` where the note is empty for you: the order in which people
   registered is the first-come information the confidentiality rule exists to make irrelevant.
   """
@@ -9226,6 +9264,11 @@ extend type Mutation {
     priority: WishPriority! = HAPPY_TO
     "Up to 500 characters, or nothing at all."
     note: String
+    """
+    Whether you would give it as a course in English. Like ` + "`" + `note` + "`" + `, written with every call: leaving
+    it out is ` + "`" + `false` + "`" + `. ` + "`" + `ENGLISH_NOT_OFFERED` + "`" + ` where the module description does not name English.
+    """
+    cie: Boolean! = false
   ): Wish! @scope(area: WISHES, verb: WRITE)
 
   """
@@ -10322,6 +10365,8 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_kind(ctx, field)
 	case "projectBased":
 		return ec.fieldContext_Module_projectBased(ctx, field)
+	case "englishPossible":
+		return ec.fieldContext_Module_englishPossible(ctx, field)
 	case "semesterSpan":
 		return ec.fieldContext_Module_semesterSpan(ctx, field)
 	case "contactHoursPerSemester":
@@ -10842,6 +10887,8 @@ func (ec *executionContext) childFields_Wish(ctx context.Context, field graphql.
 		return ec.fieldContext_Wish_note(ctx, field)
 	case "trackLimit":
 		return ec.fieldContext_Wish_trackLimit(ctx, field)
+	case "cie":
+		return ec.fieldContext_Wish_cie(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_Wish_createdAt(ctx, field)
 	case "updatedAt":

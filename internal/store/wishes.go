@@ -146,7 +146,7 @@ func (w *Wishes) WishByID(ctx context.Context, id uuid.UUID,
 
 // SetWish registers or updates one person's own interest.
 func (w *Wishes) SetWish(ctx context.Context, instanceID, personID uuid.UUID,
-	priority domain.WishPriority, note string) (*domain.Wish, error) {
+	priority domain.WishPriority, note string, cie bool) (*domain.Wish, error) {
 	level, ok := priority.Level()
 	if !ok {
 		return nil, domain.ErrWishPriorityInvalid
@@ -157,6 +157,7 @@ func (w *Wishes) SetWish(ctx context.Context, instanceID, personID uuid.UUID,
 		PersonID:         personID,
 		Priority:         level,
 		Note:             note,
+		Cie:              cie,
 	})
 	// The instance may have been withdrawn between the phase check and the write.
 	if isForeignKeyViolation(err) {
@@ -269,6 +270,7 @@ type wishRow struct {
 	PersonID          uuid.UUID
 	Priority          int16
 	Note              string
+	Cie               bool
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	Track             string
@@ -317,6 +319,7 @@ func wishFrom(row wishRow) domain.Wish {
 		SubjectGroupID: row.SubjectGroupID.UUID,
 		Priority:       domain.WishPriorityFromLevel(row.Priority),
 		Note:           row.Note,
+		CiE:            row.Cie,
 		TrackLimit:     trackLimitFrom(row.TrackLimit),
 		CreatedAt:      row.CreatedAt,
 		UpdatedAt:      row.UpdatedAt,

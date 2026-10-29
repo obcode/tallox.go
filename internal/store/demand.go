@@ -792,6 +792,19 @@ func (d *Demand) SetCourseInstanceTopic(ctx context.Context, id uuid.UUID, topic
 	return instance, nil
 }
 
+// TeachesCourseInstance reports whether the person holds a part of the cohort, a shared lecture of
+// its parallel cohorts included.
+func (d *Demand) TeachesCourseInstance(ctx context.Context, instanceID, personID uuid.UUID) (bool, error) {
+	teaches, err := New(d.pool).TeachesCourseInstance(ctx, TeachesCourseInstanceParams{
+		InstanceID: instanceID,
+		PersonID:   personID,
+	})
+	if err != nil {
+		return false, fmt.Errorf("cannot read who teaches the instance: %w", err)
+	}
+	return teaches, nil
+}
+
 // SetCourseInstanceCiE writes whether a cohort is listed as a course in English.
 func (d *Demand) SetCourseInstanceCiE(ctx context.Context, id uuid.UUID, cie bool) (*domain.CourseInstance, error) {
 	if err := New(d.pool).UpdateCourseInstanceCiE(ctx, UpdateCourseInstanceCiEParams{

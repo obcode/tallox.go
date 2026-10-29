@@ -146,6 +146,11 @@ type Wish struct {
 	// because it belongs to the group; visible wherever the wish is, like the priority — it is
 	// part of what somebody wants, not their own words.
 	TrackLimit int
+	// CiE is the owner's offer to give the cohort as a course in English. An offer and nothing
+	// more: it lists nothing and is no criterion of the assignment (decided 2026-10-29). Visible
+	// wherever the wish is, like the priority — it is part of what somebody offers, not their own
+	// words.
+	CiE bool
 
 	// CreatedAt and UpdatedAt are the zero time where the reader may not see the details: the order
 	// in which people registered is the first-come information the rule exists to make irrelevant.
@@ -210,7 +215,7 @@ type WishStore interface {
 	WishByID(ctx context.Context, id uuid.UUID, filter policy.WishFilter) (*Wish, error)
 	// SetWish registers or updates the actor's own interest and returns the row.
 	SetWish(ctx context.Context, instanceID, personID uuid.UUID, priority WishPriority,
-		note string) (*Wish, error)
+		note string, cie bool) (*Wish, error)
 	// WithdrawWish removes the actor's own. Returns ErrWishNotFound for anything else.
 	WithdrawWish(ctx context.Context, id, personID uuid.UUID) error
 	// SetWishTrackLimit bounds the person's own wishes for the cohorts of the instance's module in
@@ -312,7 +317,7 @@ func (s *WishService) Mine(ctx context.Context, actor principal.Actor,
 // behalf is not an expression of interest but somebody else's opinion about them, and the process
 // has a place for that — the assignment.
 func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID uuid.UUID,
-	priority WishPriority, note string) (*Wish, error) {
+	priority WishPriority, note string, cie bool) (*Wish, error) {
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
@@ -349,8 +354,13 @@ func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID
 	if where.TaughtElsewhere {
 		return nil, ErrInstanceTaughtElsewhere
 	}
+	// Says something about the module description, which the catalogue shows to everybody, and
+	// nothing about anybody's interest.
+	if cie && !where.EnglishPossible {
+		return nil, ErrEnglishNotOffered
+	}
 
-	return s.store.SetWish(ctx, instanceID, actor.ID, priority, note)
+	return s.store.SetWish(ctx, instanceID, actor.ID, priority, note, cie)
 }
 
 // SetTrackLimit bounds the actor's own wishes for the cohorts of an instance's module in its

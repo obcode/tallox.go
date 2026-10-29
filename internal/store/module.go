@@ -484,6 +484,8 @@ func moduleFrom(row ListModulesRow) domain.Module {
 		Kind:                domain.ModuleKind(row.Kind),
 		ProjectBased:        row.ProjectBased,
 		SemesterSpan:        int(row.SemesterSpan),
+		TeachingLanguage:    domain.Language(stringOrEmpty(row.TeachingLanguage)),
+		OtherLanguage:       domain.Language(stringOrEmpty(row.OtherLanguage)),
 	}
 	if row.SubjectGroupID.Valid {
 		module.SubjectGroup = &domain.SubjectGroupRef{

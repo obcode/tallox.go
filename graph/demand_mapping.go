@@ -310,6 +310,8 @@ func demandUserFacing(actor principal.Actor, err error) error {
 	case errors.Is(err, domain.ErrPhaseClosed):
 		return refusal("DEMAND_PHASE_CLOSED", policy.PhaseClosedReason)
 
+	case errors.Is(err, domain.ErrEnglishNotOffered):
+		return refusal("ENGLISH_NOT_OFFERED", err.Error())
 	case errors.Is(err, domain.ErrModuleNotDecomposed):
 		return refusal("MODULE_NOT_DECOMPOSED", err.Error())
 	case errors.Is(err, domain.ErrTrackTaken):

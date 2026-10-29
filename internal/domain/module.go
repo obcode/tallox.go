@@ -138,11 +138,23 @@ type Module struct {
 	// SemesterSpan is over how many semesters the module runs: 1, or 2 for a module the catalogue
 	// states with the hours of both semesters added up. The faculty's own fact, like the split.
 	SemesterSpan int
+	// TeachingLanguage is the default language the examination office states (std_lang), or empty
+	// where it states none or something unrecognised.
+	TeachingLanguage Language
+	// OtherLanguage is the one other language the module may be taught in (the source's
+	// languages), or empty. Never equal to TeachingLanguage in the data seen.
+	OtherLanguage Language
 	// Components is how the module's hours divide between teachable units. Empty means nobody
 	// has stated it, and then no instance can be declared — see Plannable.
 	Components []ModuleComponent
 	// Offerings is where the module counts, across every programme and version.
 	Offerings []ModuleOffering
+}
+
+// EnglishPossible is whether the module description names English; see the function of the
+// same name.
+func (m Module) EnglishPossible() bool {
+	return EnglishPossible(m.Source, m.TeachingLanguage, m.OtherLanguage)
 }
 
 // ComponentHours is the sum of the components, and whether there are any.

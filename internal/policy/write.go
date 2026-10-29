@@ -296,6 +296,21 @@ func MayWriteInstanceFormat(a principal.Actor, subjectGroupID, programmeID uuid.
 	return MayWriteAssignment(a, subjectGroupID, programmeID, phase)
 }
 
+// MayWriteInstanceCiE is the rule for listing a cohort as a course in English (CiE).
+//
+// The format's rule, and in addition whoever teaches a part of the cohort, while the semester is
+// open to a lecturer's own entries (the wishes' row: until FINAL). Decided 2026-10-29: it is
+// usually the lecturer who decides whether a course is given in English, before the assignment as
+// an offer with the wish and after it on the cohort. teaches comes from the assignments and is the
+// caller's to establish — this package reads no rows.
+func MayWriteInstanceCiE(a principal.Actor, subjectGroupID, programmeID uuid.UUID, phase Phase,
+	teaches bool) bool {
+	if MayWriteInstanceFormat(a, subjectGroupID, programmeID, phase) {
+		return true
+	}
+	return teaches && MayWriteInPhase(WriteAreaWishes, phase, a)
+}
+
 // MayWriteInstanceTopic is the rule for the topic of a cohort — which seminar a cohort of an
 // umbrella module is.
 //

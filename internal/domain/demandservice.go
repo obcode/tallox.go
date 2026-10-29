@@ -484,22 +484,54 @@ func (s *DemandService) SetFormat(ctx context.Context, actor principal.Actor, id
 	if err != nil {
 		return nil, err
 	}
+	// Only a change to English is refused. A cohort that already runs in English keeps its value
+	// when somebody saves its delivery, so a decision taken before the rule existed is not turned
+	// into a refusal of an unrelated edit.
+	if englishOverride != nil && *englishOverride && !instance.TaughtInEnglish() &&
+		!instance.Module.EnglishPossible() {
+		return nil, ErrEnglishNotOffered
+	}
 	return s.store.SetCourseInstanceFormat(ctx, instance.ID, delivery, englishOverride)
 }
 
 // SetCiE writes whether a cohort is listed as a course in English (CiE).
 //
-// The same rule as SetFormat, decided with it rather than beside it: CiE sits next to the
-// language on the same screens and was asked for by the same people, and a second rule for a
-// second checkbox in the same row would be one the two screens disagree about.
+// policy.MayWriteInstanceCiE: the format's rule, and whoever teaches a part of the cohort. Listing
+// needs a module whose description names English; taking a cohort off the list never does.
 func (s *DemandService) SetCiE(ctx context.Context, actor principal.Actor, id uuid.UUID, cie bool,
 ) (*CourseInstance, error) {
 	if err := mayRead(actor); err != nil {
 		return nil, err
 	}
-	instance, err := s.formatWritable(ctx, actor, id)
+	instance, err := s.store.CourseInstanceByID(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if instance == nil {
+		return nil, ErrInstanceNotFound
+	}
+
+	teaches := false
+	if actor.ID != uuid.Nil {
+		if teaches, err = s.store.TeachesCourseInstance(ctx, instance.ID, actor.ID); err != nil {
+			return nil, err
+		}
+	}
+	subjectGroupID := uuid.Nil
+	if instance.Module.SubjectGroup != nil {
+		subjectGroupID = instance.Module.SubjectGroup.ID
+	}
+	if !policy.MayWriteInstanceCiE(actor, subjectGroupID, instance.Programme.ID,
+		instance.SemesterPhase, teaches) {
+		if !teaches && !policy.MayActInSubjectGroup(actor, subjectGroupID) &&
+			!policy.MayPlanProgramme(actor, instance.Programme.ID) {
+			return nil, ErrNotYourSubject
+		}
+		return nil, ErrAssignmentPhaseClosed
+	}
+
+	if cie && !instance.CiE && !instance.Module.EnglishPossible() {
+		return nil, ErrEnglishNotOffered
 	}
 	return s.store.SetCourseInstanceCiE(ctx, instance.ID, cie)
 }

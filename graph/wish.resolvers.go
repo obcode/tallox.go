@@ -17,7 +17,7 @@ import (
 )
 
 // SetWish is the resolver for the setWish field.
-func (r *mutationResolver) SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string) (*model.Wish, error) {
+func (r *mutationResolver) SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string, cie bool) (*model.Wish, error) {
 	instanceID, err := parseID(courseInstanceID)
 	if err != nil {
 		return nil, err
@@ -30,7 +30,7 @@ func (r *mutationResolver) SetWish(ctx context.Context, courseInstanceID string,
 
 	// The owner is the actor and comes from nowhere else. There is no argument for whose wish
 	// this is, and adding one would be the whole decision reversed.
-	wish, err := r.Wishes.Set(ctx, principal.From(ctx), instanceID, priority, text)
+	wish, err := r.Wishes.Set(ctx, principal.From(ctx), instanceID, priority, text, cie)
 	if err != nil {
 		return nil, wishError(err)
 	}

@@ -2504,3 +2504,56 @@ func TestTheCiEListingFollowsItsCohorts(t *testing.T) {
 	}
 	expect(f.semester.Code, true)
 }
+
+// Who teaches a cohort, for the lecturer's half of the CiE rule: a part of it assigned to the
+// person, or a lecture held on the parallel cohort for both. Nothing else — not a part of the
+// parallel cohort that is its own, and not a part assigned to somebody else.
+func TestWhoTeachesACohort(t *testing.T) {
+	t.Parallel()
+
+	f := newDemandFixture(t)
+	ctx := t.Context()
+	storetest.SeedPerson(t, f.schema, testdata.Eins, "LECTURER")
+	storetest.SeedPerson(t, f.schema, testdata.Zwei, "LECTURER")
+
+	trackA := f.declareIn(t, storetest.FixtureProgrammeA, "A")
+	trackB := f.declareIn(t, storetest.FixtureProgrammeA, "B")
+	assign := func(part uuid.UUID, who testdata.Persona) {
+		t.Helper()
+		if _, err := f.schema.Pool.Exec(ctx,
+			`INSERT INTO assignment (instance_part_id, person_id) VALUES ($1, $2)`,
+			part, who.ID()); err != nil {
+			t.Fatalf("cannot assign %s: %v", who.Name, err)
+		}
+	}
+	teaches := func(instance uuid.UUID, who testdata.Persona) bool {
+		t.Helper()
+		got, err := f.demand.TeachesCourseInstance(ctx, instance, who.ID())
+		if err != nil {
+			t.Fatalf("cannot read who teaches: %v", err)
+		}
+		return got
+	}
+
+	// Zwei holds the laboratory of A: A and not B.
+	assign(partOfKind(t, trackA, domain.PartKindLab).ID, testdata.Zwei)
+	if !teaches(trackA.ID, testdata.Zwei) || teaches(trackB.ID, testdata.Zwei) {
+		t.Error("a laboratory group counts for the wrong cohort")
+	}
+
+	// Eins holds the lecture of A, before and after it is shared with B.
+	lecture := partOfKind(t, trackA, domain.PartKindLecture)
+	assign(lecture.ID, testdata.Eins)
+	if teaches(trackB.ID, testdata.Eins) {
+		t.Error("A's own lecture counts for B before it is shared")
+	}
+	if _, err := f.demand.ShareInstancePartAcrossTracks(ctx, lecture.ID); err != nil {
+		t.Fatalf("cannot hold one lecture for both cohorts: %v", err)
+	}
+	if !teaches(trackA.ID, testdata.Eins) || !teaches(trackB.ID, testdata.Eins) {
+		t.Error("the shared lecture does not count for both cohorts")
+	}
+	if teaches(trackB.ID, testdata.Zwei) {
+		t.Error("sharing the lecture made A's laboratory count for B")
+	}
+}

@@ -115,13 +115,14 @@ func (q *Queries) SetWishTrackLimit(ctx context.Context, arg SetWishTrackLimitPa
 }
 
 const upsertWish = `-- name: UpsertWish :one
-INSERT INTO wish (course_instance_id, person_id, priority, note)
-VALUES ($1, $2, $3, $4)
+INSERT INTO wish (course_instance_id, person_id, priority, note, cie)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (course_instance_id, person_id) DO UPDATE
 SET priority = EXCLUDED.priority,
     note = EXCLUDED.note,
+    cie = EXCLUDED.cie,
     updated_at = now()
-RETURNING id, course_instance_id, person_id, priority, note, created_at, updated_at
+RETURNING id, course_instance_id, person_id, priority, note, cie, created_at, updated_at
 `
 
 type UpsertWishParams struct {
@@ -129,6 +130,7 @@ type UpsertWishParams struct {
 	PersonID         uuid.UUID
 	Priority         int16
 	Note             string
+	Cie              bool
 }
 
 type UpsertWishRow struct {
@@ -137,6 +139,7 @@ type UpsertWishRow struct {
 	PersonID         uuid.UUID
 	Priority         int16
 	Note             string
+	Cie              bool
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -155,6 +158,7 @@ func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertW
 		arg.PersonID,
 		arg.Priority,
 		arg.Note,
+		arg.Cie,
 	)
 	var i UpsertWishRow
 	err := row.Scan(
@@ -163,6 +167,7 @@ func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertW
 		&i.PersonID,
 		&i.Priority,
 		&i.Note,
+		&i.Cie,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -171,7 +176,7 @@ func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertW
 
 const wishByID = `-- name: WishByID :one
 SELECT
-    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
@@ -226,6 +231,7 @@ type WishByIDRow struct {
 	PersonID          uuid.UUID
 	Priority          int16
 	Note              string
+	Cie               bool
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	Track             string
@@ -264,6 +270,7 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 		&i.PersonID,
 		&i.Priority,
 		&i.Note,
+		&i.Cie,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Track,
@@ -289,7 +296,7 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 const wishesOfSemester = `-- name: WishesOfSemester :many
 
 SELECT
-    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
@@ -355,6 +362,7 @@ type WishesOfSemesterRow struct {
 	PersonID          uuid.UUID
 	Priority          int16
 	Note              string
+	Cie               bool
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	Track             string
@@ -445,6 +453,7 @@ func (q *Queries) WishesOfSemester(ctx context.Context, arg WishesOfSemesterPara
 			&i.PersonID,
 			&i.Priority,
 			&i.Note,
+			&i.Cie,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Track,

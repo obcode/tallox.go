@@ -255,6 +255,9 @@ func wishWriteContextFrom(row WishWriteContextRow) domain.WishWriteContext {
 		},
 		WindowOpen:      row.WishWindowOpen,
 		TaughtElsewhere: row.TaughtElsewhere,
+		EnglishPossible: domain.EnglishPossible(domain.ModuleSource(row.ModuleSource),
+			domain.Language(stringOrEmpty(row.ModuleTeachingLanguage)),
+			domain.Language(stringOrEmpty(row.ModuleOtherLanguage))),
 	}
 	if row.WishesPublishedAt.Valid {
 		out.Semester.WishesPublishedAt = row.WishesPublishedAt.Time

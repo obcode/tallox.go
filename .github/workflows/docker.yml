@@ -35,6 +35,22 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
             BUILD_TIME=${{ github.event.release.published_at }}
 
+  # The contract travels with the release: a colleague who runs against a given version can pin
+  # the schema.graphql that describes exactly that version, and tallox.gui builds its types from
+  # the file of a pinned tag instead of from a running server.
+  attach-schema:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: attach schema.graphql to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Through the environment, never straight into run: — see dispatch-deploy below.
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" schema.graphql --clobber
+
   dispatch-deploy:
     needs: build-and-push
     # A feature gate, as for the release and the deploy: without DISPATCH_TOKEN, `gh api`

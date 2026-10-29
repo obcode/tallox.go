@@ -12,6 +12,7 @@ import (
 )
 
 //go:generate go tool gqlgen generate
+//go:generate go run ../internal/sdl/cmd/sdlgen -o ../schema.graphql
 
 // Resolver is the dependency root of the GraphQL layer. Everything a resolver needs is a
 // field here, injected once in bootstrap — there is no package-level state and no service

@@ -9,6 +9,7 @@ Kollegium — das gehört nach `tallox.dev`.
 - [Security-Audit 2026-10](security-audit-2026-10.md) — was gefunden und gebaut wurde (Presenter, Grenzen, ADMIN unbefristet, Partner ohne Roster), und welche Hinweise bewusst offen bleiben
 - [Layering-Regel](layering-rule.md) — warum nur `internal/store` an die Datenbank darf und wie das erzwungen wird
 - [Identität und Autorisierung](identity-and-auth.md) — was der erste Fachschritt gebaut hat, welche Entscheidungen darin stecken, welche Fallstricke Zeit gekostet haben
+- [API-Vertrag `schema.graphql`](api-contract.md) — seit 2026-10-29: gerendert aus dem ausgeführten Schema, mit Direktiven; Bruch-Prüfung mit `API-Break:`-Trailer; Release-Anhang; GUI-Umstellung offen
 - [Planungs-Tokens mit voller Reichweite](full-reach-tokens.md) — seit 2026-10-28: Lesen und Schreiben nur zusammen, was browser-only bleibt (Tokens, Personen/Rollen, Log), 90 Tage, Nachtbericht
 - [Scope-Durchsetzung](scope-enforcement.md) — `@scope` per Operation, warum leer „unbeschränkt" heißt, und warum PUBLIC nicht wegnehmbar ist
 - [ZPA-Import](zpa-import.md) — Cache, Sync, Cron und der Fehler, den erst der echte Lauf zeigte

@@ -53,6 +53,34 @@ jobs:
             exit 1
           fi
 
+  # How the contract changed, and a gate on breaking it.
+  #
+  # schema.graphql is the published contract (see internal/sdl). A breaking change used to show up
+  # when somebody's script failed; now it shows up here, in the branch, before anyone merges it.
+  # The job lists breaking, dangerous and safe changes in the summary and fails on a breaking
+  # one unless a commit acknowledges it — the rules are in .github/scripts/schema-diff.sh.
+  #
+  # The base is what the branch would change: the fork point from main, and on main itself the
+  # first parent, i.e. main before the merge.
+  schema-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 24
+      - name: compare against the base
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" = refs/heads/main ]; then
+            base=$(git rev-parse HEAD^1)
+          else
+            base=$(git merge-base origin/main HEAD)
+          fi
+          .github/scripts/schema-diff.sh "$base"
+
   # The fast path: one PostgreSQL service for the whole job, one schema per test.
   test:
     runs-on: ubuntu-latest
@@ -153,7 +181,7 @@ jobs:
   # Until one exists the stage stays quiet, rather than failing on every push because of
   # missing configuration.
   notify-gui:
-    needs: [lint, generate, test, test-from-scratch]
+    needs: [lint, generate, schema-diff, test, test-from-scratch]
     if: ${{ github.ref == 'refs/heads/main' && vars.GUI_E2E_DISPATCH_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -170,7 +198,7 @@ jobs:
             --field "client_payload[sha]=${SHA}"
 
   release:
-    needs: [lint, generate, test, test-from-scratch]
+    needs: [lint, generate, schema-diff, test, test-from-scratch]
     # A feature gate, as for the deploy: set it to true once the RELEASE_TOKEN secret
     # exists. Secrets cannot be evaluated in a job-level `if`, hence a repository variable.
     # Until then the pipeline stays green rather than failing on every push because of

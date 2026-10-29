@@ -38,6 +38,7 @@ Kollegium — das gehört nach `tallox.dev`.
 - [Wunsch-SWS](desired-hours.md) — Min/Max je Person und Semester; Dekanat friert ein, korrigiert, veröffentlicht; Notiz nie öffentlich; Übersicht des Kollegiums
 - [Eingeplante SWS](assigned-load.md) — die einzige erlaubte Summe über Zuteilungen: Leitung sieht die Last ihrer Mitglieder je Fachgruppe, auch fremde
 - [Partnerfakultät](partner-reader.md) — PARTNER_READER verengt allein gehalten auf die eigenen Studiengänge, schreibt nichts, liest keine Wünsche
+- [Bestätigung der Zuteilung](assignment-confirmation.md) — Prüftermin je Semester, „passt so“ je Person, Zustand aus Fingerabdruck abgeleitet
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:
      eine Datei = ein Sachverhalt, Frontmatter mit name/description/metadata.type,

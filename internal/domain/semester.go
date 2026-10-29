@@ -85,7 +85,11 @@ type Semester struct {
 	// DesiredHoursPublishedAt is when the desired teaching hours became visible to everybody, or
 	// the zero time. Never before the freeze.
 	DesiredHoursPublishedAt time.Time
-	CreatedAt               time.Time
+	// AssignmentConfirmationDue is the day by which everybody is asked to confirm their
+	// assignments, or the zero time while the dean's office has not asked. A calendar day; the
+	// time of day is meaningless.
+	AssignmentConfirmationDue time.Time
+	CreatedAt                 time.Time
 	// UpdatedAt is when the last decision about this semester was recorded, or the zero time
 	// while none has been.
 	UpdatedAt time.Time
@@ -135,6 +139,10 @@ type SemesterStore interface {
 	OpenWishWindows(ctx context.Context, id uuid.UUID) ([]SubjectGroupName, error)
 	// PublishSemesterAssignments is the same for the second mark.
 	PublishSemesterAssignments(ctx context.Context, id uuid.UUID) (Semester, error)
+	// SetSemesterAssignmentConfirmationDue sets, moves or (zero time) clears the due date of the
+	// confirmation round, recording who did.
+	SetSemesterAssignmentConfirmationDue(ctx context.Context, id uuid.UUID, due time.Time,
+		by uuid.UUID) (Semester, error)
 	// FreezeSemesterDesiredHours is idempotent and keeps the first timestamp and its author.
 	FreezeSemesterDesiredHours(ctx context.Context, id, by uuid.UUID) (Semester, error)
 	// PublishSemesterDesiredHours is the same, and answers ErrDesiredHoursNotFrozen for a
@@ -443,6 +451,32 @@ func (s *SemesterService) PublishAssignments(ctx context.Context, actor principa
 		return Semester{}, err
 	}
 	return s.store.PublishSemesterAssignments(ctx, existing.ID)
+}
+
+// SetAssignmentConfirmationDue asks everybody who teaches in a semester to confirm their
+// assignments by a day, moves that day, or withdraws the request with the zero time.
+//
+// The dean's office, with full reach, while the semester is not FINAL — after that there is
+// nothing left to confirm against. The confirmations already given stay when the date moves or
+// goes: they are statements the colleagues made.
+func (s *SemesterService) SetAssignmentConfirmationDue(ctx context.Context, actor principal.Actor,
+	code string, due time.Time,
+) (Semester, error) {
+	if !policy.MaySetAssignmentConfirmationDue(actor) {
+		return Semester{}, ErrForbidden
+	}
+	code, err := s.plannable(code)
+	if err != nil {
+		return Semester{}, err
+	}
+	existing, err := s.store.EnsureSemester(ctx, code)
+	if err != nil {
+		return Semester{}, err
+	}
+	if existing.Phase == policy.PhaseFinal {
+		return Semester{}, ErrAssignmentPhaseClosed
+	}
+	return s.store.SetSemesterAssignmentConfirmationDue(ctx, existing.ID, due, actor.ID)
 }
 
 // FreezeDesiredHours closes the desired teaching hours of a semester to everybody but the dean's

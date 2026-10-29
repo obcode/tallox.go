@@ -25,13 +25,13 @@ ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by;
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by;
 
 -- name: SemesterByCode :one
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 FROM semester
 WHERE code = $1;
 
@@ -45,7 +45,7 @@ WHERE code = $1;
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 FROM semester
 ORDER BY code DESC;
 
@@ -65,7 +65,7 @@ WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by;
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by;
 
 -- name: PublishSemesterWishes :one
 -- Idempotent, and it keeps the *first* timestamp.
@@ -84,7 +84,7 @@ WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by;
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by;
 
 -- name: PublishSemesterAssignments :one
 -- Idempotent, and it keeps the *first* timestamp. Same shape as PublishSemesterWishes, and the
@@ -100,7 +100,7 @@ WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by;
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by;
 
 -- name: FreezeSemesterDesiredHours :one
 -- From here on only the dean's office changes a desired figure. Idempotent and first timestamp
@@ -115,7 +115,7 @@ WHERE id = sqlc.arg('id')::uuid
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by;
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by;
 
 -- name: PublishSemesterDesiredHours :one
 -- Make the desired figures visible to everybody. Only a frozen semester: the figures colleagues
@@ -131,7 +131,7 @@ WHERE id = sqlc.arg('id')::uuid
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by;
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by;
 
 -- name: PlanningSemester :one
 -- The semester the faculty is planning, or no row while nobody has said.
@@ -142,7 +142,7 @@ RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 FROM semester
 WHERE is_planning_semester;
 
@@ -185,4 +185,19 @@ WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by;
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by;
+
+-- name: SetSemesterAssignmentConfirmationDue :one
+-- Set, move or clear the date by which everybody confirms their assignments. Not idempotent in
+-- the way the publications are: this is a date somebody may correct, so the last call wins and
+-- records who made it. Clearing it (NULL) withdraws the request; the confirmations already given
+-- stay, because they are statements the colleagues made.
+UPDATE semester
+SET assignment_confirmation_due = sqlc.narg('due')::date,
+    assignment_confirmation_due_by = sqlc.narg('by')::uuid,
+    updated_at = now()
+WHERE id = sqlc.arg('id')::uuid
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by;

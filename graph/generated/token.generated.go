@@ -47,6 +47,7 @@ type MutationResolver interface {
 	WithdrawMyCompetence(ctx context.Context, id string) (string, error)
 	SetTeacherCompetence(ctx context.Context, moduleID string, teacherID string, level domain.CompetenceLevel, note *string) (*model.Competence, error)
 	WithdrawTeacherCompetence(ctx context.Context, id string) (string, error)
+	ConfirmMyAssignments(ctx context.Context, semester string) (*model.AssignmentConfirmation, error)
 	SetProgrammeQuota(ctx context.Context, programme string, studyYear int, teachingHours *float64) (*model.ProgrammeQuota, error)
 	PlanDemand(ctx context.Context, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) (*model.DemandPlanReport, error)
 	DeclareCourseInstance(ctx context.Context, input model.DeclareCourseInstanceInput) (*model.CourseInstance, error)
@@ -70,6 +71,7 @@ type MutationResolver interface {
 	SetPlanningSemester(ctx context.Context, code string) (*model.Semester, error)
 	PublishWishes(ctx context.Context, code string) (*model.Semester, error)
 	PublishAssignments(ctx context.Context, code string) (*model.Semester, error)
+	SetAssignmentConfirmationDue(ctx context.Context, code string, due *model.Date) (*model.Semester, error)
 	FreezeDesiredHours(ctx context.Context, code string) (*model.Semester, error)
 	PublishDesiredHours(ctx context.Context, code string) (*model.Semester, error)
 	CreateSubjectGroup(ctx context.Context, code string, name string) (*model.SubjectGroup, error)
@@ -273,6 +275,20 @@ func (ec *executionContext) field_Mutation_clearAssignment_args(ctx context.Cont
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_confirmMyAssignments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "semester",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["semester"] = arg0
 	return args, nil
 }
 
@@ -727,6 +743,28 @@ func (ec *executionContext) field_Mutation_revokePersonalAccessToken_args(ctx co
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setAssignmentConfirmationDue_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "code",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["code"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "due",
+		func(ctx context.Context, v any) (*model.Date, error) {
+			return ec.unmarshalODate2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDate(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["due"] = arg1
 	return args, nil
 }
 
@@ -3061,6 +3099,50 @@ func (ec *executionContext) fieldContext_Mutation_withdrawTeacherCompetence(ctx 
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_confirmMyAssignments(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_confirmMyAssignments(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().ConfirmMyAssignments(ctx, fc.Args["semester"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AssignmentConfirmation) graphql.Marshaler {
+			return ec.marshalNAssignmentConfirmation2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignmentConfirmation(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_confirmMyAssignments(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AssignmentConfirmation(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_confirmMyAssignments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_setProgrammeQuota(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -4288,6 +4370,63 @@ func (ec *executionContext) fieldContext_Mutation_publishAssignments(ctx context
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_publishAssignments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_setAssignmentConfirmationDue(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setAssignmentConfirmationDue(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetAssignmentConfirmationDue(ctx, fc.Args["code"].(string), fc.Args["due"].(*model.Date))
+		},
+		func(ctx context.Context, next graphql.Resolver) graphql.Resolver {
+			directive0 := next
+
+			directive1 := func(ctx context.Context) (any, error) {
+				if ec.Directives.FullReach == nil {
+					var zeroVal *model.Semester
+					return zeroVal, errors.New("directive fullReach is not implemented")
+				}
+				return ec.Directives.FullReach(ctx, nil, directive0)
+			}
+
+			next = directive1
+			return next
+		},
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Semester) graphql.Marshaler {
+			return ec.marshalNSemester2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSemester(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setAssignmentConfirmationDue(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Semester(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setAssignmentConfirmationDue_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -5552,6 +5691,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "confirmMyAssignments":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_confirmMyAssignments(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "setProgrammeQuota":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_setProgrammeQuota(ctx, field)
@@ -5709,6 +5855,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "publishAssignments":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_publishAssignments(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "setAssignmentConfirmationDue":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setAssignmentConfirmationDue(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

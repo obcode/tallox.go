@@ -262,6 +262,20 @@ type Assignment struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// One person's confirmation of their assignments in one semester.
+type AssignmentConfirmation struct {
+	// The semester it is about.
+	Semester string `json:"semester"`
+	// Whose it is: the account, the same id as `Assignee.personId`. An id and not a `Person`, for the
+	// reason `Assignee` carries ids.
+	PersonID string `json:"personId"`
+	// Where it stands.
+	State AssignmentConfirmationState `json:"state"`
+	// When they last confirmed, or `null` while they have not. Set for `STALE` as well: it is when the
+	// confirmation was given that has since gone out of date.
+	ConfirmedAt *time.Time `json:"confirmedAt,omitempty"`
+}
+
 // A sibling cohort's shared part, seen from the cohort it is held for.
 type BorrowedPart struct {
 	// The part itself, as its owning cohort holds it.
@@ -1326,6 +1340,13 @@ type Semester struct {
 	//
 	// There is no un-publishing.
 	DesiredHoursPublishedAt *time.Time `json:"desiredHoursPublishedAt,omitempty"`
+	// The day by which everybody who teaches in this semester is asked to confirm their assignments
+	// (`confirmMyAssignments`), or `null` while the dean's office has not asked.
+	//
+	// One date for the whole semester, a week or so before the plan goes to the examination office. It
+	// blocks nothing: the assignment stays open until `FINAL`, confirming stays possible after the
+	// date, and a change after a confirmation makes it out of date rather than locking anything.
+	AssignmentConfirmationDue *Date `json:"assignmentConfirmationDue,omitempty"`
 	// When the last decision about this semester was recorded, or `null` while none has been.
 	//
 	// Not "when the semester was created" — nothing creates one. It is the phase switch or the
@@ -1817,6 +1838,67 @@ func (e *AccessOutcome) UnmarshalJSON(b []byte) error {
 }
 
 func (e AccessOutcome) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Where one person's confirmation of their assignments in a semester stands.
+type AssignmentConfirmationState string
+
+const (
+	// Confirmed, and what they hold is still what they confirmed.
+	AssignmentConfirmationStateConfirmed AssignmentConfirmationState = "CONFIRMED"
+	// Not confirmed in this semester.
+	AssignmentConfirmationStateOpen AssignmentConfirmationState = "OPEN"
+	// Confirmed, but their assignments have changed since — they are asked again.
+	AssignmentConfirmationStateStale AssignmentConfirmationState = "STALE"
+)
+
+var AllAssignmentConfirmationState = []AssignmentConfirmationState{
+	AssignmentConfirmationStateConfirmed,
+	AssignmentConfirmationStateOpen,
+	AssignmentConfirmationStateStale,
+}
+
+func (e AssignmentConfirmationState) IsValid() bool {
+	switch e {
+	case AssignmentConfirmationStateConfirmed, AssignmentConfirmationStateOpen, AssignmentConfirmationStateStale:
+		return true
+	}
+	return false
+}
+
+func (e AssignmentConfirmationState) String() string {
+	return string(e)
+}
+
+func (e *AssignmentConfirmationState) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AssignmentConfirmationState(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AssignmentConfirmationState", str)
+	}
+	return nil
+}
+
+func (e AssignmentConfirmationState) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AssignmentConfirmationState) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AssignmentConfirmationState) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

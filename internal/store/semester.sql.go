@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const advanceSemesterPhase = `-- name: AdvanceSemesterPhase :one
@@ -20,7 +21,7 @@ WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 `
 
 type AdvanceSemesterPhaseParams struct {
@@ -54,6 +55,8 @@ func (q *Queries) AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterP
 		&i.DesiredHoursFrozenBy,
 		&i.DesiredHoursPublishedAt,
 		&i.DesiredHoursPublishedBy,
+		&i.AssignmentConfirmationDue,
+		&i.AssignmentConfirmationDueBy,
 	)
 	return i, err
 }
@@ -96,7 +99,7 @@ ON CONFLICT (code) DO UPDATE SET code = EXCLUDED.code
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 `
 
 // Semesters and the phase each one is in.
@@ -136,6 +139,8 @@ func (q *Queries) EnsureSemester(ctx context.Context, code string) (Semester, er
 		&i.DesiredHoursFrozenBy,
 		&i.DesiredHoursPublishedAt,
 		&i.DesiredHoursPublishedBy,
+		&i.AssignmentConfirmationDue,
+		&i.AssignmentConfirmationDueBy,
 	)
 	return i, err
 }
@@ -150,7 +155,7 @@ WHERE id = $2::uuid
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 `
 
 type FreezeSemesterDesiredHoursParams struct {
@@ -179,6 +184,8 @@ func (q *Queries) FreezeSemesterDesiredHours(ctx context.Context, arg FreezeSeme
 		&i.DesiredHoursFrozenBy,
 		&i.DesiredHoursPublishedAt,
 		&i.DesiredHoursPublishedBy,
+		&i.AssignmentConfirmationDue,
+		&i.AssignmentConfirmationDueBy,
 	)
 	return i, err
 }
@@ -193,7 +200,7 @@ WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 `
 
 type MarkPlanningSemesterParams struct {
@@ -224,6 +231,8 @@ func (q *Queries) MarkPlanningSemester(ctx context.Context, arg MarkPlanningSeme
 		&i.DesiredHoursFrozenBy,
 		&i.DesiredHoursPublishedAt,
 		&i.DesiredHoursPublishedBy,
+		&i.AssignmentConfirmationDue,
+		&i.AssignmentConfirmationDueBy,
 	)
 	return i, err
 }
@@ -232,7 +241,7 @@ const planningSemester = `-- name: PlanningSemester :one
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 FROM semester
 WHERE is_planning_semester
 `
@@ -260,6 +269,8 @@ func (q *Queries) PlanningSemester(ctx context.Context) (Semester, error) {
 		&i.DesiredHoursFrozenBy,
 		&i.DesiredHoursPublishedAt,
 		&i.DesiredHoursPublishedBy,
+		&i.AssignmentConfirmationDue,
+		&i.AssignmentConfirmationDueBy,
 	)
 	return i, err
 }
@@ -272,7 +283,7 @@ WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 `
 
 // Idempotent, and it keeps the *first* timestamp. Same shape as PublishSemesterWishes, and the
@@ -299,6 +310,8 @@ func (q *Queries) PublishSemesterAssignments(ctx context.Context, id uuid.UUID) 
 		&i.DesiredHoursFrozenBy,
 		&i.DesiredHoursPublishedAt,
 		&i.DesiredHoursPublishedBy,
+		&i.AssignmentConfirmationDue,
+		&i.AssignmentConfirmationDueBy,
 	)
 	return i, err
 }
@@ -314,7 +327,7 @@ WHERE id = $2::uuid
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 `
 
 type PublishSemesterDesiredHoursParams struct {
@@ -343,6 +356,8 @@ func (q *Queries) PublishSemesterDesiredHours(ctx context.Context, arg PublishSe
 		&i.DesiredHoursFrozenBy,
 		&i.DesiredHoursPublishedAt,
 		&i.DesiredHoursPublishedBy,
+		&i.AssignmentConfirmationDue,
+		&i.AssignmentConfirmationDueBy,
 	)
 	return i, err
 }
@@ -355,7 +370,7 @@ WHERE id = $1
 RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 `
 
 // Idempotent, and it keeps the *first* timestamp.
@@ -385,6 +400,8 @@ func (q *Queries) PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Seme
 		&i.DesiredHoursFrozenBy,
 		&i.DesiredHoursPublishedAt,
 		&i.DesiredHoursPublishedBy,
+		&i.AssignmentConfirmationDue,
+		&i.AssignmentConfirmationDueBy,
 	)
 	return i, err
 }
@@ -393,7 +410,7 @@ const semesterByCode = `-- name: SemesterByCode :one
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 FROM semester
 WHERE code = $1
 `
@@ -416,6 +433,8 @@ func (q *Queries) SemesterByCode(ctx context.Context, code string) (Semester, er
 		&i.DesiredHoursFrozenBy,
 		&i.DesiredHoursPublishedAt,
 		&i.DesiredHoursPublishedBy,
+		&i.AssignmentConfirmationDue,
+		&i.AssignmentConfirmationDueBy,
 	)
 	return i, err
 }
@@ -424,7 +443,7 @@ const semesters = `-- name: Semesters :many
 SELECT id, code, phase, wishes_published_at, created_at, updated_at,
        is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
-       desired_hours_published_by
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
 FROM semester
 ORDER BY code DESC
 `
@@ -459,6 +478,8 @@ func (q *Queries) Semesters(ctx context.Context) ([]Semester, error) {
 			&i.DesiredHoursFrozenBy,
 			&i.DesiredHoursPublishedAt,
 			&i.DesiredHoursPublishedBy,
+			&i.AssignmentConfirmationDue,
+			&i.AssignmentConfirmationDueBy,
 		); err != nil {
 			return nil, err
 		}
@@ -468,4 +489,50 @@ func (q *Queries) Semesters(ctx context.Context) ([]Semester, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const setSemesterAssignmentConfirmationDue = `-- name: SetSemesterAssignmentConfirmationDue :one
+UPDATE semester
+SET assignment_confirmation_due = $1::date,
+    assignment_confirmation_due_by = $2::uuid,
+    updated_at = now()
+WHERE id = $3::uuid
+RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
+       is_planning_semester, planning_set_at, planning_set_by, assignments_published_at,
+       desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
+       desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by
+`
+
+type SetSemesterAssignmentConfirmationDueParams struct {
+	Due pgtype.Date
+	By  uuid.NullUUID
+	ID  uuid.UUID
+}
+
+// Set, move or clear the date by which everybody confirms their assignments. Not idempotent in
+// the way the publications are: this is a date somebody may correct, so the last call wins and
+// records who made it. Clearing it (NULL) withdraws the request; the confirmations already given
+// stay, because they are statements the colleagues made.
+func (q *Queries) SetSemesterAssignmentConfirmationDue(ctx context.Context, arg SetSemesterAssignmentConfirmationDueParams) (Semester, error) {
+	row := q.db.QueryRow(ctx, setSemesterAssignmentConfirmationDue, arg.Due, arg.By, arg.ID)
+	var i Semester
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.Phase,
+		&i.WishesPublishedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.IsPlanningSemester,
+		&i.PlanningSetAt,
+		&i.PlanningSetBy,
+		&i.AssignmentsPublishedAt,
+		&i.DesiredHoursFrozenAt,
+		&i.DesiredHoursFrozenBy,
+		&i.DesiredHoursPublishedAt,
+		&i.DesiredHoursPublishedBy,
+		&i.AssignmentConfirmationDue,
+		&i.AssignmentConfirmationDueBy,
+	)
+	return i, err
 }

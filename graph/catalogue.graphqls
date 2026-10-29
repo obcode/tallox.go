@@ -333,6 +333,14 @@ type Module {
   """
   projectBased: Boolean!
   """
+  Whether the module description names English, as the default language or as the other one the
+  module may be taught in. Only then may a cohort be marked as taught in English, listed as a
+  course in English (CiE), or offered as one with a wish — `ENGLISH_NOT_OFFERED` otherwise.
+
+  Always `true` for a module of the faculty's own (`source: LOCAL`): it has no description to read.
+  """
+  englishPossible: Boolean!
+  """
   Over how many semesters the module runs: 1, or 2 for one the examination office states with the
   hours of both semesters added up — 8 SWS, taught 4 in the winter and 4 in the summer. Such a
   module is planned as an instance in each semester, and its split is stated per semester. The

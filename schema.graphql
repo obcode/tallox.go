@@ -1589,6 +1589,14 @@ type Module {
   """
   projectBased: Boolean!
   """
+  Whether the module description names English, as the default language or as the other one the
+  module may be taught in. Only then may a cohort be marked as taught in English, listed as a
+  course in English (CiE), or offered as one with a wish — `ENGLISH_NOT_OFFERED` otherwise.
+
+  Always `true` for a module of the faculty's own (`source: LOCAL`): it has no description to read.
+  """
+  englishPossible: Boolean!
+  """
   Over how many semesters the module runs: 1, or 2 for one the examination office states with the
   hours of both semesters added up — 8 SWS, taught 4 in the winter and 4 in the summer. Such a
   module is planned as an instance in each semester, and its split is stated per semester. The
@@ -2322,7 +2330,11 @@ type Mutation {
   office's catalogue. A value equal to that default is stored as `null` too, so the cohort keeps
   following the catalogue.
 
-  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`.
+  English only where the module description names it (`Module.englishPossible`). A cohort that
+  already runs in English keeps it when its delivery is saved.
+
+  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`,
+  `ENGLISH_NOT_OFFERED`.
   """
   setCourseInstanceFormat(
     """
@@ -2343,10 +2355,15 @@ type Mutation {
   """
   List a cohort as a course in English (CiE), or take it off the list.
 
-  Bound by the same rule as `setCourseInstanceFormat`: the lead of the module's subject group, the
-  lead of the instance's study programme, or the dean's office, while the semester is not `FINAL`.
+  The rule of `setCourseInstanceFormat` — the lead of the module's subject group, the lead of the
+  instance's study programme, or the dean's office — and in addition whoever teaches a part of the
+  cohort (a lecture shared with the parallel cohorts included), while the semester is not `FINAL`.
 
-  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`.
+  Listing needs a module whose description names English (`Module.englishPossible`); taking a
+  cohort off the list never does.
+
+  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`,
+  `ENGLISH_NOT_OFFERED`.
   """
   setCourseInstanceCiE(
     """
@@ -3196,6 +3213,12 @@ type Mutation {
     Up to 500 characters, or nothing at all.
     """
     note: String
+
+    """
+    Whether you would give it as a course in English. Like `note`, written with every call: leaving
+    it out is `false`. `ENGLISH_NOT_OFFERED` where the module description does not name English.
+    """
+    cie: Boolean! = false
   ): Wish! @scope(area: WISHES, verb: WRITE)
   """
   Withdraw one of your own wishes.
@@ -5073,6 +5096,13 @@ type Wish {
   others there are.
   """
   trackLimit: Int
+  """
+  The owner's offer to give the cohort as a course in English (CiE). An offer and nothing more: it
+  does not list the cohort (`CourseInstance.cie`) and is no criterion of the assignment.
+
+  Visible wherever the wish is, like `priority`.
+  """
+  cie: Boolean!
   """
   When it was first registered. `null` where the note is empty for you: the order in which people
   registered is the first-come information the confidentiality rule exists to make irrelevant.

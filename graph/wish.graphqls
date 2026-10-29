@@ -103,6 +103,13 @@ type Wish {
   """
   trackLimit: Int
   """
+  The owner's offer to give the cohort as a course in English (CiE). An offer and nothing more: it
+  does not list the cohort (`CourseInstance.cie`) and is no criterion of the assignment.
+
+  Visible wherever the wish is, like `priority`.
+  """
+  cie: Boolean!
+  """
   When it was first registered. `null` where the note is empty for you: the order in which people
   registered is the first-come information the confidentiality rule exists to make irrelevant.
   """
@@ -180,6 +187,11 @@ extend type Mutation {
     priority: WishPriority! = HAPPY_TO
     "Up to 500 characters, or nothing at all."
     note: String
+    """
+    Whether you would give it as a course in English. Like `note`, written with every call: leaving
+    it out is `false`. `ENGLISH_NOT_OFFERED` where the module description does not name English.
+    """
+    cie: Boolean! = false
   ): Wish! @scope(area: WISHES, verb: WRITE)
 
   """

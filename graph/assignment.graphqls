@@ -286,7 +286,11 @@ extend type Mutation {
   office's catalogue. A value equal to that default is stored as `null` too, so the cohort keeps
   following the catalogue.
 
-  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`.
+  English only where the module description names it (`Module.englishPossible`). A cohort that
+  already runs in English keeps it when its delivery is saved.
+
+  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`,
+  `ENGLISH_NOT_OFFERED`.
   """
   setCourseInstanceFormat(
     "The cohort."
@@ -300,10 +304,15 @@ extend type Mutation {
   """
   List a cohort as a course in English (CiE), or take it off the list.
 
-  Bound by the same rule as `setCourseInstanceFormat`: the lead of the module's subject group, the
-  lead of the instance's study programme, or the dean's office, while the semester is not `FINAL`.
+  The rule of `setCourseInstanceFormat` — the lead of the module's subject group, the lead of the
+  instance's study programme, or the dean's office — and in addition whoever teaches a part of the
+  cohort (a lecture shared with the parallel cohorts included), while the semester is not `FINAL`.
 
-  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`.
+  Listing needs a module whose description names English (`Module.englishPossible`); taking a
+  cohort off the list never does.
+
+  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`,
+  `ENGLISH_NOT_OFFERED`.
   """
   setCourseInstanceCiE(
     "The cohort."

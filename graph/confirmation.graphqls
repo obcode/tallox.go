@@ -1,0 +1,92 @@
+# Confirming one's assignments: "passt so", once per person and semester.
+#
+# Asked for by the faculty: before the plan is entered into the examination office's system,
+# everybody who teaches gets a date (`Semester.assignmentConfirmationDue`) by which to check what
+# they have been given. Until then a mistake surfaced when the timetable office asked.
+#
+# THE STATE IS DERIVED, NEVER STORED
+#
+# A confirmation records what it was given over — the person's parts and their hours. Whether it
+# still holds is computed on every read: the same set is `CONFIRMED`, a different one `STALE`. So a
+# part handed to somebody else, an hour figure corrected or a part removed after the confirmation
+# makes it out of date by itself, and the colleague is asked again. Nothing is locked by it: the
+# assignment stays open until `FINAL`, exactly like "Review fertig".
+#
+# WHO READS WHOSE
+#
+# Your own, through every door — it is about your own timetable. Somebody else's only where you
+# may already read at least one of their assignments, through the same filter as `assignments`,
+# and only with full reach. Before the assignments are published a confirmation says that
+# somebody holds something, so it must not be readable more widely than the assignment itself.
+#
+# What a confirmation of somebody else's *does* tell a reader who sees only part of that person's
+# teaching: whether the whole set was confirmed. That is the point of it — the subject group lead
+# wants to know the colleague has checked — and it names no module, part or hour figure.
+#
+# Somebody without an account cannot confirm; for them the arrangement with the subject group lead
+# stays as it is. And there is no free text: disagreement goes to the subject group lead.
+
+"Where one person's confirmation of their assignments in a semester stands."
+enum AssignmentConfirmationState {
+  "Confirmed, and what they hold is still what they confirmed."
+  CONFIRMED
+  "Not confirmed in this semester."
+  OPEN
+  "Confirmed, but their assignments have changed since — they are asked again."
+  STALE
+}
+
+"One person's confirmation of their assignments in one semester."
+type AssignmentConfirmation {
+  "The semester it is about."
+  semester: String!
+  """
+  Whose it is: the account, the same id as `Assignee.personId`. An id and not a `Person`, for the
+  reason `Assignee` carries ids.
+  """
+  personId: ID!
+  "Where it stands."
+  state: AssignmentConfirmationState!
+  """
+  When they last confirmed, or `null` while they have not. Set for `STALE` as well: it is when the
+  confirmation was given that has since gone out of date.
+  """
+  confirmedAt: Time
+}
+
+extend type Query {
+  """
+  Your own confirmation for one semester. `OPEN` when you have not confirmed — including when you
+  hold nothing there. Reachable through every door.
+  """
+  myAssignmentConfirmation(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): AssignmentConfirmation! @scope(area: PLANNING, verb: READ)
+
+  """
+  The confirmations of everybody whose assignments you may read in one semester, one entry per
+  account that holds at least one of those assignments. Not an error when that is only you.
+  """
+  assignmentConfirmations(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): [AssignmentConfirmation!]! @fullReach @scope(area: PLANNING, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Confirm all your assignments of a semester at once: "passt so". Confirming again after a change
+  replaces the earlier confirmation.
+
+  Not tied to the due date — possible before it is set and after it has passed — and not to the
+  publication of the assignments, because everybody sees their own anyway.
+
+  Refusals: `NOTHING_TO_CONFIRM` when you hold nothing in that semester,
+  `ASSIGNMENT_PHASE_CLOSED` once the semester is `FINAL`.
+  """
+  confirmMyAssignments(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): AssignmentConfirmation! @scope(area: PLANNING, verb: WRITE)
+}

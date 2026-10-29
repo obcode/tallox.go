@@ -124,6 +124,16 @@ type Semester {
   desiredHoursPublishedAt: Time
 
   """
+  The day by which everybody who teaches in this semester is asked to confirm their assignments
+  (`confirmMyAssignments`), or `null` while the dean's office has not asked.
+
+  One date for the whole semester, a week or so before the plan goes to the examination office. It
+  blocks nothing: the assignment stays open until `FINAL`, confirming stays possible after the
+  date, and a change after a confirmation makes it out of date rather than locking anything.
+  """
+  assignmentConfirmationDue: Date
+
+  """
   When the last decision about this semester was recorded, or `null` while none has been.
 
   Not "when the semester was created" — nothing creates one. It is the phase switch or the
@@ -260,6 +270,17 @@ extend type Mutation {
   stops applying, so a plain token does not get it; a token minted with `fullReach` does.
   """
   publishAssignments(code: String!): Semester! @fullReach @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Ask everybody who teaches in this semester to confirm their assignments by a date, move that
+  date, or withdraw the request with `due: null`. The confirmations already given stay either way:
+  they are statements the colleagues made.
+
+  The dean's office only, and only while the semester is not `FINAL`
+  (`ASSIGNMENT_PHASE_CLOSED`). `@fullReach` like the other acts on a semester.
+  """
+  setAssignmentConfirmationDue(code: String!, due: Date): Semester!
+    @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   Freeze the desired teaching hours of this semester: from now on only the dean's office changes a

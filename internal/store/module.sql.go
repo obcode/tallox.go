@@ -113,7 +113,7 @@ func (q *Queries) InsertModuleComponent(ctx context.Context, arg InsertModuleCom
 const listModules = `-- name: ListModules :many
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind, m.project_based, m.semester_span,
+       m.source, m.kind, m.project_based, m.semester_span, m.teaching_language, m.other_language,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -211,6 +211,8 @@ type ListModulesRow struct {
 	Kind                 string
 	ProjectBased         bool
 	SemesterSpan         int16
+	TeachingLanguage     *string
+	OtherLanguage        *string
 	SubjectGroupID       uuid.NullUUID
 	SubjectGroupCode     *string
 	SubjectGroupName     *string
@@ -269,6 +271,8 @@ func (q *Queries) ListModules(ctx context.Context, arg ListModulesParams) ([]Lis
 			&i.Kind,
 			&i.ProjectBased,
 			&i.SemesterSpan,
+			&i.TeachingLanguage,
+			&i.OtherLanguage,
 			&i.SubjectGroupID,
 			&i.SubjectGroupCode,
 			&i.SubjectGroupName,
@@ -514,7 +518,7 @@ func (q *Queries) ListTeachers(ctx context.Context, arg ListTeachersParams) ([]L
 const moduleByID = `-- name: ModuleByID :one
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind, m.project_based, m.semester_span,
+       m.source, m.kind, m.project_based, m.semester_span, m.teaching_language, m.other_language,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -540,6 +544,8 @@ type ModuleByIDRow struct {
 	Kind                 string
 	ProjectBased         bool
 	SemesterSpan         int16
+	TeachingLanguage     *string
+	OtherLanguage        *string
 	SubjectGroupID       uuid.NullUUID
 	SubjectGroupCode     *string
 	SubjectGroupName     *string
@@ -566,6 +572,8 @@ func (q *Queries) ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, 
 		&i.Kind,
 		&i.ProjectBased,
 		&i.SemesterSpan,
+		&i.TeachingLanguage,
+		&i.OtherLanguage,
 		&i.SubjectGroupID,
 		&i.SubjectGroupCode,
 		&i.SubjectGroupName,
@@ -692,7 +700,7 @@ func (q *Queries) ModuleOfferingsFor(ctx context.Context, moduleIds []uuid.UUID)
 const modulesByIDs = `-- name: ModulesByIDs :many
 SELECT m.id, m.name, m.home_programme_id, m.responsible_teacher_id, m.course_type, m.frequency,
        m.contact_hours_per_week, m.credits, m.active, m.official, m.retired_at, m.zpa_module_ref,
-       m.source, m.kind, m.project_based, m.semester_span,
+       m.source, m.kind, m.project_based, m.semester_span, m.teaching_language, m.other_language,
        g.subject_group_id, sg.code AS subject_group_code, sg.name AS subject_group_name,
        sg.active AS subject_group_active
 FROM module m
@@ -719,6 +727,8 @@ type ModulesByIDsRow struct {
 	Kind                 string
 	ProjectBased         bool
 	SemesterSpan         int16
+	TeachingLanguage     *string
+	OtherLanguage        *string
 	SubjectGroupID       uuid.NullUUID
 	SubjectGroupCode     *string
 	SubjectGroupName     *string
@@ -756,6 +766,8 @@ func (q *Queries) ModulesByIDs(ctx context.Context, ids []uuid.UUID) ([]ModulesB
 			&i.Kind,
 			&i.ProjectBased,
 			&i.SemesterSpan,
+			&i.TeachingLanguage,
+			&i.OtherLanguage,
 			&i.SubjectGroupID,
 			&i.SubjectGroupCode,
 			&i.SubjectGroupName,

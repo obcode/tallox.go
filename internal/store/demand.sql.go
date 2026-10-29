@@ -2043,6 +2043,39 @@ func (q *Queries) SiblingInstanceIDs(ctx context.Context, id uuid.UUID) ([]uuid.
 	return items, nil
 }
 
+const teachesCourseInstance = `-- name: TeachesCourseInstance :one
+SELECT EXISTS (
+    SELECT 1
+    FROM course_instance ci
+    JOIN course_instance holder
+      ON holder.id = ci.id
+      OR (holder.semester_id = ci.semester_id AND holder.module_id = ci.module_id
+          AND holder.programme_id = ci.programme_id)
+    JOIN instance_part ip
+      ON ip.course_instance_id = holder.id
+     AND (holder.id = ci.id OR ip.serves_sibling_tracks)
+    JOIN assignment a ON a.instance_part_id = ip.id
+    WHERE ci.id = $1::uuid
+      AND a.person_id = $2::uuid
+)::boolean AS teaches
+`
+
+type TeachesCourseInstanceParams struct {
+	InstanceID uuid.UUID
+	PersonID   uuid.UUID
+}
+
+// Whether a person holds a part of this cohort — the lecturer's half of the CiE rule
+// (policy.MayWriteInstanceCiE). A lecture shared with the parallel cohorts counts for them too:
+// whoever gives the one lecture IF1A and IF1B both attend teaches IF1B, although the part sits on
+// IF1A.
+func (q *Queries) TeachesCourseInstance(ctx context.Context, arg TeachesCourseInstanceParams) (bool, error) {
+	row := q.db.QueryRow(ctx, teachesCourseInstance, arg.InstanceID, arg.PersonID)
+	var teaches bool
+	err := row.Scan(&teaches)
+	return teaches, err
+}
+
 const teachingLoadByProgramme = `-- name: TeachingLoadByProgramme :many
 WITH load AS (
     SELECT ci.programme_id, m.home_programme_id,

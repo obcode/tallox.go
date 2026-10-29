@@ -46,6 +46,8 @@ type fakeDemandStore struct {
 	quotaYears []int
 	// taughtBy is the last faculty SetInstancePartTaughtBy was handed.
 	taughtBy string
+	// teaches is what TeachesCourseInstance answers, for every person and cohort.
+	teaches bool
 }
 
 func newFakeDemandStore() *fakeDemandStore {
@@ -135,6 +137,10 @@ func (f *fakeDemandStore) SetCourseInstanceFormat(ctx context.Context, id uuid.U
 	instance.Delivery = delivery
 	instance.EnglishOverride = englishOverride
 	return instance, nil
+}
+
+func (f *fakeDemandStore) TeachesCourseInstance(context.Context, uuid.UUID, uuid.UUID) (bool, error) {
+	return f.teaches, nil
 }
 
 func (f *fakeDemandStore) SetCourseInstanceCiE(ctx context.Context, id uuid.UUID, cie bool,
@@ -1728,5 +1734,32 @@ func TestTheStudyYearLoad(t *testing.T) {
 	}
 	if _, err := f.service.StudyYearLoad(t.Context(), principal.Actor{}, 2026); err == nil {
 		t.Error("an anonymous actor read the study year")
+	}
+}
+
+// English is possible where the module description names it, as the default or as the other
+// language — the four combinations the catalogue actually holds — and always for a module of the
+// faculty's own, which has no description to read.
+func TestWhereEnglishIsPossible(t *testing.T) {
+	t.Parallel()
+
+	de, en := domain.LanguageGerman, domain.LanguageEnglish
+	for _, c := range []struct {
+		source          domain.ModuleSource
+		teaching, other domain.Language
+		want            bool
+	}{
+		{domain.ModuleSourceZPA, de, en, true},
+		{domain.ModuleSourceZPA, de, "", false},
+		{domain.ModuleSourceZPA, en, de, true},
+		{domain.ModuleSourceZPA, en, "", true},
+		{domain.ModuleSourceZPA, "", "", false},
+		{domain.ModuleSourceLocal, "", "", true},
+	} {
+		m := domain.Module{Source: c.source, TeachingLanguage: c.teaching, OtherLanguage: c.other}
+		if got := m.EnglishPossible(); got != c.want {
+			t.Errorf("%s module, %q with %q: English possible %v, want %v",
+				c.source, c.teaching, c.other, got, c.want)
+		}
 	}
 }

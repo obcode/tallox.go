@@ -940,3 +940,23 @@ FROM (
 WHERE p.course_instance_id = $1
   AND COALESCE(p.divided_from_id, p.id) = n.root_id
   AND p.position <> n.position;
+
+-- name: TeachesCourseInstance :one
+-- Whether a person holds a part of this cohort — the lecturer's half of the CiE rule
+-- (policy.MayWriteInstanceCiE). A lecture shared with the parallel cohorts counts for them too:
+-- whoever gives the one lecture IF1A and IF1B both attend teaches IF1B, although the part sits on
+-- IF1A.
+SELECT EXISTS (
+    SELECT 1
+    FROM course_instance ci
+    JOIN course_instance holder
+      ON holder.id = ci.id
+      OR (holder.semester_id = ci.semester_id AND holder.module_id = ci.module_id
+          AND holder.programme_id = ci.programme_id)
+    JOIN instance_part ip
+      ON ip.course_instance_id = holder.id
+     AND (holder.id = ci.id OR ip.serves_sibling_tracks)
+    JOIN assignment a ON a.instance_part_id = ip.id
+    WHERE ci.id = sqlc.arg(instance_id)::uuid
+      AND a.person_id = sqlc.arg(person_id)::uuid
+)::boolean AS teaches;

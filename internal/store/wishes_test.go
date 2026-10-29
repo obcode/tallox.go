@@ -110,7 +110,7 @@ func newWishFixture(t *testing.T) wishFixture {
 func (f wishFixture) register(t *testing.T, who testdata.Persona) *domain.Wish {
 	t.Helper()
 
-	wish, err := f.wishes.SetWish(t.Context(), f.instance, who.ID(), domain.WishHappyTo, "")
+	wish, err := f.wishes.SetWish(t.Context(), f.instance, who.ID(), domain.WishHappyTo, "", false)
 	if err != nil {
 		t.Fatalf("cannot register %s's interest: %v", who.Name, err)
 	}
@@ -355,12 +355,12 @@ func TestRegisteringTwiceIsACorrection(t *testing.T) {
 	f := newWishFixture(t)
 	ctx := t.Context()
 
-	first, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishIfNeeded, "erst mal")
+	first, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishIfNeeded, "erst mal", false)
 	if err != nil {
 		t.Fatalf("cannot register: %v", err)
 	}
 
-	second, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishFirstChoice, "doch")
+	second, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishFirstChoice, "doch", false)
 	if err != nil {
 		t.Fatalf("cannot change the wish: %v", err)
 	}
@@ -662,12 +662,12 @@ func TestOwnWishesAcrossSemesters(t *testing.T) {
 
 	f.register(t, testdata.Eins)
 	if _, err := f.wishes.SetWish(ctx, second.ID, testdata.Eins.ID(),
-		domain.WishFirstChoice, ""); err != nil {
+		domain.WishFirstChoice, "", false); err != nil {
 		t.Fatalf("cannot register in the second semester: %v", err)
 	}
 	// Somebody else's, in the second semester, to make the own-only half of this non-vacuous.
 	if _, err := f.wishes.SetWish(ctx, second.ID, testdata.Zwei.ID(),
-		domain.WishHappyTo, ""); err != nil {
+		domain.WishHappyTo, "", false); err != nil {
 		t.Fatalf("cannot register Zwei's interest: %v", err)
 	}
 
@@ -780,7 +780,7 @@ func TestAWishCarriesTheTopicOfItsCohort(t *testing.T) {
 		f.instance); err != nil {
 		t.Fatalf("cannot name the seminar: %v", err)
 	}
-	wish, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishFirstChoice, "")
+	wish, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishFirstChoice, "", false)
 	if err != nil {
 		t.Fatalf("cannot register: %v", err)
 	}

@@ -416,7 +416,9 @@ type Querier interface {
 	// be in, and eleven modules are in it — burying the genuinely new phrases under them would
 	// defeat the purpose of the line.
 	CountUnmappedFrequencies(ctx context.Context) (CountUnmappedFrequenciesRow, error)
-	// Became "no language stated". Same exclusion of the empty phrase as the two above.
+	// Became "no language stated". Same exclusion of the empty phrase as the two above. Both the
+	// default and the other language, in one note: the mapping is the same, so is the repair, and a
+	// module is counted once however many of its two phrases failed.
 	CountUnmappedLanguages(ctx context.Context) (CountUnmappedLanguagesRow, error)
 	// Hold this cohort's demand with another programme's event, from the moment it is declared.
 	//
@@ -1110,6 +1112,9 @@ type Querier interface {
 	// The language phrase is compared case-folded and trimmed, unlike the two above: it is a code
 	// ("DE") or a word ("Deutsch") rather than a sentence, and its spelling is not something the
 	// source has ever been seen to keep consistent.
+	// The other language a module may be taught in, under the same mapping: despite its name the
+	// source's languages field holds one code, never the default and never a list (measured
+	// 2026-10-29; migration 20261029100000). A list would not map and would be reported.
 	ProjectModules(ctx context.Context, arg ProjectModulesParams) (int64, error)
 	// The module catalogue, projected out of the cached payloads.
 	//
@@ -1473,6 +1478,11 @@ type Querier interface {
 	// cast is nullable, and scanning NULL into a string fails at runtime rather than at build time.
 	// Empty means absent, which is what the domain type says too.
 	TeachersByID(ctx context.Context, ids []uuid.UUID) ([]TeachersByIDRow, error)
+	// Whether a person holds a part of this cohort — the lecturer's half of the CiE rule
+	// (policy.MayWriteInstanceCiE). A lecture shared with the parallel cohorts counts for them too:
+	// whoever gives the one lecture IF1A and IF1B both attend teaches IF1B, although the part sits on
+	// IF1A.
+	TeachesCourseInstance(ctx context.Context, arg TeachesCourseInstanceParams) (bool, error)
 	// The teaching a semester's demand costs, attributed to the programme whose instances hold it.
 	//
 	// Whoever holds the parts pays (decided with the faculty on 2026-10-16). A module has one home in

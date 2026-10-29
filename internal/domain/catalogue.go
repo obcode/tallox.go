@@ -484,6 +484,19 @@ const (
 	LanguageEnglish Language = "EN"
 )
 
+// EnglishPossible is whether a module may be taught in English: its description names English as
+// the default or as the other language. The faculty's rule since 2026-10-29 for marking a cohort
+// as taught in English and for listing or offering it as a course in English (CiE).
+//
+// A module of the faculty's own (ModuleSourceLocal) has no description to read, so nothing
+// forbids it: an FWP placeholder "gern auf Englisch" is exactly the case somebody plans for.
+func EnglishPossible(source ModuleSource, teaching, other Language) bool {
+	if source == ModuleSourceLocal {
+		return true
+	}
+	return teaching == LanguageEnglish || other == LanguageEnglish
+}
+
 // languagePhrases maps the examination office's default language of a module (std_lang) to a
 // Language. Keys are case-folded: the projection compares lower(btrim(phrase)), because this is a
 // code or a single word rather than a sentence, and nothing says the source spells it one way.

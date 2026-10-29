@@ -79,7 +79,7 @@ type MutationResolver interface {
 	SetSubjectGroupMembers(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error)
 	SetMySubjectGroups(ctx context.Context, subjectGroupIds []string) ([]*model.SubjectGroup, error)
 	SetSubjectGroupLeads(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error)
-	SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string) (*model.Wish, error)
+	SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string, cie bool) (*model.Wish, error)
 	WithdrawWish(ctx context.Context, id string) (string, error)
 	SetWishTrackLimit(ctx context.Context, courseInstanceID string, maxTracks *int) (*int, error)
 	SetDesiredTeachingHours(ctx context.Context, semester string, minHours *float64, maxHours *float64, hours *float64, note *string) (*model.DesiredTeachingHours, error)
@@ -1485,6 +1485,14 @@ func (ec *executionContext) field_Mutation_setWish_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["note"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "cie",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["cie"] = arg3
 	return args, nil
 }
 
@@ -4796,7 +4804,7 @@ func (ec *executionContext) _Mutation_setWish(ctx context.Context, field graphql
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().SetWish(ctx, fc.Args["courseInstanceId"].(string), fc.Args["priority"].(domain.WishPriority), fc.Args["note"].(*string))
+			return ec.Resolvers.Mutation().SetWish(ctx, fc.Args["courseInstanceId"].(string), fc.Args["priority"].(domain.WishPriority), fc.Args["note"].(*string), fc.Args["cie"].(bool))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Wish) graphql.Marshaler {

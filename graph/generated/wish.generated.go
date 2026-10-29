@@ -540,6 +540,29 @@ func (ec *executionContext) fieldContext_Wish_trackLimit(_ context.Context, fiel
 	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _Wish_cie(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Wish_cie(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Cie, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Wish_cie(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _Wish_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -774,6 +797,11 @@ func (ec *executionContext) _Wish(ctx context.Context, sel ast.SelectionSet, obj
 		case "trackLimit":
 			out.Values[i] = ec._Wish_trackLimit(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "cie":
+			out.Values[i] = ec._Wish_cie(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "createdAt":

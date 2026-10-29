@@ -52,9 +52,16 @@ SELECT
     p.kind AS part_kind, p.position AS part_position, p.teaching_hours AS part_teaching_hours,
     p.serves_sibling_tracks,
     ci.id AS course_instance_id, ci.track, ci.topic, ci.programme_semester,
+    -- How the cohort is taught, so that an instance read through an assignment or a wish says the
+    -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
+    ci.delivery, ci.taught_in_english, ci.cie AS instance_cie,
     sem.code AS semester_code, sem.phase AS semester_phase,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
+    -- What the module description says about language: Module.englishPossible, and the catalogue's
+    -- default behind taughtInEnglish.
+    m.source AS module_source, m.teaching_language AS module_teaching_language,
+    m.other_language AS module_other_language,
     -- One assignee out of two columns. COALESCE rather than two nullable pairs the caller has to
     -- pick between: which table the row came from is a fact about accounts, not about teaching,
     -- and every screen that rendered it separately would render it the same way in the end.
@@ -105,9 +112,16 @@ SELECT
     p.kind AS part_kind, p.position AS part_position, p.teaching_hours AS part_teaching_hours,
     p.serves_sibling_tracks,
     ci.id AS course_instance_id, ci.track, ci.topic, ci.programme_semester,
+    -- How the cohort is taught, so that an instance read through an assignment or a wish says the
+    -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
+    ci.delivery, ci.taught_in_english, ci.cie AS instance_cie,
     sem.code AS semester_code, sem.phase AS semester_phase,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
+    -- What the module description says about language: Module.englishPossible, and the catalogue's
+    -- default behind taughtInEnglish.
+    m.source AS module_source, m.teaching_language AS module_teaching_language,
+    m.other_language AS module_other_language,
     COALESCE(person.name, t.full_name, '')::text AS assignee_name,
     COALESCE(person.mail, t.mail, '')::citext AS assignee_mail,
     COALESCE(NULLIF(ts.short_name, ''), NULLIF(t.short_name, ''), person.name, t.full_name, '')::text

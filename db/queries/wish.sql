@@ -44,8 +44,11 @@
 -- subject group of its module. module_subject_group is a LEFT JOIN and has to be: a module nobody has sorted into a subject group yet is the ordinary state until the
 -- faculty has worked through its catalogue, and its wishes still belong to somebody.
 SELECT
-    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
+    -- How the cohort is taught, so that an instance read through an assignment or a wish says the
+    -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
+    ci.delivery, ci.taught_in_english, ci.cie AS instance_cie,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
     -- query renders one row per wish, and a join to instance_part would turn each of them into
@@ -56,6 +59,10 @@ SELECT
                WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
+    -- What the module description says about language: Module.englishPossible, and the catalogue's
+    -- default behind taughtInEnglish.
+    m.source AS module_source, m.teaching_language AS module_teaching_language,
+    m.other_language AS module_other_language,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name,
     -- "Of these cohorts, at most this many" (migration of 2026-10-27). Joined onto the wish row
@@ -98,8 +105,11 @@ ORDER BY sem.code, m.name, ci.track, w.priority,
 -- does not have — and the realistic shape of that mistake is somebody adding a by-id lookup
 -- because "it is only one row".
 SELECT
-    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
+    -- How the cohort is taught, so that an instance read through an assignment or a wish says the
+    -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
+    ci.delivery, ci.taught_in_english, ci.cie AS instance_cie,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
     -- query renders one row per wish, and a join to instance_part would turn each of them into
@@ -110,6 +120,10 @@ SELECT
                WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
+    -- What the module description says about language: Module.englishPossible, and the catalogue's
+    -- default behind taughtInEnglish.
+    m.source AS module_source, m.teaching_language AS module_teaching_language,
+    m.other_language AS module_other_language,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name,
     -- "Of these cohorts, at most this many" (migration of 2026-10-27). Joined onto the wish row
@@ -147,13 +161,14 @@ WHERE w.id = sqlc.arg(id)::uuid
 --
 -- Only ever the caller's own row. person_id comes from the actor and never from the request; see
 -- the header of migration 15.
-INSERT INTO wish (course_instance_id, person_id, priority, note)
-VALUES ($1, $2, $3, $4)
+INSERT INTO wish (course_instance_id, person_id, priority, note, cie)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (course_instance_id, person_id) DO UPDATE
 SET priority = EXCLUDED.priority,
     note = EXCLUDED.note,
+    cie = EXCLUDED.cie,
     updated_at = now()
-RETURNING id, course_instance_id, person_id, priority, note, created_at, updated_at;
+RETURNING id, course_instance_id, person_id, priority, note, cie, created_at, updated_at;
 
 -- name: DeleteOwnWish :execrows
 -- Withdraw one's own wish.

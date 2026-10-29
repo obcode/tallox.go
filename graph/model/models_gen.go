@@ -1540,6 +1540,11 @@ type Wish struct {
 	// Not a count of anything: it is the owner's own statement, and reading it tells nobody how many
 	// others there are.
 	TrackLimit *int `json:"trackLimit,omitempty"`
+	// The owner's offer to give the cohort as a course in English (CiE). An offer and nothing more: it
+	// does not list the cohort (`CourseInstance.cie`) and is no criterion of the assignment.
+	//
+	// Visible wherever the wish is, like `priority`.
+	Cie bool `json:"cie"`
 	// When it was first registered. `null` where the note is empty for you: the order in which people
 	// registered is the first-come information the confidentiality rule exists to make irrelevant.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`

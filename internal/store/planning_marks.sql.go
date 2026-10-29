@@ -345,7 +345,11 @@ SELECT s.id, s.code, s.phase, s.wishes_published_at,
        (EXISTS (SELECT 1 FROM instance_part ip WHERE ip.course_instance_id = ci.id)
         AND NOT EXISTS (SELECT 1 FROM instance_part ip
                         WHERE ip.course_instance_id = ci.id AND ip.taught_by IS NULL)
-       )::boolean AS taught_elsewhere
+       )::boolean AS taught_elsewhere,
+       -- What the module description says about language, for the rule that CiE may only be
+       -- offered where it names English (domain.Module.EnglishPossible decides).
+       m.source AS module_source, m.teaching_language AS module_teaching_language,
+       m.other_language AS module_other_language
 FROM course_instance ci
 JOIN semester s ON s.id = ci.semester_id
 JOIN module m ON m.id = ci.module_id
@@ -356,13 +360,16 @@ WHERE ci.id = $1::uuid
 `
 
 type WishWriteContextRow struct {
-	ID                uuid.UUID
-	Code              string
-	Phase             string
-	WishesPublishedAt pgtype.Timestamptz
-	SubjectGroupID    uuid.NullUUID
-	WishWindowOpen    bool
-	TaughtElsewhere   bool
+	ID                     uuid.UUID
+	Code                   string
+	Phase                  string
+	WishesPublishedAt      pgtype.Timestamptz
+	SubjectGroupID         uuid.NullUUID
+	WishWindowOpen         bool
+	TaughtElsewhere        bool
+	ModuleSource           string
+	ModuleTeachingLanguage *string
+	ModuleOtherLanguage    *string
 }
 
 // Everything the wish write rule needs about one instance, in one statement.
@@ -391,6 +398,9 @@ func (q *Queries) WishWriteContext(ctx context.Context, instanceID uuid.UUID) (W
 		&i.SubjectGroupID,
 		&i.WishWindowOpen,
 		&i.TaughtElsewhere,
+		&i.ModuleSource,
+		&i.ModuleTeachingLanguage,
+		&i.ModuleOtherLanguage,
 	)
 	return i, err
 }

@@ -77,6 +77,11 @@ var (
 	ErrPartNotDivided = errors.New("dieser Teil ist nicht abgetrennt")
 	// ErrTaughtByTooLong mirrors instance_part_taught_by_is_trimmed.
 	ErrTaughtByTooLong = errors.New("die Angabe zur anderen Fakultät ist zu lang")
+	// ErrEnglishNotOffered is marking a cohort as taught in English, listing it as a course in
+	// English, or offering it as one with a wish, where the module description does not name
+	// English (Module.EnglishPossible).
+	ErrEnglishNotOffered = errors.New(
+		"laut Modulhandbuch wird dieses Modul nicht auf Englisch angeboten")
 	// ErrDeliveryInvalid is a way of teaching this build does not know.
 	ErrDeliveryInvalid = errors.New("diese Durchführungsform ist nicht gültig")
 	// ErrTopicTooLong mirrors course_instance_topic_is_a_heading.
@@ -757,6 +762,9 @@ type DemandStore interface {
 	// catalogue says"; a value equal to the catalogue's is stored as nil too.
 	SetCourseInstanceFormat(ctx context.Context, id uuid.UUID, delivery Delivery,
 		englishOverride *bool) (*CourseInstance, error)
+	// TeachesCourseInstance reports whether the person holds a part of the cohort, a lecture
+	// shared with its parallel cohorts included.
+	TeachesCourseInstance(ctx context.Context, instanceID, personID uuid.UUID) (bool, error)
 	// SetCourseInstanceCiE writes whether a cohort is listed as a course in English.
 	SetCourseInstanceCiE(ctx context.Context, id uuid.UUID, cie bool) (*CourseInstance, error)
 	// SetCourseInstanceTopic writes which seminar a cohort is; nil takes the topic away.

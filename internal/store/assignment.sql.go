@@ -55,9 +55,16 @@ SELECT
     p.kind AS part_kind, p.position AS part_position, p.teaching_hours AS part_teaching_hours,
     p.serves_sibling_tracks,
     ci.id AS course_instance_id, ci.track, ci.topic, ci.programme_semester,
+    -- How the cohort is taught, so that an instance read through an assignment or a wish says the
+    -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
+    ci.delivery, ci.taught_in_english, ci.cie AS instance_cie,
     sem.code AS semester_code, sem.phase AS semester_phase,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
+    -- What the module description says about language: Module.englishPossible, and the catalogue's
+    -- default behind taughtInEnglish.
+    m.source AS module_source, m.teaching_language AS module_teaching_language,
+    m.other_language AS module_other_language,
     COALESCE(person.name, t.full_name, '')::text AS assignee_name,
     COALESCE(person.mail, t.mail, '')::citext AS assignee_mail,
     COALESCE(NULLIF(ts.short_name, ''), NULLIF(t.short_name, ''), person.name, t.full_name, '')::text
@@ -93,32 +100,38 @@ type AssignmentByIDParams struct {
 }
 
 type AssignmentByIDRow struct {
-	ID                  uuid.UUID
-	InstancePartID      uuid.UUID
-	PersonID            uuid.NullUUID
-	TeacherID           uuid.NullUUID
-	Note                string
-	AssignedBy          uuid.NullUUID
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	PartKind            string
-	PartPosition        int32
-	PartTeachingHours   pgtype.Numeric
-	ServesSiblingTracks bool
-	CourseInstanceID    uuid.UUID
-	Track               string
-	Topic               *string
-	ProgrammeSemester   *int32
-	SemesterCode        string
-	SemesterPhase       string
-	ProgrammeID         uuid.UUID
-	ProgrammeCode       string
-	ProgrammeTitle      string
-	ModuleID            uuid.UUID
-	ModuleName          string
-	AssigneeName        string
-	AssigneeMail        string
-	AssigneeSortName    string
+	ID                     uuid.UUID
+	InstancePartID         uuid.UUID
+	PersonID               uuid.NullUUID
+	TeacherID              uuid.NullUUID
+	Note                   string
+	AssignedBy             uuid.NullUUID
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	PartKind               string
+	PartPosition           int32
+	PartTeachingHours      pgtype.Numeric
+	ServesSiblingTracks    bool
+	CourseInstanceID       uuid.UUID
+	Track                  string
+	Topic                  *string
+	ProgrammeSemester      *int32
+	Delivery               string
+	TaughtInEnglish        *bool
+	InstanceCie            bool
+	SemesterCode           string
+	SemesterPhase          string
+	ProgrammeID            uuid.UUID
+	ProgrammeCode          string
+	ProgrammeTitle         string
+	ModuleID               uuid.UUID
+	ModuleName             string
+	ModuleSource           string
+	ModuleTeachingLanguage *string
+	ModuleOtherLanguage    *string
+	AssigneeName           string
+	AssigneeMail           string
+	AssigneeSortName       string
 }
 
 // One assignment, through the same filter. A detail view that skipped it would be the hole the
@@ -150,6 +163,9 @@ func (q *Queries) AssignmentByID(ctx context.Context, arg AssignmentByIDParams) 
 		&i.Track,
 		&i.Topic,
 		&i.ProgrammeSemester,
+		&i.Delivery,
+		&i.TaughtInEnglish,
+		&i.InstanceCie,
 		&i.SemesterCode,
 		&i.SemesterPhase,
 		&i.ProgrammeID,
@@ -157,6 +173,9 @@ func (q *Queries) AssignmentByID(ctx context.Context, arg AssignmentByIDParams) 
 		&i.ProgrammeTitle,
 		&i.ModuleID,
 		&i.ModuleName,
+		&i.ModuleSource,
+		&i.ModuleTeachingLanguage,
+		&i.ModuleOtherLanguage,
 		&i.AssigneeName,
 		&i.AssigneeMail,
 		&i.AssigneeSortName,
@@ -220,9 +239,16 @@ SELECT
     p.kind AS part_kind, p.position AS part_position, p.teaching_hours AS part_teaching_hours,
     p.serves_sibling_tracks,
     ci.id AS course_instance_id, ci.track, ci.topic, ci.programme_semester,
+    -- How the cohort is taught, so that an instance read through an assignment or a wish says the
+    -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
+    ci.delivery, ci.taught_in_english, ci.cie AS instance_cie,
     sem.code AS semester_code, sem.phase AS semester_phase,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name,
+    -- What the module description says about language: Module.englishPossible, and the catalogue's
+    -- default behind taughtInEnglish.
+    m.source AS module_source, m.teaching_language AS module_teaching_language,
+    m.other_language AS module_other_language,
     -- One assignee out of two columns. COALESCE rather than two nullable pairs the caller has to
     -- pick between: which table the row came from is a fact about accounts, not about teaching,
     -- and every screen that rendered it separately would render it the same way in the end.
@@ -271,32 +297,38 @@ type AssignmentsOfSemesterParams struct {
 }
 
 type AssignmentsOfSemesterRow struct {
-	ID                  uuid.UUID
-	InstancePartID      uuid.UUID
-	PersonID            uuid.NullUUID
-	TeacherID           uuid.NullUUID
-	Note                string
-	AssignedBy          uuid.NullUUID
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	PartKind            string
-	PartPosition        int32
-	PartTeachingHours   pgtype.Numeric
-	ServesSiblingTracks bool
-	CourseInstanceID    uuid.UUID
-	Track               string
-	Topic               *string
-	ProgrammeSemester   *int32
-	SemesterCode        string
-	SemesterPhase       string
-	ProgrammeID         uuid.UUID
-	ProgrammeCode       string
-	ProgrammeTitle      string
-	ModuleID            uuid.UUID
-	ModuleName          string
-	AssigneeName        string
-	AssigneeMail        string
-	AssigneeSortName    string
+	ID                     uuid.UUID
+	InstancePartID         uuid.UUID
+	PersonID               uuid.NullUUID
+	TeacherID              uuid.NullUUID
+	Note                   string
+	AssignedBy             uuid.NullUUID
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	PartKind               string
+	PartPosition           int32
+	PartTeachingHours      pgtype.Numeric
+	ServesSiblingTracks    bool
+	CourseInstanceID       uuid.UUID
+	Track                  string
+	Topic                  *string
+	ProgrammeSemester      *int32
+	Delivery               string
+	TaughtInEnglish        *bool
+	InstanceCie            bool
+	SemesterCode           string
+	SemesterPhase          string
+	ProgrammeID            uuid.UUID
+	ProgrammeCode          string
+	ProgrammeTitle         string
+	ModuleID               uuid.UUID
+	ModuleName             string
+	ModuleSource           string
+	ModuleTeachingLanguage *string
+	ModuleOtherLanguage    *string
+	AssigneeName           string
+	AssigneeMail           string
+	AssigneeSortName       string
 }
 
 // Assignments: who holds each part of a course instance.
@@ -387,6 +419,9 @@ func (q *Queries) AssignmentsOfSemester(ctx context.Context, arg AssignmentsOfSe
 			&i.Track,
 			&i.Topic,
 			&i.ProgrammeSemester,
+			&i.Delivery,
+			&i.TaughtInEnglish,
+			&i.InstanceCie,
 			&i.SemesterCode,
 			&i.SemesterPhase,
 			&i.ProgrammeID,
@@ -394,6 +429,9 @@ func (q *Queries) AssignmentsOfSemester(ctx context.Context, arg AssignmentsOfSe
 			&i.ProgrammeTitle,
 			&i.ModuleID,
 			&i.ModuleName,
+			&i.ModuleSource,
+			&i.ModuleTeachingLanguage,
+			&i.ModuleOtherLanguage,
 			&i.AssigneeName,
 			&i.AssigneeMail,
 			&i.AssigneeSortName,

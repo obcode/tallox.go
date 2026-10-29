@@ -138,6 +138,8 @@ type Module struct {
 	TeachingLanguageSource string
 	ProjectBased           bool
 	SemesterSpan           int16
+	OtherLanguage          *string
+	OtherLanguageSource    string
 }
 
 type ModuleComponent struct {
@@ -332,6 +334,7 @@ type Wish struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	CourseInstanceID uuid.UUID
+	Cie              bool
 }
 
 type WishTrackLimit struct {

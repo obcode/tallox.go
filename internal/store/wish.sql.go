@@ -115,13 +115,14 @@ func (q *Queries) SetWishTrackLimit(ctx context.Context, arg SetWishTrackLimitPa
 }
 
 const upsertWish = `-- name: UpsertWish :one
-INSERT INTO wish (course_instance_id, person_id, priority, note)
-VALUES ($1, $2, $3, $4)
+INSERT INTO wish (course_instance_id, person_id, priority, note, cie)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (course_instance_id, person_id) DO UPDATE
 SET priority = EXCLUDED.priority,
     note = EXCLUDED.note,
+    cie = EXCLUDED.cie,
     updated_at = now()
-RETURNING id, course_instance_id, person_id, priority, note, created_at, updated_at
+RETURNING id, course_instance_id, person_id, priority, note, cie, created_at, updated_at
 `
 
 type UpsertWishParams struct {
@@ -129,6 +130,7 @@ type UpsertWishParams struct {
 	PersonID         uuid.UUID
 	Priority         int16
 	Note             string
+	Cie              bool
 }
 
 type UpsertWishRow struct {
@@ -137,6 +139,7 @@ type UpsertWishRow struct {
 	PersonID         uuid.UUID
 	Priority         int16
 	Note             string
+	Cie              bool
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -155,6 +158,7 @@ func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertW
 		arg.PersonID,
 		arg.Priority,
 		arg.Note,
+		arg.Cie,
 	)
 	var i UpsertWishRow
 	err := row.Scan(
@@ -163,6 +167,7 @@ func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertW
 		&i.PersonID,
 		&i.Priority,
 		&i.Note,
+		&i.Cie,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -171,8 +176,11 @@ func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertW
 
 const wishByID = `-- name: WishByID :one
 SELECT
-    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
+    -- How the cohort is taught, so that an instance read through an assignment or a wish says the
+    -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
+    ci.delivery, ci.taught_in_english, ci.cie AS instance_cie,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
     -- query renders one row per wish, and a join to instance_part would turn each of them into
@@ -183,6 +191,10 @@ SELECT
                WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
+    -- What the module description says about language: Module.englishPossible, and the catalogue's
+    -- default behind taughtInEnglish.
+    m.source AS module_source, m.teaching_language AS module_teaching_language,
+    m.other_language AS module_other_language,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name,
     -- "Of these cohorts, at most this many" (migration of 2026-10-27). Joined onto the wish row
@@ -221,29 +233,36 @@ type WishByIDParams struct {
 }
 
 type WishByIDRow struct {
-	ID                uuid.UUID
-	CourseInstanceID  uuid.UUID
-	PersonID          uuid.UUID
-	Priority          int16
-	Note              string
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	Track             string
-	Topic             *string
-	ProgrammeSemester *int32
-	SemesterCode      string
-	SemesterPhase     string
-	TeachingHours     float64
-	ProgrammeID       uuid.UUID
-	ProgrammeCode     string
-	ProgrammeTitle    string
-	ModuleID          uuid.UUID
-	ModuleName        string
-	SubjectGroupID    uuid.NullUUID
-	PersonMail        string
-	PersonName        string
-	PersonSortName    string
-	TrackLimit        *int16
+	ID                     uuid.UUID
+	CourseInstanceID       uuid.UUID
+	PersonID               uuid.UUID
+	Priority               int16
+	Note                   string
+	Cie                    bool
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	Track                  string
+	Topic                  *string
+	ProgrammeSemester      *int32
+	Delivery               string
+	TaughtInEnglish        *bool
+	InstanceCie            bool
+	SemesterCode           string
+	SemesterPhase          string
+	TeachingHours          float64
+	ProgrammeID            uuid.UUID
+	ProgrammeCode          string
+	ProgrammeTitle         string
+	ModuleID               uuid.UUID
+	ModuleName             string
+	SubjectGroupID         uuid.NullUUID
+	ModuleSource           string
+	ModuleTeachingLanguage *string
+	ModuleOtherLanguage    *string
+	PersonMail             string
+	PersonName             string
+	PersonSortName         string
+	TrackLimit             *int16
 }
 
 // One wish, through the same filter. A detail view that skipped it would be the hole the list
@@ -264,11 +283,15 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 		&i.PersonID,
 		&i.Priority,
 		&i.Note,
+		&i.Cie,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Track,
 		&i.Topic,
 		&i.ProgrammeSemester,
+		&i.Delivery,
+		&i.TaughtInEnglish,
+		&i.InstanceCie,
 		&i.SemesterCode,
 		&i.SemesterPhase,
 		&i.TeachingHours,
@@ -278,6 +301,9 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 		&i.ModuleID,
 		&i.ModuleName,
 		&i.SubjectGroupID,
+		&i.ModuleSource,
+		&i.ModuleTeachingLanguage,
+		&i.ModuleOtherLanguage,
 		&i.PersonMail,
 		&i.PersonName,
 		&i.PersonSortName,
@@ -289,8 +315,11 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 const wishesOfSemester = `-- name: WishesOfSemester :many
 
 SELECT
-    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.created_at, w.updated_at,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
+    -- How the cohort is taught, so that an instance read through an assignment or a wish says the
+    -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
+    ci.delivery, ci.taught_in_english, ci.cie AS instance_cie,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
     -- query renders one row per wish, and a join to instance_part would turn each of them into
@@ -301,6 +330,10 @@ SELECT
                WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
+    -- What the module description says about language: Module.englishPossible, and the catalogue's
+    -- default behind taughtInEnglish.
+    m.source AS module_source, m.teaching_language AS module_teaching_language,
+    m.other_language AS module_other_language,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name,
     -- "Of these cohorts, at most this many" (migration of 2026-10-27). Joined onto the wish row
@@ -350,29 +383,36 @@ type WishesOfSemesterParams struct {
 }
 
 type WishesOfSemesterRow struct {
-	ID                uuid.UUID
-	CourseInstanceID  uuid.UUID
-	PersonID          uuid.UUID
-	Priority          int16
-	Note              string
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	Track             string
-	Topic             *string
-	ProgrammeSemester *int32
-	SemesterCode      string
-	SemesterPhase     string
-	TeachingHours     float64
-	ProgrammeID       uuid.UUID
-	ProgrammeCode     string
-	ProgrammeTitle    string
-	ModuleID          uuid.UUID
-	ModuleName        string
-	SubjectGroupID    uuid.NullUUID
-	PersonMail        string
-	PersonName        string
-	PersonSortName    string
-	TrackLimit        *int16
+	ID                     uuid.UUID
+	CourseInstanceID       uuid.UUID
+	PersonID               uuid.UUID
+	Priority               int16
+	Note                   string
+	Cie                    bool
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	Track                  string
+	Topic                  *string
+	ProgrammeSemester      *int32
+	Delivery               string
+	TaughtInEnglish        *bool
+	InstanceCie            bool
+	SemesterCode           string
+	SemesterPhase          string
+	TeachingHours          float64
+	ProgrammeID            uuid.UUID
+	ProgrammeCode          string
+	ProgrammeTitle         string
+	ModuleID               uuid.UUID
+	ModuleName             string
+	SubjectGroupID         uuid.NullUUID
+	ModuleSource           string
+	ModuleTeachingLanguage *string
+	ModuleOtherLanguage    *string
+	PersonMail             string
+	PersonName             string
+	PersonSortName         string
+	TrackLimit             *int16
 }
 
 // Wishes: one person's interest in one course instance.
@@ -445,11 +485,15 @@ func (q *Queries) WishesOfSemester(ctx context.Context, arg WishesOfSemesterPara
 			&i.PersonID,
 			&i.Priority,
 			&i.Note,
+			&i.Cie,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Track,
 			&i.Topic,
 			&i.ProgrammeSemester,
+			&i.Delivery,
+			&i.TaughtInEnglish,
+			&i.InstanceCie,
 			&i.SemesterCode,
 			&i.SemesterPhase,
 			&i.TeachingHours,
@@ -459,6 +503,9 @@ func (q *Queries) WishesOfSemester(ctx context.Context, arg WishesOfSemesterPara
 			&i.ModuleID,
 			&i.ModuleName,
 			&i.SubjectGroupID,
+			&i.ModuleSource,
+			&i.ModuleTeachingLanguage,
+			&i.ModuleOtherLanguage,
 			&i.PersonMail,
 			&i.PersonName,
 			&i.PersonSortName,

@@ -95,6 +95,9 @@ type WishWriteContext struct {
 	// TaughtElsewhere is an instance every part of which another faculty teaches
 	// (InstancePart.TaughtBy). There is nothing in it for anybody here to want.
 	TaughtElsewhere bool
+	// EnglishPossible is whether the module description names English (Module.EnglishPossible):
+	// only then may a wish offer the cohort as a course in English.
+	EnglishPossible bool
 }
 
 // Found reports whether the instance exists.

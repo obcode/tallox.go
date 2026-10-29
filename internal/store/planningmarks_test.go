@@ -229,7 +229,7 @@ func TestAShutWindowRefusesAWishAndAReopenedOneTakesItAgain(t *testing.T) {
 		domain.NewSemesterService(store.NewSemesters(f.schema.Pool), nil))
 	owner := testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer))
 
-	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishHappyTo, ""); err != nil {
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishHappyTo, "", false); err != nil {
 		t.Fatalf("registering interest with an open window failed: %v", err)
 	}
 
@@ -237,7 +237,7 @@ func TestAShutWindowRefusesAWishAndAReopenedOneTakesItAgain(t *testing.T) {
 		t.Fatalf("cannot shut the window: %v", err)
 	}
 
-	_, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "")
+	_, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false)
 	if !errors.Is(err, domain.ErrWishWindowClosed) {
 		t.Errorf("registering interest with a shut window gave %v, want ErrWishWindowClosed", err)
 	}
@@ -255,7 +255,7 @@ func TestAShutWindowRefusesAWishAndAReopenedOneTakesItAgain(t *testing.T) {
 	if _, err := m.SetWishWindow(ctx, f.semester.Code, f.group, true, testdata.Drei.ID()); err != nil {
 		t.Fatalf("cannot reopen: %v", err)
 	}
-	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, ""); err != nil {
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false); err != nil {
 		t.Errorf("registering interest after reopening failed: %v", err)
 	}
 }

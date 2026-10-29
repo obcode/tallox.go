@@ -328,32 +328,38 @@ func writeContextFrom(row PartWriteContextRow) domain.PartWriteContext {
 // Converting rather than copying field by field makes that a compile-time claim: two queries whose
 // projections drift apart would be two shapes of the same record, and only one of them tested.
 type assignmentRow struct {
-	ID                  uuid.UUID
-	InstancePartID      uuid.UUID
-	PersonID            uuid.NullUUID
-	TeacherID           uuid.NullUUID
-	Note                string
-	AssignedBy          uuid.NullUUID
-	CreatedAt           time.Time
-	UpdatedAt           time.Time
-	PartKind            string
-	PartPosition        int32
-	PartTeachingHours   pgtype.Numeric
-	ServesSiblingTracks bool
-	CourseInstanceID    uuid.UUID
-	Track               string
-	Topic               *string
-	ProgrammeSemester   *int32
-	SemesterCode        string
-	SemesterPhase       string
-	ProgrammeID         uuid.UUID
-	ProgrammeCode       string
-	ProgrammeTitle      string
-	ModuleID            uuid.UUID
-	ModuleName          string
-	AssigneeName        string
-	AssigneeMail        string
-	AssigneeSortName    string
+	ID                     uuid.UUID
+	InstancePartID         uuid.UUID
+	PersonID               uuid.NullUUID
+	TeacherID              uuid.NullUUID
+	Note                   string
+	AssignedBy             uuid.NullUUID
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	PartKind               string
+	PartPosition           int32
+	PartTeachingHours      pgtype.Numeric
+	ServesSiblingTracks    bool
+	CourseInstanceID       uuid.UUID
+	Track                  string
+	Topic                  *string
+	ProgrammeSemester      *int32
+	Delivery               string
+	TaughtInEnglish        *bool
+	InstanceCie            bool
+	SemesterCode           string
+	SemesterPhase          string
+	ProgrammeID            uuid.UUID
+	ProgrammeCode          string
+	ProgrammeTitle         string
+	ModuleID               uuid.UUID
+	ModuleName             string
+	ModuleSource           string
+	ModuleTeachingLanguage *string
+	ModuleOtherLanguage    *string
+	AssigneeName           string
+	AssigneeMail           string
+	AssigneeSortName       string
 }
 
 // assignmentFrom builds the domain record.
@@ -379,10 +385,14 @@ func assignmentFrom(row assignmentRow) domain.Assignment {
 			Track:             row.Track,
 			Topic:             stringOrEmpty(row.Topic),
 			ProgrammeSemester: intOrNil(row.ProgrammeSemester),
-			Module: domain.Module{
+			Delivery:          domain.Delivery(row.Delivery),
+			EnglishOverride:   row.TaughtInEnglish,
+			CatalogueLanguage: domain.Language(stringOrEmpty(row.ModuleTeachingLanguage)),
+			CiE:               row.InstanceCie,
+			Module: languagesOf(domain.Module{
 				ID:   row.ModuleID,
 				Name: row.ModuleName,
-			},
+			}, row.ModuleSource, row.ModuleTeachingLanguage, row.ModuleOtherLanguage),
 			Programme: domain.Programme{
 				ID:    row.ProgrammeID,
 				Code:  row.ProgrammeCode,

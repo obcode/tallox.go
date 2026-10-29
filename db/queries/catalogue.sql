@@ -117,6 +117,7 @@ WITH frequency_map AS (
 )
 INSERT INTO module (home_programme_id, name, course_type, course_type_source,
                     frequency, frequency_source, teaching_language, teaching_language_source,
+                    other_language, other_language_source,
                     contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref)
 SELECT p.id,
        COALESCE(m.name, ''),
@@ -126,6 +127,8 @@ SELECT p.id,
        COALESCE(m.frequency, ''),
        lm.value,
        COALESCE(m.default_language, ''),
+       om.value,
+       COALESCE(m.languages, ''),
        m.sws,
        m.credits,
        COALESCE(m.active, true),
@@ -140,6 +143,10 @@ LEFT JOIN course_type_map ct ON ct.phrase = m.course_type
 -- ("DE") or a word ("Deutsch") rather than a sentence, and its spelling is not something the
 -- source has ever been seen to keep consistent.
 LEFT JOIN language_map lm ON lm.phrase = lower(btrim(m.default_language))
+-- The other language a module may be taught in, under the same mapping: despite its name the
+-- source's languages field holds one code, never the default and never a list (measured
+-- 2026-10-29; migration 20261029100000). A list would not map and would be reported.
+LEFT JOIN language_map om ON om.phrase = lower(btrim(m.languages))
 ON CONFLICT (zpa_module_ref) DO UPDATE
 SET home_programme_id      = EXCLUDED.home_programme_id,
     name                   = EXCLUDED.name,
@@ -149,6 +156,8 @@ SET home_programme_id      = EXCLUDED.home_programme_id,
     frequency_source       = EXCLUDED.frequency_source,
     teaching_language      = EXCLUDED.teaching_language,
     teaching_language_source = EXCLUDED.teaching_language_source,
+    other_language         = EXCLUDED.other_language,
+    other_language_source  = EXCLUDED.other_language_source,
     contact_hours_per_week = EXCLUDED.contact_hours_per_week,
     credits                = EXCLUDED.credits,
     active                 = EXCLUDED.active,
@@ -379,11 +388,15 @@ WHERE course_type = 'DEPENDS_ON_SUBJECT'
   AND course_type_source <> sqlc.arg(depends_on_subject_phrase)::text;
 
 -- name: CountUnmappedLanguages :one
--- Became "no language stated". Same exclusion of the empty phrase as the two above.
-SELECT count(*)::integer AS count,
-       (array_agg(DISTINCT teaching_language_source))[1:20]::text[] AS sample
-FROM module
-WHERE teaching_language IS NULL AND btrim(teaching_language_source) <> '';
+-- Became "no language stated". Same exclusion of the empty phrase as the two above. Both the
+-- default and the other language, in one note: the mapping is the same, so is the repair, and a
+-- module is counted once however many of its two phrases failed.
+SELECT count(DISTINCT m.id)::integer AS count,
+       (array_agg(DISTINCT l.phrase))[1:20]::text[] AS sample
+FROM module m
+CROSS JOIN LATERAL (VALUES (m.teaching_language, m.teaching_language_source),
+                           (m.other_language, m.other_language_source)) AS l (value, phrase)
+WHERE l.value IS NULL AND btrim(l.phrase) <> '';
 
 -- name: CountMinSemesterConflicts :one
 -- Folded with min(). Two real pairs are in this state, and both are a module sitting in an

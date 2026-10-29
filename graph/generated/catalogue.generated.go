@@ -238,6 +238,29 @@ func (ec *executionContext) fieldContext_Module_projectBased(_ context.Context, 
 	return graphql.NewScalarFieldContext("Module", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _Module_englishPossible(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Module_englishPossible(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.EnglishPossible, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Module_englishPossible(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Module", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _Module_semesterSpan(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2408,6 +2431,11 @@ func (ec *executionContext) _Module(ctx context.Context, sel ast.SelectionSet, o
 			}
 		case "projectBased":
 			out.Values[i] = ec._Module_projectBased(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				atomic.AddUint32(&out.Invalids, 1)
+			}
+		case "englishPossible":
+			out.Values[i] = ec._Module_englishPossible(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}

@@ -1121,3 +1121,81 @@ func TestProjectionMapsTheDefaultLanguage(t *testing.T) {
 		t.Errorf("LANGUAGE_UNMAPPED reports %d / %v, want exactly the one phrase", n.Count, n.Sample)
 	}
 }
+
+// The source's languages field is the one other language a module may be taught in. It maps under
+// the default's vocabulary, an unrecognised phrase is reported under the same note, and a module
+// counts once there however many of its two phrases failed. Together the two say whether English
+// is possible — the rule for marking or listing a cohort as English.
+func TestProjectionMapsTheOtherLanguage(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	storetest.SeedZPACatalogue(t, s)
+	ctx := t.Context()
+
+	set := func(module int64, field, phrase string) {
+		t.Helper()
+		if _, err := s.Pool.Exec(ctx,
+			`UPDATE zpa_object SET payload = jsonb_set(payload, ARRAY[$2::text], to_jsonb($3::text))
+			  WHERE kind = 'MODULE' AND zpa_id = $1`, module, field, phrase); err != nil {
+			t.Fatalf("cannot set %s: %v", field, err)
+		}
+	}
+	clear := func(module int64, field string) {
+		t.Helper()
+		if _, err := s.Pool.Exec(ctx,
+			`UPDATE zpa_object SET payload = payload - $2::text WHERE kind = 'MODULE' AND zpa_id = $1`,
+			module, field); err != nil {
+			t.Fatalf("cannot clear %s: %v", field, err)
+		}
+	}
+	read := func(module int64) domain.Module {
+		t.Helper()
+		var source, teaching, other *string
+		if err := s.Pool.QueryRow(ctx,
+			`SELECT source, teaching_language, other_language FROM module WHERE zpa_module_ref = $1`,
+			module).Scan(&source, &teaching, &other); err != nil {
+			t.Fatalf("cannot read the module: %v", err)
+		}
+		m := domain.Module{Source: domain.ModuleSource(*source)}
+		if teaching != nil {
+			m.TeachingLanguage = domain.Language(*teaching)
+		}
+		if other != nil {
+			m.OtherLanguage = domain.Language(*other)
+		}
+		return m
+	}
+
+	// The fixture's default: German, English possible — the commonest real case.
+	clear(storetest.FixtureModuleWithoutHours, "languages")              // German only
+	set(storetest.FixtureModuleUnknownVocabulary, "languages", "DE, EN") // a list: not seen, not guessed
+	set(storetest.FixtureModuleUnknownVocabulary, "std_lang", "EN")      // ... but the default is English
+	result := project(t, s)
+
+	for _, c := range []struct {
+		module  int64
+		other   domain.Language
+		english bool
+	}{
+		{storetest.FixtureModuleOrdinary, domain.LanguageEnglish, true},
+		{storetest.FixtureModuleWithoutHours, "", false},
+		// Unmapped, and still possible: English is its default.
+		{storetest.FixtureModuleUnknownVocabulary, "", true},
+	} {
+		m := read(c.module)
+		if m.OtherLanguage != c.other || m.EnglishPossible() != c.english {
+			t.Errorf("module %d: other language %q, English possible %v; want %q, %v",
+				c.module, m.OtherLanguage, m.EnglishPossible(), c.other, c.english)
+		}
+	}
+
+	n := note(result, domain.NoteLanguageUnmapped)
+	if n == nil {
+		t.Fatal("an unrecognised other language is not reported")
+	}
+	if !slices.Contains(n.Sample, "DE, EN") || n.Count != 1 {
+		t.Errorf("LANGUAGE_UNMAPPED reports %d / %v, want the one module and its phrase",
+			n.Count, n.Sample)
+	}
+}

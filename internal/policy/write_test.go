@@ -496,3 +496,36 @@ func TestTheTopicOfACohortFollowsTheDemandOrTheAssignment(t *testing.T) {
 		}
 	}
 }
+
+// CiE is the format's rule plus whoever teaches the cohort, as a lecturer, until the semester is
+// over. Teaching adds exactly that and nothing more: it opens nothing in FINAL, nothing to an
+// actor without LECTURER, and the format itself stays the leads'.
+func TestTheCiEListingFollowsTheFormatOrTheTeaching(t *testing.T) {
+	t.Parallel()
+
+	actors := []principal.Actor{principal.Anonymous}
+	for _, role := range policy.AllRoles() {
+		for _, kind := range []principal.Kind{principal.KindInteractive, principal.KindToken} {
+			actors = append(actors, testdata.Drei.Actor(kind, string(role)))
+		}
+		actors = append(actors, headOf(testdata.Drei, principal.KindInteractive, groupOne))
+	}
+
+	for _, a := range actors {
+		for _, phase := range policy.AllPhases() {
+			for _, group := range []uuid.UUID{groupOne, groupTwo, uuid.Nil} {
+				format := policy.MayWriteInstanceFormat(a, group, uuid.Nil, phase)
+				if got := policy.MayWriteInstanceCiE(a, group, uuid.Nil, phase, false); got != format {
+					t.Errorf("%v in %s for group %s, not teaching: CiE %v, format %v",
+						a.Roles, phase, group, got, format)
+				}
+				want := format || (policy.RolesOf(a).Has(policy.RoleLecturer) &&
+					phase != policy.PhaseFinal)
+				if got := policy.MayWriteInstanceCiE(a, group, uuid.Nil, phase, true); got != want {
+					t.Errorf("%v in %s for group %s, teaching: CiE %v, want %v",
+						a.Roles, phase, group, got, want)
+				}
+			}
+		}
+	}
+}

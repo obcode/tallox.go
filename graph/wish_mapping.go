@@ -30,6 +30,7 @@ func wishModel(w domain.Wish) *model.Wish {
 		Priority:   w.Priority,
 		Note:       w.Note,
 		TrackLimit: trackLimitOrNil(w.TrackLimit),
+		Cie:        w.CiE,
 		CreatedAt:  timeOrNil(w.CreatedAt),
 		UpdatedAt:  timeOrNil(w.UpdatedAt),
 	}
@@ -138,6 +139,8 @@ func wishError(err error) error {
 		return refusal("WISH_WINDOW_CLOSED", policy.WishWindowClosedReason)
 	case errors.Is(err, domain.ErrInstanceTaughtElsewhere):
 		return refusal("INSTANCE_TAUGHT_ELSEWHERE", err.Error())
+	case errors.Is(err, domain.ErrEnglishNotOffered):
+		return refusal("ENGLISH_NOT_OFFERED", err.Error())
 	case errors.Is(err, domain.ErrWishNotFound):
 		return refusal("WISH_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrWishNoteTooLong):

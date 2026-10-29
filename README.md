@@ -52,6 +52,19 @@ $ curl -sS https://<host>/api/graphql \
     -d '{"query":"{ me { mail name roles } }"}'
 ```
 
+### The contract: `schema.graphql`
+
+[`schema.graphql`](schema.graphql) is the whole API in one file, generated from the server and
+committed. It is the schema introspection returns, plus what introspection cannot say: which
+fields carry `@scope`, `@interactiveOnly` and `@fullReach`, i.e. which door, scope and token kind
+a field needs. Every release has the file attached, so a script can pin the contract of exactly
+the version it runs against and generate its types without a running server. Introspection stays
+on for editors and exploration.
+
+The contract changes additively: add a field, mark the old one `@deprecated(reason: …)`, remove
+it in a later release. CI lists every change against `main` and fails on a breaking one unless a
+commit acknowledges it (see [Development](#development)).
+
 ## Stack
 
 Go · [gqlgen](https://gqlgen.com) · PostgreSQL 18 · [sqlc](https://sqlc.dev) ·
@@ -68,11 +81,24 @@ tooling, one *Reopen in Container* away.
 go build ./...
 go test ./...
 golangci-lint-v2 run
-go generate ./...                                     # gqlgen
+go generate ./...                                     # gqlgen, then schema.graphql
 sqlc generate                                         # db/queries/*.sql -> Go
 goose -dir db/migrations postgres "$TALLOX_DB_URL" up
 gowatch                                               # live-reloading server on :8080
 ```
+
+**API changes start with the contract.** The first commit of a branch that changes the API
+touches only `graph/*.graphqls` and the regenerated `schema.graphql`, so the diff of
+`schema.graphql` can be reviewed as the contract before any resolver exists. The `schema-diff`
+CI job reports what changed against `main`. A breaking change fails it unless a commit message
+in the branch carries a trailer
+
+```text
+API-Break: <why, and what a client has to change>
+```
+
+and acknowledging a break is not releasing a major: server and GUI share their major version,
+and raising it is decided together with the maintainer.
 
 The server needs `TALLOX_DB_URL` and applies the embedded migrations at startup.
 
@@ -98,6 +124,8 @@ production code path exercised daily instead of discovered in October.
 ```
 bootstrap/          entrypoint: flags, config, wiring, router, shutdown
 graph/              gqlgen schema and resolvers (one .graphqls per domain)
+schema.graphql      the published contract, generated from graph/ — do not edit
+internal/sdl/       renders schema.graphql from the served schema
 internal/principal/ the authenticated actor in the context
 internal/auth/      proxy-header and bearer-token authenticators
 internal/policy/    visibility and phase rules — pure, no I/O

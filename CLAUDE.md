@@ -41,7 +41,7 @@ go test -race -shuffle=on ./...    # what CI runs
 TALLOX_TEST_DB=container go test ./internal/store/...   # needs a Docker socket
 go vet ./...
 golangci-lint-v2 run               # note the -v2 binary name
-go generate ./...                  # gqlgen, after editing graph/*.graphqls
+go generate ./...                  # gqlgen + schema.graphql, after editing graph/*.graphqls
 sqlc generate                      # after editing db/queries/*.sql
 goose -dir db/migrations postgres "$TALLOX_DB_URL" up
 go run . -migrate-status              # what is applied, what this binary would apply
@@ -57,6 +57,8 @@ leak path is a colleague's evaluation script, not the server.
 main.go                    version, time.Local = Europe/Berlin, bootstrap.Serve()
 bootstrap/                 flags, viper config, wiring, chi router, graceful shutdown
 graph/                     gqlgen: *.graphqls (follow-schema) + *.resolvers.go — thin
+schema.graphql             the published API contract, rendered from the served schema
+internal/sdl/              renders it; tests keep it equal to what the server executes
 internal/buildinfo/        the ldflags version stamp. Shared by main, /healthz and `buildInfo`.
 internal/principal/        the authenticated Actor in the context. stdlib + uuid only.
 internal/auth/             two authenticators, one middleware, the PAT format
@@ -83,7 +85,17 @@ Resolvers are thin and delegate to `internal/domain`. Hand-written model types l
 `graph/model/` with both `json:` (GraphQL) and `db:` tags and are autobound by gqlgen.
 
 Generated, do not edit by hand: `graph/generated/`, `graph/model/models_gen.go`,
-`internal/store/*.sql.go`.
+`internal/store/*.sql.go`, `schema.graphql`.
+
+**The API is contract-first.** `schema.graphql` is the published contract: the served schema
+including the directive usages that introspection drops, attached to every release, and what
+`tallox.gui` and colleagues' scripts build against. A branch that changes the API starts with a
+commit that touches only `graph/*.graphqls` and the regenerated file; resolvers follow. Change
+additively — add, `@deprecated(reason:)`, remove in a later release — because a rollback pins an
+older server under a newer client. The `schema-diff` CI job fails on a breaking change unless a
+commit message in the branch carries `API-Break: <reason>`; that trailer acknowledges the break,
+it does not authorise a major bump, which stays a joint decision for server and GUI. Background
+in `.claude/memory/api-contract.md`.
 
 ## Auth: two doors, one authorization model
 

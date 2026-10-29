@@ -210,3 +210,27 @@ func MaySetProgrammeQuota(a principal.Actor) bool {
 func MaySetProgrammeDegree(a principal.Actor) bool {
 	return MayAdministerSemesters(a)
 }
+
+// MaySetAssignmentConfirmationDue reports whether an actor may ask everybody to confirm their
+// assignments by a date, move the date or withdraw the request.
+//
+// The dean's office with full reach, like the publications. Not because the act is irreversible —
+// it is not — but because it is an act on the whole semester's process that every colleague is
+// then asked about, and the semester's other such acts sit behind the same door.
+func MaySetAssignmentConfirmationDue(a principal.Actor) bool {
+	return MayAdministerSemesters(a) && a.ActsWithFullReach()
+}
+
+// ConfirmationDueReason is what a caller who failed MaySetAssignmentConfirmationDue is told.
+// Two sentences for the reason PublishWishesReason gives.
+const ConfirmationDueReason = "Nur das Dekanat legt den Prüftermin für die Zuteilungen fest. " +
+	"Das geht im Browser oder mit einem Planungs-Token mit voller Reichweite."
+
+// MayConfirmOwnAssignments reports whether an actor may confirm their own assignments of a
+// semester: anybody with an account, through every door, until the semester is FINAL.
+//
+// Every door because it is about one's own timetable and its refusals say nothing about anybody
+// else. FINAL because a semester that is over has nothing left to check against.
+func MayConfirmOwnAssignments(a principal.Actor, s SemesterState) bool {
+	return a.Authenticated() && s.Phase != PhaseFinal
+}

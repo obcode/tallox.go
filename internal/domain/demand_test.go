@@ -388,6 +388,10 @@ func (f *fakeSemesterStore) PublishSemesterAssignments(context.Context, uuid.UUI
 	return domain.Semester{}, errors.New("not part of this test")
 }
 
+func (f *fakeSemesterStore) SetSemesterAssignmentConfirmationDue(context.Context, uuid.UUID, time.Time, uuid.UUID) (domain.Semester, error) {
+	return domain.Semester{}, errors.New("not part of this test")
+}
+
 func (f *fakeSemesterStore) FreezeSemesterDesiredHours(context.Context, uuid.UUID, uuid.UUID) (domain.Semester, error) {
 	return domain.Semester{}, errors.New("not part of this test")
 }

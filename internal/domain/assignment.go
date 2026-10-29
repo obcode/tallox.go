@@ -206,6 +206,7 @@ func (c PartWriteContext) Found() bool { return c.InstancePartID != uuid.Nil }
 // through it.
 type AssignmentStore interface {
 	AssignedLoadStore
+	AssignmentConfirmationStore
 
 	// Assignments returns the assignments matching the query that the filter allows.
 	Assignments(ctx context.Context, q AssignmentQuery, filter policy.AssignmentFilter,

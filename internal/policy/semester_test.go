@@ -323,3 +323,57 @@ func TestMaySetProgrammeDegree(t *testing.T) {
 		t.Error("an anonymous caller may record a degree")
 	}
 }
+
+// TestAssignmentConfirmationRules pins who may set the due date of the confirmation round and who
+// may confirm, door by door.
+func TestAssignmentConfirmationRules(t *testing.T) {
+	t.Parallel()
+
+	open := policy.SemesterState{Phase: policy.PhaseAssignment}
+	final := policy.SemesterState{Phase: policy.PhaseFinal}
+
+	tests := []struct {
+		name       string
+		actor      principal.Actor
+		setDue     bool
+		confirm    bool
+		confirmFin bool
+	}{
+		{"anonymous", principal.Anonymous, false, false, false},
+		{"a lecturer, in the browser",
+			testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer)),
+			false, true, false},
+		{"a lecturer confirms with a plain token too: it is their own timetable",
+			testdata.Eins.Actor(principal.KindToken, string(policy.RoleLecturer)),
+			false, true, false},
+		{"a subject group lead does not set the date",
+			testdata.Vier.Actor(principal.KindInteractive, string(policy.RoleSubjectGroupLead)),
+			false, true, false},
+		{"the dean's office, in the browser",
+			testdata.Vier.Actor(principal.KindInteractive, string(policy.RoleDeansOffice)),
+			true, true, false},
+		{"the dean's office with a full-reach token",
+			testdata.Vier.FullReachActor(string(policy.RoleDeansOffice)),
+			true, true, false},
+		{"the dean's office with a plain token does not set the date",
+			testdata.Vier.Actor(principal.KindToken, string(policy.RoleDeansOffice)),
+			false, true, false},
+		{"an administrator is not the dean's office",
+			testdata.Fuenf.Actor(principal.KindInteractive, string(policy.RoleAdmin)),
+			false, true, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := policy.MaySetAssignmentConfirmationDue(tt.actor); got != tt.setDue {
+				t.Errorf("MaySetAssignmentConfirmationDue = %v, want %v", got, tt.setDue)
+			}
+			if got := policy.MayConfirmOwnAssignments(tt.actor, open); got != tt.confirm {
+				t.Errorf("MayConfirmOwnAssignments(open) = %v, want %v", got, tt.confirm)
+			}
+			if got := policy.MayConfirmOwnAssignments(tt.actor, final); got != tt.confirmFin {
+				t.Errorf("MayConfirmOwnAssignments(FINAL) = %v, want %v", got, tt.confirmFin)
+			}
+		})
+	}
+}

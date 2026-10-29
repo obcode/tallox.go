@@ -134,6 +134,12 @@ models:
       # recorded" on the others. See graph/degree.go.
       degree:
         resolver: true
+  # Computed from the module already loaded with the instance, against the instance's own
+  # programme: one rule with Module.baskets, rather than a second copy on every construction site.
+  CourseInstance:
+    fields:
+      baskets:
+        resolver: true
   ProgrammeStatus:
     model: github.com/obcode/tallox.go/internal/domain.ProgrammeStatus
   Degree:

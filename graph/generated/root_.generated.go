@@ -25,6 +25,7 @@ func NewExecutableSchema(cfg Config) graphql.ExecutableSchema {
 type Config = graphql.Config[ResolverRoot, DirectiveRoot, ComplexityRoot]
 
 type ResolverRoot interface {
+	CourseInstance() CourseInstanceResolver
 	Module() ModuleResolver
 	Mutation() MutationResolver
 	Programme() ProgrammeResolver
@@ -181,6 +182,7 @@ type ComplexityRoot struct {
 
 	CourseInstance struct {
 		AlsoPlannedSeparately     func(childComplexity int) int
+		Baskets                   func(childComplexity int) int
 		BorrowedParts             func(childComplexity int) int
 		Cie                       func(childComplexity int) int
 		CoveredBy                 func(childComplexity int) int
@@ -1313,6 +1315,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CourseInstance.AlsoPlannedSeparately(childComplexity), true
+	case "CourseInstance.baskets":
+		if e.ComplexityRoot.CourseInstance.Baskets == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.Baskets(childComplexity), true
 	case "CourseInstance.borrowedParts":
 		if e.ComplexityRoot.CourseInstance.BorrowedParts == nil {
 			break
@@ -6910,6 +6918,16 @@ type CourseInstance {
   """
   topic: String
   """
+  The catalogue slots this cohort's module sits in within this cohort's own programme, sorted;
+  empty if the module does not appear in that programme's catalogue.
+
+  The same answer as ` + "`" + `module { baskets(programme:) }` + "`" + ` with this cohort's programme, for the
+  screens that list cohorts of several programmes side by side and cannot pass one argument per
+  row. Catalogue data, for display and filtering — never an identifier: a basket renamed between
+  two versions of the regulations shows both names.
+  """
+  baskets: [String!]!
+  """
   The assignable units this cohort holds itself, in order.
 
   Made from the module's split when the instance is declared — one part per unit — and edited
@@ -10126,6 +10144,8 @@ func (ec *executionContext) childFields_CourseInstance(ctx context.Context, fiel
 		return ec.fieldContext_CourseInstance_cie(ctx, field)
 	case "topic":
 		return ec.fieldContext_CourseInstance_topic(ctx, field)
+	case "baskets":
+		return ec.fieldContext_CourseInstance_baskets(ctx, field)
 	case "parts":
 		return ec.fieldContext_CourseInstance_parts(ctx, field)
 	case "borrowedParts":

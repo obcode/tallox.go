@@ -827,6 +827,16 @@ type CourseInstance {
   """
   topic: String
   """
+  The catalogue slots this cohort's module sits in within this cohort's own programme, sorted;
+  empty if the module does not appear in that programme's catalogue.
+
+  The same answer as `module { baskets(programme:) }` with this cohort's programme, for the
+  screens that list cohorts of several programmes side by side and cannot pass one argument per
+  row. Catalogue data, for display and filtering — never an identifier: a basket renamed between
+  two versions of the regulations shows both names.
+  """
+  baskets: [String!]!
+  """
   The assignable units this cohort holds itself, in order.
 
   Made from the module's split when the instance is declared — one part per unit — and edited

@@ -469,6 +469,14 @@ type CourseInstance struct {
 	// while the cohort stays the same. Carried over when a semester's demand is copied, not when a
 	// cohort is duplicated: a second seminar is a different one.
 	Topic *string `json:"topic,omitempty"`
+	// The catalogue slots this cohort's module sits in within this cohort's own programme, sorted;
+	// empty if the module does not appear in that programme's catalogue.
+	//
+	// The same answer as `module { baskets(programme:) }` with this cohort's programme, for the
+	// screens that list cohorts of several programmes side by side and cannot pass one argument per
+	// row. Catalogue data, for display and filtering — never an identifier: a basket renamed between
+	// two versions of the regulations shows both names.
+	Baskets []string `json:"baskets"`
 	// The assignable units this cohort holds itself, in order.
 	//
 	// Made from the module's split when the instance is declared — one part per unit — and edited

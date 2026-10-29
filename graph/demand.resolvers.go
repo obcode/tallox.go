@@ -10,10 +10,24 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/obcode/tallox.go/graph/generated"
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/principal"
 )
+
+// Baskets is the resolver for the baskets field.
+func (r *courseInstanceResolver) Baskets(ctx context.Context, obj *model.CourseInstance) ([]string, error) {
+	if obj.Module == nil || obj.Programme == nil {
+		return []string{}, nil
+	}
+	baskets := obj.Module.Domain.Baskets(normaliseCode(obj.Programme.Code))
+	if baskets == nil {
+		// Non-null on the wire, like Module.baskets: "in no basket" is the empty list.
+		return []string{}, nil
+	}
+	return baskets, nil
+}
 
 // PlanDemand is the resolver for the planDemand field.
 func (r *mutationResolver) PlanDemand(ctx context.Context, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) (*model.DemandPlanReport, error) {
@@ -354,3 +368,10 @@ func (r *queryResolver) CourseInstance(ctx context.Context, id string) (*model.C
 	}
 	return courseInstanceModel(*instance), nil
 }
+
+// CourseInstance returns generated.CourseInstanceResolver implementation.
+func (r *Resolver) CourseInstance() generated.CourseInstanceResolver {
+	return &courseInstanceResolver{r}
+}
+
+type courseInstanceResolver struct{ *Resolver }

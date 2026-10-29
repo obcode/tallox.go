@@ -265,30 +265,36 @@ func (w *Wishes) WishWriteContext(ctx context.Context,
 // arrangement teacherRow makes, and the same reason: two queries whose projections drift apart
 // would be two shapes of the same record.
 type wishRow struct {
-	ID                uuid.UUID
-	CourseInstanceID  uuid.UUID
-	PersonID          uuid.UUID
-	Priority          int16
-	Note              string
-	Cie               bool
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	Track             string
-	Topic             *string
-	ProgrammeSemester *int32
-	SemesterCode      string
-	SemesterPhase     string
-	TeachingHours     float64
-	ProgrammeID       uuid.UUID
-	ProgrammeCode     string
-	ProgrammeTitle    string
-	ModuleID          uuid.UUID
-	ModuleName        string
-	SubjectGroupID    uuid.NullUUID
-	PersonMail        string
-	PersonName        string
-	PersonSortName    string
-	TrackLimit        *int16
+	ID                     uuid.UUID
+	CourseInstanceID       uuid.UUID
+	PersonID               uuid.UUID
+	Priority               int16
+	Note                   string
+	Cie                    bool
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
+	Track                  string
+	Topic                  *string
+	ProgrammeSemester      *int32
+	Delivery               string
+	TaughtInEnglish        *bool
+	InstanceCie            bool
+	SemesterCode           string
+	SemesterPhase          string
+	TeachingHours          float64
+	ProgrammeID            uuid.UUID
+	ProgrammeCode          string
+	ProgrammeTitle         string
+	ModuleID               uuid.UUID
+	ModuleName             string
+	SubjectGroupID         uuid.NullUUID
+	ModuleSource           string
+	ModuleTeachingLanguage *string
+	ModuleOtherLanguage    *string
+	PersonMail             string
+	PersonName             string
+	PersonSortName         string
+	TrackLimit             *int16
 }
 
 func wishFrom(row wishRow) domain.Wish {
@@ -311,7 +317,12 @@ func wishFrom(row wishRow) domain.Wish {
 			Track:             row.Track,
 			Topic:             stringOrEmpty(row.Topic),
 			ProgrammeSemester: intOrNil(row.ProgrammeSemester),
-			Module:            domain.Module{ID: row.ModuleID, Name: row.ModuleName},
+			Delivery:          domain.Delivery(row.Delivery),
+			EnglishOverride:   row.TaughtInEnglish,
+			CatalogueLanguage: domain.Language(stringOrEmpty(row.ModuleTeachingLanguage)),
+			CiE:               row.InstanceCie,
+			Module: languagesOf(domain.Module{ID: row.ModuleID, Name: row.ModuleName},
+				row.ModuleSource, row.ModuleTeachingLanguage, row.ModuleOtherLanguage),
 			Programme: domain.Programme{
 				ID: row.ProgrammeID, Code: row.ProgrammeCode, Title: row.ProgrammeTitle,
 			},

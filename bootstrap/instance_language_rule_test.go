@@ -142,6 +142,33 @@ func TestTheLecturerWhoTeachesACohortListsItAsCiE(t *testing.T) {
 	resp := graphqltest.New(f.handler).WithToken(testdata.Eins.Token).Do(t, setCiEMutation, listed)
 	assertRefusal(t, resp, "FULL_REACH_REQUIRED")
 
+	// The cohort read through one's own assignment says what it says on its own — listed, and
+	// English possible — through both doors. It used to carry only the module's id and name.
+	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t, setCiEMutation, listed, &out)
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var mine struct {
+				MyAssignments []struct {
+					Instance struct {
+						Cie      bool
+						Delivery string
+						Module   struct{ EnglishPossible bool }
+					}
+				}
+			}
+			c.MustQuery(t, `query { myAssignments { instance { cie delivery module { englishPossible } } } }`,
+				nil, &mine)
+			if len(mine.MyAssignments) != 1 {
+				t.Fatalf("the lecturer reads %d assignments, want 1", len(mine.MyAssignments))
+			}
+			if got := mine.MyAssignments[0].Instance; !got.Cie || got.Delivery != "WEEKLY" ||
+				!got.Module.EnglishPossible {
+				t.Errorf("the cohort through the assignment reads %+v", got)
+			}
+		})
+	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t, setCiEMutation,
+		map[string]any{"id": f.instance, "cie": false}, &out)
+
 	// Only CiE: the format stays the leads'.
 	resp = graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).Do(t, setFormatMutation,
 		map[string]any{"id": f.instance, "d": "BLOCK", "en": nil})
@@ -189,10 +216,23 @@ func TestACiEOfferRidesOnTheWish(t *testing.T) {
 	}
 	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
 		func(t *testing.T, c *graphqltest.Client) {
-			var out struct{ MyWishes []struct{ Cie bool } }
-			c.MustQuery(t, `query { myWishes { cie } }`, nil, &out)
+			var out struct {
+				MyWishes []struct {
+					Cie      bool
+					Instance struct {
+						Delivery string
+						Module   struct{ EnglishPossible bool }
+					}
+				}
+			}
+			c.MustQuery(t, `query { myWishes { cie instance { delivery module { englishPossible } } } }`,
+				nil, &out)
 			if len(out.MyWishes) != 1 || !out.MyWishes[0].Cie {
-				t.Errorf("the owner reads %+v, want the one wish with its offer", out.MyWishes)
+				t.Fatalf("the owner reads %+v, want the one wish with its offer", out.MyWishes)
+			}
+			// The cohort through the wish says what it says on its own.
+			if got := out.MyWishes[0].Instance; got.Delivery != "WEEKLY" || !got.Module.EnglishPossible {
+				t.Errorf("the cohort through the wish reads %+v", got)
 			}
 		})
 

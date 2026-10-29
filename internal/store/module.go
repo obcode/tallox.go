@@ -753,3 +753,13 @@ func degreeParam(d *domain.Degree) *string {
 	s := string(*d)
 	return &s
 }
+
+// languagesOf completes a module carried inside another row — an assignment's, a wish's — with
+// what its description says about language, so that Module.englishPossible answers the same
+// there as on the catalogue's own row rather than false for a module read in part.
+func languagesOf(m domain.Module, source string, teaching, other *string) domain.Module {
+	m.Source = domain.ModuleSource(source)
+	m.TeachingLanguage = domain.Language(stringOrEmpty(teaching))
+	m.OtherLanguage = domain.Language(stringOrEmpty(other))
+	return m
+}

@@ -46,6 +46,9 @@
 SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
+    -- How the cohort is taught, so that an instance read through an assignment or a wish says the
+    -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
+    ci.delivery, ci.taught_in_english, ci.cie AS instance_cie,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
     -- query renders one row per wish, and a join to instance_part would turn each of them into
@@ -56,6 +59,10 @@ SELECT
                WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
+    -- What the module description says about language: Module.englishPossible, and the catalogue's
+    -- default behind taughtInEnglish.
+    m.source AS module_source, m.teaching_language AS module_teaching_language,
+    m.other_language AS module_other_language,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name,
     -- "Of these cohorts, at most this many" (migration of 2026-10-27). Joined onto the wish row
@@ -100,6 +107,9 @@ ORDER BY sem.code, m.name, ci.track, w.priority,
 SELECT
     w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
+    -- How the cohort is taught, so that an instance read through an assignment or a wish says the
+    -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
+    ci.delivery, ci.taught_in_english, ci.cie AS instance_cie,
     sem.code AS semester_code, sem.phase AS semester_phase,
     -- What the cohort costs the faculty, summed here rather than by joining out the parts: this
     -- query renders one row per wish, and a join to instance_part would turn each of them into
@@ -110,6 +120,10 @@ SELECT
                WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
+    -- What the module description says about language: Module.englishPossible, and the catalogue's
+    -- default behind taughtInEnglish.
+    m.source AS module_source, m.teaching_language AS module_teaching_language,
+    m.other_language AS module_other_language,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name,
     -- "Of these cohorts, at most this many" (migration of 2026-10-27). Joined onto the wish row

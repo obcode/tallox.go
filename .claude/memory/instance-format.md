@@ -32,3 +32,17 @@ Test: `TestHowACohortIsTaughtFollowsItsCohorts`.
 
 Gemessen am 2026-10-23 an den Produktionsdaten: `std_lang` ist nur `DE` (485) oder `EN` (24), die Projektion stimmt damit überein (ein Modul ohne Angabe → `NULL`). Nichts zu tun. Früher stand hier: echte `std_lang`-Werte waren lokal nicht messbar (ZPA-Cache leer). Nach dem ersten
 Produktiv-Sync den Bericht auf `LANGUAGE_UNMAPPED` prüfen und `languagePhrases` erweitern.
+
+**ZPA `languages` ist die *weitere* mögliche Sprache, nicht die Liste aller** (gemessen am
+2026-10-29 an den Produktionsdaten, für die CiE-Bedingung aus Issue #41):
+
+| `languages` | `std_lang` | Module |
+| --- | --- | ---: |
+| `EN` | `DE` | 295 |
+| NULL | `DE` | 190 |
+| `DE` | `EN` | 23 |
+| NULL | `EN` | 1 |
+
+Nie gleich `std_lang`, nie eine Liste. Also: Englisch möglich ⇔ `std_lang = EN` ∨ `languages`
+enthält `EN`. Wer nur `languages = 'EN'` prüft, verliert die 24 englischsprachigen Module.
+Unbekannte Werte (Liste, Wörter) gehören wie bei `std_lang` in den Projektionsbericht.

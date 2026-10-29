@@ -87,6 +87,26 @@ func (r *mutationResolver) SetCourseInstanceFormat(ctx context.Context, id strin
 	return nil, demandUserFacing(actor, err)
 }
 
+// SetCourseInstanceCiE is the resolver for the setCourseInstanceCiE field.
+func (r *mutationResolver) SetCourseInstanceCiE(ctx context.Context, id string, cie bool) (*model.CourseInstance, error) {
+	actor := principal.From(ctx)
+
+	instanceID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, badRequest("INSTANCE_NOT_FOUND", domain.ErrInstanceNotFound.Error())
+	}
+
+	instance, err := r.Demand.SetCiE(ctx, actor, instanceID, cie)
+	switch {
+	case err == nil:
+		return courseInstanceModel(*instance), nil
+	case errors.Is(err, domain.ErrNotYourSubject), errors.Is(err, domain.ErrAssignmentPhaseClosed):
+		// The assignment's refusals, as for the format.
+		return nil, assignmentError(err)
+	}
+	return nil, demandUserFacing(actor, err)
+}
+
 // ClearAssignment is the resolver for the clearAssignment field.
 func (r *mutationResolver) ClearAssignment(ctx context.Context, id string) (string, error) {
 	assignmentID, err := parseID(id)

@@ -139,6 +139,13 @@ type CourseInstance {
   """
   taughtInEnglishOverridden: Boolean!
   """
+  Whether this cohort is listed as a course in English (CiE): an explicit listing, set by hand.
+
+  Not the same as `taughtInEnglish`. A cohort may run in English without being listed, and the
+  listing is what the faculty offers as a course in English. `false` unless somebody set it.
+  """
+  cie: Boolean!
+  """
   Which seminar this cohort is, or `null` for the ordinary cohort whose module's name says what it
   is.
 

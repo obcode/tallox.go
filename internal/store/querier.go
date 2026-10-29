@@ -1535,6 +1535,12 @@ type Querier interface {
 	// this instance, it is a different instance — and its parts, and later its wishes, belong to the
 	// one that was declared.
 	UpdateCourseInstance(ctx context.Context, arg UpdateCourseInstanceParams) error
+	// Whether a cohort is listed as a course in English (CiE).
+	//
+	// On its own for the same reason as the format: nothing else that writes a cohort has it to
+	// state. Unlike the language there is no catalogue default to compare against — the listing is
+	// always somebody's decision.
+	UpdateCourseInstanceCiE(ctx context.Context, arg UpdateCourseInstanceCiEParams) error
 	// How a cohort is taught: in a block or across the semester, and whether in English.
 	//
 	// On its own for the same reason as the note: nothing else that writes a cohort has these to

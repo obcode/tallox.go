@@ -480,6 +480,34 @@ func (s *DemandService) SetFormat(ctx context.Context, actor principal.Actor, id
 		return nil, ErrDeliveryInvalid
 	}
 
+	instance, err := s.formatWritable(ctx, actor, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.store.SetCourseInstanceFormat(ctx, instance.ID, delivery, englishOverride)
+}
+
+// SetCiE writes whether a cohort is listed as a course in English (CiE).
+//
+// The same rule as SetFormat, decided with it rather than beside it: CiE sits next to the
+// language on the same screens and was asked for by the same people, and a second rule for a
+// second checkbox in the same row would be one the two screens disagree about.
+func (s *DemandService) SetCiE(ctx context.Context, actor principal.Actor, id uuid.UUID, cie bool,
+) (*CourseInstance, error) {
+	if err := mayRead(actor); err != nil {
+		return nil, err
+	}
+	instance, err := s.formatWritable(ctx, actor, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.store.SetCourseInstanceCiE(ctx, instance.ID, cie)
+}
+
+// formatWritable reads the instance and decides policy.MayWriteInstanceFormat for it, refusing
+// with the assignment's sentinels.
+func (s *DemandService) formatWritable(ctx context.Context, actor principal.Actor, id uuid.UUID,
+) (*CourseInstance, error) {
 	instance, err := s.store.CourseInstanceByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -500,8 +528,7 @@ func (s *DemandService) SetFormat(ctx context.Context, actor principal.Actor, id
 		}
 		return nil, ErrAssignmentPhaseClosed
 	}
-
-	return s.store.SetCourseInstanceFormat(ctx, instance.ID, delivery, englishOverride)
+	return instance, nil
 }
 
 // SetTopic writes which seminar a cohort of an umbrella module is. An empty topic, or one of

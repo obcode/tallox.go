@@ -77,6 +77,7 @@ func courseInstanceModel(i domain.CourseInstance) *model.CourseInstance {
 		TaughtInEnglish:   i.TaughtInEnglish(),
 
 		TaughtInEnglishOverridden: i.EnglishOverride != nil,
+		Cie:                       i.CiE,
 		Topic:                     topicModel(i.Topic),
 		// Computed here rather than in a field resolver: it is a sum over a slice that is
 		// already loaded, and a resolver would suggest it costs something to ask for.

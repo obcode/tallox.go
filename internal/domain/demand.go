@@ -201,6 +201,10 @@ type CourseInstance struct {
 	// or empty where it states none (read as German). Carried here rather than on Module because
 	// it is the one fact about the module this instance's own answer depends on.
 	CatalogueLanguage Language
+	// CiE is whether the cohort is listed as a course in English (Courses in English): an
+	// explicit listing, set by hand, and not the same as TaughtInEnglish — a cohort can run in
+	// English without being listed, and the listing is what the faculty offers as one.
+	CiE bool
 	// Parts are the assignable units this cohort holds itself, in order.
 	Parts []InstancePart
 	// BorrowedParts are the parts of a sibling cohort that are held for this one as well.
@@ -753,6 +757,8 @@ type DemandStore interface {
 	// catalogue says"; a value equal to the catalogue's is stored as nil too.
 	SetCourseInstanceFormat(ctx context.Context, id uuid.UUID, delivery Delivery,
 		englishOverride *bool) (*CourseInstance, error)
+	// SetCourseInstanceCiE writes whether a cohort is listed as a course in English.
+	SetCourseInstanceCiE(ctx context.Context, id uuid.UUID, cie bool) (*CourseInstance, error)
 	// SetCourseInstanceTopic writes which seminar a cohort is; nil takes the topic away.
 	SetCourseInstanceTopic(ctx context.Context, id uuid.UUID, topic *string) (*CourseInstance, error)
 	// DeleteCourseInstance withdraws one. Returns ErrInstanceInUse when something hangs off it.

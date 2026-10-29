@@ -137,6 +137,14 @@ func (f *fakeDemandStore) SetCourseInstanceFormat(ctx context.Context, id uuid.U
 	return instance, nil
 }
 
+func (f *fakeDemandStore) SetCourseInstanceCiE(ctx context.Context, id uuid.UUID, cie bool,
+) (*domain.CourseInstance, error) {
+	f.writes++
+	instance, _ := f.CourseInstanceByID(ctx, id)
+	instance.CiE = cie
+	return instance, nil
+}
+
 func (f *fakeDemandStore) SetCourseInstanceTopic(ctx context.Context, id uuid.UUID,
 	topic *string,
 ) (*domain.CourseInstance, error) {

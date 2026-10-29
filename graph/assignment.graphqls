@@ -298,6 +298,21 @@ extend type Mutation {
   ): CourseInstance! @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
+  List a cohort as a course in English (CiE), or take it off the list.
+
+  Bound by the same rule as `setCourseInstanceFormat`: the lead of the module's subject group, the
+  lead of the instance's study programme, or the dean's office, while the semester is not `FINAL`.
+
+  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`.
+  """
+  setCourseInstanceCiE(
+    "The cohort."
+    id: ID!
+    "Whether it is listed as a course in English."
+    cie: Boolean!
+  ): CourseInstance! @fullReach @scope(area: PLANNING, verb: WRITE)
+
+  """
   Give a part back: remove an assignment.
 
   Bound by the same phase and the same responsibility as making one. A list that may be added to

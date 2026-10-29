@@ -809,6 +809,13 @@ type CourseInstance {
   """
   taughtInEnglishOverridden: Boolean!
   """
+  Whether this cohort is listed as a course in English (CiE): an explicit listing, set by hand.
+
+  Not the same as `taughtInEnglish`. A cohort may run in English without being listed, and the
+  listing is what the faculty offers as a course in English. `false` unless somebody set it.
+  """
+  cie: Boolean!
+  """
   Which seminar this cohort is, or `null` for the ordinary cohort whose module's name says what it
   is.
 
@@ -2332,6 +2339,25 @@ type Mutation {
     Whether in English, or `null` for the catalogue's default.
     """
     taughtInEnglish: Boolean
+  ): CourseInstance! @fullReach @scope(area: PLANNING, verb: WRITE)
+  """
+  List a cohort as a course in English (CiE), or take it off the list.
+
+  Bound by the same rule as `setCourseInstanceFormat`: the lead of the module's subject group, the
+  lead of the instance's study programme, or the dean's office, while the semester is not `FINAL`.
+
+  Refusals: `INSTANCE_NOT_FOUND`, `NOT_YOUR_SUBJECT`, `ASSIGNMENT_PHASE_CLOSED`.
+  """
+  setCourseInstanceCiE(
+    """
+    The cohort.
+    """
+    id: ID!
+
+    """
+    Whether it is listed as a course in English.
+    """
+    cie: Boolean!
   ): CourseInstance! @fullReach @scope(area: PLANNING, verb: WRITE)
   """
   Give a part back: remove an assignment.
@@ -4450,7 +4476,7 @@ enum ScopeArea {
   # setAssignment and clearAssignment are here and are @fullReach: their refusals answer
   # "is this part taken", which through a plain token the read rule would not.
 
-  `assignments`, `myAssignments`, `assignedTeachingHours`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`,
+  `assignments`, `myAssignments`, `assignedTeachingHours`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`, `setCourseInstanceCiE`,
   `setModuleComponents`, `applyModuleSplitToInstances`, `setModuleProjectBased`,
   `setModuleSemesterSpan`, `createLocalModule`, `changeLocalModule`,
   `setProgrammePlanningStatus`, `setProgrammeDegree`, `declareCourseInstance`, `duplicateCourseInstance`,

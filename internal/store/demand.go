@@ -65,6 +65,7 @@ type instanceRow struct {
 	Delivery               string
 	TaughtInEnglish        *bool
 	ModuleTeachingLanguage *string
+	Cie                    bool
 	Topic                  *string
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
@@ -102,6 +103,7 @@ func instanceFrom(row instanceRow) domain.CourseInstance {
 		Delivery:          domain.Delivery(row.Delivery),
 		EnglishOverride:   row.TaughtInEnglish,
 		CatalogueLanguage: domain.Language(stringOrEmpty(row.ModuleTeachingLanguage)),
+		CiE:               row.Cie,
 		CoveredBy:         coverageFrom(row),
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,
@@ -714,6 +716,7 @@ func (d *Demand) DuplicateCourseInstance(ctx context.Context, id uuid.UUID, trac
 		// the stored override, not the effective value, so the catalogue keeps its say.
 		Delivery:        source.Delivery,
 		TaughtInEnglish: source.TaughtInEnglish,
+		Cie:             source.Cie,
 		// The topic is not duplicated: a second cohort of an umbrella seminar is a second
 		// seminar, and carrying the first one's title would list the same seminar twice.
 		CreatedBy: nullUUID(nonNilUUID(by)),
@@ -777,6 +780,25 @@ func (d *Demand) SetCourseInstanceTopic(ctx context.Context, id uuid.UUID, topic
 		Topic: topic,
 	}); err != nil {
 		return nil, fmt.Errorf("cannot set the topic of the instance: %w", err)
+	}
+
+	instance, err := d.CourseInstanceByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if instance == nil {
+		return nil, domain.ErrInstanceNotFound
+	}
+	return instance, nil
+}
+
+// SetCourseInstanceCiE writes whether a cohort is listed as a course in English.
+func (d *Demand) SetCourseInstanceCiE(ctx context.Context, id uuid.UUID, cie bool) (*domain.CourseInstance, error) {
+	if err := New(d.pool).UpdateCourseInstanceCiE(ctx, UpdateCourseInstanceCiEParams{
+		ID:  id,
+		Cie: cie,
+	}); err != nil {
+		return nil, fmt.Errorf("cannot set whether the instance is listed as CiE: %w", err)
 	}
 
 	instance, err := d.CourseInstanceByID(ctx, id)
@@ -2032,6 +2054,7 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 			Note:              source.Note,
 			Delivery:          source.Delivery,
 			TaughtInEnglish:   source.TaughtInEnglish,
+			Cie:               source.Cie,
 			// The seminar a cohort was last year is the best guess for what it is this year;
 			// a topic that changed is one edit, a topic that vanished is fourteen.
 			Topic:     source.Topic,
@@ -2281,6 +2304,7 @@ type heldInstance struct {
 	note              string
 	delivery          string
 	taughtInEnglish   *bool
+	cie               bool
 	parts             []InstancePartsForRow
 	// covered is accepted coverage: another programme holds this cohort's teaching, so it has no
 	// parts and must not be given any. Planning reports it rather than skipping it silently —
@@ -2314,6 +2338,7 @@ func heldInstances(ctx context.Context, q *Queries, semesterID, programmeID uuid
 			note:              row.Note,
 			delivery:          row.Delivery,
 			taughtInEnglish:   row.TaughtInEnglish,
+			cie:               row.Cie,
 			covered:           row.IsCovered,
 		}
 		ids = append(ids, row.ID)
@@ -2623,9 +2648,9 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 	}
 	// How the row is taught, for the same reason: a cohort added to a row of block weeks is
 	// not the one that quietly runs weekly. Taken from a sibling, since a plan states neither.
-	delivery, taughtInEnglish := string(domain.DeliveryWeekly), (*bool)(nil)
+	delivery, taughtInEnglish, cie := string(domain.DeliveryWeekly), (*bool)(nil), false
 	if len(pc.held) > 0 {
-		delivery, taughtInEnglish = pc.held[0].delivery, pc.held[0].taughtInEnglish
+		delivery, taughtInEnglish, cie = pc.held[0].delivery, pc.held[0].taughtInEnglish, pc.held[0].cie
 	}
 
 	id, err := q.InsertCourseInstance(ctx, InsertCourseInstanceParams{
@@ -2637,6 +2662,7 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 		Note:              note,
 		Delivery:          delivery,
 		TaughtInEnglish:   taughtInEnglish,
+		Cie:               cie,
 		CreatedBy:         nullUUID(nonNilUUID(pc.by)),
 	})
 	if isUniqueViolation(err) {
@@ -2660,6 +2686,7 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 		note:              note,
 		delivery:          delivery,
 		taughtInEnglish:   taughtInEnglish,
+		cie:               cie,
 	}
 
 	// Held with another programme's event where there is one — the case the whole automatic half

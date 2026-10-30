@@ -41,6 +41,19 @@ type Assignment struct {
 	UpdatedAt      time.Time
 }
 
+type AssignmentConfirmation struct {
+	SemesterID  uuid.UUID
+	PersonID    uuid.UUID
+	ConfirmedAt time.Time
+	Fingerprint string
+}
+
+type AssignmentFingerprint struct {
+	SemesterID  uuid.UUID
+	PersonID    uuid.NullUUID
+	Fingerprint string
+}
+
 type Competence struct {
 	ID        uuid.UUID
 	ModuleID  uuid.UUID
@@ -272,20 +285,22 @@ type ReviewCompletion struct {
 }
 
 type Semester struct {
-	ID                      uuid.UUID
-	Code                    string
-	Phase                   string
-	WishesPublishedAt       pgtype.Timestamptz
-	CreatedAt               time.Time
-	UpdatedAt               time.Time
-	IsPlanningSemester      bool
-	PlanningSetAt           pgtype.Timestamptz
-	PlanningSetBy           uuid.NullUUID
-	AssignmentsPublishedAt  pgtype.Timestamptz
-	DesiredHoursFrozenAt    pgtype.Timestamptz
-	DesiredHoursFrozenBy    uuid.NullUUID
-	DesiredHoursPublishedAt pgtype.Timestamptz
-	DesiredHoursPublishedBy uuid.NullUUID
+	ID                          uuid.UUID
+	Code                        string
+	Phase                       string
+	WishesPublishedAt           pgtype.Timestamptz
+	CreatedAt                   time.Time
+	UpdatedAt                   time.Time
+	IsPlanningSemester          bool
+	PlanningSetAt               pgtype.Timestamptz
+	PlanningSetBy               uuid.NullUUID
+	AssignmentsPublishedAt      pgtype.Timestamptz
+	DesiredHoursFrozenAt        pgtype.Timestamptz
+	DesiredHoursFrozenBy        uuid.NullUUID
+	DesiredHoursPublishedAt     pgtype.Timestamptz
+	DesiredHoursPublishedBy     uuid.NullUUID
+	AssignmentConfirmationDue   pgtype.Date
+	AssignmentConfirmationDueBy uuid.NullUUID
 }
 
 type Spo struct {

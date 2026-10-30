@@ -127,6 +127,13 @@ type ComplexityRoot struct {
 		UpdatedAt    func(childComplexity int) int
 	}
 
+	AssignmentConfirmation struct {
+		ConfirmedAt func(childComplexity int) int
+		PersonID    func(childComplexity int) int
+		Semester    func(childComplexity int) int
+		State       func(childComplexity int) int
+	}
+
 	BorrowedPart struct {
 		FromProgramme func(childComplexity int) int
 		FromTrack     func(childComplexity int) int
@@ -385,6 +392,7 @@ type ComplexityRoot struct {
 		ChangeInstancePart            func(childComplexity int, id string, kind domain.InstancePartKind, teachingHours *float64) int
 		ChangeLocalModule             func(childComplexity int, id string, input model.LocalModuleInput) int
 		ClearAssignment               func(childComplexity int, id string) int
+		ConfirmMyAssignments          func(childComplexity int, semester string) int
 		CopyDemandFromSemester        func(childComplexity int, from string, to string, programme string) int
 		CorrectDesiredTeachingHours   func(childComplexity int, semester string, person string, minHours *float64, maxHours *float64, note *string) int
 		CreateLocalModule             func(childComplexity int, input model.LocalModuleInput) int
@@ -408,6 +416,7 @@ type ComplexityRoot struct {
 		RequestInstanceCoverage       func(childComplexity int, id string, coveredBy string) int
 		RevokePersonalAccessToken     func(childComplexity int, id string) int
 		SetAssignment                 func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
+		SetAssignmentConfirmationDue  func(childComplexity int, code string, due *model.Date) int
 		SetCourseInstanceCiE          func(childComplexity int, id string, cie bool) int
 		SetCourseInstanceFormat       func(childComplexity int, id string, delivery domain.Delivery, taughtInEnglish *bool) int
 		SetCourseInstanceTopic        func(childComplexity int, id string, topic string) int
@@ -520,6 +529,7 @@ type ComplexityRoot struct {
 		AccessLog                  func(childComplexity int, filter *model.AccessLogFilter, limit *int, before *string) int
 		AccessSummary              func(childComplexity int, from time.Time, until time.Time) int
 		AssignedTeachingHours      func(childComplexity int, semester string, person *string) int
+		AssignmentConfirmations    func(childComplexity int, semester string) int
 		Assignments                func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
 		BuildInfo                  func(childComplexity int) int
 		CompetenceMemberStatus     func(childComplexity int, subjectGroup string) int
@@ -535,6 +545,7 @@ type ComplexityRoot struct {
 		Modules                    func(childComplexity int, filter *model.ModuleFilter) int
 		ModulesWithoutCompetence   func(childComplexity int, subjectGroup string) int
 		ModulesWithoutSubjectGroup func(childComplexity int) int
+		MyAssignmentConfirmation   func(childComplexity int, semester string) int
 		MyAssignments              func(childComplexity int, semester *string) int
 		MyCompetenceStatus         func(childComplexity int) int
 		MyCompetenceTotal          func(childComplexity int) int
@@ -592,15 +603,16 @@ type ComplexityRoot struct {
 	}
 
 	Semester struct {
-		AssignmentsPublishedAt  func(childComplexity int) int
-		Code                    func(childComplexity int) int
-		DecidedAt               func(childComplexity int) int
-		DesiredHoursFrozenAt    func(childComplexity int) int
-		DesiredHoursPublishedAt func(childComplexity int) int
-		IsPlanningSemester      func(childComplexity int) int
-		Phase                   func(childComplexity int) int
-		ReachablePhases         func(childComplexity int) int
-		WishesPublishedAt       func(childComplexity int) int
+		AssignmentConfirmationDue func(childComplexity int) int
+		AssignmentsPublishedAt    func(childComplexity int) int
+		Code                      func(childComplexity int) int
+		DecidedAt                 func(childComplexity int) int
+		DesiredHoursFrozenAt      func(childComplexity int) int
+		DesiredHoursPublishedAt   func(childComplexity int) int
+		IsPlanningSemester        func(childComplexity int) int
+		Phase                     func(childComplexity int) int
+		ReachablePhases           func(childComplexity int) int
+		WishesPublishedAt         func(childComplexity int) int
 	}
 
 	Session struct {
@@ -1118,6 +1130,31 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Assignment.UpdatedAt(childComplexity), true
+
+	case "AssignmentConfirmation.confirmedAt":
+		if e.ComplexityRoot.AssignmentConfirmation.ConfirmedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignmentConfirmation.ConfirmedAt(childComplexity), true
+	case "AssignmentConfirmation.personId":
+		if e.ComplexityRoot.AssignmentConfirmation.PersonID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignmentConfirmation.PersonID(childComplexity), true
+	case "AssignmentConfirmation.semester":
+		if e.ComplexityRoot.AssignmentConfirmation.Semester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignmentConfirmation.Semester(childComplexity), true
+	case "AssignmentConfirmation.state":
+		if e.ComplexityRoot.AssignmentConfirmation.State == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AssignmentConfirmation.State(childComplexity), true
 
 	case "BorrowedPart.fromProgramme":
 		if e.ComplexityRoot.BorrowedPart.FromProgramme == nil {
@@ -2262,6 +2299,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ClearAssignment(childComplexity, args["id"].(string)), true
+	case "Mutation.confirmMyAssignments":
+		if e.ComplexityRoot.Mutation.ConfirmMyAssignments == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_confirmMyAssignments_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ConfirmMyAssignments(childComplexity, args["semester"].(string)), true
 	case "Mutation.copyDemandFromSemester":
 		if e.ComplexityRoot.Mutation.CopyDemandFromSemester == nil {
 			break
@@ -2510,6 +2558,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetAssignment(childComplexity, args["instancePartId"].(string), args["personId"].(*string), args["teacherId"].(*string), args["note"].(*string), args["replacing"].(*string)), true
+	case "Mutation.setAssignmentConfirmationDue":
+		if e.ComplexityRoot.Mutation.SetAssignmentConfirmationDue == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setAssignmentConfirmationDue_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetAssignmentConfirmationDue(childComplexity, args["code"].(string), args["due"].(*model.Date)), true
 	case "Mutation.setCourseInstanceCiE":
 		if e.ComplexityRoot.Mutation.SetCourseInstanceCiE == nil {
 			break
@@ -3231,6 +3290,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.AssignedTeachingHours(childComplexity, args["semester"].(string), args["person"].(*string)), true
+	case "Query.assignmentConfirmations":
+		if e.ComplexityRoot.Query.AssignmentConfirmations == nil {
+			break
+		}
+
+		args, err := ec.field_Query_assignmentConfirmations_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AssignmentConfirmations(childComplexity, args["semester"].(string)), true
 	case "Query.assignments":
 		if e.ComplexityRoot.Query.Assignments == nil {
 			break
@@ -3382,6 +3452,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.ModulesWithoutSubjectGroup(childComplexity), true
+	case "Query.myAssignmentConfirmation":
+		if e.ComplexityRoot.Query.MyAssignmentConfirmation == nil {
+			break
+		}
+
+		args, err := ec.field_Query_myAssignmentConfirmation_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.MyAssignmentConfirmation(childComplexity, args["semester"].(string)), true
 	case "Query.myAssignments":
 		if e.ComplexityRoot.Query.MyAssignments == nil {
 			break
@@ -3766,6 +3847,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.RoleGrant.Role(childComplexity), true
 
+	case "Semester.assignmentConfirmationDue":
+		if e.ComplexityRoot.Semester.AssignmentConfirmationDue == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Semester.AssignmentConfirmationDue(childComplexity), true
 	case "Semester.assignmentsPublishedAt":
 		if e.ComplexityRoot.Semester.AssignmentsPublishedAt == nil {
 			break
@@ -6661,6 +6748,99 @@ extend type Mutation {
   withdrawTeacherCompetence(id: ID!): ID! @fullReach @scope(area: WISHES, verb: WRITE)
 }
 `, BuiltIn: false},
+	{Name: "../confirmation.graphqls", Input: `# Confirming one's assignments: "passt so", once per person and semester.
+#
+# Asked for by the faculty: before the plan is entered into the examination office's system,
+# everybody who teaches gets a date (` + "`" + `Semester.assignmentConfirmationDue` + "`" + `) by which to check what
+# they have been given. Until then a mistake surfaced when the timetable office asked.
+#
+# THE STATE IS DERIVED, NEVER STORED
+#
+# A confirmation records what it was given over — the person's parts and their hours. Whether it
+# still holds is computed on every read: the same set is ` + "`" + `CONFIRMED` + "`" + `, a different one ` + "`" + `STALE` + "`" + `. So a
+# part handed to somebody else, an hour figure corrected or a part removed after the confirmation
+# makes it out of date by itself, and the colleague is asked again. Nothing is locked by it: the
+# assignment stays open until ` + "`" + `FINAL` + "`" + `, exactly like "Review fertig".
+#
+# WHO READS WHOSE
+#
+# Your own, through every door — it is about your own timetable. Somebody else's only where you
+# may already read at least one of their assignments, through the same filter as ` + "`" + `assignments` + "`" + `,
+# and only with full reach. Before the assignments are published a confirmation says that
+# somebody holds something, so it must not be readable more widely than the assignment itself.
+#
+# What a confirmation of somebody else's *does* tell a reader who sees only part of that person's
+# teaching: whether the whole set was confirmed. That is the point of it — the subject group lead
+# wants to know the colleague has checked — and it names no module, part or hour figure.
+#
+# Somebody without an account cannot confirm; for them the arrangement with the subject group lead
+# stays as it is. And there is no free text: disagreement goes to the subject group lead.
+
+"Where one person's confirmation of their assignments in a semester stands."
+enum AssignmentConfirmationState {
+  "Confirmed, and what they hold is still what they confirmed."
+  CONFIRMED
+  "Not confirmed in this semester."
+  OPEN
+  "Confirmed, but their assignments have changed since — they are asked again."
+  STALE
+}
+
+"One person's confirmation of their assignments in one semester."
+type AssignmentConfirmation {
+  "The semester it is about."
+  semester: String!
+  """
+  Whose it is: the account, the same id as ` + "`" + `Assignee.personId` + "`" + `. An id and not a ` + "`" + `Person` + "`" + `, for the
+  reason ` + "`" + `Assignee` + "`" + ` carries ids.
+  """
+  personId: ID!
+  "Where it stands."
+  state: AssignmentConfirmationState!
+  """
+  When they last confirmed, or ` + "`" + `null` + "`" + ` while they have not. Set for ` + "`" + `STALE` + "`" + ` as well: it is when the
+  confirmation was given that has since gone out of date.
+  """
+  confirmedAt: Time
+}
+
+extend type Query {
+  """
+  Your own confirmation for one semester. ` + "`" + `OPEN` + "`" + ` when you have not confirmed — including when you
+  hold nothing there. Reachable through every door.
+  """
+  myAssignmentConfirmation(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): AssignmentConfirmation! @scope(area: PLANNING, verb: READ)
+
+  """
+  The confirmations of everybody whose assignments you may read in one semester, one entry per
+  account that holds at least one of those assignments. Not an error when that is only you.
+  """
+  assignmentConfirmations(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): [AssignmentConfirmation!]! @fullReach @scope(area: PLANNING, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Confirm all your assignments of a semester at once: "passt so". Confirming again after a change
+  replaces the earlier confirmation.
+
+  Not tied to the due date — possible before it is set and after it has passed — and not to the
+  publication of the assignments, because everybody sees their own anyway.
+
+  Refusals: ` + "`" + `NOTHING_TO_CONFIRM` + "`" + ` when you hold nothing in that semester,
+  ` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + ` once the semester is ` + "`" + `FINAL` + "`" + `.
+  """
+  confirmMyAssignments(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+  ): AssignmentConfirmation! @scope(area: PLANNING, verb: WRITE)
+}
+`, BuiltIn: false},
 	{Name: "../controlling.graphqls", Input: `"""
 What a programme's instances cost the faculty in a semester.
 
@@ -7864,11 +8044,12 @@ enum ScopeArea {
   ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
   ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `teachingLoad` + "`" + `, ` + "`" + `studyYearLoad` + "`" + `, ` + "`" + `programmeQuotas` + "`" + `, ` + "`" + `setProgrammeQuota` + "`" + `,
   ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
-  ` + "`" + `publishWishes` + "`" + `, ` + "`" + `publishAssignments` + "`" + `,
+  ` + "`" + `publishWishes` + "`" + `, ` + "`" + `publishAssignments` + "`" + `, ` + "`" + `setAssignmentConfirmationDue` + "`" + `,
   # setAssignment and clearAssignment are here and are @fullReach: their refusals answer
   # "is this part taken", which through a plain token the read rule would not.
 
-  ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `assignedTeachingHours` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `, ` + "`" + `setCourseInstanceCiE` + "`" + `,
+  ` + "`" + `assignments` + "`" + `, ` + "`" + `myAssignments` + "`" + `, ` + "`" + `myAssignmentConfirmation` + "`" + `, ` + "`" + `assignmentConfirmations` + "`" + `,
+  ` + "`" + `confirmMyAssignments` + "`" + `, ` + "`" + `assignedTeachingHours` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `, ` + "`" + `setCourseInstanceCiE` + "`" + `,
   ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `applyModuleSplitToInstances` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `,
   ` + "`" + `setModuleSemesterSpan` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `setProgrammeDegree` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
@@ -8464,6 +8645,16 @@ type Semester {
   desiredHoursPublishedAt: Time
 
   """
+  The day by which everybody who teaches in this semester is asked to confirm their assignments
+  (` + "`" + `confirmMyAssignments` + "`" + `), or ` + "`" + `null` + "`" + ` while the dean's office has not asked.
+
+  One date for the whole semester, a week or so before the plan goes to the examination office. It
+  blocks nothing: the assignment stays open until ` + "`" + `FINAL` + "`" + `, confirming stays possible after the
+  date, and a change after a confirmation makes it out of date rather than locking anything.
+  """
+  assignmentConfirmationDue: Date
+
+  """
   When the last decision about this semester was recorded, or ` + "`" + `null` + "`" + ` while none has been.
 
   Not "when the semester was created" — nothing creates one. It is the phase switch or the
@@ -8600,6 +8791,17 @@ extend type Mutation {
   stops applying, so a plain token does not get it; a token minted with ` + "`" + `fullReach` + "`" + ` does.
   """
   publishAssignments(code: String!): Semester! @fullReach @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Ask everybody who teaches in this semester to confirm their assignments by a date, move that
+  date, or withdraw the request with ` + "`" + `due: null` + "`" + `. The confirmations already given stay either way:
+  they are statements the colleagues made.
+
+  The dean's office only, and only while the semester is not ` + "`" + `FINAL` + "`" + `
+  (` + "`" + `ASSIGNMENT_PHASE_CLOSED` + "`" + `). ` + "`" + `@fullReach` + "`" + ` like the other acts on a semester.
+  """
+  setAssignmentConfirmationDue(code: String!, due: Date): Semester!
+    @fullReach @scope(area: PLANNING, verb: WRITE)
 
   """
   Freeze the desired teaching hours of this semester: from now on only the dean's office changes a
@@ -10114,6 +10316,20 @@ func (ec *executionContext) childFields_Assignment(ctx context.Context, field gr
 	return nil, fmt.Errorf("no field named %q was found under type Assignment", field.Name)
 }
 
+func (ec *executionContext) childFields_AssignmentConfirmation(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "semester":
+		return ec.fieldContext_AssignmentConfirmation_semester(ctx, field)
+	case "personId":
+		return ec.fieldContext_AssignmentConfirmation_personId(ctx, field)
+	case "state":
+		return ec.fieldContext_AssignmentConfirmation_state(ctx, field)
+	case "confirmedAt":
+		return ec.fieldContext_AssignmentConfirmation_confirmedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AssignmentConfirmation", field.Name)
+}
+
 func (ec *executionContext) childFields_BorrowedPart(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "part":
@@ -10816,6 +11032,8 @@ func (ec *executionContext) childFields_Semester(ctx context.Context, field grap
 		return ec.fieldContext_Semester_desiredHoursFrozenAt(ctx, field)
 	case "desiredHoursPublishedAt":
 		return ec.fieldContext_Semester_desiredHoursPublishedAt(ctx, field)
+	case "assignmentConfirmationDue":
+		return ec.fieldContext_Semester_assignmentConfirmationDue(ctx, field)
 	case "decidedAt":
 		return ec.fieldContext_Semester_decidedAt(ctx, field)
 	}

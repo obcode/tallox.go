@@ -506,6 +506,46 @@ type Assignment {
   updatedAt: Time!
 }
 """
+One person's confirmation of their assignments in one semester.
+"""
+type AssignmentConfirmation {
+  """
+  The semester it is about.
+  """
+  semester: String!
+  """
+  Whose it is: the account, the same id as `Assignee.personId`. An id and not a `Person`, for the
+  reason `Assignee` carries ids.
+  """
+  personId: ID!
+  """
+  Where it stands.
+  """
+  state: AssignmentConfirmationState!
+  """
+  When they last confirmed, or `null` while they have not. Set for `STALE` as well: it is when the
+  confirmation was given that has since gone out of date.
+  """
+  confirmedAt: Time
+}
+"""
+Where one person's confirmation of their assignments in a semester stands.
+"""
+enum AssignmentConfirmationState {
+  """
+  Confirmed, and what they hold is still what they confirmed.
+  """
+  CONFIRMED
+  """
+  Not confirmed in this semester.
+  """
+  OPEN
+  """
+  Confirmed, but their assignments have changed since — they are asked again.
+  """
+  STALE
+}
+"""
 A sibling cohort's shared part, seen from the cohort it is held for.
 """
 type BorrowedPart {
@@ -2647,6 +2687,22 @@ type Mutation {
   """
   withdrawTeacherCompetence(id: ID!): ID! @fullReach @scope(area: WISHES, verb: WRITE)
   """
+  Confirm all your assignments of a semester at once: "passt so". Confirming again after a change
+  replaces the earlier confirmation.
+
+  Not tied to the due date — possible before it is set and after it has passed — and not to the
+  publication of the assignments, because everybody sees their own anyway.
+
+  Refusals: `NOTHING_TO_CONFIRM` when you hold nothing in that semester,
+  `ASSIGNMENT_PHASE_CLOSED` once the semester is `FINAL`.
+  """
+  confirmMyAssignments(
+    """
+    Four digits, a hyphen and SS or WS.
+    """
+    semester: String!
+  ): AssignmentConfirmation! @scope(area: PLANNING, verb: WRITE)
+  """
   Enter or correct what a study programme may spend in a study year, or take it back with
   `teachingHours: null`. Returns the quota as it now stands, `null` once taken back.
 
@@ -3092,6 +3148,15 @@ type Mutation {
   stops applying, so a plain token does not get it; a token minted with `fullReach` does.
   """
   publishAssignments(code: String!): Semester! @fullReach @scope(area: PLANNING, verb: WRITE)
+  """
+  Ask everybody who teaches in this semester to confirm their assignments by a date, move that
+  date, or withdraw the request with `due: null`. The confirmations already given stay either way:
+  they are statements the colleagues made.
+
+  The dean's office only, and only while the semester is not `FINAL`
+  (`ASSIGNMENT_PHASE_CLOSED`). `@fullReach` like the other acts on a semester.
+  """
+  setAssignmentConfirmationDue(code: String!, due: Date): Semester! @fullReach @scope(area: PLANNING, verb: WRITE)
   """
   Freeze the desired teaching hours of this semester: from now on only the dean's office changes a
   figure. The deadline, made an act.
@@ -4022,6 +4087,26 @@ type Query {
   """
   modulesWithoutCompetence(subjectGroup: ID!): [ModuleWithoutCompetence!]! @fullReach @scope(area: WISHES, verb: READ)
   """
+  Your own confirmation for one semester. `OPEN` when you have not confirmed — including when you
+  hold nothing there. Reachable through every door.
+  """
+  myAssignmentConfirmation(
+    """
+    Four digits, a hyphen and SS or WS.
+    """
+    semester: String!
+  ): AssignmentConfirmation! @scope(area: PLANNING, verb: READ)
+  """
+  The confirmations of everybody whose assignments you may read in one semester, one entry per
+  account that holds at least one of those assignments. Not an error when that is only you.
+  """
+  assignmentConfirmations(
+    """
+    Four digits, a hyphen and SS or WS.
+    """
+    semester: String!
+  ): [AssignmentConfirmation!]! @fullReach @scope(area: PLANNING, verb: READ)
+  """
   The teaching a semester's demand costs, by the programme whose instances hold it.
 
   Every programme the faculty plans is listed, at zero if nothing has been declared for it — that
@@ -4534,11 +4619,12 @@ enum ScopeArea {
   `module`, `teachers`,
   `courseInstances`, `courseInstance`, `teachingLoad`, `studyYearLoad`, `programmeQuotas`, `setProgrammeQuota`,
   `advanceSemesterPhase`, `setPlanningSemester`,
-  `publishWishes`, `publishAssignments`,
+  `publishWishes`, `publishAssignments`, `setAssignmentConfirmationDue`,
   # setAssignment and clearAssignment are here and are @fullReach: their refusals answer
   # "is this part taken", which through a plain token the read rule would not.
 
-  `assignments`, `myAssignments`, `assignedTeachingHours`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`, `setCourseInstanceCiE`,
+  `assignments`, `myAssignments`, `myAssignmentConfirmation`, `assignmentConfirmations`,
+  `confirmMyAssignments`, `assignedTeachingHours`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`, `setCourseInstanceCiE`,
   `setModuleComponents`, `applyModuleSplitToInstances`, `setModuleProjectBased`,
   `setModuleSemesterSpan`, `createLocalModule`, `changeLocalModule`,
   `setProgrammePlanningStatus`, `setProgrammeDegree`, `declareCourseInstance`, `duplicateCourseInstance`,
@@ -4737,6 +4823,15 @@ type Semester {
   There is no un-publishing.
   """
   desiredHoursPublishedAt: Time
+  """
+  The day by which everybody who teaches in this semester is asked to confirm their assignments
+  (`confirmMyAssignments`), or `null` while the dean's office has not asked.
+
+  One date for the whole semester, a week or so before the plan goes to the examination office. It
+  blocks nothing: the assignment stays open until `FINAL`, confirming stays possible after the
+  date, and a change after a confirmation makes it out of date rather than locking anything.
+  """
+  assignmentConfirmationDue: Date
   """
   When the last decision about this semester was recorded, or `null` while none has been.
 

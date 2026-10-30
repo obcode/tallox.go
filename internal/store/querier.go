@@ -166,6 +166,9 @@ type Querier interface {
 	// list does not have — and the realistic shape of that mistake is somebody adding a by-id lookup
 	// because "it is only one row".
 	AssignmentByID(ctx context.Context, arg AssignmentByIDParams) (AssignmentByIDRow, error)
+	// One row per person asked about: when they last confirmed (or NULL), and whether that still
+	// matches what they hold. A person with no confirmation row comes back with both NULL/false.
+	AssignmentConfirmationStates(ctx context.Context, arg AssignmentConfirmationStatesParams) ([]AssignmentConfirmationStatesRow, error)
 	// The same context, reached from an assignment rather than from a part. For clearing one.
 	AssignmentWriteContextByID(ctx context.Context, id uuid.UUID) (AssignmentWriteContextByIDRow, error)
 	// Assignments: who holds each part of a course instance.
@@ -320,6 +323,19 @@ type Querier interface {
 	// The competences the filter allows, narrowed by whatever the caller asked for.
 	// The examination office's short name for a holder who has an account, as in assignment.sql.
 	Competences(ctx context.Context, arg CompetencesParams) ([]CompetencesRow, error)
+	// Confirming one's assignments, and reading whether somebody has (migration of 2026-10-29).
+	//
+	// The state is derived here and nowhere else: a confirmation row whose fingerprint equals the
+	// person's current one is confirmed, a row that differs is out of date, no row is open. Both sides
+	// come from the view assignment_fingerprint, so the comparison cannot drift from the write.
+	//
+	// No visibility filter in this file, on purpose: these queries take the person ids to answer for,
+	// and the domain derives those ids from the assignments the caller may already read. A person
+	// whose assignments are invisible to the caller is never asked about.
+	// Record "passt so" over what the person holds right now. No row back means they hold nothing in
+	// this semester — there is nothing to confirm, and an empty confirmation would read as "checked"
+	// on the day somebody is first given something.
+	ConfirmAssignments(ctx context.Context, arg ConfirmAssignmentsParams) (time.Time, error)
 	// Not projected, and the largest of the nine: 665 real rows over 12 sets of regulations the
 	// endpoint stopped returning — the historical ones and a placeholder dated 2099.
 	//
@@ -1365,6 +1381,11 @@ type Querier interface {
 	//
 	// Upsert, and the timestamp moves: what a reader wants to know is how fresh the figure is.
 	SetProgrammeQuota(ctx context.Context, arg SetProgrammeQuotaParams) (SetProgrammeQuotaRow, error)
+	// Set, move or clear the date by which everybody confirms their assignments. Not idempotent in
+	// the way the publications are: this is a date somebody may correct, so the last call wins and
+	// records who made it. Clearing it (NULL) withdraws the request; the confirmations already given
+	// stay, because they are statements the colleagues made.
+	SetSemesterAssignmentConfirmationDue(ctx context.Context, arg SetSemesterAssignmentConfirmationDueParams) (Semester, error)
 	// Retiring, and the way back. There is no delete: a group that was split still has to render in
 	// the planning it was part of, and its module assignments are weeks of somebody's judgement.
 	//

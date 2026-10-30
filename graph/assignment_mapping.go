@@ -110,6 +110,8 @@ func assignmentError(err error) error {
 		return refusal("ASSIGNMENT_NOTE_TOO_LONG", err.Error())
 	case errors.Is(err, domain.ErrPartTaughtElsewhere):
 		return refusal("PART_TAUGHT_ELSEWHERE", err.Error())
+	case errors.Is(err, domain.ErrNothingToConfirm):
+		return refusal("NOTHING_TO_CONFIRM", err.Error())
 	case errors.Is(err, domain.ErrPartNotFound):
 		// Removed between the screen being rendered and the form being sent, which is the ordinary
 		// race here — the same code the demand area uses, because it is the same fact about the
@@ -156,4 +158,18 @@ func assignedLoadModel(l domain.AssignedLoad) *model.AssignedLoad {
 		Total:          l.Total,
 		BySubjectGroup: shares,
 	}
+}
+
+// confirmationModel renders one confirmation. The zero time is "not confirmed", null on the wire.
+func confirmationModel(c domain.AssignmentConfirmation) *model.AssignmentConfirmation {
+	out := &model.AssignmentConfirmation{
+		Semester: c.SemesterCode,
+		PersonID: c.PersonID.String(),
+		State:    model.AssignmentConfirmationState(c.State),
+	}
+	if !c.ConfirmedAt.IsZero() {
+		at := c.ConfirmedAt
+		out.ConfirmedAt = &at
+	}
+	return out
 }

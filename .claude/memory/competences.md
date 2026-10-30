@@ -43,9 +43,18 @@ bleiben löschbar. Stilles Löschen verliert, was jemand getippt hat.
 ## Mindestzahl: Warnung, keine Validierung
 
 `policy.MinCompulsoryCompetences = 3` („mindestens 3 oder 4"). Gezählt wird `CAN_TEACH` auf
-**aktiven Pflichtmodulen** der Gruppe; Pflicht = `module_offering.is_duty` in mindestens einer
-SPO-Fassung. `myCompetenceStatus` für die eigene Zahl, `competenceMemberStatus` und
-`modulesWithoutCompetence` als Arbeitslisten der Leitung.
+**aktiven Pflichtmodulen**; Pflicht = `module_offering.is_duty` in mindestens einer SPO-Fassung.
+
+**Insgesamt, nicht je Fachgruppe** (seit 2026-10-30, Meldung aus dem Kollegium: wer in SW und
+Mathe ist, wurde um sechs gebeten; zwei plus zwei soll reichen). `myCompetenceTotal` ist die Zahl
+über alle eigenen Gruppen samt `minimum` = min(3, Pflichtmodule der eigenen Gruppen) — die Kappung
+lag vorher je Gruppe in der GUI (`reachableMinimum`). `myCompetenceStatus` bleibt als Aufteilung je
+Gruppe; `minimum` dort und an `MemberCompetenceStatus` ist `@deprecated` (Entfernen wäre ein Bruch).
+
+**Die Leitung sieht nur die Zahl ihrer Gruppe, keine Warnung „zu wenige“** (Olivers Entscheidung
+am 2026-10-30): ob ein Mitglied die drei insgesamt erreicht, zählt Aussagen in Gruppen, die sie
+nicht lesen darf — auch ein Ja/Nein wäre ein Aggregat über fremde Zeilen.
+`competenceMemberStatus` und `modulesWithoutCompetence` bleiben Arbeitslisten der Leitung.
 
 **Aggregate über eine Gruppe nur für die Gruppenachse** (`MayReadSubjectGroupCompetences`): eine
 Studiengangsleitung liest die Module ihres Studiengangs, die quer durch Gruppen liegen — sie darf

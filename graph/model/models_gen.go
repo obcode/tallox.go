@@ -305,13 +305,13 @@ type Competence struct {
 
 // One of your subject groups, and how many of its compulsory modules you have said you can teach.
 //
-// A hint, not a validation: `canTeachCompulsory` below `minimum` refuses nothing.
+// The minimum is not per group: see `myCompetenceTotal`.
 type CompetenceGroupStatus struct {
 	// One of the subject groups you are in.
 	SubjectGroup *SubjectGroupRef `json:"subjectGroup"`
 	// How many of its active compulsory modules you have marked `CAN_TEACH`.
 	CanTeachCompulsory int `json:"canTeachCompulsory"`
-	// How many the faculty asks for: „mindestens 3 oder 4 Fächer aus dem Pflichtkatalog“.
+	// The faculty's minimum, which is over all your subject groups together and not per group.
 	Minimum int `json:"minimum"`
 }
 
@@ -329,6 +329,20 @@ type CompetenceModule struct {
 	Compulsory bool `json:"compulsory"`
 	// The module's subject group, or `null` while it has none.
 	SubjectGroup *SubjectGroupRef `json:"subjectGroup,omitempty"`
+}
+
+// How many compulsory modules you have said you can teach, over all the subject groups you are in,
+// and how many the faculty asks for — „mindestens 3 Fächer aus dem Pflichtkatalog“, in all, not per
+// group: two in one and one in another meet it.
+//
+// A hint, not a validation: `canTeachCompulsory` below `minimum` refuses nothing.
+type CompetenceTotal struct {
+	// How many active compulsory modules of your subject groups you have marked `CAN_TEACH`.
+	CanTeachCompulsory int `json:"canTeachCompulsory"`
+	// How many active compulsory modules your subject groups have to choose from.
+	CompulsoryModules int `json:"compulsoryModules"`
+	// How many the faculty asks for: three, or `compulsoryModules` when your groups have fewer.
+	Minimum int `json:"minimum"`
 }
 
 // One unit of a split nobody has stated yet.
@@ -851,13 +865,16 @@ type LocalModuleInput struct {
 	Components []*ModuleComponentInput `json:"components,omitempty"`
 }
 
-// One member of a subject group and their count — the lead's work list.
+// One member of a subject group and their count in it — the lead's work list.
+//
+// Only this group's count: whether the member meets the minimum, which is over all their groups,
+// would count statements the lead may not read.
 type MemberCompetenceStatus struct {
 	// The member: a name and an address, and deliberately not a `Person` with roles.
 	Member *Assignee `json:"member"`
 	// How many of the group's active compulsory modules they have marked `CAN_TEACH`.
 	CanTeachCompulsory int `json:"canTeachCompulsory"`
-	// How many the faculty asks for.
+	// The faculty's minimum over all subject groups — not something this group's count can meet alone.
 	Minimum int `json:"minimum"`
 }
 

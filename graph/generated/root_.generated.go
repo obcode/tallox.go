@@ -163,6 +163,12 @@ type ComplexityRoot struct {
 		SubjectGroup func(childComplexity int) int
 	}
 
+	CompetenceTotal struct {
+		CanTeachCompulsory func(childComplexity int) int
+		CompulsoryModules  func(childComplexity int) int
+		Minimum            func(childComplexity int) int
+	}
+
 	ComponentProposal struct {
 		Kind          func(childComplexity int) int
 		TeachingHours func(childComplexity int) int
@@ -531,6 +537,7 @@ type ComplexityRoot struct {
 		ModulesWithoutSubjectGroup func(childComplexity int) int
 		MyAssignments              func(childComplexity int, semester *string) int
 		MyCompetenceStatus         func(childComplexity int) int
+		MyCompetenceTotal          func(childComplexity int) int
 		MyCompetences              func(childComplexity int) int
 		MyDesiredTeachingHours     func(childComplexity int, semester *string) int
 		MySubjectGroups            func(childComplexity int) int
@@ -1242,6 +1249,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CompetenceModule.SubjectGroup(childComplexity), true
+
+	case "CompetenceTotal.canTeachCompulsory":
+		if e.ComplexityRoot.CompetenceTotal.CanTeachCompulsory == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CompetenceTotal.CanTeachCompulsory(childComplexity), true
+	case "CompetenceTotal.compulsoryModules":
+		if e.ComplexityRoot.CompetenceTotal.CompulsoryModules == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CompetenceTotal.CompulsoryModules(childComplexity), true
+	case "CompetenceTotal.minimum":
+		if e.ComplexityRoot.CompetenceTotal.Minimum == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CompetenceTotal.Minimum(childComplexity), true
 
 	case "ComponentProposal.kind":
 		if e.ComplexityRoot.ComponentProposal.Kind == nil {
@@ -3373,6 +3399,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.MyCompetenceStatus(childComplexity), true
+	case "Query.myCompetenceTotal":
+		if e.ComplexityRoot.Query.MyCompetenceTotal == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.MyCompetenceTotal(childComplexity), true
 	case "Query.myCompetences":
 		if e.ComplexityRoot.Query.MyCompetences == nil {
 			break
@@ -6487,25 +6519,46 @@ type Competence {
 """
 One of your subject groups, and how many of its compulsory modules you have said you can teach.
 
-A hint, not a validation: ` + "`" + `canTeachCompulsory` + "`" + ` below ` + "`" + `minimum` + "`" + ` refuses nothing.
+The minimum is not per group: see ` + "`" + `myCompetenceTotal` + "`" + `.
 """
 type CompetenceGroupStatus {
   "One of the subject groups you are in."
   subjectGroup: SubjectGroupRef!
   "How many of its active compulsory modules you have marked ` + "`" + `CAN_TEACH` + "`" + `."
   canTeachCompulsory: Int!
-  "How many the faculty asks for: „mindestens 3 oder 4 Fächer aus dem Pflichtkatalog“."
+  "The faculty's minimum, which is over all your subject groups together and not per group."
+  minimum: Int! @deprecated(reason: "The minimum is over all subject groups: use ` + "`" + `myCompetenceTotal` + "`" + `.")
+}
+
+"""
+How many compulsory modules you have said you can teach, over all the subject groups you are in,
+and how many the faculty asks for — „mindestens 3 Fächer aus dem Pflichtkatalog“, in all, not per
+group: two in one and one in another meet it.
+
+A hint, not a validation: ` + "`" + `canTeachCompulsory` + "`" + ` below ` + "`" + `minimum` + "`" + ` refuses nothing.
+"""
+type CompetenceTotal {
+  "How many active compulsory modules of your subject groups you have marked ` + "`" + `CAN_TEACH` + "`" + `."
+  canTeachCompulsory: Int!
+  "How many active compulsory modules your subject groups have to choose from."
+  compulsoryModules: Int!
+  "How many the faculty asks for: three, or ` + "`" + `compulsoryModules` + "`" + ` when your groups have fewer."
   minimum: Int!
 }
 
-"One member of a subject group and their count — the lead's work list."
+"""
+One member of a subject group and their count in it — the lead's work list.
+
+Only this group's count: whether the member meets the minimum, which is over all their groups,
+would count statements the lead may not read.
+"""
 type MemberCompetenceStatus {
   "The member: a name and an address, and deliberately not a ` + "`" + `Person` + "`" + ` with roles."
   member: Assignee!
   "How many of the group's active compulsory modules they have marked ` + "`" + `CAN_TEACH` + "`" + `."
   canTeachCompulsory: Int!
-  "How many the faculty asks for."
-  minimum: Int!
+  "The faculty's minimum over all subject groups — not something this group's count can meet alone."
+  minimum: Int! @deprecated(reason: "The minimum is over all subject groups; a lead sees only their group's count.")
 }
 
 "A module of a subject group that nobody has said they can teach."
@@ -6524,9 +6577,14 @@ extend type Query {
   myCompetences: [Competence!]! @scope(area: WISHES, verb: READ)
 
   """
-  For each subject group you are in, how far you are from the minimum.
+  For each subject group you are in, how many of its compulsory modules you can teach.
   """
   myCompetenceStatus: [CompetenceGroupStatus!]! @scope(area: WISHES, verb: READ)
+
+  """
+  Your count over all your subject groups, and the minimum it is measured against.
+  """
+  myCompetenceTotal: CompetenceTotal! @scope(area: WISHES, verb: READ)
 
   """
   The competences you may see, narrowed by the arguments.
@@ -6546,7 +6604,8 @@ extend type Query {
   ): [Competence!]! @scope(area: WISHES, verb: READ)
 
   """
-  Every member of a subject group and how many of its compulsory modules they can teach.
+  Every member of a subject group and how many of its compulsory modules they can teach — in this
+  group only, and therefore not whether they meet the minimum.
 
   Only for the lead of that group and the dean's office — ` + "`" + `COMPETENCE_GROUP_REFUSED` + "`" + ` otherwise.
   A count over a group is a count over rows, so it is answered only to somebody who may read all
@@ -7862,7 +7921,7 @@ enum ScopeArea {
   they are stated on the wish screen, beside the wishes they belong to.
 
   Fields: ` + "`" + `myWishes` + "`" + `, ` + "`" + `wishes` + "`" + `, ` + "`" + `setWish` + "`" + `, ` + "`" + `withdrawWish` + "`" + `, ` + "`" + `setWishTrackLimit` + "`" + `,
-  ` + "`" + `myCompetences` + "`" + `, ` + "`" + `myCompetenceStatus` + "`" + `,
+  ` + "`" + `myCompetences` + "`" + `, ` + "`" + `myCompetenceStatus` + "`" + `, ` + "`" + `myCompetenceTotal` + "`" + `,
   ` + "`" + `competences` + "`" + `, ` + "`" + `competenceMemberStatus` + "`" + `, ` + "`" + `modulesWithoutCompetence` + "`" + `, ` + "`" + `setMyCompetence` + "`" + `,
   ` + "`" + `withdrawMyCompetence` + "`" + `, ` + "`" + `setTeacherCompetence` + "`" + `, ` + "`" + `withdrawTeacherCompetence` + "`" + `,
   ` + "`" + `myDesiredTeachingHours` + "`" + `, ` + "`" + `desiredTeachingHours` + "`" + `, ` + "`" + `desiredHoursOverview` + "`" + `,
@@ -10125,6 +10184,18 @@ func (ec *executionContext) childFields_CompetenceModule(ctx context.Context, fi
 		return ec.fieldContext_CompetenceModule_subjectGroup(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type CompetenceModule", field.Name)
+}
+
+func (ec *executionContext) childFields_CompetenceTotal(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "canTeachCompulsory":
+		return ec.fieldContext_CompetenceTotal_canTeachCompulsory(ctx, field)
+	case "compulsoryModules":
+		return ec.fieldContext_CompetenceTotal_compulsoryModules(ctx, field)
+	case "minimum":
+		return ec.fieldContext_CompetenceTotal_minimum(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type CompetenceTotal", field.Name)
 }
 
 func (ec *executionContext) childFields_ComponentProposal(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

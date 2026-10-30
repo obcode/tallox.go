@@ -182,6 +182,27 @@ WHERE psg.person_id = sqlc.arg(person_id)::uuid
 GROUP BY sg.id, sg.code, sg.name
 ORDER BY sg.name, sg.id;
 
+-- name: OwnCompulsoryTotal :one
+-- Over every subject group the caller is in: how many compulsory modules the caller has stated
+-- they can teach, and how many there are to choose from. The minimum is over this total, not per
+-- group. Only the caller's own rows are counted — the answer is their own number.
+WITH offered AS (
+    SELECT DISTINCT m.id
+    FROM person_subject_group psg
+    JOIN subject_group sg ON sg.id = psg.subject_group_id AND sg.active
+    JOIN module_subject_group msg ON msg.subject_group_id = sg.id
+    JOIN module m ON m.id = msg.module_id
+    WHERE psg.person_id = sqlc.arg(person_id)::uuid
+      AND m.active AND m.retired_at IS NULL
+      AND EXISTS (SELECT 1 FROM module_offering o WHERE o.module_id = m.id AND o.is_duty)
+)
+SELECT
+    (SELECT COUNT(*) FROM competence c
+      WHERE c.person_id = sqlc.arg(person_id)::uuid
+        AND c.level = 'CAN_TEACH'
+        AND c.module_id IN (SELECT id FROM offered))::int AS can_teach_compulsory,
+    (SELECT COUNT(*) FROM offered)::int AS compulsory_modules;
+
 -- name: MemberCompulsoryCounts :many
 -- For one subject group: every member and how many of its compulsory modules they can teach.
 -- Refused in internal/domain unless the caller may read every competence in the group.

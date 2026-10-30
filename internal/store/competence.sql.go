@@ -481,6 +481,40 @@ func (q *Queries) OwnCompulsoryCounts(ctx context.Context, personID uuid.UUID) (
 	return items, nil
 }
 
+const ownCompulsoryTotal = `-- name: OwnCompulsoryTotal :one
+WITH offered AS (
+    SELECT DISTINCT m.id
+    FROM person_subject_group psg
+    JOIN subject_group sg ON sg.id = psg.subject_group_id AND sg.active
+    JOIN module_subject_group msg ON msg.subject_group_id = sg.id
+    JOIN module m ON m.id = msg.module_id
+    WHERE psg.person_id = $1::uuid
+      AND m.active AND m.retired_at IS NULL
+      AND EXISTS (SELECT 1 FROM module_offering o WHERE o.module_id = m.id AND o.is_duty)
+)
+SELECT
+    (SELECT COUNT(*) FROM competence c
+      WHERE c.person_id = $1::uuid
+        AND c.level = 'CAN_TEACH'
+        AND c.module_id IN (SELECT id FROM offered))::int AS can_teach_compulsory,
+    (SELECT COUNT(*) FROM offered)::int AS compulsory_modules
+`
+
+type OwnCompulsoryTotalRow struct {
+	CanTeachCompulsory int32
+	CompulsoryModules  int32
+}
+
+// Over every subject group the caller is in: how many compulsory modules the caller has stated
+// they can teach, and how many there are to choose from. The minimum is over this total, not per
+// group. Only the caller's own rows are counted — the answer is their own number.
+func (q *Queries) OwnCompulsoryTotal(ctx context.Context, personID uuid.UUID) (OwnCompulsoryTotalRow, error) {
+	row := q.db.QueryRow(ctx, ownCompulsoryTotal, personID)
+	var i OwnCompulsoryTotalRow
+	err := row.Scan(&i.CanTeachCompulsory, &i.CompulsoryModules)
+	return i, err
+}
+
 const teacherCompetenceContext = `-- name: TeacherCompetenceContext :one
 SELECT c.id, msg.subject_group_id
 FROM competence c

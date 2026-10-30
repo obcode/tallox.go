@@ -407,6 +407,75 @@ func (ec *executionContext) fieldContext_CompetenceModule_subjectGroup(_ context
 	return fc, nil
 }
 
+func (ec *executionContext) _CompetenceTotal_canTeachCompulsory(ctx context.Context, field graphql.CollectedField, obj *model.CompetenceTotal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CompetenceTotal_canTeachCompulsory(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CanTeachCompulsory, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CompetenceTotal_canTeachCompulsory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CompetenceTotal", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _CompetenceTotal_compulsoryModules(ctx context.Context, field graphql.CollectedField, obj *model.CompetenceTotal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CompetenceTotal_compulsoryModules(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CompulsoryModules, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CompetenceTotal_compulsoryModules(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CompetenceTotal", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _CompetenceTotal_minimum(ctx context.Context, field graphql.CollectedField, obj *model.CompetenceTotal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CompetenceTotal_minimum(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Minimum, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CompetenceTotal_minimum(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CompetenceTotal", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _MemberCompetenceStatus_member(ctx context.Context, field graphql.CollectedField, obj *model.MemberCompetenceStatus) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -740,6 +809,54 @@ func (ec *executionContext) _CompetenceModule(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var competenceTotalImplementors = []string{"CompetenceTotal"}
+
+func (ec *executionContext) _CompetenceTotal(ctx context.Context, sel ast.SelectionSet, obj *model.CompetenceTotal) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, competenceTotalImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("CompetenceTotal")
+		case "canTeachCompulsory":
+			out.Values[i] = ec._CompetenceTotal_canTeachCompulsory(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "compulsoryModules":
+			out.Values[i] = ec._CompetenceTotal_compulsoryModules(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "minimum":
+			out.Values[i] = ec._CompetenceTotal_minimum(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var memberCompetenceStatusImplementors = []string{"MemberCompetenceStatus"}
 
 func (ec *executionContext) _MemberCompetenceStatus(ctx context.Context, sel ast.SelectionSet, obj *model.MemberCompetenceStatus) graphql.Marshaler {
@@ -921,6 +1038,20 @@ func (ec *executionContext) marshalNCompetenceModule2ᚖgithubᚗcomᚋobcodeᚋ
 		return graphql.Null
 	}
 	return ec._CompetenceModule(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNCompetenceTotal2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCompetenceTotal(ctx context.Context, sel ast.SelectionSet, v model.CompetenceTotal) graphql.Marshaler {
+	return ec._CompetenceTotal(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNCompetenceTotal2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCompetenceTotal(ctx context.Context, sel ast.SelectionSet, v *model.CompetenceTotal) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._CompetenceTotal(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNMemberCompetenceStatus2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐMemberCompetenceStatusᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.MemberCompetenceStatus) graphql.Marshaler {

@@ -11,6 +11,7 @@ import (
 	"github.com/obcode/tallox.go/internal/buildinfo"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/graphqltest"
+	"github.com/obcode/tallox.go/internal/policy"
 	"github.com/obcode/tallox.go/internal/store"
 	"github.com/obcode/tallox.go/internal/store/storetest"
 	"github.com/obcode/tallox.go/internal/testdata"
@@ -311,6 +312,33 @@ func TestTheGroupCountsAreTheLeads(t *testing.T) {
 	if len(out.CompetenceMemberStatus) != 1 || out.CompetenceMemberStatus[0].CanTeachCompulsory != 1 {
 		t.Errorf("member status = %+v, want Eins with 1", out.CompetenceMemberStatus)
 	}
+}
+
+// Your own total is yours through either door — the minimum is about it, not about a group.
+func TestTheOwnTotalReadsThroughEitherDoor(t *testing.T) {
+	t.Parallel()
+
+	f := competenceHandler(t, grants{testdata.Eins, []string{"LECTURER"}})
+	f.join(t, testdata.Eins)
+	f.state(t, testdata.Eins, "CAN_TEACH")
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct {
+				MyCompetenceTotal struct {
+					CanTeachCompulsory int
+					CompulsoryModules  int
+					Minimum            int
+				}
+			}
+			c.MustQuery(t, `query { myCompetenceTotal { canTeachCompulsory compulsoryModules minimum } }`,
+				nil, &out)
+			got := out.MyCompetenceTotal
+			if got.CanTeachCompulsory != 1 || got.CompulsoryModules < 1 ||
+				got.Minimum != min(policy.MinCompulsoryCompetences, got.CompulsoryModules) {
+				t.Errorf("total = %+v, want 1, with the minimum capped at the modules there are", got)
+			}
+		})
 }
 
 func teacherIDOf(t *testing.T, s *storetest.Schema, zpaID int64) uuid.UUID {

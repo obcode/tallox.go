@@ -17,10 +17,15 @@ import (
 // Responsible means the same two axes as for a wish, with one substitution: a competence has no
 // instance, so the programme is the module's home programme rather than the demanding one.
 
-// MinCompulsoryCompetences is how many compulsory modules of a subject group somebody in it
-// should be able to teach. The kickoff said "mindestens 3 oder 4 Fächer aus dem Pflichtkatalog";
-// three is the lower end, and it is a warning and a work list rather than a validation (decided
+// MinCompulsoryCompetences is how many compulsory modules somebody should be able to teach, over
+// all the subject groups they are in together — two in software and two in mathematics meet it.
+// Per group it was until 2026-10-30, when a member of two groups pointed out that it asked six of
+// them; the faculty meant three in all. The kickoff said "mindestens 3 oder 4 Fächer aus dem
+// Pflichtkatalog"; three is the lower end, and it is a warning rather than a validation (decided
 // 2026-09-26), so the number can move without anybody's profile becoming invalid.
+//
+// A subject group lead is told only the count in their own group, never whether a member meets
+// the minimum: the total counts statements in groups the lead may not read.
 const MinCompulsoryCompetences = 3
 
 // Competence is the minimum of a competence the read rule needs.

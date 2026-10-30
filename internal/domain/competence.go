@@ -126,6 +126,17 @@ type CompetenceGroupStatus struct {
 	Minimum            int
 }
 
+// CompetenceTotal is the caller's count over all their subject groups, which is what the minimum
+// is about.
+type CompetenceTotal struct {
+	CanTeachCompulsory int
+	// CompulsoryModules is how many active compulsory modules the caller's groups have.
+	CompulsoryModules int
+	// Minimum is MinCompulsoryCompetences, or CompulsoryModules when the groups have fewer —
+	// somebody only in a group of electives would otherwise be reminded for good.
+	Minimum int
+}
+
 // MemberCompetenceStatus is one member of a subject group and their count, for the lead's list.
 type MemberCompetenceStatus struct {
 	Person             Person
@@ -168,6 +179,7 @@ type CompetenceStore interface {
 	TeacherExists(ctx context.Context, teacherID uuid.UUID) (bool, error)
 	AccountOfTeacher(ctx context.Context, teacherID uuid.UUID) (uuid.UUID, error)
 	OwnGroupStatus(ctx context.Context, personID uuid.UUID) ([]CompetenceGroupStatus, error)
+	OwnTotal(ctx context.Context, personID uuid.UUID) (CompetenceTotal, error)
 	MemberStatus(ctx context.Context, subjectGroupID uuid.UUID) ([]MemberCompetenceStatus, error)
 	ModulesWithoutCompetence(ctx context.Context, subjectGroupID uuid.UUID) ([]ModuleWithoutCompetence, error)
 }
@@ -325,6 +337,20 @@ func (s *CompetenceService) MyStatus(ctx context.Context, actor principal.Actor)
 		status[i].Minimum = policy.MinCompulsoryCompetences
 	}
 	return status, err
+}
+
+// MyTotal is the caller's count over all their subject groups and the minimum it is measured
+// against. Their own numbers, so no rule applies beyond signing in.
+func (s *CompetenceService) MyTotal(ctx context.Context, actor principal.Actor) (CompetenceTotal, error) {
+	if !actor.Authenticated() {
+		return CompetenceTotal{}, ErrNotAuthenticated
+	}
+	total, err := s.store.OwnTotal(ctx, actor.ID)
+	if err != nil {
+		return CompetenceTotal{}, err
+	}
+	total.Minimum = min(policy.MinCompulsoryCompetences, total.CompulsoryModules)
+	return total, nil
 }
 
 // MemberStatus is every member of one subject group and their count — the lead's work list.

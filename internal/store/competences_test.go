@@ -132,7 +132,7 @@ func TestEveryCompetenceQueryIsFiltered(t *testing.T) {
 
 	guardedElsewhere := []string{
 		// Counts only the caller's own rows: person_id is the argument.
-		"OwnCompulsoryCounts",
+		"OwnCompulsoryCounts", "OwnCompulsoryTotal",
 		// Refused in internal/domain unless policy.MayReadSubjectGroupCompetences.
 		"MemberCompulsoryCounts", "ModulesWithoutCompetence",
 		// Read the write context of one row for the write rule, and return no statement.
@@ -356,6 +356,66 @@ func TestTheLeadEntersForATeacherWithoutAnAccount(t *testing.T) {
 	own := f.state(t, testdata.Eins, f.compulsory, domain.CompetenceCanTeach)
 	if err := f.service.WithdrawForTeacher(ctx, lead, own.ID); !errors.Is(err, domain.ErrCompetenceNotFound) {
 		t.Errorf("the lead removing a person's statement: err = %v, want ErrCompetenceNotFound", err)
+	}
+}
+
+// The minimum is over all of one's subject groups together, not per group: one compulsory module
+// in each of two groups is two towards it. Reported on 2026-10-30 by a member of two groups who
+// was asked for three in each.
+func TestTheMinimumIsOverAllSubjectGroups(t *testing.T) {
+	t.Parallel()
+
+	f := newCompetenceFixture(t)
+	me := testdata.Eins.Actor(principal.KindInteractive, "LECTURER")
+
+	total, err := f.service.MyTotal(t.Context(), me)
+	if err != nil {
+		t.Fatalf("cannot read the total: %v", err)
+	}
+	if total.CanTeachCompulsory != 0 || total.CompulsoryModules != 2 || total.Minimum != 2 {
+		t.Errorf("total before = %+v, want 0 of 2 compulsory modules, minimum capped at 2", total)
+	}
+
+	// Move one compulsory module to the other group, and the elective with it as a third
+	// compulsory one, and join that group.
+	third := f.elective
+	f.exec(t, `UPDATE module_subject_group SET subject_group_id = $1 WHERE module_id = ANY($2)`,
+		f.other, []uuid.UUID{f.alsoCompulsory, third})
+	f.exec(t, `UPDATE module_offering SET is_duty = true WHERE module_id = $1`, third)
+	f.exec(t, `INSERT INTO person_subject_group (person_id, subject_group_id) VALUES ($1, $2)`,
+		testdata.Eins.ID(), f.other)
+
+	f.state(t, testdata.Eins, f.compulsory, domain.CompetenceCanTeach)
+	f.state(t, testdata.Eins, f.alsoCompulsory, domain.CompetenceCanTeach)
+
+	total, err = f.service.MyTotal(t.Context(), me)
+	if err != nil {
+		t.Fatalf("cannot read the total: %v", err)
+	}
+	if total.CanTeachCompulsory != 2 || total.Minimum != policy.MinCompulsoryCompetences {
+		t.Errorf("total = %+v, want 2 of %d", total, policy.MinCompulsoryCompetences)
+	}
+
+	f.state(t, testdata.Eins, third, domain.CompetenceCanTeach)
+	total, err = f.service.MyTotal(t.Context(), me)
+	if err != nil {
+		t.Fatalf("cannot read the total: %v", err)
+	}
+	if total.CanTeachCompulsory != 3 || total.CanTeachCompulsory < total.Minimum {
+		t.Errorf("total = %+v, want 3 — one in one group and two in the other meet the minimum", total)
+	}
+
+	// The per-group counts stay: one in the first group, two in the other.
+	status, err := f.service.MyStatus(t.Context(), me)
+	if err != nil {
+		t.Fatalf("cannot read the status: %v", err)
+	}
+	counts := map[uuid.UUID]int{}
+	for _, s := range status {
+		counts[s.SubjectGroup.ID] = s.CanTeachCompulsory
+	}
+	if counts[f.group] != 1 || counts[f.other] != 2 {
+		t.Errorf("per-group counts = %v, want 1 and 2", counts)
 	}
 }
 

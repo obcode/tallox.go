@@ -995,6 +995,10 @@ type Querier interface {
 	// For each subject group the caller is in: how many of its compulsory modules the caller has
 	// stated they can teach. Only the caller's own rows are counted — the answer is their own number.
 	OwnCompulsoryCounts(ctx context.Context, personID uuid.UUID) ([]OwnCompulsoryCountsRow, error)
+	// Over every subject group the caller is in: how many compulsory modules the caller has stated
+	// they can teach, and how many there are to choose from. The minimum is over this total, not per
+	// group. Only the caller's own rows are counted — the answer is their own number.
+	OwnCompulsoryTotal(ctx context.Context, personID uuid.UUID) (OwnCompulsoryTotalRow, error)
 	// Everything the write rule needs about one part, in one statement.
 	//
 	// Both halves of MayWriteAssignment hang off the instance the part belongs to — the phase from its

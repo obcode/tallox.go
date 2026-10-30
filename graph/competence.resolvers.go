@@ -95,6 +95,19 @@ func (r *queryResolver) MyCompetenceStatus(ctx context.Context) ([]*model.Compet
 	return out, nil
 }
 
+// MyCompetenceTotal is the resolver for the myCompetenceTotal field.
+func (r *queryResolver) MyCompetenceTotal(ctx context.Context) (*model.CompetenceTotal, error) {
+	total, err := r.Expertise.MyTotal(ctx, principal.From(ctx))
+	if err != nil {
+		return nil, competenceError(err)
+	}
+	return &model.CompetenceTotal{
+		CanTeachCompulsory: total.CanTeachCompulsory,
+		CompulsoryModules:  total.CompulsoryModules,
+		Minimum:            total.Minimum,
+	}, nil
+}
+
 // Competences is the resolver for the competences field.
 func (r *queryResolver) Competences(ctx context.Context, module *string, subjectGroup *string, person *string, teacher *string) ([]*model.Competence, error) {
 	var query domain.CompetenceQuery

@@ -215,6 +215,18 @@ func (c *Competences) OwnGroupStatus(ctx context.Context,
 	return out, nil
 }
 
+// OwnTotal counts the caller's own compulsory CAN_TEACH statements over all their subject groups.
+func (c *Competences) OwnTotal(ctx context.Context, personID uuid.UUID) (domain.CompetenceTotal, error) {
+	row, err := New(c.pool).OwnCompulsoryTotal(ctx, personID)
+	if err != nil {
+		return domain.CompetenceTotal{}, fmt.Errorf("cannot count the competences: %w", err)
+	}
+	return domain.CompetenceTotal{
+		CanTeachCompulsory: int(row.CanTeachCompulsory),
+		CompulsoryModules:  int(row.CompulsoryModules),
+	}, nil
+}
+
 // MemberStatus counts every member's compulsory CAN_TEACH statements in one subject group.
 func (c *Competences) MemberStatus(ctx context.Context,
 	subjectGroupID uuid.UUID) ([]domain.MemberCompetenceStatus, error) {

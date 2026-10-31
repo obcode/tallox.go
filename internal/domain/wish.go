@@ -343,6 +343,11 @@ func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID
 	if !policy.MayWriteInPhase(policy.WriteAreaWishes, where.Semester.Phase, actor) {
 		return nil, ErrWishPhaseClosed
 	}
+	// The programme's release: demand first, then wishes. Before the subject group's window,
+	// because a round cannot have collected anything for a demand that is not settled yet.
+	if !where.WishesReleased {
+		return nil, ErrWishesNotReleased
+	}
 	// The subject group's own door, which since 2026-08-28 is what actually ends a wish round.
 	// Checked after the phase, because "the semester is finished" is the wider statement and the
 	// one whose repair is nobody's.
@@ -367,7 +372,7 @@ func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID
 // programme — "einen der beiden Züge, egal welcher" — or lifts the bound with nil.
 //
 // Named through one of the cohorts because that is what a caller holds; the bound belongs to all
-// of them. Bound by the phase and the window like a wish, because it is part of one: a bound
+// of them. Bound by the phase, the release and the window like a wish, because it is part of one: a bound
 // changed after the round has shut is a wish changed after the round has shut.
 func (s *WishService) SetTrackLimit(ctx context.Context, actor principal.Actor,
 	instanceID uuid.UUID, maxTracks *int) error {
@@ -390,6 +395,9 @@ func (s *WishService) SetTrackLimit(ctx context.Context, actor principal.Actor,
 	}
 	if !policy.MayWriteInPhase(policy.WriteAreaWishes, where.Semester.Phase, actor) {
 		return ErrWishPhaseClosed
+	}
+	if !where.WishesReleased {
+		return ErrWishesNotReleased
 	}
 	if !where.WindowOpen {
 		return ErrWishWindowClosed
@@ -429,9 +437,12 @@ func (s *WishService) Withdraw(ctx context.Context, actor principal.Actor, id uu
 	if where.Found() && !policy.MayWriteInPhase(policy.WriteAreaWishes, where.Semester.Phase, actor) {
 		return ErrWishPhaseClosed
 	}
-	// Bound by the window like registering one, and for the same reason the phase binds both: a
+	// Bound by the release and the window like registering one, and for the same reason the phase binds both: a
 	// list that may be added to but not corrected is worse than a closed one, so the two
 	// directions are one decision about when the round is running.
+	if where.Found() && !where.WishesReleased {
+		return ErrWishesNotReleased
+	}
 	if where.Found() && !where.WindowOpen {
 		return ErrWishWindowClosed
 	}

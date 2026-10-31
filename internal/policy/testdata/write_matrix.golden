@@ -24,9 +24,10 @@ times, and each subject group runs its own wish round. So two things that are **
 what this table used to:
 
   demand_completion   One study programme announcing that its demand for a semester is settled,
-                      as far as it knows today. An ANNOUNCEMENT: it blocks nothing at all. Demand
-                      may still be added, and adding some makes the announcement out of date
-                      rather than false — which is what withdrawing it is for.
+                      as far as it knows today. A RELEASE (since 2026-10-31): until it exists,
+                      nobody registers interest in that programme's instances, and withdrawing it
+                      shuts them again. An absent row means shut. It blocks nothing about the
+                      demand: adding some makes the announcement out of date rather than false.
   wish_window         One subject group's wish round, opened and shut by its lead, at any moment
                       and in either direction. A DOOR. An absent row means open.
 

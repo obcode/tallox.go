@@ -254,6 +254,7 @@ func wishWriteContextFrom(row WishWriteContextRow) domain.WishWriteContext {
 			Phase: policy.Phase(row.Phase),
 		},
 		WindowOpen:      row.WishWindowOpen,
+		WishesReleased:  row.WishesReleased,
 		TaughtElsewhere: row.TaughtElsewhere,
 		EnglishPossible: domain.EnglishPossible(domain.ModuleSource(row.ModuleSource),
 			domain.Language(stringOrEmpty(row.ModuleTeachingLanguage)),

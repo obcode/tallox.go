@@ -108,7 +108,7 @@ func TestAShutRoundRefusesAWishAndSaysWhoCanOpenIt(t *testing.T) {
 	f.register(t, testdata.Eins)
 }
 
-// TestTheProgrammeLeadAnnouncesTheirOwnDemand is the other mark, and it blocks nothing.
+// TestTheProgrammeLeadAnnouncesTheirOwnDemand is the other mark: who may release a programme.
 func TestTheProgrammeLeadAnnouncesTheirOwnDemand(t *testing.T) {
 	t.Parallel()
 
@@ -142,7 +142,8 @@ func TestTheProgrammeLeadAnnouncesTheirOwnDemand(t *testing.T) {
 	assertRefusal(t, resp, "NOT_YOUR_PROGRAMME")
 }
 
-// TestAnnouncingTheDemandBlocksNothing is the difference between an announcement and a door.
+// TestAnnouncingTheDemandBlocksNothing is about the demand: the release opens the wishes, and
+// shuts nothing.
 //
 // The faculty was explicit about this: "es ist nie absolut". Declaring an instance after the
 // announcement stays possible, and the announcement goes out of date rather than becoming a
@@ -237,11 +238,12 @@ func TestWishWindowsListsOnlyWhatSomebodySwitched(t *testing.T) {
 		t.Errorf("a semester nobody switched anything in lists %d windows, want none",
 			len(out.WishWindows))
 	}
-	if len(out.DemandCompletions) != 0 {
-		t.Errorf("…and %d announcements, want none", len(out.DemandCompletions))
+	// The one release the fixture made, and only that: an announcement is a row somebody wrote.
+	if len(out.DemandCompletions) != 1 {
+		t.Errorf("…and %d announcements, want the fixture's one", len(out.DemandCompletions))
 	}
 
-	// And the round is open, which is what an absent row means.
+	// And the round is open, which is what an absent window row means.
 	f.register(t, testdata.Eins)
 }
 
@@ -274,4 +276,56 @@ func TestARefusedAnnouncementLeavesNoSemesterBehind(t *testing.T) {
 				t.Errorf("two refused announcements left %d semester row(s) behind", got)
 			}
 		})
+}
+
+// TestAnUnreleasedProgrammeTakesNoWishThroughAnyDoor is what a lecturer meets before the
+// programme lead has released the demand, and again after the release is withdrawn.
+//
+// Its own code and a sentence that names the programme lead, because that is the repair — not the
+// subject group's lead, whose window is open the whole time here. Through all three doors: a wish
+// is the one write a plain token may make, so the rule must not be a browser rule.
+func TestAnUnreleasedProgrammeTakesNoWishThroughAnyDoor(t *testing.T) {
+	t.Parallel()
+
+	f := wishHandler(t,
+		grants{testdata.Eins, []string{"LECTURER"}},
+		grants{testdata.Zwei, []string{"LECTURER"}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+	)
+	f.leadProgramme(t, testdata.Vier, f.programme)
+
+	// Somebody else registered while the programme was released: the refusal must not tell Eins.
+	f.register(t, testdata.Zwei)
+
+	// The lead withdraws the release.
+	var withdrawn struct{ SetDemandComplete *struct{ Semester string } }
+	graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).MustQuery(t, setDemandCompleteMutation,
+		map[string]any{"s": f.semester, "p": f.programme, "c": false}, &withdrawn)
+
+	refused := func(t *testing.T, c *graphqltest.Client) {
+		t.Helper()
+		resp := c.Do(t, setWishMutation,
+			map[string]any{"p": f.instance, "prio": "FIRST_CHOICE", "note": nil})
+		assertRefusal(t, resp, "WISHES_NOT_RELEASED")
+		messages := resp.Messages()
+		if len(messages) == 0 || !strings.Contains(messages[0], "Studiengangsleitung") {
+			t.Errorf("the refusal is %v — it should name who can release the programme", messages)
+		}
+		graphqltest.AssertNoLeak(t, strings.Join(messages, " "),
+			append(graphqltest.DatabaseNoise(),
+				testdata.Mails(testdata.Others(testdata.Eins))...)...)
+	}
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token, refused)
+	t.Run("full reach", func(t *testing.T) {
+		refused(t, graphqltest.New(f.handler).WithToken(fullReachToken(t, f.schema, testdata.Eins)).
+			On(graphqltest.Token))
+	})
+
+	// Released again, and it takes the entry. The demand did not change in between.
+	graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).MustQuery(t, setDemandCompleteMutation,
+		map[string]any{"s": f.semester, "p": f.programme, "c": true}, &struct {
+			SetDemandComplete struct{ Semester string }
+		}{})
+	f.register(t, testdata.Eins)
 }

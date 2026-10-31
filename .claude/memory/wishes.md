@@ -167,3 +167,9 @@ von Zug B den Wunsch auf Zug A mitlesen lassen; die Obergrenze sagt auch „2 vo
 
 „Über ein Token nur Eigenes“ gilt jetzt nur noch für **normale** Tokens. Ein Planungs-Token mit
 voller Reichweite liest, was die Person im Browser liest. Siehe [[full-reach-tokens]].
+
+## Reihenfolge der Schreibregel (Stand 2026-10-31)
+
+Phase (`FINAL` zu) → Freigabe des Studiengangs der Instanz (`WISHES_NOT_RELEASED`, abwesend =
+zu) → Wunschrunde der Fachgruppe (`WISH_WINDOW_CLOSED`, abwesend = offen) → `taught_elsewhere`.
+Gilt für Eintragen, Obergrenze und Zurückziehen gleich. Siehe [[planning-marks]].

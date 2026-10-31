@@ -20,8 +20,11 @@ import (
 //
 // They look alike and are not:
 //
-//	DemandCompletion  an announcement. Blocks nothing, can be withdrawn, and goes out of date
-//	                  rather than becoming false when somebody adds a late instance.
+//	DemandCompletion  a release. Until a programme has announced its demand as settled, nobody
+//	                  registers interest in its instances (since 2026-10-31). It blocks nothing
+//	                  about the demand itself, can be withdrawn — which shuts the wishes again —
+//	                  and goes out of date rather than becoming false when somebody adds a late
+//	                  instance.
 //	WishWindow        a door. Closed means this subject takes no more entries, and it opens again
 //	                  the same afternoon if its lead says so.
 
@@ -34,6 +37,13 @@ var (
 	ErrWishWindowClosed = errors.New(
 		"die Wunschphase dieser Fachgruppe ist derzeit geschlossen")
 
+	// ErrWishesNotReleased is an instance whose programme has not released its demand for wishes.
+	//
+	// Its own error beside ErrWishWindowClosed for the same reason that one is beside the phase:
+	// the repair is a different person — the programme's lead, not the subject group's.
+	ErrWishesNotReleased = errors.New(
+		"dieser Studiengang hat seinen Bedarf noch nicht für Wünsche freigegeben")
+
 	// ErrInstanceTaughtElsewhere is a wish for an instance another faculty teaches entirely.
 	//
 	// Not a leak: it says something about the instance — which the demand shows to everybody —
@@ -45,7 +55,8 @@ var (
 	ErrNotYourSubjectGroup = errors.New("für diese Fachgruppe bist Du nicht zuständig")
 )
 
-// DemandCompletion is one study programme saying its demand for a semester is settled.
+// DemandCompletion is one study programme saying its demand for a semester is settled, which
+// releases its instances for wishes.
 type DemandCompletion struct {
 	SemesterCode string
 	Programme    Programme
@@ -60,8 +71,8 @@ type DemandCompletion struct {
 // after the assignment, its lead has gone over the demand, its cut and who teaches what, and the
 // figures stand as far as anybody knows today.
 //
-// The same shape as DemandCompletion and the same kind of statement — an announcement that
-// blocks nothing — said at a later moment, so it is the same type under a name that says which.
+// The same shape as DemandCompletion, said at a later moment, so it is the same type under a name
+// that says which. Unlike the demand completion it blocks nothing: it opens no door.
 type ReviewCompletion = DemandCompletion
 
 // WishWindow is one subject group's wish round, for one semester.
@@ -92,6 +103,9 @@ type WishWriteContext struct {
 	// WindowOpen is whether this subject is taking entries. True when nobody has said otherwise,
 	// and true for a module in no subject group at all.
 	WindowOpen bool
+	// WishesReleased is whether the instance's programme has announced its demand for the
+	// semester as settled. False when it has not: the one mark here that fails closed.
+	WishesReleased bool
 	// TaughtElsewhere is an instance every part of which another faculty teaches
 	// (InstancePart.TaughtBy). There is nothing in it for anybody here to want.
 	TaughtElsewhere bool

@@ -104,7 +104,7 @@ type DemandCompletionsOfSemesterRow struct {
 // the queries were simply absent, and the error pointed at querier.go.
 //
 // Two tables, two shapes, and the difference is the point (see migration 18):
-// demand_completion is an announcement that blocks nothing, wish_window is a door.
+// demand_completion is a programme's release for wishes, wish_window is a subject group's door.
 //
 // Neither is filtered by a visibility rule. Both are facts about the *process* rather than about
 // people: which programmes have settled their demand and which subjects are taking entries is
@@ -342,6 +342,9 @@ const wishWriteContext = `-- name: WishWriteContext :one
 SELECT s.id, s.code, s.phase, s.wishes_published_at,
        msg.subject_group_id,
        COALESCE(ww.open, true)::boolean AS wish_window_open,
+       EXISTS (SELECT 1 FROM demand_completion dc
+               WHERE dc.semester_id = s.id AND dc.programme_id = ci.programme_id
+       )::boolean AS wishes_released,
        (EXISTS (SELECT 1 FROM instance_part ip WHERE ip.course_instance_id = ci.id)
         AND NOT EXISTS (SELECT 1 FROM instance_part ip
                         WHERE ip.course_instance_id = ci.id AND ip.taught_by IS NULL)
@@ -366,6 +369,7 @@ type WishWriteContextRow struct {
 	WishesPublishedAt      pgtype.Timestamptz
 	SubjectGroupID         uuid.NullUUID
 	WishWindowOpen         bool
+	WishesReleased         bool
 	TaughtElsewhere        bool
 	ModuleSource           string
 	ModuleTeachingLanguage *string
@@ -383,6 +387,11 @@ type WishWriteContextRow struct {
 // Both are open, which is the rule — closing is the intervention. See migration 18 for why this
 // one direction is the opposite of every other default in the schema.
 //
+// wishes_released is the other direction, and deliberately: since 2026-10-31 nobody registers
+// interest in a programme's instances until its lead has announced the demand as settled, which
+// is what releases it. No row is shut. The programme is the instance's own, never the wishing
+// person's — the release is a statement about that programme's demand.
+//
 // taught_elsewhere is an instance every part of which another faculty gives (migration 29): there
 // is nothing here to want. Some parts elsewhere and some ours is an ordinary instance — the wish is
 // for the instance, and the note says which half. A covered cohort holds no parts at all and is
@@ -397,6 +406,7 @@ func (q *Queries) WishWriteContext(ctx context.Context, instanceID uuid.UUID) (W
 		&i.WishesPublishedAt,
 		&i.SubjectGroupID,
 		&i.WishWindowOpen,
+		&i.WishesReleased,
 		&i.TaughtElsewhere,
 		&i.ModuleSource,
 		&i.ModuleTeachingLanguage,

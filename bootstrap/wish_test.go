@@ -114,6 +114,10 @@ func wishHandler(t *testing.T, people ...grants) wishFixture {
 		`UPDATE semester SET phase = 'WISHES' WHERE id = $1`, semester.ID); err != nil {
 		t.Fatalf("cannot switch the semester into the wish phase: %v", err)
 	}
+	// The instance's programme has released its demand for wishes, which since 2026-10-31 is what
+	// lets anybody register interest in it. Only that one: the other programme stays shut, so a
+	// test that wishes there has to say so.
+	storetest.ReleaseWishes(t, s, semester.Code, f.programme)
 
 	planning := domain.NewSemesterService(semesters, nil)
 	f.handler = bootstrap.Handler(bootstrap.Options{
@@ -811,6 +815,7 @@ func TestACoveredCohortsWishesReachWhoeverFillsThePart(t *testing.T) {
 
 	// A second programme declares the same module and has its demand covered by the first.
 	guestID := f.declareCoveredCohort(t)
+	storetest.ReleaseWishes(t, f.schema, f.semester, f.otherProgramme)
 
 	// Somebody registers interest in the *covered* cohort — "I would teach this for my
 	// programme", which stays true after the event is held jointly.

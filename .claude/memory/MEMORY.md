@@ -28,7 +28,7 @@ Kollegium — das gehört nach `tallox.dev`.
 - [Module über zwei Semester](two-semester-modules.md) — `semester_span` als Teiler, Aufteilung und Instanz je Semester, kein Fachsemester-Automatismus
 - [Deckung über Studiengänge](instance-coverage.md) — ein Bedarf, von einem anderen Studiengang gehalten: der Fremdschlüssel mit vier Invarianten, warum das Koppeln beim Planen einseitig sein darf, und die Beförderung beim Rückzug
 - [SWS-Controlling](sws-controlling.md) — `teachingLoad`: Lehr-SWS je Heimatstudiengang wie das alte Excel-Sheet, Kontingent, Saldo (WiSe: Hälfte, SoSe: Rest nach dem WiSe), `studyYearLoad`, Filter `foreignHome`; Körbe offen
-- [Planungsmarken](planning-marks.md) — zwei Marken statt einer Phase, und warum fehlende Zeile hier offen heißt
+- [Planungsmarken](planning-marks.md) — zwei Marken statt einer Phase; die Tür heißt abwesend offen, die Bedarfs-Freigabe (seit 2026-10-31) abwesend zu
 - [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf, und das Planungssemester
 - [Kompetenzzone](competences.md) — am Modul ohne Semester, vertraulich ohne Veröffentlichung, Mitgliedschaft als Schreibregel, Lehrende ohne Konto durch die Fachgruppenleitung
 - [Studiengangs-Review](programme-review.md) — Phase REVIEW vor FINAL, alles offen bis Semesterende, Marke „Review fertig"

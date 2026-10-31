@@ -103,3 +103,25 @@ auch hier offen. Module ohne Fachgruppe halten nicht auf, weil niemand ihre Rund
 **Offen gelassen:** Eine Runde *nach* der Veröffentlichung wieder zu öffnen, geht weiterhin. Dann
 ist jede neue Eintragung sofort sichtbar, aber das ist dann eine bewusste Entscheidung der Leitung,
 kein Versehen beim Veröffentlichen. Ob das gesperrt werden soll, ist eine Frage für die Fakultät.
+
+## Die Ansage wird Freigabe — und heißt abwesend **zu** (2026-10-31)
+
+Oliver, aus der Fakultät: Wünsche erst, wenn die Studiengangsleitung den Bedarf geplant und
+ausdrücklich für die Wünsche freigegeben hat. Umgesetzt **ohne zweiten Schalter**: „Bedarf ist
+fertig" (`demand_completion`) *ist* die Freigabe. `WishWriteContext` liest `wishes_released`
+(Zeile für Semester × **Studiengang der Instanz**), und `Set`, `SetTrackLimit` und `Withdraw`
+lehnen ohne sie mit `WISHES_NOT_RELEASED` ab — nach der Phase, vor der Fachgruppen-Tür.
+
+- **Fail-closed, bewusst anders als die Tür.** Das Argument von Migration 18 („ein Deploy, der
+  still alle Runden schließt") gilt hier gerade nicht: die Fakultät *will* zu bis zur Freigabe.
+  **Kein Backfill** — entschieden: ab Deploy ist jeder Studiengang ohne Meldung zu, bestehende
+  Wünsche dort bleiben stehen und sind eingefroren, bis freigegeben wird.
+- **Zurücknehmen schließt wieder**, auch Zurückziehen des eigenen Wunsches — dieselbe Begründung
+  wie bei der Tür: ergänzen ohne korrigieren ist schlimmer als zu.
+- Die Freigabe eines anderen Studiengangs öffnet nichts, auch nicht bei Deckung: zählt der
+  Studiengang der bewünschten Instanz.
+- Kein neues Schemafeld; die GUI blendet Instanzen nicht freigegebener Studiengänge auf der
+  Wunschseite aus (aus `demandCompletions`, öffentlich).
+- Tests: `TestAnAbsentReleaseIsShut`, `TestTheReleaseGatesEveryWishWrite` (store),
+  `TestAnUnreleasedProgrammeTakesNoWishThroughAnyDoor` (alle drei Türen). Fixtures geben mit
+  `storetest.ReleaseWishes` frei, nur den Studiengang der Fixture-Instanz.

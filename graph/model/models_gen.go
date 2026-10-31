@@ -612,7 +612,9 @@ type DemandChange struct {
 	Programme *Programme `json:"programme,omitempty"`
 }
 
-// One study programme announcing that its demand for a semester is settled.
+// One study programme announcing that its demand for a semester is settled and releasing it for wishes.
+//
+// Without one, nobody registers interest in that programme's instances in that semester.
 type DemandCompletion struct {
 	// The semester it is about.
 	Semester string `json:"semester"`
@@ -1247,7 +1249,8 @@ type RefusedSignIn struct {
 
 // One study programme announcing that its review of a semester is done: after the assignment its
 // lead has gone over the demand, its cut and who teaches what, and the figures stand against the
-// quota as far as anybody knows today. An announcement like `DemandCompletion`; it blocks nothing.
+// quota as far as anybody knows today. An announcement only: unlike `DemandCompletion`, it blocks
+// nothing.
 type ReviewCompletion struct {
 	// The semester it is about.
 	Semester string `json:"semester"`

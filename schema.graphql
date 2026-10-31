@@ -1102,7 +1102,9 @@ type DemandChange {
   programme: Programme
 }
 """
-One study programme announcing that its demand for a semester is settled.
+One study programme announcing that its demand for a semester is settled and releasing it for wishes.
+
+Without one, nobody registers interest in that programme's instances in that semester.
 """
 type DemandCompletion {
   """
@@ -2949,10 +2951,13 @@ type Mutation {
     programme: String!
   ): CopyDemandReport! @fullReach @scope(area: PLANNING, verb: WRITE)
   """
-  Announce this study programme's demand as settled for a semester, or withdraw the announcement.
+  Announce this study programme's demand as settled for a semester and release it for wishes, or
+  withdraw the announcement.
 
-  Blocks nothing either way. Declaring another instance afterwards stays possible and is the
-  ordinary case; re-announcing then refreshes the timestamp.
+  Announcing opens the programme's instances for wishes; withdrawing shuts them again, and the
+  wishes already entered stay but can no longer be changed or withdrawn until it is released again
+  (`WISHES_NOT_RELEASED`). The demand itself stays writable either way: declaring another instance
+  afterwards is the ordinary case, and re-announcing then refreshes the timestamp.
 
   `complete: false` withdraws and answers `null` — there is no "withdrawn" state to return, because
   it is the same state as never having announced.
@@ -4104,10 +4109,12 @@ type Query {
   """
   me: Person @scope(area: PROFILE, verb: READ)
   """
-  Which study programmes have announced their demand as settled, for one semester.
+  Which study programmes have announced their demand as settled and released it for wishes, for one
+  semester.
 
-  Programmes that have not are simply absent. There is no "in Arbeit" row, because not announcing
-  and withdrawing an announcement are the same state: the demand is not settled.
+  Programmes that have not are simply absent, and their instances take no wishes. There is no
+  "in Arbeit" row, because not announcing and withdrawing an announcement are the same state: the
+  demand is not settled.
   """
   demandCompletions(
     """
@@ -4411,7 +4418,8 @@ type RefusedSignIn {
 """
 One study programme announcing that its review of a semester is done: after the assignment its
 lead has gone over the demand, its cut and who teaches what, and the figures stand against the
-quota as far as anybody knows today. An announcement like `DemandCompletion`; it blocks nothing.
+quota as far as anybody knows today. An announcement only: unlike `DemandCompletion`, it blocks
+nothing.
 """
 type ReviewCompletion {
   """

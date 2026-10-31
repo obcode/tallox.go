@@ -7,10 +7,16 @@
 #
 # TWO MARKS, AND THEY ARE NOT THE SAME SHAPE
 #
-# `DemandCompletion` is an **announcement**. "IF for SS29 is settled, as far as I know today." It
-# blocks nothing — demand may still be declared, and doing so makes the announcement out of date
-# rather than false, which is what withdrawing it is for. Its whole job is to tell the colleagues
-# that registering interest in that programme's instances is now worth the effort.
+# `DemandCompletion` is a **release**. "IF for SS29 is settled, and the colleagues may now register
+# interest in it." Until a programme has said so, nobody registers, changes or withdraws a wish on
+# that programme's instances (`WISHES_NOT_RELEASED`, since 2026-10-31). It blocks nothing about the
+# demand itself — instances may still be declared afterwards, which makes the statement out of date
+# rather than false. Withdrawing it shuts the programme's wishes again; the wishes already entered
+# stay as they are.
+#
+# This is the one mark here that fails closed: a programme nobody has released takes no wishes. The
+# faculty decided that the order is demand first, then wishes — interest registered against a
+# demand that is still being cut is interest in instances that may not exist.
 #
 # `WishWindow` is a **door**. Shut means this subject group takes no more entries, and its lead
 # opens it again the same afternoon if they want to. Everything else — demand, assignment — stays
@@ -23,7 +29,7 @@
 # concluding that the tool is broken. What is confidential is what the marks are *about* — the
 # wishes and the assignments — and those carry their own rules.
 #
-# AN ABSENT WINDOW MEANS OPEN
+# AN ABSENT WINDOW MEANS OPEN — AN ABSENT RELEASE MEANS SHUT
 #
 # `wishWindows` lists the exceptions, not the state of every subject group: a group nobody has
 # decided anything about is open, and so is a module in no subject group at all. That is the
@@ -31,7 +37,9 @@
 # stated — in principle always possible, closing is the intervention.
 
 """
-One study programme announcing that its demand for a semester is settled.
+One study programme announcing that its demand for a semester is settled and releasing it for wishes.
+
+Without one, nobody registers interest in that programme's instances in that semester.
 """
 type DemandCompletion {
   "The semester it is about."
@@ -51,7 +59,8 @@ type DemandCompletion {
 """
 One study programme announcing that its review of a semester is done: after the assignment its
 lead has gone over the demand, its cut and who teaches what, and the figures stand against the
-quota as far as anybody knows today. An announcement like `DemandCompletion`; it blocks nothing.
+quota as far as anybody knows today. An announcement only: unlike `DemandCompletion`, it blocks
+nothing.
 """
 type ReviewCompletion {
   "The semester it is about."
@@ -85,10 +94,12 @@ type WishWindow {
 
 extend type Query {
   """
-  Which study programmes have announced their demand as settled, for one semester.
+  Which study programmes have announced their demand as settled and released it for wishes, for one
+  semester.
 
-  Programmes that have not are simply absent. There is no "in Arbeit" row, because not announcing
-  and withdrawing an announcement are the same state: the demand is not settled.
+  Programmes that have not are simply absent, and their instances take no wishes. There is no
+  "in Arbeit" row, because not announcing and withdrawing an announcement are the same state: the
+  demand is not settled.
   """
   demandCompletions(
     "Four digits, a hyphen and SS or WS, for example `2029-SS`."
@@ -118,10 +129,13 @@ extend type Query {
 
 extend type Mutation {
   """
-  Announce this study programme's demand as settled for a semester, or withdraw the announcement.
+  Announce this study programme's demand as settled for a semester and release it for wishes, or
+  withdraw the announcement.
 
-  Blocks nothing either way. Declaring another instance afterwards stays possible and is the
-  ordinary case; re-announcing then refreshes the timestamp.
+  Announcing opens the programme's instances for wishes; withdrawing shuts them again, and the
+  wishes already entered stay but can no longer be changed or withdrawn until it is released again
+  (`WISHES_NOT_RELEASED`). The demand itself stays writable either way: declaring another instance
+  afterwards is the ordinary case, and re-announcing then refreshes the timestamp.
 
   `complete: false` withdraws and answers `null` — there is no "withdrawn" state to return, because
   it is the same state as never having announced.

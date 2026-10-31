@@ -113,6 +113,8 @@ func assignmentHandler(t *testing.T, people ...grants) assignmentAPIFixture {
 		`UPDATE semester SET phase = 'ASSIGNMENT' WHERE id = $1`, semester.ID); err != nil {
 		t.Fatalf("cannot switch the semester into the assignment phase: %v", err)
 	}
+	// Released for wishes, so that the tests which register interest first get to their point.
+	storetest.ReleaseWishes(t, s, semester.Code, f.programme)
 
 	planning := domain.NewSemesterService(semesters, nil)
 	f.handler = bootstrap.Handler(bootstrap.Options{

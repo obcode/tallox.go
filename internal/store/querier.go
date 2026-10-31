@@ -567,7 +567,7 @@ type Querier interface {
 	// the queries were simply absent, and the error pointed at querier.go.
 	//
 	// Two tables, two shapes, and the difference is the point (see migration 18):
-	// demand_completion is an announcement that blocks nothing, wish_window is a door.
+	// demand_completion is a programme's release for wishes, wish_window is a subject group's door.
 	//
 	// Neither is filtered by a visibility rule. Both are facts about the *process* rather than about
 	// people: which programmes have settled their demand and which subjects are taking entries is
@@ -1644,6 +1644,11 @@ type Querier interface {
 	// subject group has no window, and a subject group nobody has decided anything about has no row.
 	// Both are open, which is the rule — closing is the intervention. See migration 18 for why this
 	// one direction is the opposite of every other default in the schema.
+	//
+	// wishes_released is the other direction, and deliberately: since 2026-10-31 nobody registers
+	// interest in a programme's instances until its lead has announced the demand as settled, which
+	// is what releases it. No row is shut. The programme is the instance's own, never the wishing
+	// person's — the release is a statement about that programme's demand.
 	//
 	// taught_elsewhere is an instance every part of which another faculty gives (migration 29): there
 	// is nothing here to want. Some parts elsewhere and some ours is an ordinary instance — the wish is

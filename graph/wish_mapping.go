@@ -132,6 +132,9 @@ func wishError(err error) error {
 		return refusal("SEMESTER_REQUIRED", err.Error())
 	case errors.Is(err, domain.ErrWishPhaseClosed):
 		return refusal("WISH_PHASE_CLOSED", err.Error())
+	case errors.Is(err, domain.ErrWishesNotReleased):
+		// Its own code for the reason the window has one: the repair is the programme's lead.
+		return refusal("WISHES_NOT_RELEASED", policy.WishesNotReleasedReason)
 	case errors.Is(err, domain.ErrWishWindowClosed):
 		// Its own code and not WISH_PHASE_CLOSED, because the repair is a different person: a shut
 		// window is one switch held by this subject group's lead, a finished semester is the end

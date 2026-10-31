@@ -35,8 +35,16 @@ const WishWindowSwitchReason = "Nur die Leitung dieser Fachgruppe und das Dekana
 const WishWindowClosedReason = "Die Wunschphase dieser Fachgruppe ist derzeit geschlossen. " +
 	"Die Fachgruppenleitung kann sie wieder öffnen."
 
+// WishesNotReleasedReason is what a lecturer is told whose wish is for an instance of a programme
+// that has not released its demand for wishes.
+//
+// It names who can change it, like WishWindowClosedReason: here the repair is the programme's
+// lead, not the subject group's.
+const WishesNotReleasedReason = "Die Studiengangsleitung hat den Bedarf dieses Studiengangs noch " +
+	"nicht für Wünsche freigegeben."
+
 // MayAnnounceDemandComplete reports whether this actor may say that a programme's demand is
-// settled for a semester.
+// settled for a semester — which, since 2026-10-31, releases its instances for wishes.
 //
 // The same reach as writing the demand, and a function of its own so that the two can part
 // company: announcing is a statement about work somebody did, and the day the faculty wants a

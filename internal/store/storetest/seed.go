@@ -124,3 +124,37 @@ func SeedToken(t *testing.T, s *Schema, p testdata.Persona, secretHash []byte, o
 		}
 	}
 }
+
+// ReleaseWishes announces the demand of the named programmes as settled for a semester, which
+// since 2026-10-31 is what lets anybody register interest in their instances. With no programme
+// named, every programme in the schema is released — what a test about something other than the
+// release wants, so that the release is not the reason it passes or fails.
+//
+// Written straight into the table rather than through the service: the fixture states a fact,
+// it does not exercise who may announce it.
+func ReleaseWishes(t *testing.T, s *Schema, semesterCode string, programmes ...string) {
+	t.Helper()
+	ctx := t.Context()
+	if len(programmes) == 0 {
+		if _, err := s.Pool.Exec(ctx, `
+			INSERT INTO demand_completion (semester_id, programme_id)
+			SELECT s.id, p.id FROM semester s, programme p WHERE s.code = $1
+			ON CONFLICT DO NOTHING`, semesterCode); err != nil {
+			t.Fatalf("cannot release the semester for wishes: %v", err)
+		}
+		return
+	}
+	for _, code := range programmes {
+		tag, err := s.Pool.Exec(ctx, `
+			INSERT INTO demand_completion (semester_id, programme_id)
+			SELECT s.id, p.id FROM semester s, programme p WHERE s.code = $1 AND p.code = $2
+			ON CONFLICT (semester_id, programme_id) DO UPDATE SET completed_at = now()`, semesterCode, code)
+		if err != nil {
+			t.Fatalf("cannot release %s for wishes: %v", code, err)
+		}
+		if tag.RowsAffected() == 0 {
+			t.Fatalf("releasing %s in %s inserted nothing: no such semester or programme", code,
+				semesterCode)
+		}
+	}
+}

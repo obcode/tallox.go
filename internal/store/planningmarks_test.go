@@ -16,9 +16,11 @@ import (
 
 // The two planning marks against a real database.
 //
-// The one that has to be right is the default: an absent row means **open**. It is the opposite of
-// every other default in this schema, it is what makes "in principle always possible" true, and it
-// is the kind of thing a fake store gets right by accident while the shipped query returns NULL.
+// What has to be right is the defaults, and they point in opposite directions. An absent window
+// means **open**: the opposite of every other default in this schema, and what makes "in principle
+// always possible" true. An absent release means **shut**: since 2026-10-31 nobody registers
+// interest in a programme's instances until its demand is announced as settled. Both are the kind
+// of thing a fake store gets right by accident while the shipped query returns NULL.
 
 // marks builds a wish fixture plus the store the marks live in.
 func marks(t *testing.T) (wishFixture, *store.PlanningMarks) {
@@ -228,6 +230,7 @@ func TestAShutWindowRefusesAWishAndAReopenedOneTakesItAgain(t *testing.T) {
 	wishes := domain.NewWishService(f.wishes,
 		domain.NewSemesterService(store.NewSemesters(f.schema.Pool), nil))
 	owner := testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer))
+	storetest.ReleaseWishes(t, f.schema, f.semester.Code, storetest.FixtureProgrammeA)
 
 	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishHappyTo, "", false); err != nil {
 		t.Fatalf("registering interest with an open window failed: %v", err)
@@ -257,5 +260,118 @@ func TestAShutWindowRefusesAWishAndAReopenedOneTakesItAgain(t *testing.T) {
 	}
 	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false); err != nil {
 		t.Errorf("registering interest after reopening failed: %v", err)
+	}
+}
+
+// TestAnAbsentReleaseIsShut is the other default, read through the query the write path uses —
+// and the programme it counts is the instance's own.
+func TestAnAbsentReleaseIsShut(t *testing.T) {
+	t.Parallel()
+
+	f, m := marks(t)
+	ctx := t.Context()
+
+	released := func() bool {
+		t.Helper()
+		where, err := f.wishes.WishWriteContext(ctx, f.instance)
+		if err != nil || !where.Found() {
+			t.Fatalf("cannot read the context: %v (found %v)", err, where.Found())
+		}
+		return where.WishesReleased
+	}
+
+	if released() {
+		t.Error("a programme nobody has released takes wishes — it must be shut")
+	}
+
+	// Another programme's release opens nothing here.
+	if _, err := m.AnnounceDemandComplete(ctx, f.semester.Code, storetest.FixtureProgrammeB,
+		testdata.Vier.ID()); err != nil {
+		t.Fatalf("cannot release the other programme: %v", err)
+	}
+	if released() {
+		t.Error("the release of another programme opened this programme's instance")
+	}
+
+	if _, err := m.AnnounceDemandComplete(ctx, f.semester.Code, storetest.FixtureProgrammeA,
+		testdata.Vier.ID()); err != nil {
+		t.Fatalf("cannot release the programme: %v", err)
+	}
+	if !released() {
+		t.Error("the instance's own programme released it, and it is still shut")
+	}
+
+	if _, err := m.WithdrawDemandComplete(ctx, f.semester.Code, storetest.FixtureProgrammeA); err != nil {
+		t.Fatalf("cannot withdraw the release: %v", err)
+	}
+	if released() {
+		t.Error("a withdrawn release still lets wishes in")
+	}
+}
+
+// TestTheReleaseGatesEveryWishWrite is the rule through the service: registering, bounding and
+// withdrawing all wait for the programme, and a withdrawn release keeps what was entered.
+func TestTheReleaseGatesEveryWishWrite(t *testing.T) {
+	t.Parallel()
+
+	f, m := marks(t)
+	ctx := t.Context()
+
+	wishes := domain.NewWishService(f.wishes,
+		domain.NewSemesterService(store.NewSemesters(f.schema.Pool), nil))
+	owner := testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer))
+	limit := 1
+
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishHappyTo, "", false); !errors.Is(err,
+		domain.ErrWishesNotReleased) {
+		t.Errorf("registering interest before the release gave %v, want ErrWishesNotReleased", err)
+	}
+	if err := wishes.SetTrackLimit(ctx, owner, f.instance, &limit); !errors.Is(err,
+		domain.ErrWishesNotReleased) {
+		t.Errorf("bounding before the release gave %v, want ErrWishesNotReleased", err)
+	}
+
+	if _, err := m.AnnounceDemandComplete(ctx, f.semester.Code, storetest.FixtureProgrammeA,
+		testdata.Vier.ID()); err != nil {
+		t.Fatalf("cannot release the programme: %v", err)
+	}
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishHappyTo, "", false); err != nil {
+		t.Fatalf("registering interest after the release failed: %v", err)
+	}
+
+	if _, err := m.WithdrawDemandComplete(ctx, f.semester.Code, storetest.FixtureProgrammeA); err != nil {
+		t.Fatalf("cannot withdraw the release: %v", err)
+	}
+
+	// What was entered stays, and stays the owner's to read.
+	mine, err := wishes.Mine(ctx, owner, f.semester.Code)
+	if err != nil || len(mine) != 1 {
+		t.Fatalf("the wish entered while released is gone: %v (%d rows)", err, len(mine))
+	}
+
+	// But it is not changed, bounded or withdrawn until the programme releases again.
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false); !errors.Is(
+		err, domain.ErrWishesNotReleased) {
+		t.Errorf("correcting after the release was withdrawn gave %v, want ErrWishesNotReleased", err)
+	}
+	if err := wishes.SetTrackLimit(ctx, owner, f.instance, &limit); !errors.Is(err,
+		domain.ErrWishesNotReleased) {
+		t.Errorf("bounding after the release was withdrawn gave %v, want ErrWishesNotReleased", err)
+	}
+	if err := wishes.Withdraw(ctx, owner, mine[0].ID); !errors.Is(err, domain.ErrWishesNotReleased) {
+		t.Errorf("withdrawing after the release was withdrawn gave %v, want ErrWishesNotReleased", err)
+	}
+
+	// Released again with the subject's round shut: the release comes first, the window answers.
+	if _, err := m.AnnounceDemandComplete(ctx, f.semester.Code, storetest.FixtureProgrammeA,
+		testdata.Vier.ID()); err != nil {
+		t.Fatalf("cannot release the programme again: %v", err)
+	}
+	if _, err := m.SetWishWindow(ctx, f.semester.Code, f.group, false, testdata.Drei.ID()); err != nil {
+		t.Fatalf("cannot shut the window: %v", err)
+	}
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false); !errors.Is(
+		err, domain.ErrWishWindowClosed) {
+		t.Errorf("released with a shut window gave %v, want ErrWishWindowClosed", err)
 	}
 }

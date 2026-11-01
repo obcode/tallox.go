@@ -173,3 +173,31 @@ voller Reichweite liest, was die Person im Browser liest. Siehe [[full-reach-tok
 Phase (`FINAL` zu) → Freigabe des Studiengangs der Instanz (`WISHES_NOT_RELEASED`, abwesend =
 zu) → Wunschrunde der Fachgruppe (`WISH_WINDOW_CLOSED`, abwesend = offen) → `taught_elsewhere`.
 Gilt für Eintragen, Obergrenze und Zurückziehen gleich. Siehe [[planning-marks]].
+
+## Vormerkungen (`advance_wish`, 2026-11-01)
+
+Anregung aus dem Kollegium nach der Freigabe-Regel: eine private Planung „was ich die nächsten Jahre
+halte“ ins Werkzeug legen, damit (a) die Fachgruppenleitung sie sieht und (b) man erfährt, wenn man
+nicht gebraucht wird. Ausdrücklich ohne Anspruch. Oliver hat entschieden:
+
+- **Korn Semester × Modul × Studiengang**, kein Zug; optional `max_tracks`. Semester als **Code,
+  ohne FK** — eine Vormerkung ist keine Entscheidung über das Semester, also entsteht keine Zeile
+  (`TestNotingDownAnAdvanceWishRecordsNoSemester`).
+- **Übernahme bei der Freigabe** (`AnnounceDemandComplete`) und bei jeder neuen Instanz in einem schon
+  freigegebenen Studiengang (`CreateCourseInstance`, `DuplicateCourseInstance`, `PlanDemand` inkl.
+  dryRun vor dem Rollback, `CopyDemand`) — `convertPendingAdvanceWishes`, eine Query mit
+  data-modifying CTEs, in derselben Transaktion. Wunsch auf **jeden** Zug, `max_tracks` →
+  `wish_track_limit` (nur falls keine da), bestehender Wunsch: stärkere Stufe, Notizen mit „ · “.
+  Nicht in `FINAL`, nicht auf ganz fremd gelehrte Züge. **Einmal:** `converted_at` gesetzt, ein danach
+  zurückgezogener Wunsch kommt beim nächsten Freigeben nicht wieder.
+- **Wunschrunde wird bei der Übernahme nicht gefragt.** Begründung: Eintragen ist ab Freigabe
+  verweigert (`ADVANCE_WISH_RELEASED`), also liegt jede Vormerkung vor jeder Runde auf diesem Bedarf.
+- **Status abgeleitet, nicht gespeichert:** `CONVERTED` (converted_at) · `NOT_OFFERED` (freigegeben,
+  keine Instanz des Moduls — das ist die „Benachrichtigung“, im Werkzeug, keine Mail) · `PENDING`.
+- **Sichtbarkeit = Wunschregel**, mit dem genannten Studiengang statt dem der Instanz:
+  `policy.WishVisibility`/`CanReadWishDetails` unverändert wiederverwendet, daher keine neue
+  Golden-Matrix. `db/queries/advance_wish.sql` trägt denselben Filter, kein COUNT;
+  `TestEveryWishQueryIsFiltered` liest beide Dateien. Die Antwort von Freigabe und `planDemand`
+  ist gleich, ob Vormerkungen existieren oder nicht (`TestTheReleaseSaysNothingAboutAdvanceWishes`).
+- Ändern nur solange `PENDING` (`ADVANCE_WISH_CONVERTED`), Zurückziehen immer; die entstandenen
+  Wünsche bleiben.

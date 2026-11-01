@@ -148,16 +148,33 @@ func (f wishFixture) see(t *testing.T, filter policy.WishFilter) []uuid.UUID {
 func TestEveryWishQueryIsFiltered(t *testing.T) {
 	t.Parallel()
 
-	raw, err := os.ReadFile("../../db/queries/wish.sql")
+	// An advance wish is the wish it is going to be, so its file is held to the same rule.
+	for _, file := range []struct{ path, from, alias string }{
+		{"../../db/queries/wish.sql", "FROM wish w", "w"},
+		{"../../db/queries/advance_wish.sql", "FROM advance_wish aw", "aw"},
+	} {
+		t.Run(file.path, func(t *testing.T) {
+			t.Parallel()
+			requireFilteredQueries(t, file.path, file.from, file.alias)
+		})
+	}
+}
+
+// requireFilteredQueries reads one query file and requires the visibility predicate in every
+// SELECT that reads the table behind `from`, and no COUNT anywhere.
+func requireFilteredQueries(t *testing.T, path, from, alias string) {
+	t.Helper()
+
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("cannot read the wish queries: %v", err)
 	}
 	sql := string(raw)
 
 	if strings.Contains(strings.ToUpper(sql), "COUNT(") {
-		t.Error("db/queries/wish.sql contains a COUNT. Before publication there are no counts " +
-			"over wishes — an aggregate that skips the filter is the same failure as a list " +
-			"that skips it, only harder to notice. Count the rows you were allowed to read.")
+		t.Errorf("%s contains a COUNT. Before publication there are no counts "+
+			"over wishes — an aggregate that skips the filter is the same failure as a list "+
+			"that skips it, only harder to notice. Count the rows you were allowed to read.", path)
 	}
 
 	blocks := regexp.MustCompile(`(?m)^-- name: (\w+) :(\w+)$`).FindAllStringSubmatchIndex(sql, -1)
@@ -176,10 +193,10 @@ func TestEveryWishQueryIsFiltered(t *testing.T) {
 		}
 		body := sql[block[0]:end]
 
-		// Only the queries that read the wish table itself. SemesterOfCourseInstance reads the
+		// Only the queries that read the table itself. SemesterOfCourseInstance reads the
 		// semester through an instance and carries no wish, which is why it is named for what it
 		// does.
-		if !strings.Contains(body, "FROM wish w") {
+		if !strings.Contains(body, from) {
 			continue
 		}
 		checked++
@@ -189,7 +206,7 @@ func TestEveryWishQueryIsFiltered(t *testing.T) {
 		}
 		for _, required := range []string{
 			`sqlc.arg('scope')::text = 'all'`,
-			`w.person_id = sqlc.arg(owner_id)::uuid`,
+			alias + `.person_id = sqlc.arg(owner_id)::uuid`,
 			`prog.id = ANY (sqlc.arg(programme_ids)::uuid[])`,
 			`msg.subject_group_id = ANY (sqlc.arg(subject_group_ids)::uuid[])`,
 		} {

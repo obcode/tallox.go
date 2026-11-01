@@ -230,6 +230,117 @@ extend type Mutation {
 }
 
 """
+Where an advance wish stands. Derived when it is read: a cohort declared after the release changes
+it without anybody touching the advance wish.
+"""
+enum AdvanceWishStatus {
+  "Waiting for the study programme to release its demand for the semester."
+  PENDING
+  "Has become a wish on each cohort of the module in that programme — change those from now on."
+  CONVERTED
+  """
+  The study programme released its demand without a cohort of the module: you are not needed for
+  this one, as things stand. Becomes `CONVERTED` should a cohort still be declared.
+  """
+  NOT_OFFERED
+}
+
+"""
+An advance wish („Vormerkung“): your interest in a module, in one study programme, for a semester
+whose demand is not settled yet — noted down years ahead if you like, whether or not the module
+will be offered.
+
+A statement and not a reservation: it gives nobody a claim. It names what an instance is made of
+except the cohort, because the cohorts are what the demand planning decides. When the programme
+releases its demand (`setDemandComplete`), it becomes a wish (`Wish`) on every cohort of the module
+there is, with its priority and note, and `maxTracks` as `trackLimit`. A cohort declared after the
+release takes it then. It converts once: a wish withdrawn afterwards does not come back.
+
+Visible exactly like the wish it is going to be — to you; with full reach to the leads of the
+programme it names and of the module's subject group, and to the dean's office; to everybody once
+the semester's wishes are published. Never counted.
+"""
+type AdvanceWish {
+  id: ID!
+  "Whose it is. Always the person who noted it down."
+  person: Person!
+  "The semester, as its code: `2028-SS`."
+  semester: String!
+  "The module."
+  module: ModuleRef!
+  "The study programme it is for — whose release it waits for."
+  programme: Programme!
+  "How much, as on a wish."
+  priority: WishPriority!
+  "Your own words. Empty for whoever could not read a wish's note."
+  note: String!
+  "Of the cohorts there will be, at most this many; `null` for no bound."
+  maxTracks: Int
+  "Where it stands."
+  status: AdvanceWishStatus!
+  "When it became wishes, `null` until then."
+  convertedAt: Time
+  "When it was noted down. `null` where the note is empty for you, as on a wish."
+  createdAt: Time
+  "When it was last changed. `null` like `createdAt`."
+  updatedAt: Time
+}
+
+extend type Query {
+  """
+  Your own advance wishes, in every semester. Through either door: they are your entries.
+  """
+  myAdvanceWishes: [AdvanceWish!]! @scope(area: WISHES, verb: READ)
+
+  """
+  The advance wishes of a semester — as many of them as you may see, by the rule of `wishes`. Not
+  an error when that is none, for the reason `wishes` gives; through a plain Personal Access Token
+  your own.
+  """
+  advanceWishes(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "One study programme, by its short code."
+    programme: String
+    "One module."
+    module: ID
+    "The modules of one subject group."
+    subjectGroupId: ID
+  ): [AdvanceWish!]! @scope(area: WISHES, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Note down your interest in a module for a coming semester, or change it while it is pending.
+
+  Yours only. Open in every phase but a finished semester (`WISH_PHASE_CLOSED`) and regardless of
+  any wish round: being early is the point. `ADVANCE_WISH_RELEASED` once the programme has released
+  its demand for that semester — enter the wish itself then. `ADVANCE_WISH_CONVERTED` for one that
+  has already become wishes. `WISH_PRIORITY_INVALID`, `WISH_NOTE_TOO_LONG` and
+  `WISH_TRACK_LIMIT_INVALID` as on a wish; `PROGRAMME_NOT_FOUND`, `MODULE_NOT_FOUND`.
+  """
+  setAdvanceWish(
+    "Four digits, a hyphen and SS or WS, within ten years."
+    semester: String!
+    module: ID!
+    "The study programme's short code."
+    programme: String!
+    priority: WishPriority! = HAPPY_TO
+    "Up to 500 characters, or nothing at all."
+    note: String
+    "Of the cohorts there will be, at most this many, 1 to 9; `null` for no bound."
+    maxTracks: Int
+  ): AdvanceWish! @scope(area: WISHES, verb: WRITE)
+
+  """
+  Withdraw one of your own advance wishes, pending or converted. The wishes a converted one became
+  stay — withdraw them as wishes. `ADVANCE_WISH_NOT_FOUND` for one that is not there or not yours,
+  deliberately the same. Returns the id.
+  """
+  withdrawAdvanceWish(id: ID!): ID! @scope(area: WISHES, verb: WRITE)
+}
+
+"""
 How many hours a week of module teaching somebody would like to take in one semester, as a range.
 Theses are not included.
 

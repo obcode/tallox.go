@@ -229,6 +229,7 @@ type WishStore interface {
 	WishWriteContext(ctx context.Context, instanceID uuid.UUID) (WishWriteContext, error)
 
 	DesiredHoursStore
+	AdvanceWishStore
 }
 
 // SemesterReader is the part of the semester service the wish service needs: turning a code into

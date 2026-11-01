@@ -92,6 +92,27 @@ type Querier interface {
 	// would write ASSIGNMENT over the first one's WISHES — a skipped phase, arrived at by nobody's
 	// decision, and invisible afterwards because the row looks like somebody chose it.
 	AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterPhaseParams) (Semester, error)
+	// What the write rule needs about a semester and programme, readable by everybody: whether the
+	// programme has released its demand for it (then the wish itself is what one enters).
+	AdvanceWishOffering(ctx context.Context, arg AdvanceWishOfferingParams) (bool, error)
+	// Advance wishes ("Vormerkungen"): interest in a module for a semester whose demand is not
+	// settled yet. See migration 20261101100000.
+	//
+	// THE RULE THIS FILE IS MADE OF
+	//
+	// The same as wish.sql, and for the same reason: an advance wish is the wish it is going to be,
+	// so every SELECT carries the four filter parameters of WishFilter. The programme is the one the
+	// advance wish names — it has no instance — and the subject group is the module's.
+	//
+	// **There is no COUNT** here either. "Two colleagues have noted down Analysis for SS28" is the
+	// confidential fact with the names taken out, and it would reach the demand planning exactly when
+	// it would distort it. store.TestEveryWishQueryIsFiltered reads this file too.
+	// The advance wishes of one semester — or of every semester for the caller's own — filtered.
+	//
+	// released and offered are facts about the process, readable by everybody (demandCompletions and
+	// the demand itself), and what the status is derived from: converted, not offered (the programme
+	// released its demand without a cohort of the module), or pending.
+	AdvanceWishes(ctx context.Context, arg AdvanceWishesParams) ([]AdvanceWishesRow, error)
 	// Announce, or re-announce after adding something.
 	//
 	// ON CONFLICT DO UPDATE and not DO NOTHING: re-announcing is the ordinary act after a late
@@ -320,6 +341,17 @@ type Querier interface {
 	// The competences the filter allows, narrowed by whatever the caller asked for.
 	// The examination office's short name for a holder who has an account, as in assignment.sql.
 	Competences(ctx context.Context, arg CompetencesParams) ([]CompetencesRow, error)
+	// Turn the pending advance wishes of one programme and semester into wishes, where there is now a
+	// cohort to wish for. Run inside the transaction that released the demand or created a cohort.
+	//
+	// Only once the programme has released the semester, and not in a finished one. A cohort taught
+	// entirely by another faculty is skipped, as setWish refuses it. The subject group's wish window
+	// is not consulted: an advance wish can only have been entered before the release, so it was
+	// stated before any round on this demand could have opened or shut.
+	//
+	// An existing wish of the same person on a cohort keeps the stronger priority and both notes, the
+	// rule handOverWishes applies. Reports nothing — "2 advance wishes converted" is the count.
+	ConvertAdvanceWishes(ctx context.Context, arg ConvertAdvanceWishesParams) error
 	// Not projected, and the largest of the nine: 665 real rows over 12 sets of regulations the
 	// endpoint stopped returning — the historical ones and a placeholder dated 2099.
 	//
@@ -535,6 +567,9 @@ type Querier interface {
 	// cohort has one lecture, and after the merge the faculty holds one lecture for both. A sibling
 	// part that something already hangs off refuses to go, and the merge fails as a whole.
 	DeleteInstancePartsOfKind(ctx context.Context, arg DeleteInstancePartsOfKindParams) (int64, error)
+	// Withdraw one's own. A converted one may go too: it is the record of a statement, and the wishes
+	// it became stay what they are.
+	DeleteOwnAdvanceWish(ctx context.Context, arg DeleteOwnAdvanceWishParams) (int64, error)
 	// Withdraw one's own. Ownership in the WHERE clause, as DeleteOwnWish does: "not there" and "not
 	// yours" are the same empty result.
 	DeleteOwnCompetence(ctx context.Context, arg DeleteOwnCompetenceParams) (int64, error)
@@ -1583,6 +1618,9 @@ type Querier interface {
 	// WHERE clause names the source, so this can never touch an imported row — a mistyped id then
 	// changes nothing rather than editing the catalogue.
 	UpdateLocalModule(ctx context.Context, arg UpdateLocalModuleParams) (UpdateLocalModuleRow, error)
+	// Note one down, or change it while it is pending. A converted one is not touched: from then on
+	// it is the wish that is changed, and the store reports zero rows as that refusal.
+	UpsertAdvanceWish(ctx context.Context, arg UpsertAdvanceWishParams) (uuid.UUID, error)
 	// State one's own competence for a module, or change it. person_id and entered_by are both the
 	// caller, and the CHECK says they have to be.
 	UpsertOwnCompetence(ctx context.Context, arg UpsertOwnCompetenceParams) (uuid.UUID, error)

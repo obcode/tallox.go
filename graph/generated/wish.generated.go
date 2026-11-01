@@ -26,6 +26,309 @@ import (
 
 // region    **************************** field.gotpl *****************************
 
+func (ec *executionContext) _AdvanceWish_id(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_id(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _AdvanceWish_person(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_person(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Person, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Person) graphql.Marshaler {
+			return ec.marshalNPerson2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPerson(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_person(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AdvanceWish",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Person(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AdvanceWish_semester(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_semester(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Semester, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AdvanceWish_module(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_module(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Module, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.ModuleRef) graphql.Marshaler {
+			return ec.marshalNModuleRef2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleRef(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_module(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AdvanceWish",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ModuleRef(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AdvanceWish_programme(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_programme(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Programme, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Programme) graphql.Marshaler {
+			return ec.marshalNProgramme2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgramme(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_programme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "AdvanceWish",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Programme(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _AdvanceWish_priority(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_priority(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Priority, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v domain.WishPriority) graphql.Marshaler {
+			return ec.marshalNWishPriority2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐWishPriority(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type WishPriority does not have child fields"))
+}
+
+func (ec *executionContext) _AdvanceWish_note(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_note(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Note, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_note(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _AdvanceWish_maxTracks(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_maxTracks(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.MaxTracks, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_maxTracks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _AdvanceWish_status(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.AdvanceWishStatus) graphql.Marshaler {
+			return ec.marshalNAdvanceWishStatus2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAdvanceWishStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type AdvanceWishStatus does not have child fields"))
+}
+
+func (ec *executionContext) _AdvanceWish_convertedAt(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_convertedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ConvertedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_convertedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _AdvanceWish_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_createdAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CreatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
+func (ec *executionContext) _AdvanceWish_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_AdvanceWish_updatedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.UpdatedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_AdvanceWish_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
 func (ec *executionContext) _DesiredHoursOverviewRow_person(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -621,6 +924,99 @@ func (ec *executionContext) fieldContext_Wish_updatedAt(_ context.Context, field
 
 // region    **************************** object.gotpl ****************************
 
+var advanceWishImplementors = []string{"AdvanceWish"}
+
+func (ec *executionContext) _AdvanceWish(ctx context.Context, sel ast.SelectionSet, obj *model.AdvanceWish) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, advanceWishImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("AdvanceWish")
+		case "id":
+			out.Values[i] = ec._AdvanceWish_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "person":
+			out.Values[i] = ec._AdvanceWish_person(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "semester":
+			out.Values[i] = ec._AdvanceWish_semester(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "module":
+			out.Values[i] = ec._AdvanceWish_module(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "programme":
+			out.Values[i] = ec._AdvanceWish_programme(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "priority":
+			out.Values[i] = ec._AdvanceWish_priority(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "note":
+			out.Values[i] = ec._AdvanceWish_note(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "maxTracks":
+			out.Values[i] = ec._AdvanceWish_maxTracks(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._AdvanceWish_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "convertedAt":
+			out.Values[i] = ec._AdvanceWish_convertedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "createdAt":
+			out.Values[i] = ec._AdvanceWish_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._AdvanceWish_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var desiredHoursOverviewRowImplementors = []string{"DesiredHoursOverviewRow"}
 
 func (ec *executionContext) _DesiredHoursOverviewRow(ctx context.Context, sel ast.SelectionSet, obj *model.DesiredHoursOverviewRow) graphql.Marshaler {
@@ -838,6 +1234,46 @@ func (ec *executionContext) _Wish(ctx context.Context, sel ast.SelectionSet, obj
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
+
+func (ec *executionContext) marshalNAdvanceWish2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAdvanceWish(ctx context.Context, sel ast.SelectionSet, v model.AdvanceWish) graphql.Marshaler {
+	return ec._AdvanceWish(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNAdvanceWish2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAdvanceWishᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AdvanceWish) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNAdvanceWish2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAdvanceWish(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNAdvanceWish2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAdvanceWish(ctx context.Context, sel ast.SelectionSet, v *model.AdvanceWish) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._AdvanceWish(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNAdvanceWishStatus2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAdvanceWishStatus(ctx context.Context, v any) (model.AdvanceWishStatus, error) {
+	var res model.AdvanceWishStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNAdvanceWishStatus2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAdvanceWishStatus(ctx context.Context, sel ast.SelectionSet, v model.AdvanceWishStatus) graphql.Marshaler {
+	return v
+}
 
 func (ec *executionContext) marshalNDesiredHoursOverviewRow2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredHoursOverviewRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DesiredHoursOverviewRow) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {

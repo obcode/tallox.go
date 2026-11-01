@@ -167,6 +167,45 @@ type AccessSummary struct {
 	Mutations []*AccessMutationCount `json:"mutations"`
 }
 
+// An advance wish („Vormerkung“): your interest in a module, in one study programme, for a semester
+// whose demand is not settled yet — noted down years ahead if you like, whether or not the module
+// will be offered.
+//
+// A statement and not a reservation: it gives nobody a claim. It names what an instance is made of
+// except the cohort, because the cohorts are what the demand planning decides. When the programme
+// releases its demand (`setDemandComplete`), it becomes a wish (`Wish`) on every cohort of the module
+// there is, with its priority and note, and `maxTracks` as `trackLimit`. A cohort declared after the
+// release takes it then. It converts once: a wish withdrawn afterwards does not come back.
+//
+// Visible exactly like the wish it is going to be — to you; with full reach to the leads of the
+// programme it names and of the module's subject group, and to the dean's office; to everybody once
+// the semester's wishes are published. Never counted.
+type AdvanceWish struct {
+	ID string `json:"id"`
+	// Whose it is. Always the person who noted it down.
+	Person *Person `json:"person"`
+	// The semester, as its code: `2028-SS`.
+	Semester string `json:"semester"`
+	// The module.
+	Module *ModuleRef `json:"module"`
+	// The study programme it is for — whose release it waits for.
+	Programme *Programme `json:"programme"`
+	// How much, as on a wish.
+	Priority domain.WishPriority `json:"priority"`
+	// Your own words. Empty for whoever could not read a wish's note.
+	Note string `json:"note"`
+	// Of the cohorts there will be, at most this many; `null` for no bound.
+	MaxTracks *int `json:"maxTracks,omitempty"`
+	// Where it stands.
+	Status AdvanceWishStatus `json:"status"`
+	// When it became wishes, `null` until then.
+	ConvertedAt *time.Time `json:"convertedAt,omitempty"`
+	// When it was noted down. `null` where the note is empty for you, as on a wish.
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	// When it was last changed. `null` like `createdAt`.
+	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
+}
+
 // How many hours a week one person already holds in a semester: in total, and by the subject group of
 // the modules they hold them in.
 //
@@ -1845,6 +1884,69 @@ func (e *AccessOutcome) UnmarshalJSON(b []byte) error {
 }
 
 func (e AccessOutcome) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Where an advance wish stands. Derived when it is read: a cohort declared after the release changes
+// it without anybody touching the advance wish.
+type AdvanceWishStatus string
+
+const (
+	// Waiting for the study programme to release its demand for the semester.
+	AdvanceWishStatusPending AdvanceWishStatus = "PENDING"
+	// Has become a wish on each cohort of the module in that programme — change those from now on.
+	AdvanceWishStatusConverted AdvanceWishStatus = "CONVERTED"
+	// The study programme released its demand without a cohort of the module: you are not needed for
+	// this one, as things stand. Becomes `CONVERTED` should a cohort still be declared.
+	AdvanceWishStatusNotOffered AdvanceWishStatus = "NOT_OFFERED"
+)
+
+var AllAdvanceWishStatus = []AdvanceWishStatus{
+	AdvanceWishStatusPending,
+	AdvanceWishStatusConverted,
+	AdvanceWishStatusNotOffered,
+}
+
+func (e AdvanceWishStatus) IsValid() bool {
+	switch e {
+	case AdvanceWishStatusPending, AdvanceWishStatusConverted, AdvanceWishStatusNotOffered:
+		return true
+	}
+	return false
+}
+
+func (e AdvanceWishStatus) String() string {
+	return string(e)
+}
+
+func (e *AdvanceWishStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AdvanceWishStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AdvanceWishStatus", str)
+	}
+	return nil
+}
+
+func (e AdvanceWishStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AdvanceWishStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AdvanceWishStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

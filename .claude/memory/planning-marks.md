@@ -125,3 +125,5 @@ lehnen ohne sie mit `WISHES_NOT_RELEASED` ab — nach der Phase, vor der Fachgru
 - Tests: `TestAnAbsentReleaseIsShut`, `TestTheReleaseGatesEveryWishWrite` (store),
   `TestAnUnreleasedProgrammeTakesNoWishThroughAnyDoor` (alle drei Türen). Fixtures geben mit
   `storetest.ReleaseWishes` frei, nur den Studiengang der Fixture-Instanz.
+- Die Freigabe übernimmt seit 2026-11-01 auch die Vormerkungen des Studiengangs als Wünsche —
+  siehe [[wishes]], Abschnitt „Vormerkungen“.

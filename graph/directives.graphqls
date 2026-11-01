@@ -201,6 +201,7 @@ enum ScopeArea {
   they are stated on the wish screen, beside the wishes they belong to.
 
   Fields: `myWishes`, `wishes`, `setWish`, `withdrawWish`, `setWishTrackLimit`,
+  `myAdvanceWishes`, `advanceWishes`, `setAdvanceWish`, `withdrawAdvanceWish`,
   `myCompetences`, `myCompetenceStatus`, `myCompetenceTotal`,
   `competences`, `competenceMemberStatus`, `modulesWithoutCompetence`, `setMyCompetence`,
   `withdrawMyCompetence`, `setTeacherCompetence`, `withdrawTeacherCompetence`,

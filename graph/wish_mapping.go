@@ -36,6 +36,36 @@ func wishModel(w domain.Wish) *model.Wish {
 	}
 }
 
+func advanceWishModel(a domain.AdvanceWish) *model.AdvanceWish {
+	return &model.AdvanceWish{
+		ID:       a.ID.String(),
+		Person:   personModel(a.Person),
+		Semester: a.SemesterCode,
+		Module: &model.ModuleRef{
+			ID:                a.Module.ID.String(),
+			Name:              a.Module.Name,
+			HomeProgrammeCode: a.Module.HomeProgrammeCode,
+			Compulsory:        a.Module.Compulsory,
+		},
+		Programme:   programmeModel(a.Programme),
+		Priority:    a.Priority,
+		Note:        a.Note,
+		MaxTracks:   trackLimitOrNil(a.MaxTracks),
+		Status:      model.AdvanceWishStatus(a.Status()),
+		ConvertedAt: timeOrNil(a.ConvertedAt),
+		CreatedAt:   timeOrNil(a.CreatedAt),
+		UpdatedAt:   timeOrNil(a.UpdatedAt),
+	}
+}
+
+func advanceWishModels(rows []domain.AdvanceWish) []*model.AdvanceWish {
+	out := make([]*model.AdvanceWish, 0, len(rows))
+	for _, a := range rows {
+		out = append(out, advanceWishModel(a))
+	}
+	return out
+}
+
 func desiredHoursModel(d domain.DesiredHours) *model.DesiredTeachingHours {
 	return &model.DesiredTeachingHours{
 		Semester:    d.SemesterCode,
@@ -155,6 +185,17 @@ func wishError(err error) error {
 		return refusal("WISH_TRACK_LIMIT_WITHOUT_WISHES", err.Error())
 	case errors.Is(err, domain.ErrWishPriorityInvalid):
 		return refusal("WISH_PRIORITY_INVALID", err.Error())
+	case errors.Is(err, domain.ErrAdvanceWishReleased):
+		return refusal("ADVANCE_WISH_RELEASED", err.Error())
+	case errors.Is(err, domain.ErrAdvanceWishConverted):
+		return refusal("ADVANCE_WISH_CONVERTED", err.Error())
+	case errors.Is(err, domain.ErrAdvanceWishNotFound):
+		// Not there and not yours are the same answer, as for a wish.
+		return refusal("ADVANCE_WISH_NOT_FOUND", err.Error())
+	case errors.Is(err, domain.ErrProgrammeNotFound):
+		return refusal("PROGRAMME_NOT_FOUND", err.Error())
+	case errors.Is(err, domain.ErrModuleNotFound):
+		return refusal("MODULE_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrInstanceNotFound):
 		// Withdrawn between the screen being rendered and the form being sent, which is the
 		// ordinary race here — the same code the demand area uses for it, because it is the same

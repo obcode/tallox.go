@@ -30,6 +30,20 @@ type AccessLog struct {
 	SourceIp     *netip.Addr
 }
 
+type AdvanceWish struct {
+	ID           uuid.UUID
+	PersonID     uuid.UUID
+	SemesterCode string
+	ModuleID     uuid.UUID
+	ProgrammeID  uuid.UUID
+	Priority     int16
+	Note         string
+	MaxTracks    *int16
+	ConvertedAt  pgtype.Timestamptz
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
 type Assignment struct {
 	ID             uuid.UUID
 	InstancePartID uuid.UUID

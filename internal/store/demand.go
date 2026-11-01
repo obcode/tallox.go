@@ -632,15 +632,16 @@ func (d *Demand) CreateCourseInstance(ctx context.Context, spec domain.NewCourse
 	if err != nil {
 		return nil, err
 	}
-	if coupled {
-		if err := tx.Commit(ctx); err != nil {
-			return nil, fmt.Errorf("cannot commit: %w", err)
+	if !coupled {
+		if _, err := partsFromSplit(ctx, q, id, components, nil); err != nil {
+			return nil, fmt.Errorf("cannot create a part of the instance: %w", err)
 		}
-		return d.CourseInstanceByID(ctx, id)
 	}
 
-	if _, err := partsFromSplit(ctx, q, id, components, nil); err != nil {
-		return nil, fmt.Errorf("cannot create a part of the instance: %w", err)
+	// A cohort in a programme that has already released its demand is what an advance wish waits
+	// for. Inside this transaction, so that the cohort and the wishes on it arrive together.
+	if err := convertPendingAdvanceWishes(ctx, q, spec.SemesterID, spec.ProgrammeID); err != nil {
+		return nil, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -738,6 +739,9 @@ func (d *Demand) DuplicateCourseInstance(ctx context.Context, id uuid.UUID, trac
 	}
 	if _, err := copyParts(ctx, q, own, newID, true); err != nil {
 		return nil, fmt.Errorf("cannot copy a part of the instance: %w", err)
+	}
+	if err := convertPendingAdvanceWishes(ctx, q, source.SemesterID, source.ProgrammeID); err != nil {
+		return nil, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -2144,6 +2148,10 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 		}
 	}
 
+	if err := convertPendingAdvanceWishes(ctx, q, to.ID, programmeID); err != nil {
+		return counts, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return counts, fmt.Errorf("cannot commit: %w", err)
 	}
@@ -2281,6 +2289,12 @@ func (d *Demand) PlanDemand(ctx context.Context, semesterCode string, programmeI
 		}); err != nil {
 			return plan, err
 		}
+	}
+
+	// Advance wishes for a programme already released, onto the cohorts this plan created. Before
+	// the dry run's rollback as well, so that a preview runs what the write would.
+	if err := convertPendingAdvanceWishes(ctx, q, semesterID, programmeID); err != nil {
+		return plan, err
 	}
 
 	if dryRun {

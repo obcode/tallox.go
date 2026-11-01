@@ -98,6 +98,21 @@ type ComplexityRoot struct {
 		Until     func(childComplexity int) int
 	}
 
+	AdvanceWish struct {
+		ConvertedAt func(childComplexity int) int
+		CreatedAt   func(childComplexity int) int
+		ID          func(childComplexity int) int
+		MaxTracks   func(childComplexity int) int
+		Module      func(childComplexity int) int
+		Note        func(childComplexity int) int
+		Person      func(childComplexity int) int
+		Priority    func(childComplexity int) int
+		Programme   func(childComplexity int) int
+		Semester    func(childComplexity int) int
+		Status      func(childComplexity int) int
+		UpdatedAt   func(childComplexity int) int
+	}
+
 	AssignedLoad struct {
 		BySubjectGroup func(childComplexity int) int
 		Person         func(childComplexity int) int
@@ -407,6 +422,7 @@ type ComplexityRoot struct {
 		RenameSubjectGroup            func(childComplexity int, id string, name string) int
 		RequestInstanceCoverage       func(childComplexity int, id string, coveredBy string) int
 		RevokePersonalAccessToken     func(childComplexity int, id string) int
+		SetAdvanceWish                func(childComplexity int, semester string, module string, programme string, priority domain.WishPriority, note *string, maxTracks *int) int
 		SetAssignment                 func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
 		SetCourseInstanceCiE          func(childComplexity int, id string, cie bool) int
 		SetCourseInstanceFormat       func(childComplexity int, id string, delivery domain.Delivery, taughtInEnglish *bool) int
@@ -439,6 +455,7 @@ type ComplexityRoot struct {
 		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
 		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
 		SyncZpaNow                    func(childComplexity int) int
+		WithdrawAdvanceWish           func(childComplexity int, id string) int
 		WithdrawCourseInstance        func(childComplexity int, id string) int
 		WithdrawMyCompetence          func(childComplexity int, id string) int
 		WithdrawTeacherCompetence     func(childComplexity int, id string) int
@@ -519,6 +536,7 @@ type ComplexityRoot struct {
 	Query struct {
 		AccessLog                  func(childComplexity int, filter *model.AccessLogFilter, limit *int, before *string) int
 		AccessSummary              func(childComplexity int, from time.Time, until time.Time) int
+		AdvanceWishes              func(childComplexity int, semester string, programme *string, module *string, subjectGroupID *string) int
 		AssignedTeachingHours      func(childComplexity int, semester string, person *string) int
 		Assignments                func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
 		BuildInfo                  func(childComplexity int) int
@@ -535,6 +553,7 @@ type ComplexityRoot struct {
 		Modules                    func(childComplexity int, filter *model.ModuleFilter) int
 		ModulesWithoutCompetence   func(childComplexity int, subjectGroup string) int
 		ModulesWithoutSubjectGroup func(childComplexity int) int
+		MyAdvanceWishes            func(childComplexity int) int
 		MyAssignments              func(childComplexity int, semester *string) int
 		MyCompetenceStatus         func(childComplexity int) int
 		MyCompetenceTotal          func(childComplexity int) int
@@ -1012,6 +1031,79 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AccessSummary.Until(childComplexity), true
+
+	case "AdvanceWish.convertedAt":
+		if e.ComplexityRoot.AdvanceWish.ConvertedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.ConvertedAt(childComplexity), true
+	case "AdvanceWish.createdAt":
+		if e.ComplexityRoot.AdvanceWish.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.CreatedAt(childComplexity), true
+	case "AdvanceWish.id":
+		if e.ComplexityRoot.AdvanceWish.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.ID(childComplexity), true
+	case "AdvanceWish.maxTracks":
+		if e.ComplexityRoot.AdvanceWish.MaxTracks == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.MaxTracks(childComplexity), true
+	case "AdvanceWish.module":
+		if e.ComplexityRoot.AdvanceWish.Module == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.Module(childComplexity), true
+	case "AdvanceWish.note":
+		if e.ComplexityRoot.AdvanceWish.Note == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.Note(childComplexity), true
+	case "AdvanceWish.person":
+		if e.ComplexityRoot.AdvanceWish.Person == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.Person(childComplexity), true
+	case "AdvanceWish.priority":
+		if e.ComplexityRoot.AdvanceWish.Priority == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.Priority(childComplexity), true
+	case "AdvanceWish.programme":
+		if e.ComplexityRoot.AdvanceWish.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.Programme(childComplexity), true
+	case "AdvanceWish.semester":
+		if e.ComplexityRoot.AdvanceWish.Semester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.Semester(childComplexity), true
+	case "AdvanceWish.status":
+		if e.ComplexityRoot.AdvanceWish.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.Status(childComplexity), true
+	case "AdvanceWish.updatedAt":
+		if e.ComplexityRoot.AdvanceWish.UpdatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AdvanceWish.UpdatedAt(childComplexity), true
 
 	case "AssignedLoad.bySubjectGroup":
 		if e.ComplexityRoot.AssignedLoad.BySubjectGroup == nil {
@@ -2499,6 +2591,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RevokePersonalAccessToken(childComplexity, args["id"].(string)), true
+	case "Mutation.setAdvanceWish":
+		if e.ComplexityRoot.Mutation.SetAdvanceWish == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setAdvanceWish_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetAdvanceWish(childComplexity, args["semester"].(string), args["module"].(string), args["programme"].(string), args["priority"].(domain.WishPriority), args["note"].(*string), args["maxTracks"].(*int)), true
 	case "Mutation.setAssignment":
 		if e.ComplexityRoot.Mutation.SetAssignment == nil {
 			break
@@ -2846,6 +2949,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SyncZpaNow(childComplexity), true
+	case "Mutation.withdrawAdvanceWish":
+		if e.ComplexityRoot.Mutation.WithdrawAdvanceWish == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_withdrawAdvanceWish_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.WithdrawAdvanceWish(childComplexity, args["id"].(string)), true
 	case "Mutation.withdrawCourseInstance":
 		if e.ComplexityRoot.Mutation.WithdrawCourseInstance == nil {
 			break
@@ -3220,6 +3334,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.AccessSummary(childComplexity, args["from"].(time.Time), args["until"].(time.Time)), true
+	case "Query.advanceWishes":
+		if e.ComplexityRoot.Query.AdvanceWishes == nil {
+			break
+		}
+
+		args, err := ec.field_Query_advanceWishes_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AdvanceWishes(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string), args["subjectGroupId"].(*string)), true
 	case "Query.assignedTeachingHours":
 		if e.ComplexityRoot.Query.AssignedTeachingHours == nil {
 			break
@@ -3382,6 +3507,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.ModulesWithoutSubjectGroup(childComplexity), true
+	case "Query.myAdvanceWishes":
+		if e.ComplexityRoot.Query.MyAdvanceWishes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.MyAdvanceWishes(childComplexity), true
 	case "Query.myAssignments":
 		if e.ComplexityRoot.Query.MyAssignments == nil {
 			break
@@ -7921,6 +8052,7 @@ enum ScopeArea {
   they are stated on the wish screen, beside the wishes they belong to.
 
   Fields: ` + "`" + `myWishes` + "`" + `, ` + "`" + `wishes` + "`" + `, ` + "`" + `setWish` + "`" + `, ` + "`" + `withdrawWish` + "`" + `, ` + "`" + `setWishTrackLimit` + "`" + `,
+  ` + "`" + `myAdvanceWishes` + "`" + `, ` + "`" + `advanceWishes` + "`" + `, ` + "`" + `setAdvanceWish` + "`" + `, ` + "`" + `withdrawAdvanceWish` + "`" + `,
   ` + "`" + `myCompetences` + "`" + `, ` + "`" + `myCompetenceStatus` + "`" + `, ` + "`" + `myCompetenceTotal` + "`" + `,
   ` + "`" + `competences` + "`" + `, ` + "`" + `competenceMemberStatus` + "`" + `, ` + "`" + `modulesWithoutCompetence` + "`" + `, ` + "`" + `setMyCompetence` + "`" + `,
   ` + "`" + `withdrawMyCompetence` + "`" + `, ` + "`" + `setTeacherCompetence` + "`" + `, ` + "`" + `withdrawTeacherCompetence` + "`" + `,
@@ -9398,6 +9530,117 @@ extend type Mutation {
 }
 
 """
+Where an advance wish stands. Derived when it is read: a cohort declared after the release changes
+it without anybody touching the advance wish.
+"""
+enum AdvanceWishStatus {
+  "Waiting for the study programme to release its demand for the semester."
+  PENDING
+  "Has become a wish on each cohort of the module in that programme — change those from now on."
+  CONVERTED
+  """
+  The study programme released its demand without a cohort of the module: you are not needed for
+  this one, as things stand. Becomes ` + "`" + `CONVERTED` + "`" + ` should a cohort still be declared.
+  """
+  NOT_OFFERED
+}
+
+"""
+An advance wish („Vormerkung“): your interest in a module, in one study programme, for a semester
+whose demand is not settled yet — noted down years ahead if you like, whether or not the module
+will be offered.
+
+A statement and not a reservation: it gives nobody a claim. It names what an instance is made of
+except the cohort, because the cohorts are what the demand planning decides. When the programme
+releases its demand (` + "`" + `setDemandComplete` + "`" + `), it becomes a wish (` + "`" + `Wish` + "`" + `) on every cohort of the module
+there is, with its priority and note, and ` + "`" + `maxTracks` + "`" + ` as ` + "`" + `trackLimit` + "`" + `. A cohort declared after the
+release takes it then. It converts once: a wish withdrawn afterwards does not come back.
+
+Visible exactly like the wish it is going to be — to you; with full reach to the leads of the
+programme it names and of the module's subject group, and to the dean's office; to everybody once
+the semester's wishes are published. Never counted.
+"""
+type AdvanceWish {
+  id: ID!
+  "Whose it is. Always the person who noted it down."
+  person: Person!
+  "The semester, as its code: ` + "`" + `2028-SS` + "`" + `."
+  semester: String!
+  "The module."
+  module: ModuleRef!
+  "The study programme it is for — whose release it waits for."
+  programme: Programme!
+  "How much, as on a wish."
+  priority: WishPriority!
+  "Your own words. Empty for whoever could not read a wish's note."
+  note: String!
+  "Of the cohorts there will be, at most this many; ` + "`" + `null` + "`" + ` for no bound."
+  maxTracks: Int
+  "Where it stands."
+  status: AdvanceWishStatus!
+  "When it became wishes, ` + "`" + `null` + "`" + ` until then."
+  convertedAt: Time
+  "When it was noted down. ` + "`" + `null` + "`" + ` where the note is empty for you, as on a wish."
+  createdAt: Time
+  "When it was last changed. ` + "`" + `null` + "`" + ` like ` + "`" + `createdAt` + "`" + `."
+  updatedAt: Time
+}
+
+extend type Query {
+  """
+  Your own advance wishes, in every semester. Through either door: they are your entries.
+  """
+  myAdvanceWishes: [AdvanceWish!]! @scope(area: WISHES, verb: READ)
+
+  """
+  The advance wishes of a semester — as many of them as you may see, by the rule of ` + "`" + `wishes` + "`" + `. Not
+  an error when that is none, for the reason ` + "`" + `wishes` + "`" + ` gives; through a plain Personal Access Token
+  your own.
+  """
+  advanceWishes(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "One study programme, by its short code."
+    programme: String
+    "One module."
+    module: ID
+    "The modules of one subject group."
+    subjectGroupId: ID
+  ): [AdvanceWish!]! @scope(area: WISHES, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Note down your interest in a module for a coming semester, or change it while it is pending.
+
+  Yours only. Open in every phase but a finished semester (` + "`" + `WISH_PHASE_CLOSED` + "`" + `) and regardless of
+  any wish round: being early is the point. ` + "`" + `ADVANCE_WISH_RELEASED` + "`" + ` once the programme has released
+  its demand for that semester — enter the wish itself then. ` + "`" + `ADVANCE_WISH_CONVERTED` + "`" + ` for one that
+  has already become wishes. ` + "`" + `WISH_PRIORITY_INVALID` + "`" + `, ` + "`" + `WISH_NOTE_TOO_LONG` + "`" + ` and
+  ` + "`" + `WISH_TRACK_LIMIT_INVALID` + "`" + ` as on a wish; ` + "`" + `PROGRAMME_NOT_FOUND` + "`" + `, ` + "`" + `MODULE_NOT_FOUND` + "`" + `.
+  """
+  setAdvanceWish(
+    "Four digits, a hyphen and SS or WS, within ten years."
+    semester: String!
+    module: ID!
+    "The study programme's short code."
+    programme: String!
+    priority: WishPriority! = HAPPY_TO
+    "Up to 500 characters, or nothing at all."
+    note: String
+    "Of the cohorts there will be, at most this many, 1 to 9; ` + "`" + `null` + "`" + ` for no bound."
+    maxTracks: Int
+  ): AdvanceWish! @scope(area: WISHES, verb: WRITE)
+
+  """
+  Withdraw one of your own advance wishes, pending or converted. The wishes a converted one became
+  stay — withdraw them as wishes. ` + "`" + `ADVANCE_WISH_NOT_FOUND` + "`" + ` for one that is not there or not yours,
+  deliberately the same. Returns the id.
+  """
+  withdrawAdvanceWish(id: ID!): ID! @scope(area: WISHES, verb: WRITE)
+}
+
+"""
 How many hours a week of module teaching somebody would like to take in one semester, as a range.
 Theses are not included.
 
@@ -10068,6 +10311,36 @@ func (ec *executionContext) childFields_AccessSummary(ctx context.Context, field
 		return ec.fieldContext_AccessSummary_mutations(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type AccessSummary", field.Name)
+}
+
+func (ec *executionContext) childFields_AdvanceWish(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_AdvanceWish_id(ctx, field)
+	case "person":
+		return ec.fieldContext_AdvanceWish_person(ctx, field)
+	case "semester":
+		return ec.fieldContext_AdvanceWish_semester(ctx, field)
+	case "module":
+		return ec.fieldContext_AdvanceWish_module(ctx, field)
+	case "programme":
+		return ec.fieldContext_AdvanceWish_programme(ctx, field)
+	case "priority":
+		return ec.fieldContext_AdvanceWish_priority(ctx, field)
+	case "note":
+		return ec.fieldContext_AdvanceWish_note(ctx, field)
+	case "maxTracks":
+		return ec.fieldContext_AdvanceWish_maxTracks(ctx, field)
+	case "status":
+		return ec.fieldContext_AdvanceWish_status(ctx, field)
+	case "convertedAt":
+		return ec.fieldContext_AdvanceWish_convertedAt(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_AdvanceWish_createdAt(ctx, field)
+	case "updatedAt":
+		return ec.fieldContext_AdvanceWish_updatedAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AdvanceWish", field.Name)
 }
 
 func (ec *executionContext) childFields_AssignedLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

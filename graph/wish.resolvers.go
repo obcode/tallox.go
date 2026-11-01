@@ -62,6 +62,39 @@ func (r *mutationResolver) SetWishTrackLimit(ctx context.Context, courseInstance
 	return maxTracks, nil
 }
 
+// SetAdvanceWish is the resolver for the setAdvanceWish field.
+func (r *mutationResolver) SetAdvanceWish(ctx context.Context, semester string, module string, programme string, priority domain.WishPriority, note *string, maxTracks *int) (*model.AdvanceWish, error) {
+	moduleID, err := parseID(module)
+	if err != nil {
+		return nil, err
+	}
+	text := ""
+	if note != nil {
+		text = *note
+	}
+	// Whose it is comes from the actor, as with a wish.
+	stored, err := r.Wishes.SetAdvanceWish(ctx, principal.From(ctx), domain.NewAdvanceWish{
+		SemesterCode: semester, ModuleID: moduleID, Programme: programme,
+		Priority: priority, Note: text, MaxTracks: maxTracks,
+	})
+	if err != nil {
+		return nil, wishError(err)
+	}
+	return advanceWishModel(*stored), nil
+}
+
+// WithdrawAdvanceWish is the resolver for the withdrawAdvanceWish field.
+func (r *mutationResolver) WithdrawAdvanceWish(ctx context.Context, id string) (string, error) {
+	advanceID, err := parseID(id)
+	if err != nil {
+		return "", err
+	}
+	if err := r.Wishes.WithdrawAdvanceWish(ctx, principal.From(ctx), advanceID); err != nil {
+		return "", wishError(err)
+	}
+	return id, nil
+}
+
 // SetDesiredTeachingHours is the resolver for the setDesiredTeachingHours field.
 func (r *mutationResolver) SetDesiredTeachingHours(ctx context.Context, semester string, minHours *float64, maxHours *float64, hours *float64, note *string) (*model.DesiredTeachingHours, error) {
 	text := ""
@@ -149,6 +182,44 @@ func (r *queryResolver) Wishes(ctx context.Context, semester string, programme *
 		return nil, wishError(err)
 	}
 	return wishModels(wishes), nil
+}
+
+// MyAdvanceWishes is the resolver for the myAdvanceWishes field.
+func (r *queryResolver) MyAdvanceWishes(ctx context.Context) ([]*model.AdvanceWish, error) {
+	rows, err := r.Resolver.Wishes.MyAdvanceWishes(ctx, principal.From(ctx))
+	if err != nil {
+		return nil, wishError(err)
+	}
+	return advanceWishModels(rows), nil
+}
+
+// AdvanceWishes is the resolver for the advanceWishes field.
+func (r *queryResolver) AdvanceWishes(ctx context.Context, semester string, programme *string, module *string, subjectGroupID *string) ([]*model.AdvanceWish, error) {
+	query := domain.AdvanceWishQuery{SemesterCode: semester}
+	if programme != nil {
+		query.Programme = *programme
+	}
+	for _, arg := range []struct {
+		raw  *string
+		into *uuid.UUID
+	}{
+		{module, &query.Module},
+		{subjectGroupID, &query.SubjectGroup},
+	} {
+		if arg.raw == nil {
+			continue
+		}
+		id, err := parseID(*arg.raw)
+		if err != nil {
+			return nil, err
+		}
+		*arg.into = id
+	}
+	rows, err := r.Resolver.Wishes.AdvanceWishes(ctx, principal.From(ctx), query)
+	if err != nil {
+		return nil, wishError(err)
+	}
+	return advanceWishModels(rows), nil
 }
 
 // MyDesiredTeachingHours is the resolver for the myDesiredTeachingHours field.

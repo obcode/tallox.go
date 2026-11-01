@@ -60,7 +60,14 @@ func (m *PlanningMarks) DemandCompletions(ctx context.Context,
 // AnnounceDemandComplete records or refreshes one announcement.
 func (m *PlanningMarks) AnnounceDemandComplete(ctx context.Context, semesterCode, programme string,
 	by uuid.UUID) (*domain.DemandCompletion, error) {
-	row, err := New(m.pool).AnnounceDemandComplete(ctx, AnnounceDemandCompleteParams{
+	tx, err := m.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := New(tx)
+
+	row, err := q.AnnounceDemandComplete(ctx, AnnounceDemandCompleteParams{
 		Semester:    semesterCode,
 		Programme:   programme,
 		CompletedBy: nullUUID(nonNilUUID(by)),
@@ -72,6 +79,16 @@ func (m *PlanningMarks) AnnounceDemandComplete(ctx context.Context, semesterCode
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot announce the demand: %w", err)
+	}
+
+	// The release is what the advance wishes of this programme wait for: in the same transaction,
+	// so that nobody reads a released programme whose advance wishes are still pending. Nothing of
+	// it is reported — how many became wishes is the count before publication.
+	if err := convertPendingAdvanceWishes(ctx, q, row.SemesterID, row.ProgrammeID); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
 	}
 
 	// Read back through the list query rather than assembling an answer here: one shape for this

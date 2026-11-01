@@ -82,6 +82,8 @@ type MutationResolver interface {
 	SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string, cie bool) (*model.Wish, error)
 	WithdrawWish(ctx context.Context, id string) (string, error)
 	SetWishTrackLimit(ctx context.Context, courseInstanceID string, maxTracks *int) (*int, error)
+	SetAdvanceWish(ctx context.Context, semester string, module string, programme string, priority domain.WishPriority, note *string, maxTracks *int) (*model.AdvanceWish, error)
+	WithdrawAdvanceWish(ctx context.Context, id string) (string, error)
 	SetDesiredTeachingHours(ctx context.Context, semester string, minHours *float64, maxHours *float64, hours *float64, note *string) (*model.DesiredTeachingHours, error)
 	CorrectDesiredTeachingHours(ctx context.Context, semester string, person string, minHours *float64, maxHours *float64, note *string) (*model.DesiredTeachingHours, error)
 	SyncZpaNow(ctx context.Context) (*model.ZpaSyncRun, error)
@@ -727,6 +729,60 @@ func (ec *executionContext) field_Mutation_revokePersonalAccessToken_args(ctx co
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setAdvanceWish_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "semester",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["semester"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "module",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["module"] = arg1
+	arg2, err := graphql.ProcessArgField(ctx, rawArgs, "programme",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["programme"] = arg2
+	arg3, err := graphql.ProcessArgField(ctx, rawArgs, "priority",
+		func(ctx context.Context, v any) (domain.WishPriority, error) {
+			return ec.unmarshalNWishPriority2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋinternalᚋdomainᚐWishPriority(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["priority"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "note",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOString2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["note"] = arg4
+	arg5, err := graphql.ProcessArgField(ctx, rawArgs, "maxTracks",
+		func(ctx context.Context, v any) (*int, error) {
+			return ec.unmarshalOInt2ᚖint(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["maxTracks"] = arg5
 	return args, nil
 }
 
@@ -1511,6 +1567,20 @@ func (ec *executionContext) field_Mutation_shareInstancePartAcrossTracks_args(ct
 }
 
 func (ec *executionContext) field_Mutation_splitInstancePartAcrossTracks_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNID2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_withdrawAdvanceWish_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "id",
@@ -4926,6 +4996,94 @@ func (ec *executionContext) fieldContext_Mutation_setWishTrackLimit(ctx context.
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_setAdvanceWish(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setAdvanceWish(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetAdvanceWish(ctx, fc.Args["semester"].(string), fc.Args["module"].(string), fc.Args["programme"].(string), fc.Args["priority"].(domain.WishPriority), fc.Args["note"].(*string), fc.Args["maxTracks"].(*int))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.AdvanceWish) graphql.Marshaler {
+			return ec.marshalNAdvanceWish2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAdvanceWish(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setAdvanceWish(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_AdvanceWish(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setAdvanceWish_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_withdrawAdvanceWish(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_withdrawAdvanceWish(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().WithdrawAdvanceWish(ctx, fc.Args["id"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_withdrawAdvanceWish(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_withdrawAdvanceWish_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_setDesiredTeachingHours(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -5795,6 +5953,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 				return ec._Mutation_setWishTrackLimit(ctx, field)
 			})
 			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "setAdvanceWish":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setAdvanceWish(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "withdrawAdvanceWish":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_withdrawAdvanceWish(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "setDesiredTeachingHours":

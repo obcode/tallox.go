@@ -150,8 +150,13 @@ WHERE ($1::uuid IS NULL
               AND p.code = $2::text
               AND ($3::uuid IS NULL OR s.id = $3::uuid)
           ) = $6::text)
+  -- Two readings of the same box. The substring finds a fragment ("Datenb") and a code; the
+  -- German stems find the words in any order and inflection, so "Digitale Transformation" also
+  -- finds "Digitalen Transformation". Neither alone does both. No index on either: see the
+  -- catalogue migration, the table is a few hundred rows.
   AND ($7::text IS NULL
        OR m.name ILIKE '%' || $7::text || '%'
+       OR to_tsvector('german', m.name) @@ plainto_tsquery('german', $7::text)
        OR EXISTS (SELECT 1 FROM module_offering o
                    WHERE o.module_id = m.id
                      AND array_to_string(o.module_codes, ' ')

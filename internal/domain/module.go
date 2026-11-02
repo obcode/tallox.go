@@ -432,7 +432,8 @@ type ModuleFilter struct {
 	// Duty needs Programme and is ignored without it: compulsory-or-elective is a property of a
 	// module in a programme, not of a module.
 	Duty DutyStatus
-	// Search matches the name or one of the module codes, case-insensitively.
+	// Search matches the words of the name by their German stem, in any order, or a substring
+	// of the name or of one of the module codes — case-insensitively in every case.
 	Search string
 	// IncludeInactive keeps the modules the examination office has retired.
 	IncludeInactive bool

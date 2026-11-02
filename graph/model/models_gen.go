@@ -956,7 +956,12 @@ type ModuleFilter struct {
 	// Compulsory or elective. Requires `programme`, and is ignored without it — the answer is a
 	// property of a module *in a programme*, not of a module.
 	Duty *domain.DutyStatus `json:"duty,omitempty"`
-	// A substring of the name or of one of the module codes. Case-insensitive.
+	// The words of the name, in any order and any inflection, or a substring of the name or of
+	// one of the module codes. Case-insensitive.
+	//
+	// Words are compared by their German stem, so "Digitale Transformation" also finds
+	// "Grundlagen der Digitalen Transformation". A word cut short ("Datenb") still matches as a
+	// substring of the whole search, but not as one word among several.
 	Search *string `json:"search,omitempty"`
 	// Include modules the examination office has retired. About a hundred of them.
 	IncludeInactive *bool `json:"includeInactive,omitempty"`

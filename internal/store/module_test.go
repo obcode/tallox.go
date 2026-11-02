@@ -180,6 +180,86 @@ func TestASecondLocalModuleOfTheSameNameIsRefusedByName(t *testing.T) {
 	}
 }
 
+// The catalogue search reads a name the way a person does: "Digitale Transformation" is also
+// the module called "Grundlagen der Digitalen Transformation". Reported from the faculty — the
+// examination office's own search found three modules where Tallox found two, because one name
+// carried a different ending. The substring reading stays, for a fragment and for a code.
+func TestTheModuleSearchMatchesWordsByTheirStem(t *testing.T) {
+	t.Parallel()
+
+	f := newModuleFixture(t)
+	ctx := t.Context()
+
+	created := map[string]uuid.UUID{}
+	for _, name := range []string{
+		"Digitale Transformation",
+		"Grundlagen der Digitalen Transformation",
+		"Transformationsprozesse analoger Systeme",
+	} {
+		m, err := f.modules.CreateLocalModule(ctx, domain.NewLocalModule{
+			HomeProgrammeID: f.programme,
+			Name:            name,
+			Kind:            domain.ModuleKindFwpPlaceholder,
+			CourseType:      domain.CourseTypeSU,
+			Frequency:       domain.FrequencyOnAnnouncement,
+			Active:          true,
+		}, uuid.Nil)
+		if err != nil {
+			t.Fatalf("cannot record %q: %v", name, err)
+		}
+		created[name] = m.ID
+	}
+
+	for _, tc := range []struct {
+		search string
+		want   []string
+	}{
+		{"Digitale Transformation", []string{"Digitale Transformation",
+			"Grundlagen der Digitalen Transformation"}},
+		{"digitalen transformation", []string{"Digitale Transformation",
+			"Grundlagen der Digitalen Transformation"}},
+		{"Transformation digitale", []string{"Digitale Transformation",
+			"Grundlagen der Digitalen Transformation"}},
+		// A fragment is no word, so only the substring can find it.
+		{"Grundl", []string{"Grundlagen der Digitalen Transformation"}},
+		{"Transformationsproz", []string{"Transformationsprozesse analoger Systeme"}},
+		// Stop words carry no stem and do not narrow the match.
+		{"der Digitalen", []string{"Digitale Transformation",
+			"Grundlagen der Digitalen Transformation"}},
+		// Nothing but a stop word: the stems have nothing to compare, and the substring answers
+		// alone rather than the search failing.
+		{"der", []string{"Grundlagen der Digitalen Transformation"}},
+		// Every word has to be in the same name.
+		{"Systeme digitale", nil},
+	} {
+		t.Run(tc.search, func(t *testing.T) {
+			listed, err := f.modules.Modules(ctx, domain.ModuleFilter{
+				Search:    tc.search,
+				Frequency: domain.AllFrequencies(),
+			})
+			if err != nil {
+				t.Fatalf("cannot search the catalogue: %v", err)
+			}
+			got := map[uuid.UUID]bool{}
+			for _, m := range listed {
+				got[m.ID] = true
+			}
+			wanted := map[string]bool{}
+			for _, name := range tc.want {
+				wanted[name] = true
+			}
+			for name, id := range created {
+				switch {
+				case wanted[name] && !got[id]:
+					t.Errorf("%q is not found", name)
+				case !wanted[name] && got[id]:
+					t.Errorf("%q is found, and should not be", name)
+				}
+			}
+		})
+	}
+}
+
 // Deactivating is how a local course is retired — there is no delete, because instances and
 // later wishes point at it — and it drops out of the lists a planner sees.
 func TestADeactivatedLocalModuleLeavesTheCatalogue(t *testing.T) {

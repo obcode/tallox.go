@@ -173,6 +173,10 @@ extend type Mutation {
   `SUBJECT_GROUP_LEAD` or `PROGRAMME_LEAD` to their own set without `expiresAt`: each of those reads
   other people's unpublished wishes, and an administrator who has to look does so for a limited
   time, listed in the nightly access report.
+
+  `OBSERVER` is added only with `expiresAt` (`OBSERVER_GRANT_MUST_EXPIRE`), for anybody. A call
+  that adds `OBSERVER` alone may set it up to 180 days out, any other call up to 30
+  (`GRANT_EXPIRY_OUT_OF_RANGE`). To extend an observer, take the role away and grant it again.
   """
   setPersonRoles(id: ID!, roles: [Role!]!, expiresAt: Time): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
 

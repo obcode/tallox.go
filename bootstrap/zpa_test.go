@@ -174,6 +174,7 @@ func TestWhoSeesTheImport(t *testing.T) {
 		{"a lecturer", testdata.Eins, []string{string(policy.RoleLecturer)}, false},
 		{"a programme lead", testdata.Vier, []string{string(policy.RoleProgrammeLead)}, false},
 		{"a subject group lead", testdata.Drei, []string{string(policy.RoleSubjectGroupLead)}, false},
+		{"an observer", testdata.Zwei, []string{string(policy.RoleObserver)}, true},
 	}
 
 	for _, tc := range cases {

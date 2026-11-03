@@ -339,6 +339,40 @@ PARTNER_READER      full reach   —                REVIEW           published  
 PARTNER_READER      full reach   —                FINAL            published    yes   no       no       no       own only
 
 
+OBSERVER            interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+OBSERVER            interactive  —                WISHES           unpublished  yes   no       no       no       own only
+OBSERVER            interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+OBSERVER            interactive  —                REVIEW           unpublished  yes   no       no       no       own only
+OBSERVER            interactive  —                FINAL            unpublished  yes   no       no       no       own only
+OBSERVER            interactive  —                DEMAND_PLANNING  published    yes   no       no       no       own only
+OBSERVER            interactive  —                WISHES           published    yes   no       no       no       own only
+OBSERVER            interactive  —                ASSIGNMENT       published    yes   no       no       no       own only
+OBSERVER            interactive  —                REVIEW           published    yes   no       no       no       own only
+OBSERVER            interactive  —                FINAL            published    yes   no       no       no       own only
+
+OBSERVER            token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+OBSERVER            token        —                WISHES           unpublished  yes   no       no       no       own only
+OBSERVER            token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+OBSERVER            token        —                REVIEW           unpublished  yes   no       no       no       own only
+OBSERVER            token        —                FINAL            unpublished  yes   no       no       no       own only
+OBSERVER            token        —                DEMAND_PLANNING  published    yes   no       no       no       own only
+OBSERVER            token        —                WISHES           published    yes   no       no       no       own only
+OBSERVER            token        —                ASSIGNMENT       published    yes   no       no       no       own only
+OBSERVER            token        —                REVIEW           published    yes   no       no       no       own only
+OBSERVER            token        —                FINAL            published    yes   no       no       no       own only
+
+OBSERVER            full reach   —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+OBSERVER            full reach   —                WISHES           unpublished  yes   no       no       no       own only
+OBSERVER            full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
+OBSERVER            full reach   —                REVIEW           unpublished  yes   no       no       no       own only
+OBSERVER            full reach   —                FINAL            unpublished  yes   no       no       no       own only
+OBSERVER            full reach   —                DEMAND_PLANNING  published    yes   no       no       no       own only
+OBSERVER            full reach   —                WISHES           published    yes   no       no       no       own only
+OBSERVER            full reach   —                ASSIGNMENT       published    yes   no       no       no       own only
+OBSERVER            full reach   —                REVIEW           published    yes   no       no       no       own only
+OBSERVER            full reach   —                FINAL            published    yes   no       no       no       own only
+
+
 ADMIN               interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 ADMIN               interactive  —                WISHES           unpublished  yes   no       no       no       own only
 ADMIN               interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only

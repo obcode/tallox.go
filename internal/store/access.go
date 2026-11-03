@@ -157,6 +157,18 @@ func (a *Access) Summary(ctx context.Context, from, until time.Time) (domain.Acc
 		summary.SelfGrants = append(summary.SelfGrants, g)
 	}
 
+	observers, err := a.q.AccessObserverGrants(ctx, until)
+	if err != nil {
+		return domain.AccessSummary{}, fmt.Errorf("cannot read the observer grants: %w", err)
+	}
+	for _, row := range observers {
+		g := domain.ObserverGrant{Mail: row.Mail, GrantedBy: row.GrantedBy, GrantedAt: row.GrantedAt}
+		if row.ExpiresAt.Valid {
+			g.ExpiresAt = row.ExpiresAt.Time
+		}
+		summary.ObserverGrants = append(summary.ObserverGrants, g)
+	}
+
 	fullReach, err := a.q.AccessFullReachTokens(ctx, AccessFullReachTokensParams{From: from, Until: until})
 	if err != nil {
 		return domain.AccessSummary{}, fmt.Errorf("cannot read the full-reach tokens: %w", err)

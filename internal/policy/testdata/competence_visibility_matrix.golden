@@ -73,6 +73,10 @@ PARTNER_READER      interactive  —                yes   no       no       no  
 PARTNER_READER      token        —                yes   no       no       no       no       own only
 PARTNER_READER      full reach   —                yes   no       no       no       no       own only
 
+OBSERVER            interactive  —                yes   no       no       no       no       own only
+OBSERVER            token        —                yes   no       no       no       no       own only
+OBSERVER            full reach   —                yes   no       no       no       no       own only
+
 ADMIN               interactive  —                yes   no       no       no       no       own only
 ADMIN               token        —                yes   no       no       no       no       own only
 ADMIN               full reach   —                yes   no       no       no       no       own only

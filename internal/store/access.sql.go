@@ -418,6 +418,56 @@ func (q *Queries) AccessLogRefusedSignIns(ctx context.Context, arg AccessLogRefu
 	return items, nil
 }
 
+const accessObserverGrants = `-- name: AccessObserverGrants :many
+SELECT p.mail::text AS mail,
+       COALESCE(g.mail, '')::text AS granted_by,
+       r.granted_at::timestamptz AS granted_at,
+       r.expires_at AS expires_at
+FROM person_role r
+JOIN person p ON p.id = r.person_id
+LEFT JOIN person g ON g.id = r.granted_by
+WHERE r.role = 'OBSERVER'
+  AND (r.expires_at IS NULL OR r.expires_at > $1::timestamptz)
+ORDER BY r.expires_at, p.mail
+`
+
+type AccessObserverGrantsRow struct {
+	Mail      string
+	GrantedBy string
+	GrantedAt time.Time
+	ExpiresAt pgtype.Timestamptz
+}
+
+// OBSERVER grants still in force at the end of the window, with who granted them.
+//
+// An observer reads nothing confidential, so this is not the weight of a self-grant: it is listed
+// so that "who is looking at the planning from outside it, until when" has an answer that more
+// than the administration reads.
+func (q *Queries) AccessObserverGrants(ctx context.Context, until time.Time) ([]AccessObserverGrantsRow, error) {
+	rows, err := q.db.Query(ctx, accessObserverGrants, until)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AccessObserverGrantsRow{}
+	for rows.Next() {
+		var i AccessObserverGrantsRow
+		if err := rows.Scan(
+			&i.Mail,
+			&i.GrantedBy,
+			&i.GrantedAt,
+			&i.ExpiresAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const accessSelfGrants = `-- name: AccessSelfGrants :many
 SELECT p.mail::text AS mail,
        r.role::text AS role,

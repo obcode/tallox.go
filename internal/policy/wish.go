@@ -188,9 +188,9 @@ func CanSeeWish(a principal.Actor, s SemesterState, w Wish) bool {
 		return false
 	case a.Owns(w.OwnerID):
 		return true
-	case PartnerOnly(a):
+	case Onlooker(a):
 		// Not even after publication: the wishes are the faculty's colleagues talking to each
-		// other. See partner.go.
+		// other. See partner.go and observer.go.
 		return false
 	case s.WishesPublished():
 		return true
@@ -224,7 +224,7 @@ func WishVisibility(a principal.Actor, s SemesterState) WishFilter {
 	switch {
 	case !a.Authenticated():
 		return WishFilter{Scope: WishScopeNone}
-	case PartnerOnly(a):
+	case Onlooker(a):
 		return WishFilter{Scope: WishScopeOwn, OwnerID: a.ID}
 	case s.WishesPublished():
 		return WishFilter{Scope: WishScopeAll}

@@ -88,6 +88,10 @@ PARTNER_READER      interactive   —           no    no     none
 PARTNER_READER      token         —           no    no     none
 PARTNER_READER      full reach    —           no    no     none
 
+OBSERVER            interactive   —           no    no     none
+OBSERVER            token         —           no    no     none
+OBSERVER            full reach    —           no    no     none
+
 ADMIN               interactive   —           no    no     none
 ADMIN               token         —           no    no     none
 ADMIN               full reach    —           no    no     none

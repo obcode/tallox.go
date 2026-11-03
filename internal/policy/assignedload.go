@@ -57,7 +57,7 @@ func CanSeeAssignedLoad(a principal.Actor, s SemesterState, l AssignedLoad) bool
 		return false
 	case a.Owns(l.OwnerID):
 		return true
-	case PartnerOnly(a), !a.ActsWithFullReach():
+	case Onlooker(a), !a.ActsWithFullReach():
 		return false
 	case s.AssignmentsPublished():
 		return true
@@ -72,7 +72,7 @@ func AssignedLoadVisibility(a principal.Actor, s SemesterState) AssignedLoadFilt
 	switch {
 	case !a.Authenticated():
 		return AssignedLoadFilter{Scope: DesiredHoursScopeNone}
-	case PartnerOnly(a), !a.ActsWithFullReach():
+	case Onlooker(a), !a.ActsWithFullReach():
 		return AssignedLoadFilter{Scope: DesiredHoursScopeOwn, OwnerID: a.ID}
 	case s.AssignmentsPublished():
 		return AssignedLoadFilter{Scope: DesiredHoursScopeAll}

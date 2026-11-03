@@ -2330,6 +2330,10 @@ type Mutation {
   `SUBJECT_GROUP_LEAD` or `PROGRAMME_LEAD` to their own set without `expiresAt`: each of those reads
   other people's unpublished wishes, and an administrator who has to look does so for a limited
   time, listed in the nightly access report.
+
+  `OBSERVER` is added only with `expiresAt` (`OBSERVER_GRANT_MUST_EXPIRE`), for anybody. A call
+  that adds `OBSERVER` alone may set it up to 180 days out, any other call up to 30
+  (`GRANT_EXPIRY_OUT_OF_RANGE`). To extend an observer, take the role away and grant it again.
   """
   setPersonRoles(id: ID!, roles: [Role!]!, expiresAt: Time): Person! @interactiveOnly @scope(area: ADMIN, verb: WRITE)
   """
@@ -4591,7 +4595,7 @@ type ReviewCompletion {
 A role somebody holds. Everybody holds `LECTURER`; the others come on top of it.
 
 The values are English. The interface shows the German terms the faculty uses: Dozierende,
-Fachgruppenleitung, Studiengangsleitung, Dekanat.
+Fachgruppenleitung, Studiengangsleitung, Dekanat, Partnerfakultät, Einsicht.
 """
 enum Role {
   """
@@ -4617,6 +4621,14 @@ enum Role {
   programmes, and no wishes — and writes nothing.
   """
   PARTNER_READER
+  """
+  Follows the whole planning without taking part in it, for a limited time — somebody building a
+  neighbouring system. Held alone it reads what any account reads, all programmes, plus the module
+  import; no other people's wishes, desired or assigned teaching hours, not even published ones;
+  and writes nothing (`OBSERVER_READS_ONLY`). Always granted with an expiry of at most 180 days
+  (`OBSERVER_GRANT_MUST_EXPIRE`). On no exception list of the confidentiality rule.
+  """
+  OBSERVER
   """
   Administers people, roles and tokens. Not a reader of unpublished wishes.
   """

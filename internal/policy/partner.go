@@ -43,9 +43,10 @@ func DemandReadScope(a principal.Actor) ProgrammeScope {
 
 // MayServeOneself reports whether the actor may maintain the statements that are about oneself as
 // a member of this faculty: joining subject groups and stating competences. Wishes and desired
-// hours need LECTURER in the write matrix already; these two needed only an account.
+// hours need LECTURER in the write matrix already; these two needed only an account. Refused to
+// partners and observers alike (Onlooker).
 func MayServeOneself(a principal.Actor) bool {
-	return a.Authenticated() && !PartnerOnly(a)
+	return a.Authenticated() && !Onlooker(a)
 }
 
 // PartnerReason is the refusal a partner meets on a write path.

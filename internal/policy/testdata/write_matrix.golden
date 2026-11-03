@@ -98,6 +98,7 @@ SUBJECT_GROUP_LEAD  no               no       no          no     no
 PROGRAMME_LEAD      yes              yes      yes         yes    no
 DEANS_OFFICE        yes              yes      yes         yes    no
 PARTNER_READER      no               no       no          no     no
+OBSERVER            no               no       no          no     no
 ADMIN               no               no       no          no     no
 
 (unknown phase)     no               no       no          no     no
@@ -112,6 +113,7 @@ SUBJECT_GROUP_LEAD  no               no       no          no     no
 PROGRAMME_LEAD      no               no       no          no     no
 DEANS_OFFICE        no               no       no          no     no
 PARTNER_READER      no               no       no          no     no
+OBSERVER            no               no       no          no     no
 ADMIN               no               no       no          no     no
 
 (unknown phase)     no               no       no          no     no
@@ -126,6 +128,7 @@ SUBJECT_GROUP_LEAD  no               no       no          no     no
 PROGRAMME_LEAD      no               no       no          no     no
 DEANS_OFFICE        no               no       no          no     no
 PARTNER_READER      no               no       no          no     no
+OBSERVER            no               no       no          no     no
 ADMIN               no               no       no          no     no
 
 (unknown phase)     no               no       no          no     no
@@ -140,6 +143,7 @@ SUBJECT_GROUP_LEAD  yes              yes      yes         yes    no
 PROGRAMME_LEAD      yes              yes      yes         yes    no
 DEANS_OFFICE        yes              yes      yes         yes    no
 PARTNER_READER      no               no       no          no     no
+OBSERVER            no               no       no          no     no
 ADMIN               no               no       no          no     no
 
 (unknown phase)     no               no       no          no     no

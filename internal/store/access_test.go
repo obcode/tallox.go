@@ -535,3 +535,54 @@ func TestTheSummaryListsValidFullReachTokens(t *testing.T) {
 		t.Errorf("full-reach token = %+v, want Vier's with 3 operations and 1 change", tok)
 	}
 }
+
+// The summary lists the OBSERVER grants in force, with who granted them — and not one that has
+// run out.
+func TestTheSummaryListsObserverGrantsInForce(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	storetest.SeedPerson(t, s, testdata.Sechs, string(policy.RoleAdmin))
+	storetest.SeedPerson(t, s, testdata.Zwei)
+	storetest.SeedPerson(t, s, testdata.Drei)
+	people := store.NewPeople(s.Pool)
+	ctx := t.Context()
+	now := time.Now()
+
+	for _, who := range []testdata.Persona{testdata.Zwei, testdata.Drei} {
+		if err := people.GrantRole(ctx, who.ID(), policy.RoleObserver, testdata.Sechs.ID(),
+			now.Add(30*24*time.Hour)); err != nil {
+			t.Fatalf("cannot grant OBSERVER to %s: %v", who.Name, err)
+		}
+	}
+	if _, err := s.Pool.Exec(ctx, `UPDATE person_role SET granted_at = now() - interval '2 days',
+		expires_at = now() - interval '1 day' WHERE person_id = $1 AND role = 'OBSERVER'`,
+		testdata.Drei.ID()); err != nil {
+		t.Fatalf("cannot age the grant: %v", err)
+	}
+
+	summary, err := store.NewAccess(s.Pool).Summary(ctx, now.Add(-24*time.Hour), now)
+	if err != nil {
+		t.Fatalf("Summary: %v", err)
+	}
+	if len(summary.ObserverGrants) != 1 {
+		t.Fatalf("observer grants = %+v, want Zwei's alone", summary.ObserverGrants)
+	}
+	g := summary.ObserverGrants[0]
+	if g.Mail != testdata.Zwei.Mail || g.GrantedBy != testdata.Sechs.Mail || g.ExpiresAt.IsZero() {
+		t.Errorf("observer grant = %+v", g)
+	}
+}
+
+// OBSERVER without an expiry is refused by the database itself, not only by the domain.
+func TestTheDatabaseRefusesAnObserverWithoutAnExpiry(t *testing.T) {
+	t.Parallel()
+
+	s := storetest.New(t)
+	storetest.SeedPerson(t, s, testdata.Zwei)
+	err := store.NewPeople(s.Pool).GrantRole(t.Context(), testdata.Zwei.ID(), policy.RoleObserver,
+		testdata.Zwei.ID(), time.Time{})
+	if err == nil {
+		t.Fatal("an OBSERVER grant without an expiry was stored")
+	}
+}

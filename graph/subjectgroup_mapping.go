@@ -71,6 +71,8 @@ func subjectGroupError(err error) error {
 		return refusal("NOT_A_SUBJECT_GROUP_LEAD", err.Error())
 	case errors.Is(err, domain.ErrPartnerWritesNothing):
 		return refusal("PARTNER_READS_ONLY", policy.PartnerReason)
+	case errors.Is(err, domain.ErrObserverWritesNothing):
+		return refusal("OBSERVER_READS_ONLY", policy.ObserverReason)
 	case errors.Is(err, domain.ErrNotAuthenticated):
 		return refusal("UNAUTHENTICATED", "Nicht angemeldet.")
 	case coded(err):

@@ -107,6 +107,10 @@ PARTNER_READER      interactive   —       no          no       no       no    
 PARTNER_READER      token         —       no          no       no       no     no     no
 PARTNER_READER      full reach    —       no          no       no       no     no     no
 
+OBSERVER            interactive   —       no          no       no       no     no     no
+OBSERVER            token         —       no          no       no       no     no     no
+OBSERVER            full reach    —       no          no       no       no     no     no
+
 ADMIN               interactive   —       yes         yes      yes      yes    yes    yes
 ADMIN               token         —       no          no       no       no     no     no
 ADMIN               full reach    —       yes         yes      yes      yes    yes    yes

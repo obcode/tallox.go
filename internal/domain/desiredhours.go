@@ -25,6 +25,8 @@ var (
 	// partner faculty. Its own sentence, because the one the write would otherwise meet — "the
 	// semester is finished" — is not true.
 	ErrPartnerWritesNothing = errors.New("a partner faculty reads the planning and writes nothing")
+	// ErrObserverWritesNothing is the same for an account that holds only OBSERVER.
+	ErrObserverWritesNothing = errors.New("an observer reads the planning and writes nothing")
 	// ErrDesiredHoursOutOfRange is a figure below zero or above any teaching position.
 	ErrDesiredHoursOutOfRange = errors.New(
 		"die gewünschten SWS müssen zwischen 0 und 40 liegen, in halben Stunden")
@@ -136,8 +138,9 @@ func (s *WishService) DesiredHoursOverview(ctx context.Context, actor principal.
 	}
 	// A partner faculty follows programmes, not people. The roster — names, mail addresses,
 	// subject groups — is the faculty's own, and narrowing to nothing is the shape the other
-	// partner reads take (withinReach), rather than a refusal.
-	if policy.PartnerOnly(actor) {
+	// partner reads take (withinReach), rather than a refusal. An observer sees the roster
+	// elsewhere, but this list exists for its figures, and those it does not read.
+	if policy.Onlooker(actor) {
 		return nil, nil
 	}
 	semester, err := s.semesters.ByCode(ctx, actor, semesterCode)
@@ -159,8 +162,8 @@ func (s *WishService) SetDesiredHours(ctx context.Context, actor principal.Actor
 	if semesterCode == "" {
 		return nil, ErrSemesterRequired
 	}
-	if policy.PartnerOnly(actor) {
-		return nil, ErrPartnerWritesNothing
+	if err := onlookerRefusal(actor); err != nil {
+		return nil, err
 	}
 	low, high, clear, err := desiredRange(minHours, maxHours)
 	if err != nil {
@@ -305,4 +308,18 @@ func desiredRange(minHours, maxHours *float64) (low, high float64, clear bool, e
 // sentence rather than being rounded into a figure somebody did not type.
 func validDesiredHours(h float64) bool {
 	return h >= 0 && h <= MaxDesiredHours && !math.IsNaN(h) && math.Mod(h*2, 1) == 0
+}
+
+// onlookerRefusal is the refusal for a write by an account that follows the planning from
+// outside it (policy.Onlooker), or nil for everybody else. Two errors rather than one because
+// the sentence differs: the partner follows its programmes, the observer the whole planning.
+func onlookerRefusal(actor principal.Actor) error {
+	switch {
+	case policy.PartnerOnly(actor):
+		return ErrPartnerWritesNothing
+	case policy.ObserverOnly(actor):
+		return ErrObserverWritesNothing
+	default:
+		return nil
+	}
 }

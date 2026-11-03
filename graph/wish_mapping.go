@@ -146,6 +146,8 @@ func wishError(err error) error {
 		return refusal("UNAUTHENTICATED", "Nicht angemeldet.")
 	case errors.Is(err, domain.ErrPartnerWritesNothing):
 		return refusal("PARTNER_READS_ONLY", policy.PartnerReason)
+	case errors.Is(err, domain.ErrObserverWritesNothing):
+		return refusal("OBSERVER_READS_ONLY", policy.ObserverReason)
 	case errors.Is(err, domain.ErrDesiredHoursPhaseClosed):
 		return refusal("DESIRED_HOURS_PHASE_CLOSED", err.Error())
 	case errors.Is(err, domain.ErrDesiredHoursOutOfRange):

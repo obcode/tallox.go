@@ -21,29 +21,39 @@ import "github.com/obcode/tallox.go/internal/principal"
 // Narrowing this later is not a breaking change to the schema, and widening it would be a
 // decision made under pressure in October. So it starts as the union.
 //
+// OBSERVER reads it too (2026-11-03): how the catalogue gets into Tallox is exactly what somebody
+// building a neighbouring system needs to see, and nothing in a run report is about a person's
+// teaching. Reading only — see MayTriggerZPASync.
+//
 // With full reach only: a browser session or a token minted with full reach.
 func MayReadZPAImport(a principal.Actor) bool {
 	if !MayActWithFullReach(a) {
 		return false
 	}
 	roles := RolesOf(a)
-	return roles.Has(RoleAdmin) || roles.Has(RoleDeansOffice)
+	return mayRunZPAImport(roles) || roles.Has(RoleObserver)
 }
 
 // MayTriggerZPASync reports whether an actor may set off an import run by hand.
 //
-// The same set as reading it. Whoever is allowed to see that the catalogue is three weeks stale
-// is the person who should be able to do something about it; splitting the two would produce a
-// screen that reports a problem and offers no way to act on it, which is how people learn to
-// ignore a screen.
+// The people who read it because running or planning is their job. Whoever is allowed to see that
+// the catalogue is three weeks stale for that reason is the person who should be able to do
+// something about it; splitting the two would produce a screen that reports a problem and offers
+// no way to act on it, which is how people learn to ignore a screen. The observer is the exception
+// on purpose: it reads in order to understand, and an observer writes nothing anywhere.
 //
 // What keeps this from being a way to hammer the examination office's system is not the role
 // but the two limits around it: a run already in progress is returned rather than a second one
 // started, and a run that succeeded minutes ago is refused.
 func MayTriggerZPASync(a principal.Actor) bool {
-	return MayReadZPAImport(a)
+	return MayActWithFullReach(a) && mayRunZPAImport(RolesOf(a))
+}
+
+func mayRunZPAImport(roles RoleSet) bool {
+	return roles.Has(RoleAdmin) || roles.Has(RoleDeansOffice)
 }
 
 // ZPAImportReason is what a caller who failed those checks is told. German, like every other
 // string a person reads.
-const ZPAImportReason = "Nur die Administration und das Dekanat sehen den ZPA-Import."
+const ZPAImportReason = "Den ZPA-Import betreiben die Administration und das Dekanat; " +
+	"mit der Rolle Einsicht lässt er sich nur lesen."

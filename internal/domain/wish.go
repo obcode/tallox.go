@@ -322,8 +322,8 @@ func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
-	if policy.PartnerOnly(actor) {
-		return nil, ErrPartnerWritesNothing
+	if err := onlookerRefusal(actor); err != nil {
+		return nil, err
 	}
 	if _, ok := priority.Level(); !ok {
 		return nil, ErrWishPriorityInvalid
@@ -380,8 +380,8 @@ func (s *WishService) SetTrackLimit(ctx context.Context, actor principal.Actor,
 	if !actor.Authenticated() {
 		return ErrNotAuthenticated
 	}
-	if policy.PartnerOnly(actor) {
-		return ErrPartnerWritesNothing
+	if err := onlookerRefusal(actor); err != nil {
+		return err
 	}
 	if maxTracks != nil && (*maxTracks < 1 || *maxTracks > MaxWishTrackLimit) {
 		return ErrWishTrackLimitInvalid

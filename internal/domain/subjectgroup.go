@@ -458,8 +458,8 @@ func (s *SubjectGroupService) SetMine(ctx context.Context, actor principal.Actor
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
-	if !policy.MayServeOneself(actor) {
-		return nil, ErrPartnerWritesNothing
+	if err := onlookerRefusal(actor); err != nil {
+		return nil, err
 	}
 	if err := s.store.SetSubjectGroupsOfPerson(ctx, actor.ID, dedupe(groups), actor.ID); err != nil {
 		return nil, err

@@ -24,6 +24,14 @@ import (
 // looks at.
 const MaxTemporaryGrantDays = 30
 
+// MaxObserverGrantDays bounds an OBSERVER grant, which always expires.
+//
+// Longer than MaxTemporaryGrantDays because it is a different kind of temporary: not "let me look
+// at this until this evening" but a project with an end — somebody building a neighbouring system
+// for a semester or so. Still a date, so that the access ends without anybody having to remember
+// it, and the nightly report lists it while it holds. Renewing it is a fresh grant.
+const MaxObserverGrantDays = 180
+
 // AdmissionRole is the role somebody gets when they are admitted from the examination office's
 // list of the people who teach.
 //
@@ -85,6 +93,16 @@ var (
 	// ErrGrantExpiryOutOfRange: an expiry in the past, or further out than the ceiling.
 	ErrGrantExpiryOutOfRange = fmt.Errorf(
 		"a temporary grant runs from now to at most %d days from now", MaxTemporaryGrantDays)
+	// ErrObserverExpiryOutOfRange: the same for a call that adds only OBSERVER, whose ceiling is
+	// MaxObserverGrantDays. Its own error because the number in the sentence differs.
+	ErrObserverExpiryOutOfRange = fmt.Errorf(
+		"an observer grant runs from now to at most %d days from now", MaxObserverGrantDays)
+	// ErrObserverGrantMustExpire: OBSERVER without an expiry.
+	//
+	// An observer reads a great deal of the planning for a purpose that ends. A grant without a
+	// date would outlive the purpose silently; the database says the same in a CHECK (migration
+	// 20261103100000).
+	ErrObserverGrantMustExpire = errors.New("OBSERVER is granted only with an expiry")
 	// ErrLastAdmin: the change would leave the installation with nobody who can administer
 	// it.
 	//
@@ -116,6 +134,10 @@ var (
 // SelfGrantMustExpireReason is what that refusal says.
 const SelfGrantMustExpireReason = "Leitungs- und Dekanatsrollen kannst Du Dir selbst nur " +
 	"befristet geben. Bitte ein Ablaufdatum setzen (höchstens 30 Tage)."
+
+// ObserverGrantMustExpireReason is what ErrObserverGrantMustExpire says to the administrator.
+const ObserverGrantMustExpireReason = "Die Rolle Einsicht wird nur befristet vergeben. " +
+	"Bitte ein Ablaufdatum setzen (höchstens 180 Tage)."
 
 // AdminGrantMustNotExpireReason is what ErrAdminGrantMustNotExpire says to the administrator.
 const AdminGrantMustNotExpireReason = "Die Administrationsrolle lässt sich nicht befristen: " +
@@ -398,13 +420,6 @@ func (s *PeopleService) SetRoles(ctx context.Context, actor principal.Actor,
 		return nil, ErrNotAdministrator
 	}
 
-	if !expiresAt.IsZero() {
-		now := s.now()
-		if !expiresAt.After(now) || expiresAt.After(now.AddDate(0, 0, MaxTemporaryGrantDays)) {
-			return nil, ErrGrantExpiryOutOfRange
-		}
-	}
-
 	current, err := s.Get(ctx, actor, id)
 	if err != nil {
 		return nil, err
@@ -421,6 +436,10 @@ func (s *PeopleService) SetRoles(ctx context.Context, actor principal.Actor,
 	held := make(map[policy.Role]bool, len(current.Roles))
 	for _, r := range current.Roles {
 		held[r] = true
+	}
+
+	if err := s.checkExpiry(wanted, held, expiresAt); err != nil {
+		return nil, err
 	}
 
 	// Only grants being added: a role already held keeps its own expiry, so saving one's own set
@@ -459,6 +478,38 @@ func (s *PeopleService) SetRoles(ctx context.Context, actor principal.Actor,
 	}
 
 	return s.Get(ctx, actor, id)
+}
+
+// checkExpiry bounds the expiry of the grants a SetRoles call adds.
+//
+// The ceiling is MaxTemporaryGrantDays, unless OBSERVER is the only role being added: its grants
+// are meant to last a project, and one call that adds it beside another role gets the shorter
+// ceiling, because the date applies to both.
+func (s *PeopleService) checkExpiry(wanted, held map[policy.Role]bool, expiresAt time.Time) error {
+	added := 0
+	for r := range wanted {
+		if !held[r] {
+			added++
+		}
+	}
+	addsObserver := wanted[policy.RoleObserver] && !held[policy.RoleObserver]
+
+	if expiresAt.IsZero() {
+		if addsObserver {
+			return ErrObserverGrantMustExpire
+		}
+		return nil
+	}
+
+	ceiling, refusal := MaxTemporaryGrantDays, ErrGrantExpiryOutOfRange
+	if addsObserver && added == 1 {
+		ceiling, refusal = MaxObserverGrantDays, ErrObserverExpiryOutOfRange
+	}
+	now := s.now()
+	if !expiresAt.After(now) || expiresAt.After(now.AddDate(0, 0, ceiling)) {
+		return refusal
+	}
+	return nil
 }
 
 // SetProgrammes replaces the study programmes somebody's leadership applies to.

@@ -185,8 +185,8 @@ func (s *WishService) SetAdvanceWish(ctx context.Context, actor principal.Actor,
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
-	if policy.PartnerOnly(actor) {
-		return nil, ErrPartnerWritesNothing
+	if err := onlookerRefusal(actor); err != nil {
+		return nil, err
 	}
 	if _, ok := a.Priority.Level(); !ok {
 		return nil, ErrWishPriorityInvalid
@@ -246,8 +246,8 @@ func (s *WishService) WithdrawAdvanceWish(ctx context.Context, actor principal.A
 	if !actor.Authenticated() {
 		return ErrNotAuthenticated
 	}
-	if policy.PartnerOnly(actor) {
-		return ErrPartnerWritesNothing
+	if err := onlookerRefusal(actor); err != nil {
+		return err
 	}
 	return s.store.WithdrawAdvanceWish(ctx, id, actor.ID)
 }

@@ -161,6 +161,16 @@ PARTNER_READER      full reach   —                confidential   yes   no     
 PARTNER_READER      full reach   —                published      yes   no       no       no       own only
 
 
+OBSERVER            interactive  —                confidential   yes   no       no       no       own only
+OBSERVER            interactive  —                published      yes   yes      yes      yes      all
+
+OBSERVER            token        —                confidential   yes   no       no       no       own only
+OBSERVER            token        —                published      yes   yes      yes      yes      all
+
+OBSERVER            full reach   —                confidential   yes   no       no       no       own only
+OBSERVER            full reach   —                published      yes   yes      yes      yes      all
+
+
 ADMIN               interactive  —                confidential   yes   no       no       no       own only
 ADMIN               interactive  —                published      yes   yes      yes      yes      all
 

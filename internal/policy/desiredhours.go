@@ -91,7 +91,7 @@ func CanSeeDesiredHours(a principal.Actor, s SemesterState, d DesiredHours) bool
 		return false
 	case a.Owns(d.OwnerID):
 		return true
-	case PartnerOnly(a), !a.ActsWithFullReach():
+	case Onlooker(a), !a.ActsWithFullReach():
 		return false
 	case s.DesiredHoursPublished():
 		return true
@@ -118,14 +118,14 @@ func CanReadDesiredHoursNote(a principal.Actor, d DesiredHours) bool {
 
 // DesiredHoursVisibility returns the read rule for the range as a query filter.
 //
-// Published, it is everybody's with full reach, except a partner faculty's, which reads its
-// own and nothing else — the line WishVisibility draws, for the reason it gives. A plain token reads its
+// Published, it is everybody's with full reach, except an onlooker's — a partner faculty or an
+// observer — which reads its own and nothing else — the line WishVisibility draws, for the reason it gives. A plain token reads its
 // own in every state. Before publication it is the note's rule.
 func DesiredHoursVisibility(a principal.Actor, s SemesterState) DesiredHoursFilter {
 	switch {
 	case !a.Authenticated():
 		return DesiredHoursFilter{Scope: DesiredHoursScopeNone}
-	case PartnerOnly(a), !a.ActsWithFullReach():
+	case Onlooker(a), !a.ActsWithFullReach():
 		return DesiredHoursFilter{Scope: DesiredHoursScopeOwn, OwnerID: a.ID}
 	case s.DesiredHoursPublished():
 		return DesiredHoursFilter{Scope: DesiredHoursScopeAll}
@@ -169,7 +169,7 @@ func DesiredHoursNoteVisibility(a principal.Actor) DesiredHoursFilter {
 // closes it earlier for everybody. A partner faculty states nothing. Through either door: it is
 // one's own statement, like a wish.
 func MayStateDesiredHours(a principal.Actor, s SemesterState) bool {
-	return a.Authenticated() && !PartnerOnly(a) && !s.DesiredHoursFrozen() &&
+	return a.Authenticated() && !Onlooker(a) && !s.DesiredHoursFrozen() &&
 		MayWriteInPhase(WriteAreaDesiredHours, s.Phase, a)
 }
 

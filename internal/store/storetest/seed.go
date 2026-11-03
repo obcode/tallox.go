@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/obcode/tallox.go/internal/store"
 	"github.com/obcode/tallox.go/internal/testdata"
 )
@@ -30,10 +32,13 @@ func SeedPerson(t *testing.T, s *Schema, p testdata.Persona, roles ...string) {
 	}
 
 	for _, role := range roles {
-		if err := q.GrantRole(t.Context(), store.GrantRoleParams{
-			PersonID: p.ID(),
-			Role:     role,
-		}); err != nil {
+		params := store.GrantRoleParams{PersonID: p.ID(), Role: role}
+		// OBSERVER exists only with an expiry (person_role_observer_expires), so a seeded one gets
+		// a month: long enough for any test, and the same shape as a real grant.
+		if role == "OBSERVER" {
+			params.ExpiresAt = pgtype.Timestamptz{Time: time.Now().AddDate(0, 0, 30), Valid: true}
+		}
+		if err := q.GrantRole(t.Context(), params); err != nil {
 			t.Fatalf("cannot grant %s to %s: %v", role, p.Name, err)
 		}
 	}

@@ -171,6 +171,8 @@ func peopleFacing(err error) error {
 		return refusal("SELF_GRANT_MUST_EXPIRE", domain.SelfGrantMustExpireReason)
 	case errors.Is(err, domain.ErrAdminGrantMustNotExpire):
 		return refusal("ADMIN_GRANT_MUST_NOT_EXPIRE", domain.AdminGrantMustNotExpireReason)
+	case errors.Is(err, domain.ErrObserverGrantMustExpire):
+		return refusal("OBSERVER_GRANT_MUST_EXPIRE", domain.ObserverGrantMustExpireReason)
 	case errors.Is(err, domain.ErrInvalidMail):
 		return refusal("INVALID_MAIL",
 			"Das ist keine Adresse, mit der sich jemand anmelden kann.")
@@ -219,6 +221,9 @@ func peopleFacing(err error) error {
 		return refusal("GRANT_EXPIRY_OUT_OF_RANGE",
 			fmt.Sprintf("Eine befristete Rolle läuft höchstens %d Tage.",
 				domain.MaxTemporaryGrantDays))
+	case errors.Is(err, domain.ErrObserverExpiryOutOfRange):
+		return refusal("GRANT_EXPIRY_OUT_OF_RANGE",
+			fmt.Sprintf("Die Rolle Einsicht läuft höchstens %d Tage.", domain.MaxObserverGrantDays))
 	default:
 		return refusal("INTERNAL", "Die Aktion konnte nicht ausgeführt werden.")
 	}

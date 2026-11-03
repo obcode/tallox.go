@@ -17,6 +17,7 @@ import (
 //	PROGRAMME_LEAD      Studiengangsleitung
 //	DEANS_OFFICE        Dekanat
 //	PARTNER_READER      Partnerfakultät
+//	OBSERVER            Einsicht
 //	ADMIN               Administration
 //
 // That table is the only German in this package, and it is here so that nobody has to
@@ -52,6 +53,16 @@ const (
 	// programmes, and it writes nothing at all.
 	RolePartnerReader Role = "PARTNER_READER"
 
+	// RoleObserver follows the whole planning without taking part in it — somebody building a
+	// neighbouring system who needs to see the data and the process as they are. Faculty-wide and
+	// unscoped, always granted with an expiry. See observer.go: held alone it reads everything
+	// that is not confidential, no other people's statements (not even published ones), and writes
+	// nothing.
+	//
+	// Deliberately not a reader of anything confidential. It is the answer to "she needs to see
+	// a lot" that stays off every exception list the faculty's colleagues were promised.
+	RoleObserver Role = "OBSERVER"
+
 	// RoleAdmin administers users, roles and tokens.
 	//
 	// Deliberately NOT a reader of unpublished wishes — see mayReadUnpublishedWishes. Running
@@ -73,6 +84,7 @@ func AllRoles() []Role {
 		RoleProgrammeLead,
 		RoleDeansOffice,
 		RolePartnerReader,
+		RoleObserver,
 		RoleAdmin,
 	}
 }

@@ -218,6 +218,11 @@ type AccessSummary struct {
 	// so with an expiry (ErrSelfGrantMustExpire), and this is where that becomes visible to more
 	// than the administrator.
 	SelfGrants []SelfGrant
+	// ObserverGrants are the OBSERVER grants in force at Until. Listed, not notable on their own:
+	// the role reads nothing confidential and lasts a project, so a mail every night for half a
+	// year would teach people to skip the report. The night it is granted is notable anyway — the
+	// setPersonRoles is a mutation.
+	ObserverGrants []ObserverGrant
 	// FullReachTokens are the Personal Access Tokens minted with full reach and valid at Until,
 	// with what each did in the window. They read what their owner reads in a browser, so their
 	// existence is reported every night while they hold.
@@ -242,6 +247,15 @@ type SelfGrant struct {
 	Role      string
 	GrantedAt time.Time
 	// ExpiresAt is the zero time for a grant without an expiry — one made before the rule.
+	ExpiresAt time.Time
+}
+
+// ObserverGrant is one OBSERVER grant in force.
+type ObserverGrant struct {
+	Mail string
+	// GrantedBy is the mail address of whoever granted it, empty if that is not known.
+	GrantedBy string
+	GrantedAt time.Time
 	ExpiresAt time.Time
 }
 

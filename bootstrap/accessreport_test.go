@@ -171,3 +171,26 @@ func TestTheNightlyReportNamesFullReachTokens(t *testing.T) {
 		}
 	}
 }
+
+// An observer is named with its end and who granted it — listed, but not a reason on its own to
+// send the mail.
+func TestTheNightlyReportListsObservers(t *testing.T) {
+	t.Parallel()
+
+	report := reportWith(nil, nil)
+	report.Summary.ObserverGrants = []domain.ObserverGrant{{
+		Mail: "prof.zwei@example.org", GrantedBy: "prof.sechs@example.org",
+		GrantedAt: time.Date(2026, 8, 1, 9, 0, 0, 0, time.Local),
+		ExpiresAt: time.Date(2027, 1, 31, 9, 0, 0, 0, time.Local),
+	}}
+
+	var out strings.Builder
+	bootstrap.PrintAccessReportForTest(&out, report, 24*time.Hour)
+	text := out.String()
+	for _, want := range []string{"ROLLE EINSICHT", "prof.zwei@example.org", "bis 2027-01-31 09:00",
+		"vergeben von prof.sechs@example.org", "Berichtenswert: nein"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("the report does not mention %q:\n%s", want, text)
+		}
+	}
+}

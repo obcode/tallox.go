@@ -62,6 +62,12 @@ type Querier interface {
 	// an address here and silently dropped every refused token — which is the half an administrator
 	// most wants to see, because a token being tried repeatedly is what a leaked one looks like.
 	AccessLogRefusedSignIns(ctx context.Context, arg AccessLogRefusedSignInsParams) ([]AccessLogRefusedSignInsRow, error)
+	// OBSERVER grants still in force at the end of the window, with who granted them.
+	//
+	// An observer reads nothing confidential, so this is not the weight of a self-grant: it is listed
+	// so that "who is looking at the planning from outside it, until when" has an answer that more
+	// than the administration reads.
+	AccessObserverGrants(ctx context.Context, until time.Time) ([]AccessObserverGrantsRow, error)
 	// Roles that read other people's unpublished wishes, held by the person who granted them, and
 	// still in force at the end of the window.
 	//

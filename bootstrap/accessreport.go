@@ -124,6 +124,19 @@ func printAccessReport(out io.Writer, report domain.AccessReport, since time.Dur
 		w.printf("  nur befristet; eine unbefristete stammt aus der Zeit vor dieser Regel.\n")
 	}
 
+	// Names people: who looks at the planning from outside it, and until when.
+	if len(s.ObserverGrants) > 0 {
+		w.printf("\nROLLE EINSICHT\n")
+		for _, g := range s.ObserverGrants {
+			by := ""
+			if g.GrantedBy != "" {
+				by = ", vergeben von " + g.GrantedBy
+			}
+			w.printf("  %-40s bis %s%s\n", g.Mail, g.ExpiresAt.Format("2006-01-02 15:04"), by)
+		}
+		w.printf("\n  Liest die Planung ohne Vertrauliches und schreibt nichts; endet von selbst.\n")
+	}
+
 	// Names people for the reason SELBST VERGEBENE ROLLEN does: such a token reads what its
 	// owner reads in a browser, and its existence is the standing fact.
 	if len(s.FullReachTokens) > 0 {

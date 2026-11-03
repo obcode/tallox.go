@@ -151,6 +151,23 @@ WHERE r.granted_by = r.person_id
   AND (r.expires_at IS NULL OR r.expires_at > sqlc.arg('until')::timestamptz)
 ORDER BY r.granted_at DESC, p.mail, r.role;
 
+-- name: AccessObserverGrants :many
+-- OBSERVER grants still in force at the end of the window, with who granted them.
+--
+-- An observer reads nothing confidential, so this is not the weight of a self-grant: it is listed
+-- so that "who is looking at the planning from outside it, until when" has an answer that more
+-- than the administration reads.
+SELECT p.mail::text AS mail,
+       COALESCE(g.mail, '')::text AS granted_by,
+       r.granted_at::timestamptz AS granted_at,
+       r.expires_at AS expires_at
+FROM person_role r
+JOIN person p ON p.id = r.person_id
+LEFT JOIN person g ON g.id = r.granted_by
+WHERE r.role = 'OBSERVER'
+  AND (r.expires_at IS NULL OR r.expires_at > sqlc.arg('until')::timestamptz)
+ORDER BY r.expires_at, p.mail;
+
 -- name: AccessFullReachTokens :many
 -- Personal Access Tokens minted with full reach and still valid at the end of the window, with
 -- what each did inside it.

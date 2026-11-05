@@ -587,6 +587,10 @@ type TeachingLoad struct {
 	// winter of the same study year — zero when nothing was declared there. Nil for a winter
 	// semester, which has nothing before it in its study year.
 	SpentInWinter *float64
+	// ContractLecturerHours is the part of the load held by lecturers on contract, or nil when the
+	// caller may not read every assignment of the programme. A sum over assignments, so it follows
+	// the assignment rule rather than the demand's: shown whole or not at all, never partial.
+	ContractLecturerHours *float64
 }
 
 // SemesterQuota is what this semester may spend of the yearly quota, or nil without a quota.
@@ -826,6 +830,11 @@ type DemandStore interface {
 	// TeachingLoad is the semester's teaching by home programme: every planned programme, and
 	// any other whose modules are taught in it.
 	TeachingLoad(ctx context.Context, semesterCode string) ([]TeachingLoad, error)
+	// ContractLecturerHours is the hours of the parts held by lecturers on contract, by the
+	// programme of the instance holding them — summed only over the assignments the filter lets
+	// through. A programme with none is absent from the map.
+	ContractLecturerHours(ctx context.Context, semesterCode string,
+		filter policy.AssignmentFilter) (map[uuid.UUID]float64, error)
 	// ApplyModuleSplit rewrites the parts of every instance of the module in a semester that is
 	// not FINAL to follow its split, in one transaction, and rolls back on dryRun. mayRemove says
 	// for which instances it may remove parts; for the others it only changes hours and adds.

@@ -115,6 +115,29 @@ func (f AssignmentFilter) Matches(a Assignment) bool {
 	}
 }
 
+// CoversProgramme reports whether this filter lets through every assignment of a programme's
+// instances, whoever holds them and whatever subject group their module is in.
+//
+// The question a per-programme sum over assignments has to ask before it is shown. A filter that
+// lets through some of a programme's assignments — a subject group lead's, which reaches only
+// their modules, or one's own — would turn the sum into a plausible-looking partial figure, and
+// a partial figure that moves when somebody else's part is filled is the confidential fact with
+// the names taken out. So the sum is shown whole or not at all: no restriction, or the programme
+// itself among the ones this caller is responsible for.
+//
+// Implies Matches for every assignment of that programme; TestCoveringAProgrammeMeansSeeingAllOfIt
+// asserts it over the cartesian product.
+func (f AssignmentFilter) CoversProgramme(programmeID uuid.UUID) bool {
+	switch f.Scope {
+	case AssignmentReadScopeAll:
+		return true
+	case AssignmentReadScopeOwnOrScoped:
+		return idScopeAllows(false, f.ProgrammeIDs, programmeID)
+	default:
+		return false
+	}
+}
+
 // holds is the half of the rule that is the same in both scoped cases.
 //
 // The nil guard carries more weight here than its counterpart on WishFilter: AssigneeID is

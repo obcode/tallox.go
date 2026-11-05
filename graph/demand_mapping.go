@@ -18,18 +18,19 @@ import (
 // courseInstanceModel gives: they are sums over a slice that is already loaded.
 func teachingLoadModel(l domain.TeachingLoad) *model.ProgrammeTeachingLoad {
 	out := &model.ProgrammeTeachingLoad{
-		Programme:         programmeModel(l.Programme),
-		TeachingHours:     l.TeachingHours(),
-		OwnHours:          l.OwnHours(),
-		InstanceCount:     l.Instances(),
-		FwpInstanceCount:  l.FwpInstances(),
-		FwpHours:          l.FwpHours(),
-		PartsWithoutHours: l.PartsWithoutHours(),
-		ExternalHours:     l.ExternalHours(),
-		Shares:            make([]*model.TeachingLoadShare, 0, len(l.Shares)),
-		YearlyQuota:       l.YearlyQuota,
-		SemesterQuota:     l.SemesterQuota(),
-		Balance:           l.Balance(),
+		Programme:             programmeModel(l.Programme),
+		TeachingHours:         l.TeachingHours(),
+		OwnHours:              l.OwnHours(),
+		InstanceCount:         l.Instances(),
+		FwpInstanceCount:      l.FwpInstances(),
+		FwpHours:              l.FwpHours(),
+		PartsWithoutHours:     l.PartsWithoutHours(),
+		ExternalHours:         l.ExternalHours(),
+		ContractLecturerHours: l.ContractLecturerHours,
+		Shares:                make([]*model.TeachingLoadShare, 0, len(l.Shares)),
+		YearlyQuota:           l.YearlyQuota,
+		SemesterQuota:         l.SemesterQuota(),
+		Balance:               l.Balance(),
 	}
 	for _, s := range l.Shares {
 		out.Shares = append(out.Shares, &model.TeachingLoadShare{

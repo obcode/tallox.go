@@ -268,6 +268,14 @@ func (f *fakeDemandStore) PlanDemand(_ context.Context, semester string, _ uuid.
 	return domain.DemandPlan{DryRun: dryRun}, nil
 }
 
+// ContractLecturerHours answers nothing: the sum is a statement about rows and is asserted against
+// PostgreSQL in internal/store, and who sees it through the API in bootstrap.
+func (f *fakeDemandStore) ContractLecturerHours(context.Context, string,
+	policy.AssignmentFilter,
+) (map[uuid.UUID]float64, error) {
+	return map[uuid.UUID]float64{}, nil
+}
+
 func (f *fakeDemandStore) TeachingLoad(_ context.Context, semester string) ([]domain.TeachingLoad, error) {
 	if l, ok := f.loadsOf[semester]; ok {
 		return append([]domain.TeachingLoad{}, l...), nil

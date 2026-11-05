@@ -528,18 +528,19 @@ type ComplexityRoot struct {
 	}
 
 	ProgrammeTeachingLoad struct {
-		Balance           func(childComplexity int) int
-		ExternalHours     func(childComplexity int) int
-		FwpHours          func(childComplexity int) int
-		FwpInstanceCount  func(childComplexity int) int
-		InstanceCount     func(childComplexity int) int
-		OwnHours          func(childComplexity int) int
-		PartsWithoutHours func(childComplexity int) int
-		Programme         func(childComplexity int) int
-		SemesterQuota     func(childComplexity int) int
-		Shares            func(childComplexity int) int
-		TeachingHours     func(childComplexity int) int
-		YearlyQuota       func(childComplexity int) int
+		Balance               func(childComplexity int) int
+		ContractLecturerHours func(childComplexity int) int
+		ExternalHours         func(childComplexity int) int
+		FwpHours              func(childComplexity int) int
+		FwpInstanceCount      func(childComplexity int) int
+		InstanceCount         func(childComplexity int) int
+		OwnHours              func(childComplexity int) int
+		PartsWithoutHours     func(childComplexity int) int
+		Programme             func(childComplexity int) int
+		SemesterQuota         func(childComplexity int) int
+		Shares                func(childComplexity int) int
+		TeachingHours         func(childComplexity int) int
+		YearlyQuota           func(childComplexity int) int
 	}
 
 	Query struct {
@@ -3304,6 +3305,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ProgrammeTeachingLoad.Balance(childComplexity), true
+	case "ProgrammeTeachingLoad.contractLecturerHours":
+		if e.ComplexityRoot.ProgrammeTeachingLoad.ContractLecturerHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ProgrammeTeachingLoad.ContractLecturerHours(childComplexity), true
 	case "ProgrammeTeachingLoad.externalHours":
 		if e.ComplexityRoot.ProgrammeTeachingLoad.ExternalHours == nil {
 			break
@@ -7042,6 +7049,18 @@ type ProgrammeTeachingLoad {
   somebody else gives.
   """
   externalHours: Float!
+  """
+  The part of ` + "`" + `teachingHours` + "`" + ` held by lecturers on contract: the hours of the parts assigned to a
+  teacher with ` + "`" + `Teacher.isLecturerOnContract` + "`" + `, or to an account whose teacher record carries that
+  flag. Counted the way ` + "`" + `teachingHours` + "`" + ` counts — a lecture held once for two cohorts once, at the
+  programme holding it. A figure per programme only; there is no such figure per person.
+
+  A sum over assignments, so it follows the rule for reading them: ` + "`" + `null` + "`" + ` while the caller may not
+  read every assignment of this programme — before ` + "`" + `Semester.assignmentsPublishedAt` + "`" + `, that is the
+  lead of the programme and the dean's office, in the browser or with a full-reach token; after
+  it, everybody who reads this row. ` + "`" + `null` + "`" + ` is "not yours to know yet", not zero.
+  """
+  contractLecturerHours: Float
   """
   The load split by the home programme of the modules, ordered by its code. Empty for a planned
   programme nothing has been declared for yet.
@@ -11274,6 +11293,8 @@ func (ec *executionContext) childFields_ProgrammeTeachingLoad(ctx context.Contex
 		return ec.fieldContext_ProgrammeTeachingLoad_partsWithoutHours(ctx, field)
 	case "externalHours":
 		return ec.fieldContext_ProgrammeTeachingLoad_externalHours(ctx, field)
+	case "contractLecturerHours":
+		return ec.fieldContext_ProgrammeTeachingLoad_contractLecturerHours(ctx, field)
 	case "shares":
 		return ec.fieldContext_ProgrammeTeachingLoad_shares(ctx, field)
 	case "yearlyQuota":

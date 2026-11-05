@@ -48,6 +48,18 @@ type ProgrammeTeachingLoad {
   """
   externalHours: Float!
   """
+  The part of `teachingHours` held by lecturers on contract: the hours of the parts assigned to a
+  teacher with `Teacher.isLecturerOnContract`, or to an account whose teacher record carries that
+  flag. Counted the way `teachingHours` counts — a lecture held once for two cohorts once, at the
+  programme holding it. A figure per programme only; there is no such figure per person.
+
+  A sum over assignments, so it follows the rule for reading them: `null` while the caller may not
+  read every assignment of this programme — before `Semester.assignmentsPublishedAt`, that is the
+  lead of the programme and the dean's office, in the browser or with a full-reach token; after
+  it, everybody who reads this row. `null` is "not yours to know yet", not zero.
+  """
+  contractLecturerHours: Float
+  """
   The load split by the home programme of the modules, ordered by its code. Empty for a planned
   programme nothing has been declared for yet.
   """

@@ -247,6 +247,29 @@ func (d *Demand) TeachingLoad(ctx context.Context, semesterCode string) ([]domai
 	return loads, nil
 }
 
+// ContractLecturerHours sums the hours of the parts held by lecturers on contract, by the
+// programme of the instance holding them, over the assignments the filter lets through.
+func (d *Demand) ContractLecturerHours(ctx context.Context, semesterCode string,
+	filter policy.AssignmentFilter,
+) (map[uuid.UUID]float64, error) {
+	scope, assignee, programmes, groups := assignmentFilterParams(filter)
+	rows, err := New(d.pool).ContractLecturerHoursByProgramme(ctx, ContractLecturerHoursByProgrammeParams{
+		Semester:        semesterCode,
+		Scope:           scope,
+		AssigneeID:      assignee,
+		ProgrammeIds:    programmes,
+		SubjectGroupIds: groups,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the hours of lecturers on contract: %w", err)
+	}
+	out := make(map[uuid.UUID]float64, len(rows))
+	for _, row := range rows {
+		out[row.ProgrammeID] = row.Hours
+	}
+	return out, nil
+}
+
 // ProgrammeQuotas lists the quotas entered for one study year.
 func (d *Demand) ProgrammeQuotas(ctx context.Context, studyYear int) ([]domain.ProgrammeQuota, error) {
 	rows, err := New(d.pool).ProgrammeQuotasOfYear(ctx, int32(studyYear)) //nolint:gosec // bounded by the service

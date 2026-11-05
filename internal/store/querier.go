@@ -363,6 +363,28 @@ type Querier interface {
 	// this semester — there is nothing to confirm, and an empty confirmation would read as "checked"
 	// on the day somebody is first given something.
 	ConfirmAssignments(ctx context.Context, arg ConfirmAssignmentsParams) (time.Time, error)
+	// Contract lecturer hours: how much of a programme's teaching is held by lecturers on contract,
+	// for the controlling view (ProgrammeTeachingLoad.contractLecturerHours).
+	//
+	// A SUM OVER ASSIGNMENTS, AND THEREFORE FILTERED
+	//
+	// assignment.sql has no COUNT and no SUM, because before publication a sum over assignments the
+	// caller may not read one by one is the same leak as the rows. This file sums them anyway, and it
+	// may because every read carries the assignment visibility filter itself (policy.AssignmentFilter,
+	// the same four branches assignment.sql spells out), and because the service shows a programme's
+	// figure only when that filter covers the whole programme (AssignmentFilter.CoversProgramme) — a
+	// partial sum would be the confidential fact with the names taken out.
+	// store.TestEveryContractLecturerQueryIsFiltered reads this file and insists on the filter.
+	//
+	// WHAT IS COUNTED
+	//
+	// The hours of the parts held by a teacher flagged is_lecturer_on_contract, or by an account
+	// whose teacher record (joined by address, the link the assignment's write path canonicalises
+	// by) carries the flag. Counted the way TeachingLoadByProgramme counts teachingHours: at the
+	// programme of the instance holding the part, a lecture serving both cohorts is one part and
+	// counts once, and a part another faculty teaches is not ours (it cannot be held anyway).
+	// Per programme only: there is no per-person figure here, by design.
+	ContractLecturerHoursByProgramme(ctx context.Context, arg ContractLecturerHoursByProgrammeParams) ([]ContractLecturerHoursByProgrammeRow, error)
 	// Turn the pending advance wishes of one programme and semester into wishes, where there is now a
 	// cohort to wish for. Run inside the transaction that released the demand or created a cohort.
 	//

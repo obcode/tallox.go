@@ -613,6 +613,8 @@ func (m *Modules) CreateLocalModule(ctx context.Context, spec domain.NewLocalMod
 
 // UpdateLocalModule corrects a local course, or takes it out of the lists with active = false.
 //
+// active = false is ErrModuleInDemand while a semester that is not FINAL has an instance of it.
+//
 // No rows back means the id names no local module — either nothing at all, or an imported row,
 // and the two are deliberately the same answer here: the statement names the source, so a
 // mistyped id changes nothing instead of editing the catalogue the import owns.
@@ -645,6 +647,19 @@ func (m *Modules) UpdateLocalModule(ctx context.Context, id uuid.UUID,
 			return nil, domain.ErrLocalModuleNameTaken
 		}
 		return nil, fmt.Errorf("cannot change the course: %w", err)
+	}
+
+	// Inside the write's transaction, so that a refusal changes nothing. Every write with
+	// active = false asks, not only the transition: an inactive course that still has open
+	// demand is the state this exists to prevent, and a rename should not cement it.
+	if !spec.Active {
+		open, err := q.ModuleHasOpenInstance(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read the course's demand: %w", err)
+		}
+		if open {
+			return nil, domain.ErrModuleInDemand
+		}
 	}
 
 	if err := writeComponents(ctx, q, id, spec.Components, by); err != nil {

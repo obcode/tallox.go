@@ -284,6 +284,21 @@ RETURNING id, name, home_programme_id, responsible_teacher_id, course_type, freq
        source, kind;
 
 
+-- name: ModuleHasOpenInstance :one
+-- Whether a module is still in the demand of a semester that is not over.
+--
+-- What keeps a local course from being taken out of the lists while it still costs hours: a
+-- deactivated module disappears from the demand page, and its instances would go on counting
+-- where nobody sees them. FINAL is the only phase that ends a semester, so it is the only one
+-- that does not count.
+SELECT EXISTS (
+    SELECT 1
+      FROM course_instance ci
+      JOIN semester s ON s.id = ci.semester_id
+     WHERE ci.module_id = $1
+       AND s.phase <> 'FINAL'
+)::bool AS open;
+
 -- name: SetProgrammePlanningStatus :one
 -- Record that this faculty plans a programme, or no longer does.
 --

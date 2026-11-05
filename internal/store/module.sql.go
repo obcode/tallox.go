@@ -629,6 +629,29 @@ func (q *Queries) ModuleComponentsFor(ctx context.Context, moduleIds []uuid.UUID
 	return items, nil
 }
 
+const moduleHasOpenInstance = `-- name: ModuleHasOpenInstance :one
+SELECT EXISTS (
+    SELECT 1
+      FROM course_instance ci
+      JOIN semester s ON s.id = ci.semester_id
+     WHERE ci.module_id = $1
+       AND s.phase <> 'FINAL'
+)::bool AS open
+`
+
+// Whether a module is still in the demand of a semester that is not over.
+//
+// What keeps a local course from being taken out of the lists while it still costs hours: a
+// deactivated module disappears from the demand page, and its instances would go on counting
+// where nobody sees them. FINAL is the only phase that ends a semester, so it is the only one
+// that does not count.
+func (q *Queries) ModuleHasOpenInstance(ctx context.Context, moduleID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, moduleHasOpenInstance, moduleID)
+	var open bool
+	err := row.Scan(&open)
+	return open, err
+}
+
 const moduleOfferingsFor = `-- name: ModuleOfferingsFor :many
 SELECT o.id, o.module_id, o.spo_id, o.is_duty, o.module_codes, o.focuses, o.baskets,
        o.min_programme_semester,

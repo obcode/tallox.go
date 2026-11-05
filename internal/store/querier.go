@@ -995,6 +995,13 @@ type Querier interface {
 	ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, error)
 	// The splits of a set of modules, in one statement.
 	ModuleComponentsFor(ctx context.Context, moduleIds []uuid.UUID) ([]ModuleComponentsForRow, error)
+	// Whether a module is still in the demand of a semester that is not over.
+	//
+	// What keeps a local course from being taken out of the lists while it still costs hours: a
+	// deactivated module disappears from the demand page, and its instances would go on counting
+	// where nobody sees them. FINAL is the only phase that ends a semester, so it is the only one
+	// that does not count.
+	ModuleHasOpenInstance(ctx context.Context, moduleID uuid.UUID) (bool, error)
 	// Where a set of modules counts, in one statement, joined to the regulations they count in.
 	//
 	// Unfiltered by programme on purpose, even when the list was filtered by one. A module's

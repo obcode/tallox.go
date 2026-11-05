@@ -317,6 +317,13 @@ func catalogueUserFacing(actor principal.Actor, err error) error {
 			Message:    err.Error(),
 			Extensions: map[string]any{"code": "MODULE_NAME_TAKEN"},
 		}
+	case errors.Is(err, domain.ErrModuleInDemand):
+		// Its own code, because the repair is somewhere else: the demand page, where the cohorts
+		// are withdrawn. Instances are not confidential, so the refusal leaks nothing.
+		return &gqlerror.Error{
+			Message:    err.Error(),
+			Extensions: map[string]any{"code": "MODULE_IN_DEMAND"},
+		}
 	default:
 		// Anything else is ours, not the caller's. The sentence is generic on purpose: a
 		// database error in the clear says things about rows nobody asked about — and it is

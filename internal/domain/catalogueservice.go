@@ -45,6 +45,12 @@ var (
 	// is no other identity for a row somebody typed, so the name is the one that has to hold.
 	ErrLocalModuleNameTaken = errors.New(
 		"in diesem Studiengang gibt es bereits eine eigene Lehrveranstaltung dieses Namens")
+	// ErrModuleInDemand is a local course being taken out of the lists while a semester that is
+	// not over still has an instance of it. Deactivating would hide demand that still costs hours,
+	// so the instances have to be withdrawn first. Instances are not confidential, so saying this
+	// tells nobody anything they could not read.
+	ErrModuleInDemand = errors.New(
+		"der Eintrag steht noch im Bedarf eines laufenden Semesters – bitte dort zuerst mit „−“ herausnehmen")
 )
 
 // CatalogueService answers questions about the module catalogue and takes the one decision that
@@ -473,6 +479,10 @@ func (s *CatalogueService) CreateLocalModule(ctx context.Context, actor principa
 // There is no delete, and that is the same decision the rest of this schema makes: instances
 // point at a module, and later wishes will point at their parts. Deactivating removes it from
 // every list a planner sees and leaves what was planned with it intact.
+//
+// Deactivating is refused with ErrModuleInDemand while a semester that is not FINAL still has an
+// instance of the module: the demand page would stop showing a row whose hours still count. The
+// store asks inside the write's transaction, so a refusal changes nothing.
 //
 // The permission is judged against the module's *stored* home programme, which is why the row is
 // read first — and why the home programme is not among the editable fields. Letting it move

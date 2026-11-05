@@ -66,6 +66,24 @@ aus der eigenen Reichweite zu schieben. Eine importierte Zeile antwortet dort `M
 wie eine nicht existierende — sie ist nicht Sache dieser Mutation, und zu sagen, welcher der
 beiden Fälle vorliegt, lüde nur zum zweiten Versuch ein.
 
+## Stilllegen erst nach dem Bedarf (seit 2026-11-05)
+
+`changeLocalModule` mit `active: false` antwortet `MODULE_IN_DEMAND`, solange eine Instanz des
+Moduls in einem Semester steht, das nicht `FINAL` ist (`ModuleHasOpenInstance`, gefragt im
+Schreib-Tx von `UpdateLocalModule`, also ändert eine Absage auch den Namen nicht). Grund: ein
+stillgelegtes Modul verschwindet von der Bedarfsseite, seine Instanzen kosten aber weiter SWS.
+Reparatur ist „−“ im Bedarf (`withdrawCourseInstance`). Instanzen sind nicht vertraulich, die
+Absage leckt also nichts; die Berechtigung wird vorher geprüft, Fremde sehen weiter
+`NOT_YOUR_PROGRAMME`.
+
+- Gefragt wird bei **jedem** Schreiben mit `active: false`, nicht nur beim Übergang: auch
+  Umbenennen eines schon stillgelegten Moduls mit offenem Bedarf wird abgelehnt.
+- Echtes Löschen gibt es weiterhin nicht, auch nicht für nie benutzte Einträge.
+- Lücke, bewusst offen: `declareCourseInstance` prüft `module.active` nicht, ein stillgelegtes
+  Modul kann also per API wieder Bedarf bekommen (die GUI bietet es nicht an).
+- Keine Policy-Änderung, Golden-Matrizen unverändert; die Fachgruppenleitung darf weiterhin
+  nicht.
+
 ## `adoptModule` bewusst später
 
 Wenn ein lokal angelegtes Fach später doch im ZPA auftaucht, ist das Verheiraten ein `UPDATE`

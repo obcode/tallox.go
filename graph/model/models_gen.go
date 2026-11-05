@@ -913,7 +913,8 @@ type LocalModuleInput struct {
 	// False takes it out of every list without deleting anything.
 	//
 	// There is no delete and there will not be one: instances point at a module, and later wishes
-	// will point at their parts. This is how a course nobody needs any more is retired.
+	// will point at their parts. This is how a course nobody needs any more is retired — once it is
+	// in no running semester's demand any more, see `changeLocalModule`.
 	Active bool `json:"active"`
 	// The split. Without it no instance can be declared of the module — that is refused with
 	// `MODULE_NOT_DECOMPOSED` until `setModuleComponents` states one.

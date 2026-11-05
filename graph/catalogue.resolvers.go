@@ -8,6 +8,7 @@ package graph
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/obcode/tallox.go/graph/generated"
@@ -222,6 +223,16 @@ func (r *mutationResolver) SetModuleSemesterSpan(ctx context.Context, moduleID s
 		return nil, catalogueUserFacing(actor, err)
 	}
 	return moduleModel(*module), nil
+}
+
+// CreateLocalTeacher is the resolver for the createLocalTeacher field.
+func (r *mutationResolver) CreateLocalTeacher(ctx context.Context, input model.LocalTeacherInput) (*model.Teacher, error) {
+	panic(fmt.Errorf("not implemented: CreateLocalTeacher - createLocalTeacher"))
+}
+
+// ChangeLocalTeacher is the resolver for the changeLocalTeacher field.
+func (r *mutationResolver) ChangeLocalTeacher(ctx context.Context, id string, input model.LocalTeacherInput) (*model.Teacher, error) {
+	panic(fmt.Errorf("not implemented: ChangeLocalTeacher - changeLocalTeacher"))
 }
 
 // Degree is the resolver for the degree field.

@@ -2104,6 +2104,29 @@ func (ec *executionContext) fieldContext_Teacher_isUser(_ context.Context, field
 	return graphql.NewScalarFieldContext("Teacher", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _Teacher_enteredByHand(ctx context.Context, field graphql.CollectedField, obj *model.Teacher) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Teacher_enteredByHand(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.EnteredByHand, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Teacher_enteredByHand(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Teacher", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
@@ -2199,6 +2222,74 @@ func (ec *executionContext) unmarshalInputLocalModuleInput(ctx context.Context, 
 				return it, err
 			}
 			it.Components = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputLocalTeacherInput(ctx context.Context, obj any) (model.LocalTeacherInput, error) {
+	var it model.LocalTeacherInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["givenName"]; !present {
+		asMap["givenName"] = ""
+	}
+	if _, present := asMap["isLecturerOnContract"]; !present {
+		asMap["isLecturerOnContract"] = true
+	}
+	if _, present := asMap["active"]; !present {
+		asMap["active"] = true
+	}
+
+	fieldsInOrder := [...]string{"surname", "givenName", "mail", "isLecturerOnContract", "active"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "surname":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("surname"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Surname = data
+		case "givenName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("givenName"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.GivenName = data
+		case "mail":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mail"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Mail = data
+		case "isLecturerOnContract":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("isLecturerOnContract"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.IsLecturerOnContract = data
+		case "active":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("active"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Active = data
 		}
 	}
 	return it, nil
@@ -3421,6 +3512,11 @@ func (ec *executionContext) _Teacher(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "enteredByHand":
+			out.Values[i] = ec._Teacher_enteredByHand(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -3525,6 +3621,11 @@ func (ec *executionContext) marshalNInstancePartKind2githubᚗcomᚋobcodeᚋtal
 
 func (ec *executionContext) unmarshalNLocalModuleInput2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐLocalModuleInput(ctx context.Context, v any) (model.LocalModuleInput, error) {
 	res, err := ec.unmarshalInputLocalModuleInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNLocalTeacherInput2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐLocalTeacherInput(ctx context.Context, v any) (model.LocalTeacherInput, error) {
+	res, err := ec.unmarshalInputLocalTeacherInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -3800,6 +3901,10 @@ func (ec *executionContext) marshalNSpo2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgo�
 		return graphql.Null
 	}
 	return ec._Spo(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNTeacher2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐTeacher(ctx context.Context, sel ast.SelectionSet, v model.Teacher) graphql.Marshaler {
+	return ec._Teacher(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNTeacher2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐTeacherᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Teacher) graphql.Marshaler {

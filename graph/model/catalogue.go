@@ -62,6 +62,7 @@ type Teacher struct {
 	Faculty              *string `json:"faculty,omitempty"`
 	LastSemester         *string `json:"lastSemester,omitempty"`
 	IsUser               bool    `json:"isUser"`
+	EnteredByHand        bool    `json:"enteredByHand"`
 }
 
 // Module is a catalogue entry, on the wire.

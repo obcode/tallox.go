@@ -406,11 +406,13 @@ type ComplexityRoot struct {
 		ChangeCourseInstance          func(childComplexity int, id string, track string, programmeSemester *int) int
 		ChangeInstancePart            func(childComplexity int, id string, kind domain.InstancePartKind, teachingHours *float64) int
 		ChangeLocalModule             func(childComplexity int, id string, input model.LocalModuleInput) int
+		ChangeLocalTeacher            func(childComplexity int, id string, input model.LocalTeacherInput) int
 		ClearAssignment               func(childComplexity int, id string) int
 		ConfirmMyAssignments          func(childComplexity int, semester string) int
 		CopyDemandFromSemester        func(childComplexity int, from string, to string, programme string) int
 		CorrectDesiredTeachingHours   func(childComplexity int, semester string, person string, minHours *float64, maxHours *float64, note *string) int
 		CreateLocalModule             func(childComplexity int, input model.LocalModuleInput) int
+		CreateLocalTeacher            func(childComplexity int, input model.LocalTeacherInput) int
 		CreatePerson                  func(childComplexity int, mail string, name *string) int
 		CreatePersonalAccessToken     func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput, fullReach bool) int
 		CreateSubjectGroup            func(childComplexity int, code string, name string) int
@@ -678,6 +680,7 @@ type ComplexityRoot struct {
 
 	Teacher struct {
 		Active               func(childComplexity int) int
+		EnteredByHand        func(childComplexity int) int
 		Faculty              func(childComplexity int) int
 		ID                   func(childComplexity int) int
 		IsHonoraryProfessor  func(childComplexity int) int
@@ -2381,6 +2384,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.ChangeLocalModule(childComplexity, args["id"].(string), args["input"].(model.LocalModuleInput)), true
+	case "Mutation.changeLocalTeacher":
+		if e.ComplexityRoot.Mutation.ChangeLocalTeacher == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_changeLocalTeacher_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.ChangeLocalTeacher(childComplexity, args["id"].(string), args["input"].(model.LocalTeacherInput)), true
 	case "Mutation.clearAssignment":
 		if e.ComplexityRoot.Mutation.ClearAssignment == nil {
 			break
@@ -2436,6 +2450,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateLocalModule(childComplexity, args["input"].(model.LocalModuleInput)), true
+	case "Mutation.createLocalTeacher":
+		if e.ComplexityRoot.Mutation.CreateLocalTeacher == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createLocalTeacher_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateLocalTeacher(childComplexity, args["input"].(model.LocalTeacherInput)), true
 	case "Mutation.createPerson":
 		if e.ComplexityRoot.Mutation.CreatePerson == nil {
 			break
@@ -4213,6 +4238,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Teacher.Active(childComplexity), true
+	case "Teacher.enteredByHand":
+		if e.ComplexityRoot.Teacher.EnteredByHand == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Teacher.EnteredByHand(childComplexity), true
 	case "Teacher.faculty":
 		if e.ComplexityRoot.Teacher.Faculty == nil {
 			break
@@ -4662,6 +4693,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDemandEntryInput,
 		ec.unmarshalInputDemandTrackInput,
 		ec.unmarshalInputLocalModuleInput,
+		ec.unmarshalInputLocalTeacherInput,
 		ec.unmarshalInputModuleComponentInput,
 		ec.unmarshalInputModuleFilter,
 		ec.unmarshalInputScopeGrantInput,
@@ -5834,6 +5866,15 @@ type Teacher {
   morning is connected to their own modules now rather than after the next import.
   """
   isUser: Boolean!
+  """
+  Entered by hand because the ZPA does not list this person yet — typically a lecturer on
+  contract won for next semester. See ` + "`" + `createLocalTeacher` + "`" + `.
+
+  Turns false by itself once the ZPA lists somebody under the same address: the nightly import
+  takes the row over, keeps its id and so everything planned with it, and overwrites the names
+  and flags with the examination office's.
+  """
+  enteredByHand: Boolean!
 }
 
 """
@@ -6682,6 +6723,60 @@ type ModuleSplitRefusal {
   code: String!
   "The sentence to show."
   message: String!
+}
+
+"""
+Somebody who teaches and whom the ZPA does not list yet, on the way in.
+"""
+input LocalTeacherInput {
+  "The surname. Required."
+  surname: String!
+  "The given name, or empty."
+  givenName: String! = ""
+  """
+  The address. Required, and the row's identity: it is unique among everybody who teaches and
+  everybody with an account, and it is how the nightly import recognises the person once the ZPA
+  lists them.
+  """
+  mail: String!
+  "Teaches on a contract (Lehrbeauftragte). The usual case for somebody entered by hand."
+  isLecturerOnContract: Boolean! = true
+  """
+  False takes the row out of the lists without deleting anything: assignments and competences may
+  point at it. Only ` + "`" + `changeLocalTeacher` + "`" + ` reads it; a new row is always active.
+  """
+  active: Boolean! = true
+}
+
+extend type Mutation {
+  """
+  Enter somebody who teaches and whom the ZPA does not list yet, so that they can be assigned and
+  given competences before the examination office catches up.
+
+  For the subject group leads (of any group) and the dean's office, who are the ones who assign.
+  ` + "`" + `TEACHER_ENTRY_REFUSED` + "`" + ` otherwise. With full reach, like the assignment itself: the refusal
+  below answers a question about accounts.
+
+  The address has to be new: ` + "`" + `TEACHER_MAIL_TAKEN` + "`" + ` when somebody who teaches or somebody with an
+  account already has it. That is one answer for both cases on purpose — the repair is the same,
+  pick that person in the list instead.
+
+  Grants nothing: like every teacher, the row is master data and not an account. Once the ZPA
+  lists the same address, the nightly import takes the row over (` + "`" + `enteredByHand` + "`" + ` turns false).
+  """
+  createLocalTeacher(input: LocalTeacherInput!): Teacher!
+    @fullReach @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Correct one, or take it out of the lists with ` + "`" + `active: false` + "`" + `. On the terms of
+  ` + "`" + `createLocalTeacher` + "`" + `.
+
+  Only a row entered by hand and not yet taken over by the import: anything else answers
+  ` + "`" + `TEACHER_NOT_FOUND` + "`" + `, exactly as an id that names nothing does. There is no delete, because
+  assignments and competences may point at the row.
+  """
+  changeLocalTeacher(id: ID!, input: LocalTeacherInput!): Teacher!
+    @fullReach @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../competence.graphqls", Input: `# Competences: who can teach which module, and who would like to.
@@ -8223,6 +8318,7 @@ enum ScopeArea {
   ` + "`" + `confirmMyAssignments` + "`" + `, ` + "`" + `assignedTeachingHours` + "`" + `, ` + "`" + `setAssignment` + "`" + `, ` + "`" + `clearAssignment` + "`" + `, ` + "`" + `setCourseInstanceFormat` + "`" + `, ` + "`" + `setCourseInstanceCiE` + "`" + `,
   ` + "`" + `setModuleComponents` + "`" + `, ` + "`" + `applyModuleSplitToInstances` + "`" + `, ` + "`" + `setModuleProjectBased` + "`" + `,
   ` + "`" + `setModuleSemesterSpan` + "`" + `, ` + "`" + `createLocalModule` + "`" + `, ` + "`" + `changeLocalModule` + "`" + `,
+  ` + "`" + `createLocalTeacher` + "`" + `, ` + "`" + `changeLocalTeacher` + "`" + `,
   ` + "`" + `setProgrammePlanningStatus` + "`" + `, ` + "`" + `setProgrammeDegree` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `duplicateCourseInstance` + "`" + `,
   ` + "`" + `changeCourseInstance` + "`" + `, ` + "`" + `setCourseInstanceTopic` + "`" + `, ` + "`" + `withdrawCourseInstance` + "`" + `, ` + "`" + `addInstancePart` + "`" + `, ` + "`" + `changeInstancePart` + "`" + `,
   ` + "`" + `removeInstancePart` + "`" + `, ` + "`" + `shareInstancePartAcrossTracks` + "`" + `, ` + "`" + `splitInstancePartAcrossTracks` + "`" + `,
@@ -10343,6 +10439,12 @@ enum ZpaProjectionFinding {
   """
   TEACHER_WITHOUT_MAIL
   """
+  Merged: somebody entered by hand (` + "`" + `createLocalTeacher` + "`" + `) whom the source now lists under the same
+  address. The row keeps its id, so everything planned with it stays, and takes the source's names
+  and flags. The sample is the source's teacher ids.
+  """
+  LOCAL_TEACHER_ADOPTED
+  """
   The one that is an alarm rather than a note, and it should always be absent.
 
   A module's entry per set of regulations is folded from up to four catalogue slots, and that
@@ -11485,6 +11587,8 @@ func (ec *executionContext) childFields_Teacher(ctx context.Context, field graph
 		return ec.fieldContext_Teacher_lastSemester(ctx, field)
 	case "isUser":
 		return ec.fieldContext_Teacher_isUser(ctx, field)
+	case "enteredByHand":
+		return ec.fieldContext_Teacher_enteredByHand(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Teacher", field.Name)
 }

@@ -991,7 +991,8 @@ type Querier interface {
 	// which takes FOR SHARE; the foreign key check of an assignment only takes FOR KEY SHARE, and that
 	// alone would let a fill slip past a part that is just being given away.
 	LockInstancePart(ctx context.Context, id uuid.UUID) (LockInstancePartRow, error)
-	// The codes ProjectProgrammes had to leave out, so the report can name them.
+	// The codes ProjectProgrammes had to leave out, so the report can name them. Named as the source
+	// writes them; one with an alias is judged by the code it maps to, and is no finding.
 	MalformedProgrammeCodes(ctx context.Context) ([]string, error)
 	// Make this semester the one being planned.
 	//
@@ -1234,9 +1235,14 @@ type Querier interface {
 	// `title` is written on insert only — never in the DO UPDATE. The source has no long name (its
 	// `title` field carries the code again), so the column is for a human, and a projection that
 	// refreshed it would overwrite what they typed on the next nightly run.
+	//
+	// A source code is read through programme_code_for(), so that two codes the faculty treats as one
+	// programme (programme_code_alias) arrive as one row: the fold is the GROUP BY, and min() ignores
+	// the NULL reference a module's owner contributes.
 	// Defence rather than expectation: every real code is two to four upper-case letters. Without
 	// the filter, one malformed code would abort the whole projection and take every other
-	// programme's modules with it. What is filtered out is counted by MalformedProgrammeCodes below.
+	// programme's modules with it. What is filtered out is counted by MalformedProgrammeCodes below;
+	// a source code that does not fit ("DC-M") is made to fit by an alias, not by loosening this.
 	ProjectProgrammes(ctx context.Context) (int64, error)
 	// One row per version of one programme's regulations.
 	//
@@ -1244,6 +1250,12 @@ type Querier interface {
 	// does not are deliberately not synthesised from the copy embedded in those rows: that copy has
 	// a version and a date but no programme, and a set of regulations belonging to no programme is
 	// the same pathology as a module whose owner is the string "None", one level up.
+	//
+	// DISTINCT ON because of the aliases: two source programmes folded into one may each publish the
+	// same version, and one INSERT cannot upsert the same row twice — that would abort the projection
+	// for every programme. The newer source object wins, and the associations of the other are not
+	// projected. Not expected in practice (a renamed programme's new regulations are a new version);
+	// a test pins that the projection survives it.
 	ProjectSpos(ctx context.Context) (int64, error)
 	// The people who teach, as the examination office publishes them.
 	//

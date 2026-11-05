@@ -278,6 +278,11 @@ type Programme struct {
 	DegreeSetBy         uuid.NullUUID
 }
 
+type ProgrammeCodeAlias struct {
+	ZpaCode       string
+	ProgrammeCode string
+}
+
 type ProgrammeQuotum struct {
 	ProgrammeID   uuid.UUID
 	StudyYear     int32

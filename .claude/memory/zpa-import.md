@@ -199,3 +199,24 @@ später nicht breaking.
   Steht als Regel in `CLAUDE.md`; `-check-config` macht sie prüfbar, ohne Datenbank.
 
 Siehe [[semester-and-phase]] und [[scope-enforcement]].
+
+## Ein Studiengang unter zwei ZPA-Kürzeln (2026-11-05)
+
+Das ZPA hat DA umbenannt, indem es einen **zweiten** Studiengang „DC-M“ anlegte (eigene
+Programm-ID, eigene SPO, Module mit Heimat DC-M und zugleich in der DA-SPO). Wegen des
+Bindestrichs fiel DC-M aus der Projektion (`programme_code_is_short`), mit ihm jedes Heimatmodul —
+gemeldet nur als `PROGRAMME_CODE_MALFORMED` auf der Importseite, zwei Tage unbemerkt.
+
+Entscheidung: für die Fakultät **ein** Studiengang, Kürzel **DCM** (ohne Bindestrich, wie DHB).
+Migration `20261105210000`: Tabelle `programme_code_alias(zpa_code → programme_code)` mit DA → DCM
+und DC-M → DCM, Funktion `programme_code_for()`, die Projektion liest jedes Quellkürzel dadurch.
+Die DA-Zeile wird umbenannt, nicht ersetzt — Bedarf, Kontingent, Scopes hängen an der id.
+Die Kürzelregel wurde bewusst **nicht** gelockert (ein erster Ansatz mit `-` in der Regel wurde
+verworfen, weil er zwei Studiengänge erzeugt hätte).
+
+Zwei Grenzen: gleiche SPO-Version unter beiden Quellkürzeln → `DISTINCT ON`, die neuere gewinnt,
+die Zuordnungen der anderen fallen weg. Und ein Alias für ein Kürzel, das schon eine eigene Zeile
+mit SPOs hat, kollidiert auf `zpa_spo_ref` — vorher von Hand zusammenführen.
+
+`PROGRAMME_CODE_MALFORMED` steht seitdem auch im Cron-Bericht (`HINWEIS: … Studiengangskürzel nicht
+übernommen`). Lehre: ein Filter, der still Planungsdaten verwirft, gehört in die Mail.

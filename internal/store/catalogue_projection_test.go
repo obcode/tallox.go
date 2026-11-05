@@ -1199,3 +1199,170 @@ func TestProjectionMapsTheOtherLanguage(t *testing.T) {
 			n.Count, n.Sample)
 	}
 }
+
+// renameProgrammeInTheSource gives a programme of the synthetic catalogue another code wherever
+// the cached payloads name it: its regulations, its modules' owner field, the association rows.
+func renameProgrammeInTheSource(t *testing.T, s *storetest.Schema, from, to string) {
+	t.Helper()
+
+	if _, err := s.Pool.Exec(t.Context(),
+		`UPDATE zpa_object SET payload = replace(payload::text, '"' || $1 || '"', '"' || $2 || '"')::jsonb
+		 WHERE payload::text LIKE '%"' || $1 || '"%'`, from, to); err != nil {
+		t.Fatalf("cannot rename %s to %s in the cache: %v", from, to, err)
+	}
+}
+
+// aliasProgrammeCodes maps source codes to a programme the way programme_code_alias does in
+// production, where a migration maintains it.
+func aliasProgrammeCodes(t *testing.T, s *storetest.Schema, to string, from ...string) {
+	t.Helper()
+
+	for _, code := range from {
+		if _, err := s.Pool.Exec(t.Context(),
+			`INSERT INTO programme_code_alias (zpa_code, programme_code) VALUES ($1, $2)`,
+			code, to); err != nil {
+			t.Fatalf("cannot alias %s to %s: %v", code, to, err)
+		}
+	}
+}
+
+// The examination office renamed a programme by publishing a second one beside it, under a code
+// with a hyphen the column cannot hold. For the faculty it is one programme. Both source codes
+// fold into the existing row, renamed: its regulations, its modules and everything that points
+// at its id stay together, and the new code's modules arrive in it.
+func TestProjectionFoldsAliasedProgrammeCodesIntoOneProgramme(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+
+	// The state the migration leaves behind. The hyphenated code has never been projected — the
+	// column refused it — while the old one has, and is renamed; both codes are aliased.
+	renameProgrammeInTheSource(t, s, storetest.FixtureProgrammeB, "P-B")
+	if n := note(project(t, s), domain.NoteProgrammeCodeMalformed); n == nil {
+		t.Fatal("before the alias the hyphenated code should be reported as malformed")
+	}
+	if _, err := s.Pool.Exec(ctx,
+		`UPDATE programme SET code = 'PN' WHERE code = $1`, storetest.FixtureProgrammeA); err != nil {
+		t.Fatalf("cannot rename the programme: %v", err)
+	}
+	aliasProgrammeCodes(t, s, "PN", storetest.FixtureProgrammeA, "P-B")
+
+	var renamedID uuid.UUID
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT id FROM programme WHERE code = 'PN'`).Scan(&renamedID); err != nil {
+		t.Fatalf("cannot read the renamed programme: %v", err)
+	}
+
+	result := project(t, s)
+
+	var codes []string
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT array_agg(code ORDER BY code) FROM programme WHERE code IN ($1, 'P-B', 'PN')`,
+		storetest.FixtureProgrammeA).Scan(&codes); err != nil {
+		t.Fatalf("cannot list the programmes: %v", err)
+	}
+	if !slices.Equal(codes, []string{"PN"}) {
+		t.Errorf("programmes after the fold: %v, want only PN", codes)
+	}
+
+	var regulations []int32
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT array_agg(version ORDER BY version) FROM spo WHERE programme_id = $1`,
+		renamedID).Scan(&regulations); err != nil {
+		t.Fatalf("cannot list the regulations: %v", err)
+	}
+	if !slices.Equal(regulations, []int32{2019, 2024, 2025}) {
+		t.Errorf("regulations of the folded programme: %v, want both codes' [2019 2024 2025]",
+			regulations)
+	}
+
+	// Every module either code owned is at home in the one row — the new code's ones are what
+	// was missing from demand planning.
+	var stray, owned int
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT count(*) FILTER (WHERE m.home_programme_id <> $1),
+		        count(*) FILTER (WHERE m.home_programme_id = $1)
+		   FROM module m
+		   JOIN zpa_module_v z ON z.module_id = m.zpa_module_ref
+		  WHERE z.home_programme IN ($2, 'P-B')`,
+		renamedID, storetest.FixtureProgrammeA).Scan(&stray, &owned); err != nil {
+		t.Fatalf("cannot count the modules: %v", err)
+	}
+	if stray != 0 || owned == 0 {
+		t.Errorf("%d module(s) of the two codes outside the folded programme, %d inside", stray, owned)
+	}
+
+	if n := note(result, domain.NoteProgrammeCodeMalformed); n != nil {
+		t.Errorf("an aliased code is reported as malformed: %+v", *n)
+	}
+
+	// And the fold is as stable as the rest: a second run changes nothing.
+	again := project(t, s)
+	if again.OfferingsRemoved != 0 {
+		t.Errorf("the second run removed %d offering(s)", again.OfferingsRemoved)
+	}
+}
+
+// Two source programmes folded into one may publish the same version. One INSERT cannot upsert
+// the same row twice, and an error there would abort the projection for every programme.
+func TestProjectionSurvivesTwoAliasedCodesWithTheSameVersion(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+
+	// PB and PR both publish version 2024.
+	aliasProgrammeCodes(t, s, "PN", storetest.FixtureProgrammeB, storetest.FixtureProgrammeR)
+
+	project(t, s)
+
+	var versions []int32
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT array_agg(s.version ORDER BY s.version) FROM spo s
+		   JOIN programme p ON p.id = s.programme_id WHERE p.code = 'PN'`).Scan(&versions); err != nil {
+		t.Fatalf("cannot list the regulations: %v", err)
+	}
+	if !slices.Equal(versions, []int32{2024}) {
+		t.Errorf("regulations of the folded programme: %v, want one 2024", versions)
+	}
+}
+
+// The filter still exists. A code the column cannot hold and no alias maps is left out and named,
+// rather than aborting the projection for every other programme.
+func TestProjectionReportsAProgrammeCodeItCannotStore(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+	renameProgrammeInTheSource(t, s, storetest.FixtureProgrammeZ, "P-Z")
+
+	result := project(t, s)
+
+	var present int
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT count(*) FROM programme WHERE code = 'P-Z'`).Scan(&present); err != nil {
+		t.Fatalf("cannot look for the programme: %v", err)
+	}
+	if present != 0 {
+		t.Error("a code outside the column's rule was stored")
+	}
+
+	n := note(result, domain.NoteProgrammeCodeMalformed)
+	if n == nil {
+		t.Fatal("the programme was dropped and the report says nothing")
+	}
+	if !slices.Equal(n.Sample, []string{"P-Z"}) {
+		t.Errorf("the report names %v, want [P-Z]", n.Sample)
+	}
+
+	var others int
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT count(*) FROM programme WHERE code IN ($1, $2)`,
+		storetest.FixtureProgrammeA, storetest.FixtureProgrammeB).Scan(&others); err != nil {
+		t.Fatalf("cannot count the other programmes: %v", err)
+	}
+	if others != 2 {
+		t.Errorf("%d of the other two programmes were projected", others)
+	}
+}

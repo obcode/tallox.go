@@ -103,7 +103,8 @@ func (s *DemandService) Instances(ctx context.Context, actor principal.Actor,
 // Readable by everybody who may read the demand, through both doors: it is a sum over rows that
 // are not confidential, and an evaluation script is exactly who it is for. A semester nobody has
 // touched answers with every planned programme at zero rather than with a refusal, the way its
-// demand answers with an empty list.
+// demand answers with an empty list. The exception is ContractLecturerHours, a sum over
+// assignments, which follows the assignment rule and is nil where that rule does not reach.
 func (s *DemandService) TeachingLoad(ctx context.Context, actor principal.Actor,
 	semesterCode string,
 ) ([]TeachingLoad, error) {
@@ -139,8 +140,21 @@ func (s *DemandService) TeachingLoad(ctx context.Context, actor principal.Actor,
 		winter = hoursByProgramme(winterLoads)
 	}
 
+	// The one figure here that sums assignments. It follows their rule, not the demand's: filtered
+	// in SQL, and shown for a programme only when the caller may read all of that programme's
+	// assignments — a partial sum would move whenever somebody else's part is filled.
+	reach := policy.AssignmentVisibility(actor, semester.State())
+	contract, err := s.store.ContractLecturerHours(ctx, semester.Code, reach)
+	if err != nil {
+		return nil, err
+	}
+
 	for i := range loads {
 		id := loads[i].Programme.ID
+		if reach.CoversProgramme(id) {
+			hours := contract[id]
+			loads[i].ContractLecturerHours = &hours
+		}
 		if hours, ok := quotas[id]; ok {
 			loads[i].YearlyQuota = &hours
 		}

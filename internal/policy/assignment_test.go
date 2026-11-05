@@ -383,3 +383,87 @@ func TestAssignmentVisibilityDoesNotDependOnThePhase(t *testing.T) {
 		t.Fatal("the cartesian product was empty — this test checked nothing")
 	}
 }
+
+// TestCoveringAProgrammeMeansSeeingAllOfIt is the property a per-programme sum over assignments
+// stands on: whenever a filter says it covers a programme, it lets through every assignment of
+// that programme — whoever holds it, whatever subject group its module is in. A sum shown on the
+// strength of CoversProgramme is then the sum of rows the caller may read one by one.
+//
+// Every actor of the guard-and-filter test, once more with full reach, because the full-reach
+// token is the door this figure is most likely to be got wrong on.
+func TestCoveringAProgrammeMeansSeeingAllOfIt(t *testing.T) {
+	t.Parallel()
+
+	actors := everyActor()
+	for _, a := range everyActor() {
+		if a.Kind == principal.KindToken {
+			a.FullReach = true
+			actors = append(actors, a)
+		}
+	}
+
+	assignees := []uuid.UUID{testdata.Eins.ID(), testdata.Zwei.ID(), uuid.Nil}
+	groups := []uuid.UUID{groupOne, groupTwo, uuid.Nil}
+
+	checked := 0
+	for _, actor := range actors {
+		for _, state := range []policy.SemesterState{unpublished, assignmentsPublished} {
+			filter := policy.AssignmentVisibility(actor, state)
+			for _, programme := range []uuid.UUID{programmeOne, programmeTwo} {
+				if !filter.CoversProgramme(programme) {
+					continue
+				}
+				for _, assignee := range assignees {
+					for _, group := range groups {
+						a := policy.Assignment{AssigneeID: assignee, ProgrammeID: programme, SubjectGroupID: group}
+						checked++
+						if !policy.CanSeeAssignment(actor, state, a) {
+							t.Errorf("%s roles=%v scopes=%v full reach=%v, published=%v: the filter "+
+								"covers programme %s but the guard hides %+v",
+								actor, actor.Roles, actor.RoleScopes, actor.FullReach,
+								state.AssignmentsPublished(), programme, a)
+						}
+					}
+				}
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no filter covered any programme — this test checked nothing")
+	}
+}
+
+// Who gets the whole of a programme before publication, and who does not, spelled out.
+func TestWhoCoversAProgrammeBeforePublication(t *testing.T) {
+	t.Parallel()
+
+	lead := func(a principal.Actor) principal.Actor {
+		a.RoleScopes = []principal.RoleScope{{Role: string(policy.RoleProgrammeLead), ProgrammeID: programmeOne}}
+		return a
+	}
+	groupLead := func(a principal.Actor) principal.Actor {
+		a.RoleScopes = []principal.RoleScope{{Role: string(policy.RoleSubjectGroupLead), SubjectGroupID: groupOne}}
+		return a
+	}
+	programmeLead, subjectGroupLead := string(policy.RoleProgrammeLead), string(policy.RoleSubjectGroupLead)
+
+	for _, tc := range []struct {
+		name  string
+		actor principal.Actor
+		state policy.SemesterState
+		want  bool
+	}{
+		{"the programme's lead in the browser", lead(testdata.Vier.Actor(principal.KindInteractive, programmeLead)), unpublished, true},
+		{"the programme's lead with a full-reach token", lead(testdata.Vier.FullReachActor(programmeLead)), unpublished, true},
+		{"the programme's lead with a plain token", lead(testdata.Vier.Actor(principal.KindToken, programmeLead)), unpublished, false},
+		{"the dean's office in the browser", testdata.Vier.Actor(principal.KindInteractive, string(policy.RoleDeansOffice)), unpublished, true},
+		{"a subject group lead, who reaches only their modules", groupLead(testdata.Drei.Actor(principal.KindInteractive, subjectGroupLead)), unpublished, false},
+		{"a lecturer", testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer)), unpublished, false},
+		{"a lecturer after publication", testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer)), assignmentsPublished, true},
+		{"a lecturer's plain token after publication", testdata.Eins.Actor(principal.KindToken, string(policy.RoleLecturer)), assignmentsPublished, true},
+	} {
+		if got := policy.AssignmentVisibility(tc.actor, tc.state).CoversProgramme(programmeOne); got != tc.want {
+			t.Errorf("%s: covers the programme = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}

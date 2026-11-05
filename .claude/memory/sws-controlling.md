@@ -115,3 +115,21 @@ Verwandt: [[instance-coverage]], [[local-modules]], [[programme-planning-status]
 Seit 2026-10-17 (Migration 29) zählen Teile mit `taught_by` nicht zur Last; sie stehen als
 `externalHours` daneben, auch je Heimat-Anteil. `partsWithoutHours` zählt nur eigene Teile. Siehe
 [[divided-parts]].
+
+## Davon Lehrbeauftragte (2026-11-05, Issue 38 Schritt 1)
+
+`ProgrammeTeachingLoad.contractLecturerHours: Float` — Lehr-SWS der Teile, die einer Lehrperson
+mit `is_lecturer_on_contract` zugeteilt sind, oder einem Konto, dessen `teacher`-Zeile (über die
+Mailadresse) das Flag trägt. Gezählt wie `teachingHours`: beim Studiengang der Instanz, geteilte
+Vorlesung einmal, `taught_by` nie. Nur je Studiengang, nie je Person.
+
+**Die einzige Zahl der Statistik, die über Zuteilungen summiert**, und deshalb nicht nach der
+Regel der übrigen Zahlen (alle, beide Türen), sondern nach der Zuteilungsregel: eigene Query-Datei
+`db/queries/contract_lecturer_hours.sql` mit dem Filter aus `policy.AssignmentVisibility` und
+Guard `TestEveryContractLecturerQueryIsFiltered`; dazu `AssignmentFilter.CoversProgramme`: die
+Zahl steht nur, wenn der Filter **alle** Zuteilungen des Studiengangs durchlässt, sonst `null`.
+Vor der Veröffentlichung also: Studiengangsleitung des Studiengangs und Dekanat, im Browser oder
+mit Planungs-Token; normales Token, Fachgruppenleitung (sähe nur ihre Module, also eine
+Teilsumme) und Dozierende bekommen `null`. Danach alle, die die Zeile lesen. Eine Teilsumme
+wäre die vertrauliche Information ohne Namen. Tests: `internal/store/contract_lecturer_hours_test.go`,
+`bootstrap/contract_lecturer_hours_test.go`, Policy `TestCoveringAProgrammeMeansSeeingAllOfIt`.

@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -90,6 +92,15 @@ func zpaSyncExitCode(ctx context.Context, cfg Config, dsn string, dryRun bool) i
 	// endpoint plus one summary: a report that has to be scrolled is a report nobody reads, and
 	// the wrapper only sends mail when there is something in it.
 	printRunReport(run)
+
+	// The projection ran inside Sync and only logged its findings. The one that hides data — a
+	// programme code the catalogue cannot store, and with it every module the programme owns —
+	// goes into the report as well: on the import page alone it stayed unseen for two days.
+	if projections, err := service.CatalogueProjections(ctx, 1); err != nil {
+		log.Warn().Err(err).Msg("cannot read the projection report")
+	} else {
+		printProjectionWarnings(os.Stdout, run, projections)
+	}
 
 	if run.Status == domain.ZPASyncFailed {
 		return 1
@@ -176,4 +187,25 @@ func keysOf(payload json.RawMessage) string {
 		out += name
 	}
 	return out
+}
+
+// printProjectionWarnings adds the projection findings worth a line in the nightly mail.
+//
+// Only the projection this run triggered counts: a failed or partial run does not project, and
+// yesterday's findings in tonight's mail would read as new. The wording avoids "FEHLER", which
+// the cron wrapper reads as a failed endpoint.
+func printProjectionWarnings(out io.Writer, run domain.ZPASyncRun, projections []domain.CatalogueProjection) {
+	for _, projection := range projections {
+		if projection.RunID == nil || *projection.RunID != run.ID {
+			continue
+		}
+		for _, note := range projection.Notes {
+			if note.Code != domain.NoteProgrammeCodeMalformed {
+				continue
+			}
+			_, _ = fmt.Fprintf(out,
+				"  HINWEIS: %d Studiengangskürzel nicht übernommen (%s), ihre Module fehlen im Modulkatalog\n",
+				note.Count, strings.Join(note.Sample, ", "))
+		}
+	}
 }

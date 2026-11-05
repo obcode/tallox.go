@@ -585,11 +585,12 @@ SELECT DISTINCT code FROM (
     UNION
     SELECT home_programme AS code FROM zpa_module_v WHERE present AND home_programme IS NOT NULL
 ) c
-WHERE code !~ '^[A-Z][A-Z0-9.]{0,9}$'
+WHERE programme_code_for(code) !~ '^[A-Z][A-Z0-9.]{0,9}$'
 ORDER BY code
 `
 
-// The codes ProjectProgrammes had to leave out, so the report can name them.
+// The codes ProjectProgrammes had to leave out, so the report can name them. Named as the source
+// writes them; one with an alias is judged by the code it maps to, and is no finding.
 func (q *Queries) MalformedProgrammeCodes(ctx context.Context) ([]string, error) {
 	rows, err := q.db.Query(ctx, malformedProgrammeCodes)
 	if err != nil {
@@ -703,7 +704,7 @@ SELECT p.id,
        CASE WHEN NOT m.present THEN now() END,
        m.module_id
 FROM zpa_module_v m
-JOIN programme p ON p.code = m.home_programme
+JOIN programme p ON p.code = programme_code_for(m.home_programme)
 LEFT JOIN frequency_map fr ON fr.phrase = m.frequency
 LEFT JOIN course_type_map ct ON ct.phrase = m.course_type
 LEFT JOIN language_map lm ON lm.phrase = lower(btrim(m.default_language))
@@ -775,21 +776,20 @@ func (q *Queries) ProjectModules(ctx context.Context, arg ProjectModulesParams) 
 
 const projectProgrammes = `-- name: ProjectProgrammes :execrows
 
-WITH known AS (
-    SELECT programme AS code, min(programme_id) AS ref
+WITH source AS (
+    SELECT programme_code_for(programme) AS code, programme_id AS ref
     FROM zpa_spo_v
     WHERE present AND programme IS NOT NULL
-    GROUP BY programme
 
-    UNION
+    UNION ALL
 
-    SELECT home_programme AS code, NULL::bigint AS ref
+    SELECT programme_code_for(home_programme) AS code, NULL::bigint AS ref
     FROM zpa_module_v
-    WHERE present
-      AND home_programme IS NOT NULL
-      AND home_programme NOT IN (
-          SELECT programme FROM zpa_spo_v WHERE present AND programme IS NOT NULL
-      )
+    WHERE present AND home_programme IS NOT NULL
+), known AS (
+    SELECT code, min(ref) AS ref
+    FROM source
+    GROUP BY code
 )
 INSERT INTO programme (code, active, zpa_programme_ref)
 SELECT code, ref IS NOT NULL, ref
@@ -832,9 +832,14 @@ SET active            = EXCLUDED.active,
 // `title` is written on insert only — never in the DO UPDATE. The source has no long name (its
 // `title` field carries the code again), so the column is for a human, and a projection that
 // refreshed it would overwrite what they typed on the next nightly run.
+//
+// A source code is read through programme_code_for(), so that two codes the faculty treats as one
+// programme (programme_code_alias) arrive as one row: the fold is the GROUP BY, and min() ignores
+// the NULL reference a module's owner contributes.
 // Defence rather than expectation: every real code is two to four upper-case letters. Without
 // the filter, one malformed code would abort the whole projection and take every other
-// programme's modules with it. What is filtered out is counted by MalformedProgrammeCodes below.
+// programme's modules with it. What is filtered out is counted by MalformedProgrammeCodes below;
+// a source code that does not fit ("DC-M") is made to fit by an alias, not by loosening this.
 func (q *Queries) ProjectProgrammes(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, projectProgrammes)
 	if err != nil {
@@ -845,10 +850,11 @@ func (q *Queries) ProjectProgrammes(ctx context.Context) (int64, error) {
 
 const projectSpos = `-- name: ProjectSpos :execrows
 INSERT INTO spo (programme_id, version, valid_from, primuss_id, zpa_spo_ref)
-SELECT p.id, s.version, s.valid_from, s.primuss_id, s.spo_id
+SELECT DISTINCT ON (p.id, s.version) p.id, s.version, s.valid_from, s.primuss_id, s.spo_id
 FROM zpa_spo_v s
-JOIN programme p ON p.code = s.programme
+JOIN programme p ON p.code = programme_code_for(s.programme)
 WHERE s.present AND s.version IS NOT NULL
+ORDER BY p.id, s.version, s.spo_id DESC
 ON CONFLICT (programme_id, version) DO UPDATE
 SET valid_from  = EXCLUDED.valid_from,
     primuss_id  = EXCLUDED.primuss_id,
@@ -862,6 +868,12 @@ SET valid_from  = EXCLUDED.valid_from,
 // does not are deliberately not synthesised from the copy embedded in those rows: that copy has
 // a version and a date but no programme, and a set of regulations belonging to no programme is
 // the same pathology as a module whose owner is the string "None", one level up.
+//
+// DISTINCT ON because of the aliases: two source programmes folded into one may each publish the
+// same version, and one INSERT cannot upsert the same row twice — that would abort the projection
+// for every programme. The newer source object wins, and the associations of the other are not
+// projected. Not expected in practice (a renamed programme's new regulations are a new version);
+// a test pins that the projection survives it.
 func (q *Queries) ProjectSpos(ctx context.Context) (int64, error) {
 	result, err := q.db.Exec(ctx, projectSpos)
 	if err != nil {

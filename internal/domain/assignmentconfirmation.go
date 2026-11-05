@@ -16,7 +16,7 @@ import (
 // The faculty asked for a date by which everybody who teaches checks what they have been given,
 // before the plan goes to the examination office. The date is a field of the semester, set by the
 // dean's office; the confirmation is a row per person with a fingerprint of what they confirmed.
-// Its state is derived on read — see migration 20261029160000 for why it is never stored.
+// Its state is derived on read — see migration 20261105190000 for why it is never stored.
 
 // ErrNothingToConfirm is a confirmation asked for by somebody who holds nothing in the semester.
 //
@@ -101,7 +101,8 @@ func (s *AssignmentService) MyConfirmation(ctx context.Context, actor principal.
 // The persons are taken from the filtered assignments rather than asked about directly, so this
 // can never answer for somebody whose assignments the caller cannot see — before publication a
 // confirmation says that somebody holds something, and it must not reach further than the
-// assignment does. A plain token does not get here at all (`@fullReach`).
+// assignment does. A plain token does not get here at all (`@fullReach`). An onlooker reads no
+// other people's statements, published assignments or not, so it gets its own entry at most.
 func (s *AssignmentService) Confirmations(ctx context.Context, actor principal.Actor,
 	semesterCode string) ([]AssignmentConfirmation, error) {
 	visible, err := s.List(ctx, actor, AssignmentQuery{SemesterCode: semesterCode})
@@ -116,6 +117,9 @@ func (s *AssignmentService) Confirmations(ctx context.Context, actor principal.A
 	seen := map[uuid.UUID]bool{}
 	var persons []uuid.UUID
 	for _, a := range visible {
+		if policy.Onlooker(actor) && a.Assignee.PersonID != actor.ID {
+			continue
+		}
 		if a.Assignee.HasAccount() && !seen[a.Assignee.PersonID] {
 			seen[a.Assignee.PersonID] = true
 			persons = append(persons, a.Assignee.PersonID)
@@ -135,6 +139,9 @@ func (s *AssignmentService) ConfirmMine(ctx context.Context, actor principal.Act
 	semesterCode string) (AssignmentConfirmation, error) {
 	if !actor.Authenticated() {
 		return AssignmentConfirmation{}, ErrNotAuthenticated
+	}
+	if err := onlookerRefusal(actor); err != nil {
+		return AssignmentConfirmation{}, err
 	}
 	semester, err := s.semesters.ByCode(ctx, actor, semesterCode)
 	if err != nil {

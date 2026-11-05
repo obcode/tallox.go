@@ -110,6 +110,10 @@ func assignmentError(err error) error {
 		return refusal("ASSIGNMENT_NOTE_TOO_LONG", err.Error())
 	case errors.Is(err, domain.ErrPartTaughtElsewhere):
 		return refusal("PART_TAUGHT_ELSEWHERE", err.Error())
+	case errors.Is(err, domain.ErrPartnerWritesNothing):
+		return refusal("PARTNER_READS_ONLY", policy.PartnerReason)
+	case errors.Is(err, domain.ErrObserverWritesNothing):
+		return refusal("OBSERVER_READS_ONLY", policy.ObserverReason)
 	case errors.Is(err, domain.ErrNothingToConfirm):
 		return refusal("NOTHING_TO_CONFIRM", err.Error())
 	case errors.Is(err, domain.ErrPartNotFound):

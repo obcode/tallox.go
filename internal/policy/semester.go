@@ -227,10 +227,12 @@ const ConfirmationDueReason = "Nur das Dekanat legt den Prüftermin für die Zut
 	"Das geht im Browser oder mit einem Planungs-Token mit voller Reichweite."
 
 // MayConfirmOwnAssignments reports whether an actor may confirm their own assignments of a
-// semester: anybody with an account, through every door, until the semester is FINAL.
+// semester: anybody with an account who may serve themselves, through every door, until the
+// semester is FINAL.
 //
 // Every door because it is about one's own timetable and its refusals say nothing about anybody
-// else. FINAL because a semester that is over has nothing left to check against.
+// else. FINAL because a semester that is over has nothing left to check against. Not an onlooker:
+// a confirmation is a statement, and an onlooker states nothing (see Onlooker).
 func MayConfirmOwnAssignments(a principal.Actor, s SemesterState) bool {
-	return a.Authenticated() && s.Phase != PhaseFinal
+	return MayServeOneself(a) && s.Phase != PhaseFinal
 }

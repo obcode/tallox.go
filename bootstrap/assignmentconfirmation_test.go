@@ -162,3 +162,47 @@ func TestTheDueDateIsTheDeansOffices(t *testing.T) {
 		t.Errorf("a lecturer answered %v, want FORBIDDEN", lecturer.Messages())
 	}
 }
+
+// TestAnObserverNeitherConfirmsNorReadsConfirmations: a confirmation is a statement, and an
+// observer states nothing and reads no other people's statements — even once the assignments are
+// published and the observer reads every one of them.
+func TestAnObserverNeitherConfirmsNorReadsConfirmations(t *testing.T) {
+	t.Parallel()
+
+	f := assignmentHandler(t,
+		grants{testdata.Eins, []string{"LECTURER"}},
+		grants{testdata.Zwei, []string{"OBSERVER"}},
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+		grants{testdata.Fuenf, []string{"DEANS_OFFICE"}},
+	)
+	f.leadGroup(t, testdata.Drei, f.group)
+	f.fill(t, testdata.Drei, f.lecture, testdata.Eins)
+	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t, confirmMutation,
+		map[string]any{"s": f.semester}, &struct{}{})
+	graphqltest.New(f.handler).AsUser(testdata.Fuenf.Mail).MustQuery(t,
+		`mutation($s: String!) { publishAssignments(code: $s) { assignmentsPublishedAt } }`,
+		map[string]any{"s": f.semester}, &struct{}{})
+
+	for name, c := range map[string]*graphqltest.Client{
+		"browser":    graphqltest.New(f.handler).AsUser(testdata.Zwei.Mail).On(graphqltest.Browser),
+		"full reach": graphqltest.New(f.handler).WithToken(fullReachToken(t, f.schema, testdata.Zwei)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			var out struct{ AssignmentConfirmations []confirmationRow }
+			c.MustQuery(t, confirmationsQuery, map[string]any{"s": f.semester}, &out)
+			if len(out.AssignmentConfirmations) != 0 {
+				t.Errorf("an observer reads %+v, want no confirmations", out.AssignmentConfirmations)
+			}
+			mustRefuseWith(t, c, confirmMutation, map[string]any{"s": f.semester}, "OBSERVER_READS_ONLY")
+		})
+	}
+
+	// The same published semester still shows the confirmation to a colleague, so the empty list
+	// above is the observer rule and not an empty fixture.
+	var out struct{ AssignmentConfirmations []confirmationRow }
+	graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).MustQuery(t, confirmationsQuery,
+		map[string]any{"s": f.semester}, &out)
+	if len(out.AssignmentConfirmations) != 1 {
+		t.Errorf("the lead reads %+v, want the one confirmation", out.AssignmentConfirmations)
+	}
+}

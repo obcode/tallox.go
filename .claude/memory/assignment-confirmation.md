@@ -30,5 +30,16 @@ Zuteilungsliste, die SQL-Abfrage selbst filtert nicht. Bewusst in Kauf genommen:
 der Lehre einer Person sieht, erfährt, ob sie *insgesamt* bestätigt hat (genau das ist der Zweck);
 Modul, Teil und SWS nennt die Bestätigung nicht.
 
+**Einsicht und Partnerfakultät** (`policy.Onlooker`, seit 2026-11-05 beim Rebase auf die Rolle
+`OBSERVER` nachgezogen): Eine Bestätigung ist eine Aussage. Onlooker bestätigen nichts
+(`OBSERVER_READS_ONLY`/`PARTNER_READS_ONLY`, `MayConfirmOwnAssignments` fragt `MayServeOneself`) und
+lesen keine fremden Bestätigungen, auch nicht nach der Veröffentlichung, obwohl sie die
+Zuteilungen dann lesen.
+
+**Migration neu datiert.** Ursprünglich `20261029160000`; beim Rebase lagen `20261101…` und
+`20261103…` schon auf `main` und in Produktion. goose läuft ohne `AllowMissing`, eine ältere
+fehlende Migration hätte den Start verweigert. Deshalb `20261105190000`. Merke: Ein Branch mit
+Migration, der länger liegt, bekommt beim Rebase einen neuen Zeitstempel.
+
 Keine Freitext-Begründung („passt nicht, weil …“) — das wäre eine Notiz zu einer Person, siehe
 Regel 2; Widerspruch geht wie bisher an die Fachgruppenleitung.

@@ -23,6 +23,9 @@
 # teaching: whether the whole set was confirmed. That is the point of it — the subject group lead
 # wants to know the colleague has checked — and it names no module, part or hour figure.
 #
+# An onlooker (a partner faculty or an observer, held alone) reads no confirmation but its own
+# and gives none: a confirmation is a statement, and onlookers neither read nor make statements.
+#
 # Somebody without an account cannot confirm; for them the arrangement with the subject group lead
 # stays as it is. And there is no free text: disagreement goes to the subject group lead.
 
@@ -83,7 +86,8 @@ extend type Mutation {
   publication of the assignments, because everybody sees their own anyway.
 
   Refusals: `NOTHING_TO_CONFIRM` when you hold nothing in that semester,
-  `ASSIGNMENT_PHASE_CLOSED` once the semester is `FINAL`.
+  `ASSIGNMENT_PHASE_CLOSED` once the semester is `FINAL`, `OBSERVER_READS_ONLY` and
+  `PARTNER_READS_ONLY` for those roles held alone.
   """
   confirmMyAssignments(
     "Four digits, a hyphen and SS or WS."

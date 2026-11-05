@@ -2786,7 +2786,8 @@ type Mutation {
   publication of the assignments, because everybody sees their own anyway.
 
   Refusals: `NOTHING_TO_CONFIRM` when you hold nothing in that semester,
-  `ASSIGNMENT_PHASE_CLOSED` once the semester is `FINAL`.
+  `ASSIGNMENT_PHASE_CLOSED` once the semester is `FINAL`, `OBSERVER_READS_ONLY` and
+  `PARTNER_READS_ONLY` for those roles held alone.
   """
   confirmMyAssignments(
     """

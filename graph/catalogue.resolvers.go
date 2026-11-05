@@ -8,7 +8,6 @@ package graph
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/obcode/tallox.go/graph/generated"
@@ -227,12 +226,28 @@ func (r *mutationResolver) SetModuleSemesterSpan(ctx context.Context, moduleID s
 
 // CreateLocalTeacher is the resolver for the createLocalTeacher field.
 func (r *mutationResolver) CreateLocalTeacher(ctx context.Context, input model.LocalTeacherInput) (*model.Teacher, error) {
-	panic(fmt.Errorf("not implemented: CreateLocalTeacher - createLocalTeacher"))
+	actor := principal.From(ctx)
+
+	created, err := r.Catalogue.CreateLocalTeacher(ctx, actor, localTeacherSpec(input))
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+	return teacherModel(*created), nil
 }
 
 // ChangeLocalTeacher is the resolver for the changeLocalTeacher field.
 func (r *mutationResolver) ChangeLocalTeacher(ctx context.Context, id string, input model.LocalTeacherInput) (*model.Teacher, error) {
-	panic(fmt.Errorf("not implemented: ChangeLocalTeacher - changeLocalTeacher"))
+	teacherID, err := uuid.Parse(id)
+	if err != nil {
+		return nil, refusal("TEACHER_NOT_FOUND", "Diese Lehrperson gibt es nicht.")
+	}
+
+	actor := principal.From(ctx)
+	changed, err := r.Catalogue.ChangeLocalTeacher(ctx, actor, teacherID, localTeacherSpec(input))
+	if err != nil {
+		return nil, catalogueUserFacing(actor, err)
+	}
+	return teacherModel(*changed), nil
 }
 
 // Degree is the resolver for the degree field.

@@ -358,6 +358,8 @@ type Teacher struct {
 	RetiredAt            pgtype.Timestamptz
 	CreatedAt            time.Time
 	UpdatedAt            time.Time
+	Source               string
+	CreatedBy            uuid.NullUUID
 }
 
 type Wish struct {

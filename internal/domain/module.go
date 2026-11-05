@@ -88,6 +88,9 @@ type Teacher struct {
 	LastSemester string
 	// IsUser is whether somebody with this address may sign in here.
 	IsUser bool
+	// EnteredByHand is a row the faculty entered because the ZPA does not list the person yet.
+	// The import takes it over once the ZPA lists the same address.
+	EnteredByHand bool
 }
 
 // TeacherFilter narrows the list of people who teach.
@@ -488,6 +491,39 @@ type CatalogueReader interface {
 	// UpdateLocalModule corrects one, or takes it out of the lists. Never touches an imported
 	// row: the statement names the source.
 	UpdateLocalModule(ctx context.Context, id uuid.UUID, spec NewLocalModule, by uuid.UUID) (*Module, error)
+	// CreateLocalTeacher enters somebody who teaches and whom the ZPA does not list yet.
+	// ErrTeacherMailTaken when somebody who teaches, or somebody with an account, has the address.
+	CreateLocalTeacher(ctx context.Context, spec NewLocalTeacher, by uuid.UUID) (*Teacher, error)
+	// UpdateLocalTeacher corrects one. ErrTeacherNotFound for anything but a row entered by hand
+	// that the import has not taken over.
+	UpdateLocalTeacher(ctx context.Context, id uuid.UUID, spec NewLocalTeacher) (*Teacher, error)
+}
+
+// NewLocalTeacher is somebody who teaches and whom the ZPA does not list yet, on the way in.
+type NewLocalTeacher struct {
+	Surname   string
+	GivenName string
+	// Mail is the row's identity and how the import recognises the person later.
+	Mail                 string
+	IsLecturerOnContract bool
+	// Active is read only by a change; a new row is always active.
+	Active bool
+}
+
+// SortName is the surname-first spelling every teacher carries, the form a list is ordered by.
+func (t NewLocalTeacher) SortName() string {
+	if t.GivenName == "" {
+		return t.Surname
+	}
+	return t.Surname + ", " + t.GivenName
+}
+
+// FullName is the written-out spelling, given name first.
+func (t NewLocalTeacher) FullName() string {
+	if t.GivenName == "" {
+		return t.Surname
+	}
+	return t.GivenName + " " + t.Surname
 }
 
 // NewLocalModule is a course the faculty enters itself, on the way in.

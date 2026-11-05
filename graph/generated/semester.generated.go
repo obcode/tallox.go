@@ -210,6 +210,29 @@ func (ec *executionContext) fieldContext_Semester_desiredHoursPublishedAt(_ cont
 	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _Semester_assignmentConfirmationDue(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Semester_assignmentConfirmationDue(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AssignmentConfirmationDue, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Date) graphql.Marshaler {
+			return ec.marshalODate2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDate(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Semester_assignmentConfirmationDue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Date does not have child fields"))
+}
+
 func (ec *executionContext) _Semester_decidedAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -294,6 +317,11 @@ func (ec *executionContext) _Semester(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "desiredHoursPublishedAt":
 			out.Values[i] = ec._Semester_desiredHoursPublishedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "assignmentConfirmationDue":
+			out.Values[i] = ec._Semester_assignmentConfirmationDue(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}

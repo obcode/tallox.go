@@ -39,6 +39,7 @@ Kollegium — das gehört nach `tallox.dev`.
 - [Eingeplante SWS](assigned-load.md) — die einzige erlaubte Summe über Zuteilungen: Leitung sieht die Last ihrer Mitglieder je Fachgruppe, auch fremde
 - [Partnerfakultät](partner-reader.md) — PARTNER_READER verengt allein gehalten auf die eigenen Studiengänge, schreibt nichts, liest keine Wünsche
 - [Einsicht](observer-role.md) — OBSERVER liest fakultätsweit alles Unvertrauliche plus ZPA-Status, keine Aussagen anderer (auch veröffentlicht nicht), schreibt nichts, nur befristet ≤ 180 Tage; neue Leseregeln fragen `Onlooker`
+- [Bestätigung der Zuteilung](assignment-confirmation.md) — Prüftermin je Semester, „passt so“ je Person, Zustand aus Fingerabdruck abgeleitet
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:
      eine Datei = ein Sachverhalt, Frontmatter mit name/description/metadata.type,

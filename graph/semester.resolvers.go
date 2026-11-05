@@ -8,6 +8,7 @@ package graph
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
@@ -66,6 +67,25 @@ func (r *mutationResolver) PublishAssignments(ctx context.Context, code string) 
 		return nil, semesterUserFacing(err)
 	}
 	return semesterModel(published), nil
+}
+
+// SetAssignmentConfirmationDue is the resolver for the setAssignmentConfirmationDue field.
+func (r *mutationResolver) SetAssignmentConfirmationDue(ctx context.Context, code string, due *model.Date) (*model.Semester, error) {
+	var day time.Time
+	if due != nil {
+		day = due.Time()
+	}
+	set, err := r.Planning.SetAssignmentConfirmationDue(ctx, principal.From(ctx), code, day)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrForbidden):
+			return nil, refusal("FORBIDDEN", policy.ConfirmationDueReason)
+		case errors.Is(err, domain.ErrAssignmentPhaseClosed):
+			return nil, refusal("ASSIGNMENT_PHASE_CLOSED", err.Error())
+		}
+		return nil, semesterUserFacing(err)
+	}
+	return semesterModel(set), nil
 }
 
 // FreezeDesiredHours is the resolver for the freezeDesiredHours field.

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/obcode/tallox.go/internal/domain"
@@ -35,16 +37,17 @@ var _ domain.SemesterStore = (*Semesters)(nil)
 // would land on DEMAND_PLANNING, which is the most permissive phase for writes.
 func semesterFrom(row Semester) domain.Semester {
 	return domain.Semester{
-		ID:                      row.ID,
-		Code:                    row.Code,
-		Phase:                   policy.Phase(row.Phase),
-		IsPlanning:              row.IsPlanningSemester,
-		WishesPublishedAt:       nullableTime(row.WishesPublishedAt),
-		AssignmentsPublishedAt:  nullableTime(row.AssignmentsPublishedAt),
-		DesiredHoursFrozenAt:    nullableTime(row.DesiredHoursFrozenAt),
-		DesiredHoursPublishedAt: nullableTime(row.DesiredHoursPublishedAt),
-		CreatedAt:               row.CreatedAt,
-		UpdatedAt:               row.UpdatedAt,
+		ID:                        row.ID,
+		Code:                      row.Code,
+		Phase:                     policy.Phase(row.Phase),
+		IsPlanning:                row.IsPlanningSemester,
+		WishesPublishedAt:         nullableTime(row.WishesPublishedAt),
+		AssignmentsPublishedAt:    nullableTime(row.AssignmentsPublishedAt),
+		DesiredHoursFrozenAt:      nullableTime(row.DesiredHoursFrozenAt),
+		DesiredHoursPublishedAt:   nullableTime(row.DesiredHoursPublishedAt),
+		AssignmentConfirmationDue: dateOrZero(row.AssignmentConfirmationDue),
+		CreatedAt:                 row.CreatedAt,
+		UpdatedAt:                 row.UpdatedAt,
 	}
 }
 
@@ -154,6 +157,22 @@ func (s *Semesters) PublishSemesterAssignments(ctx context.Context, id uuid.UUID
 	row, err := s.q.PublishSemesterAssignments(ctx, id)
 	if err != nil {
 		return domain.Semester{}, fmt.Errorf("cannot publish assignments: %w", err)
+	}
+	return semesterFrom(row), nil
+}
+
+// SetSemesterAssignmentConfirmationDue sets, moves or (zero time) clears the due date of the
+// confirmation round.
+func (s *Semesters) SetSemesterAssignmentConfirmationDue(ctx context.Context, id uuid.UUID,
+	due time.Time, by uuid.UUID,
+) (domain.Semester, error) {
+	row, err := s.q.SetSemesterAssignmentConfirmationDue(ctx, SetSemesterAssignmentConfirmationDueParams{
+		ID:  id,
+		Due: pgtype.Date{Time: due, Valid: !due.IsZero()},
+		By:  nullUUID(nonNilUUID(by)),
+	})
+	if err != nil {
+		return domain.Semester{}, fmt.Errorf("cannot set the confirmation due date: %w", err)
 	}
 	return semesterFrom(row), nil
 }

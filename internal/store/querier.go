@@ -1205,9 +1205,10 @@ type Querier interface {
 	// `title` is written on insert only — never in the DO UPDATE. The source has no long name (its
 	// `title` field carries the code again), so the column is for a human, and a projection that
 	// refreshed it would overwrite what they typed on the next nightly run.
-	// Defence rather than expectation: every real code is two to four upper-case letters. Without
-	// the filter, one malformed code would abort the whole projection and take every other
-	// programme's modules with it. What is filtered out is counted by MalformedProgrammeCodes below.
+	// Defence rather than expectation: a real code is a few upper-case letters, sometimes with a digit,
+	// a dot or a hyphen ("DC-M"). Without the filter, one malformed code would abort the whole
+	// projection and take every other programme's modules with it. What is filtered out is counted by
+	// MalformedProgrammeCodes below. The expression is the CHECK programme_code_is_short; change both.
 	ProjectProgrammes(ctx context.Context) (int64, error)
 	// One row per version of one programme's regulations.
 	//

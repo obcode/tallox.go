@@ -18,3 +18,9 @@ import (
 func PrintAccessReportForTest(out io.Writer, report domain.AccessReport, since time.Duration) {
 	printAccessReport(out, report, since)
 }
+
+// PrintProjectionWarningsForTest renders the projection lines of the nightly ZPA report. See
+// printProjectionWarnings.
+func PrintProjectionWarningsForTest(out io.Writer, run domain.ZPASyncRun, projections []domain.CatalogueProjection) {
+	printProjectionWarnings(out, run, projections)
+}

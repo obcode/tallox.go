@@ -177,6 +177,9 @@ func TestCatalogueConstraintsRejectTheThingsTheyName(t *testing.T) {
 	module := seedModule(t, s, if_, "Algorithmen und Datenstrukturen")
 	semester := seedSemester(t, s, "2026-WS")
 
+	// The examination office's own spelling of a programme, which the rule once refused.
+	seedProgramme(t, s, "DC-M")
+
 	cases := []struct {
 		name  string
 		why   string
@@ -195,6 +198,18 @@ func TestCatalogueConstraintsRejectTheThingsTheyName(t *testing.T) {
 			why:   "IF and if would be two programmes, and the second would be invisible",
 			query: `INSERT INTO programme (code) VALUES ($1)`,
 			args:  []any{"if"},
+		},
+		{
+			name:  "a programme code starting with a hyphen",
+			why:   "the hyphen is allowed inside a code like DC-M, not as its first character",
+			query: `INSERT INTO programme (code) VALUES ($1)`,
+			args:  []any{"-X"},
+		},
+		{
+			name:  "a lower-case hyphenated programme code",
+			why:   "allowing the hyphen must not have loosened the case rule",
+			query: `INSERT INTO programme (code) VALUES ($1)`,
+			args:  []any{"dc-m"},
 		},
 		{
 			name:  "a frequency the domain does not know",

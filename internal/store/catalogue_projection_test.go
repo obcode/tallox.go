@@ -1199,3 +1199,97 @@ func TestProjectionMapsTheOtherLanguage(t *testing.T) {
 			n.Count, n.Sample)
 	}
 }
+
+// renameProgrammeInTheSource gives a programme of the synthetic catalogue another code wherever
+// the cached payloads name it: its regulations, its modules' owner field, the association rows.
+func renameProgrammeInTheSource(t *testing.T, s *storetest.Schema, from, to string) {
+	t.Helper()
+
+	if _, err := s.Pool.Exec(t.Context(),
+		`UPDATE zpa_object SET payload = replace(payload::text, '"' || $1 || '"', '"' || $2 || '"')::jsonb
+		 WHERE payload::text LIKE '%"' || $1 || '"%'`, from, to); err != nil {
+		t.Fatalf("cannot rename %s to %s in the cache: %v", from, to, err)
+	}
+}
+
+// The examination office lists a programme as "DC-M". A hyphen once made the projection drop the
+// programme and, with it, every module it owns — reported only as a finding on the import page,
+// so the modules were simply missing from demand planning.
+func TestProjectionKeepsAProgrammeCodeWithAHyphen(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+	renameProgrammeInTheSource(t, s, storetest.FixtureProgrammeA, "DC-M")
+
+	result := project(t, s)
+
+	var active bool
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT active FROM programme WHERE code = 'DC-M'`).Scan(&active); err != nil {
+		t.Fatalf("the hyphenated programme was not projected: %v", err)
+	}
+	if !active {
+		t.Error("the hyphenated programme has regulations and reads as inactive")
+	}
+
+	var owned, offered int
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT (SELECT count(*) FROM module m JOIN programme p ON p.id = m.home_programme_id
+		          WHERE p.code = 'DC-M'),
+		        (SELECT count(*) FROM module_offering o JOIN spo ON spo.id = o.spo_id
+		           JOIN programme p ON p.id = spo.programme_id WHERE p.code = 'DC-M')`,
+	).Scan(&owned, &offered); err != nil {
+		t.Fatalf("cannot count what the programme carries: %v", err)
+	}
+	if owned == 0 {
+		t.Error("the programme came through without its modules")
+	}
+	if offered == 0 {
+		t.Error("the programme came through without its offerings, so its demand planning is empty")
+	}
+
+	if n := note(result, domain.NoteProgrammeCodeMalformed); n != nil {
+		t.Errorf("the report still calls the code malformed: %+v", *n)
+	}
+}
+
+// The other half: the filter still exists. A code the column cannot hold is left out and named,
+// rather than aborting the projection for every other programme.
+func TestProjectionReportsAProgrammeCodeItCannotStore(t *testing.T) {
+	t.Parallel()
+
+	s := seededSchema(t)
+	ctx := t.Context()
+	renameProgrammeInTheSource(t, s, storetest.FixtureProgrammeZ, "P_Z")
+
+	result := project(t, s)
+
+	var present int
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT count(*) FROM programme WHERE code = 'P_Z'`).Scan(&present); err != nil {
+		t.Fatalf("cannot look for the programme: %v", err)
+	}
+	if present != 0 {
+		t.Error("a code outside the column's rule was stored")
+	}
+
+	n := note(result, domain.NoteProgrammeCodeMalformed)
+	if n == nil {
+		t.Fatal("the programme was dropped and the report says nothing")
+	}
+	if !slices.Equal(n.Sample, []string{"P_Z"}) {
+		t.Errorf("the report names %v, want [P_Z]", n.Sample)
+	}
+
+	// Everybody else is unaffected.
+	var others int
+	if err := s.Pool.QueryRow(ctx,
+		`SELECT count(*) FROM programme WHERE code IN ($1, $2)`,
+		storetest.FixtureProgrammeA, storetest.FixtureProgrammeB).Scan(&others); err != nil {
+		t.Fatalf("cannot count the other programmes: %v", err)
+	}
+	if others != 2 {
+		t.Errorf("%d of the other two programmes were projected", others)
+	}
+}

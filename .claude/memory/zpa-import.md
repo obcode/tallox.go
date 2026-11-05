@@ -199,3 +199,13 @@ später nicht breaking.
   Steht als Regel in `CLAUDE.md`; `-check-config` macht sie prüfbar, ohne Datenbank.
 
 Siehe [[semester-and-phase]] und [[scope-enforcement]].
+
+## Kürzel mit Bindestrich (2026-11-05)
+
+Das ZPA führt einen Studiengang als „DC-M“ (eigene Programm-ID, kein Umbenennen des alten).
+Die Kürzelregel (`programme_code_is_short` **und** der gleichlautende Filter in
+`ProjectProgrammes`/`MalformedProgrammeCodes`) kannte nur `[A-Z0-9.]`; der Studiengang fiel aus
+der Projektion und mit ihm jedes Heimatmodul — gemeldet nur als `PROGRAMME_CODE_MALFORMED` auf
+der Importseite, zwei Tage unbemerkt. Seit Migration `20261105200000`: `^[A-Z][A-Z0-9.-]{0,9}$`.
+Der Befund steht seitdem auch im Cron-Bericht (`HINWEIS: … Studiengangskürzel nicht übernommen`).
+Lehre: ein Filter, der still Planungsdaten verwirft, gehört in die Mail, nicht nur auf eine Seite.

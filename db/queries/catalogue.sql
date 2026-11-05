@@ -47,10 +47,11 @@ WITH known AS (
 INSERT INTO programme (code, active, zpa_programme_ref)
 SELECT code, ref IS NOT NULL, ref
 FROM known
--- Defence rather than expectation: every real code is two to four upper-case letters. Without
--- the filter, one malformed code would abort the whole projection and take every other
--- programme's modules with it. What is filtered out is counted by MalformedProgrammeCodes below.
-WHERE code ~ '^[A-Z][A-Z0-9.]{0,9}$'
+-- Defence rather than expectation: a real code is a few upper-case letters, sometimes with a digit,
+-- a dot or a hyphen ("DC-M"). Without the filter, one malformed code would abort the whole
+-- projection and take every other programme's modules with it. What is filtered out is counted by
+-- MalformedProgrammeCodes below. The expression is the CHECK programme_code_is_short; change both.
+WHERE code ~ '^[A-Z][A-Z0-9.-]{0,9}$'
 ON CONFLICT (code) DO UPDATE
 SET active            = EXCLUDED.active,
     -- COALESCE rather than assignment: a programme first seen through a module's owner has no
@@ -66,7 +67,7 @@ SELECT DISTINCT code FROM (
     UNION
     SELECT home_programme AS code FROM zpa_module_v WHERE present AND home_programme IS NOT NULL
 ) c
-WHERE code !~ '^[A-Z][A-Z0-9.]{0,9}$'
+WHERE code !~ '^[A-Z][A-Z0-9.-]{0,9}$'
 ORDER BY code;
 
 -- name: ProjectSpos :execrows

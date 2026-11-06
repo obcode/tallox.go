@@ -6753,7 +6753,8 @@ extend type Mutation {
   Enter somebody who teaches and whom the ZPA does not list yet, so that they can be assigned and
   given competences before the examination office catches up.
 
-  For the subject group leads (of any group) and the dean's office, who are the ones who assign.
+  For the subject group leads (of any group), the programme leads (of any programme) and the
+  dean's office, who are the ones who assign.
   ` + "`" + `TEACHER_ENTRY_REFUSED` + "`" + ` otherwise. With full reach, like the assignment itself: the refusal
   below answers a question about accounts.
 

@@ -183,8 +183,39 @@ func TestAnAddressWithAnAccountIsTakenLikeATeachers(t *testing.T) {
 		"LOCAL_TEACHER_INVALID")
 }
 
-// Who may not: a lecturer, a lead without a group, a programme lead — in the browser, so the
-// refusal is the policy's and not the directive's.
+// A programme lead with a programme enters one too: it changes the assignment in the review and
+// meets the same missing name. Browser and full-reach token alike.
+func TestAProgrammeLeadEntersATeacher(t *testing.T) {
+	t.Parallel()
+
+	f := localTeacherHandler(t, grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
+	if _, err := f.schema.Pool.Exec(t.Context(), `INSERT INTO person_programme_scope
+		(person_id, role, programme_id) SELECT $1, 'PROGRAMME_LEAD', id FROM programme LIMIT 1`,
+		testdata.Vier.ID()); err != nil {
+		t.Fatal(err)
+	}
+
+	browser := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+	fullReach := graphqltest.New(f.handler).
+		WithToken(fullReachToken(t, f.schema, testdata.Vier)).On(graphqltest.Token)
+	for mail, c := range map[string]*graphqltest.Client{
+		"lb.zwoelf@example.org":   browser,
+		"lb.dreizehn@example.org": fullReach,
+	} {
+		var out createdLocalTeacher
+		c.MustQuery(t, createLocalTeacherMutation, localTeacherInput("Neu", mail), &out)
+		if !out.CreateLocalTeacher.EnteredByHand || out.CreateLocalTeacher.Mail != mail {
+			t.Errorf("created = %+v", out.CreateLocalTeacher)
+		}
+	}
+
+	plain := graphqltest.New(f.handler).WithToken(testdata.Vier.Token).On(graphqltest.Token)
+	assertRefusal(t, plain.Do(t, createLocalTeacherMutation,
+		localTeacherInput("Neu", "lb.vierzehn@example.org")), "FULL_REACH_REQUIRED")
+}
+
+// Who may not: a lecturer, a lead without a group, a programme lead without a programme — in the
+// browser, so the refusal is the policy's and not the directive's.
 func TestOnlyLeadsAndTheDeansOfficeEnterTeachers(t *testing.T) {
 	t.Parallel()
 

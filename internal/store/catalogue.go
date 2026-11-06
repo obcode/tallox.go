@@ -125,6 +125,13 @@ func (c *Catalogue) project(ctx context.Context, projectionID uuid.UUID) (counts
 		return done, nil, fmt.Errorf("cannot project the regulations: %w", err)
 	}
 
+	// Before the teachers, so that the upsert finds a row entered by hand by its new reference
+	// and keeps its id instead of failing on a second row with the same address.
+	adopted, err := q.AdoptLocalTeachers(ctx)
+	if err != nil {
+		return done, nil, fmt.Errorf("cannot take over the teachers entered by hand: %w", err)
+	}
+
 	// Before the modules, because a module names one of them.
 	teachers, err := q.ProjectTeachers(ctx)
 	if err != nil {
@@ -170,6 +177,15 @@ func (c *Catalogue) project(ctx context.Context, projectionID uuid.UUID) (counts
 	notes, err := gatherNotes(ctx, q)
 	if err != nil {
 		return done, nil, err
+	}
+	// Not a count over the state like the others but what this run did: after it, the rows are
+	// ordinary imported ones and nothing could count them.
+	if len(adopted) > 0 {
+		notes = append(notes, domain.CatalogueProjectionNote{
+			Code:   domain.NoteLocalTeacherAdopted,
+			Count:  len(adopted),
+			Sample: sampleOf(adopted),
+		})
 	}
 	for _, note := range notes {
 		if err := q.RecordCatalogueProjectionNote(ctx, RecordCatalogueProjectionNoteParams{
@@ -388,4 +404,12 @@ func nullUUID(id *uuid.UUID) uuid.NullUUID {
 		return uuid.NullUUID{}
 	}
 	return uuid.NullUUID{UUID: *id, Valid: true}
+}
+
+// sampleOf keeps the first twenty, as the counting queries do.
+func sampleOf(refs []string) []string {
+	if len(refs) > 20 {
+		return refs[:20]
+	}
+	return refs
 }

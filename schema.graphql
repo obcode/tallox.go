@@ -1690,6 +1690,34 @@ input LocalModuleInput {
   components: [ModuleComponentInput!]
 }
 """
+Somebody who teaches and whom the ZPA does not list yet, on the way in.
+"""
+input LocalTeacherInput {
+  """
+  The surname. Required.
+  """
+  surname: String!
+  """
+  The given name, or empty.
+  """
+  givenName: String! = ""
+  """
+  The address. Required, and the row's identity: it is unique among everybody who teaches and
+  everybody with an account, and it is how the nightly import recognises the person once the ZPA
+  lists them.
+  """
+  mail: String!
+  """
+  Teaches on a contract (Lehrbeauftragte). The usual case for somebody entered by hand.
+  """
+  isLecturerOnContract: Boolean! = true
+  """
+  False takes the row out of the lists without deleting anything: assignments and competences may
+  point at it. Only `changeLocalTeacher` reads it; a new row is always active.
+  """
+  active: Boolean! = true
+}
+"""
 One member of a subject group and their count in it — the lead's work list.
 
 Only this group's count: whether the member meets the minimum, which is over all their groups,
@@ -2756,6 +2784,31 @@ type Mutation {
   with `NOT_YOUR_MODULE`; anything but 1 or 2 is `SEMESTER_SPAN_INVALID`.
   """
   setModuleSemesterSpan(moduleId: ID!, semesters: Int!): Module! @scope(area: PLANNING, verb: WRITE)
+  """
+  Enter somebody who teaches and whom the ZPA does not list yet, so that they can be assigned and
+  given competences before the examination office catches up.
+
+  For the subject group leads (of any group) and the dean's office, who are the ones who assign.
+  `TEACHER_ENTRY_REFUSED` otherwise. With full reach, like the assignment itself: the refusal
+  below answers a question about accounts.
+
+  The address has to be new: `TEACHER_MAIL_TAKEN` when somebody who teaches or somebody with an
+  account already has it. That is one answer for both cases on purpose — the repair is the same,
+  pick that person in the list instead.
+
+  Grants nothing: like every teacher, the row is master data and not an account. Once the ZPA
+  lists the same address, the nightly import takes the row over (`enteredByHand` turns false).
+  """
+  createLocalTeacher(input: LocalTeacherInput!): Teacher! @fullReach @scope(area: PLANNING, verb: WRITE)
+  """
+  Correct one, or take it out of the lists with `active: false`. On the terms of
+  `createLocalTeacher`.
+
+  Only a row entered by hand and not yet taken over by the import: anything else answers
+  `TEACHER_NOT_FOUND`, exactly as an id that names nothing does. There is no delete, because
+  assignments and competences may point at the row.
+  """
+  changeLocalTeacher(id: ID!, input: LocalTeacherInput!): Teacher! @fullReach @scope(area: PLANNING, verb: WRITE)
   """
   State your own competence for a module, or change it.
 
@@ -4818,6 +4871,7 @@ enum ScopeArea {
   `confirmMyAssignments`, `assignedTeachingHours`, `setAssignment`, `clearAssignment`, `setCourseInstanceFormat`, `setCourseInstanceCiE`,
   `setModuleComponents`, `applyModuleSplitToInstances`, `setModuleProjectBased`,
   `setModuleSemesterSpan`, `createLocalModule`, `changeLocalModule`,
+  `createLocalTeacher`, `changeLocalTeacher`,
   `setProgrammePlanningStatus`, `setProgrammeDegree`, `declareCourseInstance`, `duplicateCourseInstance`,
   `changeCourseInstance`, `setCourseInstanceTopic`, `withdrawCourseInstance`, `addInstancePart`, `changeInstancePart`,
   `removeInstancePart`, `shareInstancePartAcrossTracks`, `splitInstancePartAcrossTracks`,
@@ -5309,6 +5363,15 @@ type Teacher {
   morning is connected to their own modules now rather than after the next import.
   """
   isUser: Boolean!
+  """
+  Entered by hand because the ZPA does not list this person yet — typically a lecturer on
+  contract won for next semester. See `createLocalTeacher`.
+
+  Turns false by itself once the ZPA lists somebody under the same address: the nightly import
+  takes the row over, keeps its id and so everything planned with it, and overwrites the names
+  and flags with the examination office's.
+  """
+  enteredByHand: Boolean!
 }
 """
 Somebody the examination office publishes, together with the account they have here.
@@ -5707,6 +5770,12 @@ enum ZpaProjectionFinding {
   one — worth seeing, not worth refusing.
   """
   TEACHER_WITHOUT_MAIL
+  """
+  Merged: somebody entered by hand (`createLocalTeacher`) whom the source now lists under the same
+  address. The row keeps its id, so everything planned with it stays, and takes the source's names
+  and flags. The sample is the source's teacher ids.
+  """
+  LOCAL_TEACHER_ADOPTED
   """
   The one that is an alarm rather than a note, and it should always be absent.
 

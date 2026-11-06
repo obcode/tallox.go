@@ -206,7 +206,8 @@ ORDER BY code;
 SELECT t.id, COALESCE(t.mail::text, '')::text AS mail, t.full_name, t.short_name,
        t.is_professor, t.is_lecturer_on_contract, t.is_honorary_professor, t.is_staff,
        t.active, t.faculty, t.last_semester,
-       (p.id IS NOT NULL)::boolean AS is_user
+       (p.id IS NOT NULL)::boolean AS is_user,
+       (t.source = 'LOCAL')::boolean AS entered_by_hand
 FROM teacher t
 LEFT JOIN person p ON p.mail = t.mail AND p.active
 WHERE t.retired_at IS NULL
@@ -225,10 +226,50 @@ ORDER BY t.short_name, t.id;
 SELECT t.id, COALESCE(t.mail::text, '')::text AS mail, t.full_name, t.short_name,
        t.is_professor, t.is_lecturer_on_contract, t.is_honorary_professor, t.is_staff,
        t.active, t.faculty, t.last_semester,
-       (p.id IS NOT NULL)::boolean AS is_user
+       (p.id IS NOT NULL)::boolean AS is_user,
+       (t.source = 'LOCAL')::boolean AS entered_by_hand
 FROM teacher t
 LEFT JOIN person p ON p.mail = t.mail AND p.active
 WHERE t.id = ANY (sqlc.arg(ids)::uuid[]);
+
+-- name: InsertLocalTeacher :one
+-- Somebody who teaches and whom the ZPA does not list yet — typically a lecturer on contract won
+-- for next semester. No zpa_teacher_ref, and the constraint says so rather than this statement.
+-- The unique index on mail is what makes a second click, or an address the ZPA already lists, a
+-- 23505 rather than a second row for the same human.
+INSERT INTO teacher (mail, full_name, short_name, is_lecturer_on_contract, source, created_by)
+VALUES (sqlc.arg(mail)::text, sqlc.arg(full_name), sqlc.arg(short_name),
+        sqlc.arg(is_lecturer_on_contract), 'LOCAL', sqlc.narg(created_by))
+RETURNING id;
+
+-- name: UpdateLocalTeacher :one
+-- Correct one, or take it out of the lists with active = false. The WHERE clause names the
+-- source, so this can never touch a row the import owns: a mistyped id changes nothing.
+UPDATE teacher
+SET mail                    = sqlc.arg(mail)::text,
+    full_name               = sqlc.arg(full_name),
+    short_name              = sqlc.arg(short_name),
+    is_lecturer_on_contract = sqlc.arg(is_lecturer_on_contract),
+    active                  = sqlc.arg(active),
+    updated_at              = now()
+WHERE id = sqlc.arg(id) AND source = 'LOCAL'
+RETURNING id;
+
+-- name: MailBelongsToAnotherAccount :one
+-- Whether an address is already somebody's account, other than through this very teacher row.
+--
+-- A person with an account and no teacher row is assignable as that person already. A teacher
+-- row with the same address beside it would be the same human twice, and the two would split
+-- every sum over assignments between them. The exception is the row being edited: once its
+-- address has an account, that is the link working as designed, not a second identity.
+SELECT EXISTS (
+    SELECT 1 FROM person p
+     WHERE p.mail = sqlc.arg(mail)::text::citext
+       AND NOT EXISTS (
+           SELECT 1 FROM teacher t
+            WHERE t.id = sqlc.narg(teacher_id)::uuid AND t.mail = p.mail
+       )
+)::bool AS taken;
 
 -- name: ModulesByIDs :many
 -- A handful of modules by id, for attaching them to the instances that offer them.

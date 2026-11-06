@@ -921,6 +921,23 @@ type LocalModuleInput struct {
 	Components []*ModuleComponentInput `json:"components,omitempty"`
 }
 
+// Somebody who teaches and whom the ZPA does not list yet, on the way in.
+type LocalTeacherInput struct {
+	// The surname. Required.
+	Surname string `json:"surname"`
+	// The given name, or empty.
+	GivenName string `json:"givenName"`
+	// The address. Required, and the row's identity: it is unique among everybody who teaches and
+	// everybody with an account, and it is how the nightly import recognises the person once the ZPA
+	// lists them.
+	Mail string `json:"mail"`
+	// Teaches on a contract (Lehrbeauftragte). The usual case for somebody entered by hand.
+	IsLecturerOnContract bool `json:"isLecturerOnContract"`
+	// False takes the row out of the lists without deleting anything: assignments and competences may
+	// point at it. Only `changeLocalTeacher` reads it; a new row is always active.
+	Active bool `json:"active"`
+}
+
 // One member of a subject group and their count in it — the lead's work list.
 //
 // Only this group's count: whether the member meets the minimum, which is over all their groups,

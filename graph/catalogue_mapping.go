@@ -129,6 +129,7 @@ func teacherModel(t domain.Teacher) *model.Teacher {
 		IsStaff:              t.IsStaff,
 		Active:               t.Active,
 		IsUser:               t.IsUser,
+		EnteredByHand:        t.EnteredByHand,
 	}
 	// The three that are absent rather than empty. A mail address the source does not have is
 	// null and not "", because the difference decides whether this person can ever be connected
@@ -324,6 +325,28 @@ func catalogueUserFacing(actor principal.Actor, err error) error {
 			Message:    err.Error(),
 			Extensions: map[string]any{"code": "MODULE_IN_DEMAND"},
 		}
+	case errors.Is(err, domain.ErrTeacherEntryRefused):
+		return &gqlerror.Error{
+			Message:    policy.EnterTeacherReason,
+			Extensions: map[string]any{"code": "TEACHER_ENTRY_REFUSED"},
+		}
+	case errors.Is(err, domain.ErrLocalTeacherInvalid):
+		return &gqlerror.Error{
+			Message:    err.Error(),
+			Extensions: map[string]any{"code": "LOCAL_TEACHER_INVALID"},
+		}
+	case errors.Is(err, domain.ErrTeacherMailTaken):
+		// One code for "somebody who teaches has it" and "somebody with an account has it", and
+		// never the constraint: the repair is the same, and the sentence says no more than that.
+		return &gqlerror.Error{
+			Message:    domain.ErrTeacherMailTaken.Error(),
+			Extensions: map[string]any{"code": "TEACHER_MAIL_TAKEN"},
+		}
+	case errors.Is(err, domain.ErrTeacherNotFound):
+		return &gqlerror.Error{
+			Message:    domain.ErrTeacherNotFound.Error(),
+			Extensions: map[string]any{"code": "TEACHER_NOT_FOUND"},
+		}
 	default:
 		// Anything else is ours, not the caller's. The sentence is generic on purpose: a
 		// database error in the clear says things about rows nobody asked about — and it is
@@ -378,4 +401,15 @@ func localModuleSpec(input model.LocalModuleInput) (domain.NewLocalModule, error
 		Active:              input.Active,
 		Components:          components,
 	}, nil
+}
+
+// localTeacherSpec turns the input into what the service takes. Normalising is the service's.
+func localTeacherSpec(input model.LocalTeacherInput) domain.NewLocalTeacher {
+	return domain.NewLocalTeacher{
+		Surname:              input.Surname,
+		GivenName:            input.GivenName,
+		Mail:                 input.Mail,
+		IsLecturerOnContract: input.IsLecturerOnContract,
+		Active:               input.Active,
+	}
 }

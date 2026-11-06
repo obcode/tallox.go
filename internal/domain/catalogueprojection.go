@@ -83,6 +83,9 @@ const (
 	// NoteTeacherWithoutMail is a teacher the source gives no address for. Such a person can
 	// never be connected to somebody who signs in, because the address is the link.
 	NoteTeacherWithoutMail ProjectionNoteCode = "TEACHER_WITHOUT_MAIL"
+	// NoteLocalTeacherAdopted is somebody entered by hand whom the source now lists under the
+	// same address. Merged into the existing row, so what was planned with it stays.
+	NoteLocalTeacherAdopted ProjectionNoteCode = "LOCAL_TEACHER_ADOPTED"
 	// NoteDutyConflict is the alarm rather than a note. The grain of an offering rests on
 	// compulsory-or-elective being determined by module and regulations together; if the source
 	// ever contradicts that, the fold silently picks an answer and this says so.
@@ -101,6 +104,7 @@ func AllProjectionNoteCodes() []ProjectionNoteCode {
 		NoteModuleInactive,
 		NoteModuleResponsibleUnknown,
 		NoteTeacherWithoutMail,
+		NoteLocalTeacherAdopted,
 		NoteFrequencyUnmapped,
 		NoteCourseTypeUnmapped,
 		NoteLanguageUnmapped,

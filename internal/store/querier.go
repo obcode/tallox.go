@@ -90,6 +90,19 @@ type Querier interface {
 	// here in the statement. The key still closes the race with a revocation.
 	AddSubjectGroupLead(ctx context.Context, arg AddSubjectGroupLeadParams) (int64, error)
 	AddSubjectGroupMembership(ctx context.Context, arg AddSubjectGroupMembershipParams) error
+	// A teacher entered by hand whom the source now lists: the same address is the same human.
+	//
+	// Runs before ProjectTeachers. Writing the reference into the existing row and switching its
+	// source in one statement (teacher_source_matches_ref holds both together) makes the upsert below
+	// find it by reference, so it overwrites the names and flags with the examination office's and
+	// keeps the id — the assignments and competences made in the meantime stay where they are.
+	// Without this the upsert would insert a second row with the same address and fail on its
+	// unique index, and the whole night's projection with it.
+	//
+	// Only where no row holds the reference yet. A teacher the ZPA already lists who changes their
+	// address to a local row's is two rows for one human, and merging those would mean moving
+	// assignments — a decision for a person, not for a nightly job.
+	AdoptLocalTeachers(ctx context.Context) ([]string, error)
 	// Compare-and-set: $3 is the phase the caller believes the semester is in, and no rows come
 	// back if it has moved on since they looked.
 	//
@@ -799,6 +812,11 @@ type Querier interface {
 	// `active` and `official` keep their defaults: both are statements about what the examination
 	// office says, and about a local row it says nothing.
 	InsertLocalModule(ctx context.Context, arg InsertLocalModuleParams) (InsertLocalModuleRow, error)
+	// Somebody who teaches and whom the ZPA does not list yet — typically a lecturer on contract won
+	// for next semester. No zpa_teacher_ref, and the constraint says so rather than this statement.
+	// The unique index on mail is what makes a second click, or an address the ZPA already lists, a
+	// 23505 rather than a second row for the same human.
+	InsertLocalTeacher(ctx context.Context, arg InsertLocalTeacherParams) (uuid.UUID, error)
 	InsertModuleComponent(ctx context.Context, arg InsertModuleComponentParams) error
 	// One instance by what identifies it, for a copy that has to find next year's counterpart of a
 	// row it only knows by last year's id.
@@ -991,6 +1009,13 @@ type Querier interface {
 	// which takes FOR SHARE; the foreign key check of an assignment only takes FOR KEY SHARE, and that
 	// alone would let a fill slip past a part that is just being given away.
 	LockInstancePart(ctx context.Context, id uuid.UUID) (LockInstancePartRow, error)
+	// Whether an address is already somebody's account, other than through this very teacher row.
+	//
+	// A person with an account and no teacher row is assignable as that person already. A teacher
+	// row with the same address beside it would be the same human twice, and the two would split
+	// every sum over assignments between them. The exception is the row being edited: once its
+	// address has an account, that is the link working as designed, not a second identity.
+	MailBelongsToAnotherAccount(ctx context.Context, arg MailBelongsToAnotherAccountParams) (bool, error)
 	// The codes ProjectProgrammes had to leave out, so the report can name them. Named as the source
 	// writes them; one with an alias is judged by the code it maps to, and is no finding.
 	MalformedProgrammeCodes(ctx context.Context) ([]string, error)
@@ -1686,6 +1711,9 @@ type Querier interface {
 	// WHERE clause names the source, so this can never touch an imported row — a mistyped id then
 	// changes nothing rather than editing the catalogue.
 	UpdateLocalModule(ctx context.Context, arg UpdateLocalModuleParams) (UpdateLocalModuleRow, error)
+	// Correct one, or take it out of the lists with active = false. The WHERE clause names the
+	// source, so this can never touch a row the import owns: a mistyped id changes nothing.
+	UpdateLocalTeacher(ctx context.Context, arg UpdateLocalTeacherParams) (uuid.UUID, error)
 	// Note one down, or change it while it is pending. A converted one is not touched: from then on
 	// it is the wish that is changed, and the store reports zero rows as that refusal.
 	UpsertAdvanceWish(ctx context.Context, arg UpsertAdvanceWishParams) (uuid.UUID, error)

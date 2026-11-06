@@ -179,6 +179,7 @@ type teacherRow struct {
 	Faculty              *string
 	LastSemester         *string
 	IsUser               bool
+	EnteredByHand        bool
 }
 
 func teacherFrom(row teacherRow) domain.Teacher {
@@ -195,6 +196,7 @@ func teacherFrom(row teacherRow) domain.Teacher {
 		Faculty:              stringOrEmpty(row.Faculty),
 		LastSemester:         stringOrEmpty(row.LastSemester),
 		IsUser:               row.IsUser,
+		EnteredByHand:        row.EnteredByHand,
 	}
 }
 
@@ -777,4 +779,119 @@ func languagesOf(m domain.Module, source string, teaching, other *string) domain
 	m.TeachingLanguage = domain.Language(stringOrEmpty(teaching))
 	m.OtherLanguage = domain.Language(stringOrEmpty(other))
 	return m
+}
+
+// CreateLocalTeacher enters somebody who teaches and whom the ZPA does not list yet.
+//
+// One transaction, so that the account check and the insert see the same state. The unique index
+// on teacher.mail covers the other half — an address somebody who teaches already has — and its
+// 23505 becomes the same ErrTeacherMailTaken, never the constraint in the clear.
+func (m *Modules) CreateLocalTeacher(ctx context.Context, spec domain.NewLocalTeacher, by uuid.UUID,
+) (*domain.Teacher, error) {
+	tx, err := m.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	taken, err := q.MailBelongsToAnotherAccount(ctx, MailBelongsToAnotherAccountParams{Mail: spec.Mail})
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the accounts: %w", err)
+	}
+	if taken {
+		return nil, domain.ErrTeacherMailTaken
+	}
+
+	id, err := q.InsertLocalTeacher(ctx, InsertLocalTeacherParams{
+		Mail:                 spec.Mail,
+		FullName:             spec.FullName(),
+		ShortName:            spec.SortName(),
+		IsLecturerOnContract: spec.IsLecturerOnContract,
+		CreatedBy:            nullUUID(nonNilUUID(by)),
+	})
+	if err != nil {
+		if isUniqueViolation(err) {
+			return nil, domain.ErrTeacherMailTaken
+		}
+		return nil, fmt.Errorf("cannot record the teacher: %w", err)
+	}
+
+	teacher, err := teacherByID(ctx, q, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+	return teacher, nil
+}
+
+// UpdateLocalTeacher corrects a teacher entered by hand, or takes them out of the lists.
+//
+// No rows back means the id names no local teacher — nothing at all, or a row the import owns,
+// including one it has taken over since. The statement names the source, so the two are the same
+// answer and a mistyped id edits nothing.
+func (m *Modules) UpdateLocalTeacher(ctx context.Context, id uuid.UUID, spec domain.NewLocalTeacher,
+) (*domain.Teacher, error) {
+	tx, err := m.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	q := New(tx)
+
+	taken, err := q.MailBelongsToAnotherAccount(ctx, MailBelongsToAnotherAccountParams{
+		Mail:      spec.Mail,
+		TeacherID: uuid.NullUUID{UUID: id, Valid: true},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the accounts: %w", err)
+	}
+
+	_, err = q.UpdateLocalTeacher(ctx, UpdateLocalTeacherParams{
+		ID:                   id,
+		Mail:                 spec.Mail,
+		FullName:             spec.FullName(),
+		ShortName:            spec.SortName(),
+		IsLecturerOnContract: spec.IsLecturerOnContract,
+		Active:               spec.Active,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, domain.ErrTeacherNotFound
+		}
+		if isUniqueViolation(err) {
+			return nil, domain.ErrTeacherMailTaken
+		}
+		return nil, fmt.Errorf("cannot change the teacher: %w", err)
+	}
+	// After the update rather than before, so that an id naming nothing answers
+	// ErrTeacherNotFound whatever address it was sent with.
+	if taken {
+		return nil, domain.ErrTeacherMailTaken
+	}
+
+	teacher, err := teacherByID(ctx, q, id)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
+	}
+	return teacher, nil
+}
+
+func teacherByID(ctx context.Context, q *Queries, id uuid.UUID) (*domain.Teacher, error) {
+	rows, err := q.TeachersByID(ctx, []uuid.UUID{id})
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the teacher: %w", err)
+	}
+	if len(rows) != 1 {
+		return nil, fmt.Errorf("cannot read the teacher %s back: %d rows", id, len(rows))
+	}
+	t := teacherFrom(teacherRow(rows[0]))
+	return &t, nil
 }

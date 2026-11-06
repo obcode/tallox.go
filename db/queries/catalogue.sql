@@ -179,6 +179,30 @@ SET home_programme_id      = EXCLUDED.home_programme_id,
     retired_at             = EXCLUDED.retired_at,
     updated_at             = now();
 
+-- name: AdoptLocalTeachers :many
+-- A teacher entered by hand whom the source now lists: the same address is the same human.
+--
+-- Runs before ProjectTeachers. Writing the reference into the existing row and switching its
+-- source in one statement (teacher_source_matches_ref holds both together) makes the upsert below
+-- find it by reference, so it overwrites the names and flags with the examination office's and
+-- keeps the id — the assignments and competences made in the meantime stay where they are.
+-- Without this the upsert would insert a second row with the same address and fail on its
+-- unique index, and the whole night's projection with it.
+--
+-- Only where no row holds the reference yet. A teacher the ZPA already lists who changes their
+-- address to a local row's is two rows for one human, and merging those would mean moving
+-- assignments — a decision for a person, not for a nightly job.
+UPDATE teacher l
+SET zpa_teacher_ref = v.teacher_id,
+    source          = 'ZPA',
+    updated_at      = now()
+FROM zpa_teacher_v v
+WHERE l.source = 'LOCAL'
+  AND v.mail IS NOT NULL
+  AND l.mail = v.mail::citext
+  AND NOT EXISTS (SELECT 1 FROM teacher z WHERE z.zpa_teacher_ref = v.teacher_id)
+RETURNING v.teacher_id::text AS zpa_ref;
+
 -- name: ProjectTeachers :execrows
 -- The people who teach, as the examination office publishes them.
 --

@@ -294,6 +294,12 @@ enum ZpaProjectionFinding {
   """
   TEACHER_WITHOUT_MAIL
   """
+  Merged: somebody entered by hand (`createLocalTeacher`) whom the source now lists under the same
+  address. The row keeps its id, so everything planned with it stays, and takes the source's names
+  and flags. The sample is the source's teacher ids.
+  """
+  LOCAL_TEACHER_ADOPTED
+  """
   The one that is an alarm rather than a note, and it should always be absent.
 
   A module's entry per set of regulations is folded from up to four catalogue slots, and that

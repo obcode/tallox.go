@@ -86,6 +86,38 @@ func (q *Queries) InsertLocalModule(ctx context.Context, arg InsertLocalModulePa
 	return i, err
 }
 
+const insertLocalTeacher = `-- name: InsertLocalTeacher :one
+INSERT INTO teacher (mail, full_name, short_name, is_lecturer_on_contract, source, created_by)
+VALUES ($1::text, $2, $3,
+        $4, 'LOCAL', $5)
+RETURNING id
+`
+
+type InsertLocalTeacherParams struct {
+	Mail                 string
+	FullName             string
+	ShortName            string
+	IsLecturerOnContract bool
+	CreatedBy            uuid.NullUUID
+}
+
+// Somebody who teaches and whom the ZPA does not list yet — typically a lecturer on contract won
+// for next semester. No zpa_teacher_ref, and the constraint says so rather than this statement.
+// The unique index on mail is what makes a second click, or an address the ZPA already lists, a
+// 23505 rather than a second row for the same human.
+func (q *Queries) InsertLocalTeacher(ctx context.Context, arg InsertLocalTeacherParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, insertLocalTeacher,
+		arg.Mail,
+		arg.FullName,
+		arg.ShortName,
+		arg.IsLecturerOnContract,
+		arg.CreatedBy,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
+}
+
 const insertModuleComponent = `-- name: InsertModuleComponent :exec
 INSERT INTO module_component (module_id, kind, teaching_hours, position, created_by)
 VALUES ($1, $2, $3, $4, $5)
@@ -438,7 +470,8 @@ const listTeachers = `-- name: ListTeachers :many
 SELECT t.id, COALESCE(t.mail::text, '')::text AS mail, t.full_name, t.short_name,
        t.is_professor, t.is_lecturer_on_contract, t.is_honorary_professor, t.is_staff,
        t.active, t.faculty, t.last_semester,
-       (p.id IS NOT NULL)::boolean AS is_user
+       (p.id IS NOT NULL)::boolean AS is_user,
+       (t.source = 'LOCAL')::boolean AS entered_by_hand
 FROM teacher t
 LEFT JOIN person p ON p.mail = t.mail AND p.active
 WHERE t.retired_at IS NULL
@@ -468,6 +501,7 @@ type ListTeachersRow struct {
 	Faculty              *string
 	LastSemester         *string
 	IsUser               bool
+	EnteredByHand        bool
 }
 
 // The people who teach, with whether somebody of that address may sign in here.
@@ -509,6 +543,7 @@ func (q *Queries) ListTeachers(ctx context.Context, arg ListTeachersParams) ([]L
 			&i.Faculty,
 			&i.LastSemester,
 			&i.IsUser,
+			&i.EnteredByHand,
 		); err != nil {
 			return nil, err
 		}
@@ -518,6 +553,35 @@ func (q *Queries) ListTeachers(ctx context.Context, arg ListTeachersParams) ([]L
 		return nil, err
 	}
 	return items, nil
+}
+
+const mailBelongsToAnotherAccount = `-- name: MailBelongsToAnotherAccount :one
+SELECT EXISTS (
+    SELECT 1 FROM person p
+     WHERE p.mail = $1::text::citext
+       AND NOT EXISTS (
+           SELECT 1 FROM teacher t
+            WHERE t.id = $2::uuid AND t.mail = p.mail
+       )
+)::bool AS taken
+`
+
+type MailBelongsToAnotherAccountParams struct {
+	Mail      string
+	TeacherID uuid.NullUUID
+}
+
+// Whether an address is already somebody's account, other than through this very teacher row.
+//
+// A person with an account and no teacher row is assignable as that person already. A teacher
+// row with the same address beside it would be the same human twice, and the two would split
+// every sum over assignments between them. The exception is the row being edited: once its
+// address has an account, that is the link working as designed, not a second identity.
+func (q *Queries) MailBelongsToAnotherAccount(ctx context.Context, arg MailBelongsToAnotherAccountParams) (bool, error) {
+	row := q.db.QueryRow(ctx, mailBelongsToAnotherAccount, arg.Mail, arg.TeacherID)
+	var taken bool
+	err := row.Scan(&taken)
+	return taken, err
 }
 
 const moduleByID = `-- name: ModuleByID :one
@@ -1030,7 +1094,8 @@ const teachersByID = `-- name: TeachersByID :many
 SELECT t.id, COALESCE(t.mail::text, '')::text AS mail, t.full_name, t.short_name,
        t.is_professor, t.is_lecturer_on_contract, t.is_honorary_professor, t.is_staff,
        t.active, t.faculty, t.last_semester,
-       (p.id IS NOT NULL)::boolean AS is_user
+       (p.id IS NOT NULL)::boolean AS is_user,
+       (t.source = 'LOCAL')::boolean AS entered_by_hand
 FROM teacher t
 LEFT JOIN person p ON p.mail = t.mail AND p.active
 WHERE t.id = ANY ($1::uuid[])
@@ -1049,6 +1114,7 @@ type TeachersByIDRow struct {
 	Faculty              *string
 	LastSemester         *string
 	IsUser               bool
+	EnteredByHand        bool
 }
 
 // A handful of teachers by id, for attaching them to the modules they are responsible for.
@@ -1077,6 +1143,7 @@ func (q *Queries) TeachersByID(ctx context.Context, ids []uuid.UUID) ([]Teachers
 			&i.Faculty,
 			&i.LastSemester,
 			&i.IsUser,
+			&i.EnteredByHand,
 		); err != nil {
 			return nil, err
 		}
@@ -1167,4 +1234,41 @@ func (q *Queries) UpdateLocalModule(ctx context.Context, arg UpdateLocalModulePa
 		&i.Kind,
 	)
 	return i, err
+}
+
+const updateLocalTeacher = `-- name: UpdateLocalTeacher :one
+UPDATE teacher
+SET mail                    = $1::text,
+    full_name               = $2,
+    short_name              = $3,
+    is_lecturer_on_contract = $4,
+    active                  = $5,
+    updated_at              = now()
+WHERE id = $6 AND source = 'LOCAL'
+RETURNING id
+`
+
+type UpdateLocalTeacherParams struct {
+	Mail                 string
+	FullName             string
+	ShortName            string
+	IsLecturerOnContract bool
+	Active               bool
+	ID                   uuid.UUID
+}
+
+// Correct one, or take it out of the lists with active = false. The WHERE clause names the
+// source, so this can never touch a row the import owns: a mistyped id changes nothing.
+func (q *Queries) UpdateLocalTeacher(ctx context.Context, arg UpdateLocalTeacherParams) (uuid.UUID, error) {
+	row := q.db.QueryRow(ctx, updateLocalTeacher,
+		arg.Mail,
+		arg.FullName,
+		arg.ShortName,
+		arg.IsLecturerOnContract,
+		arg.Active,
+		arg.ID,
+	)
+	var id uuid.UUID
+	err := row.Scan(&id)
+	return id, err
 }

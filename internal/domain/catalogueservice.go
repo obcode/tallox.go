@@ -51,6 +51,18 @@ var (
 	// tells nobody anything they could not read.
 	ErrModuleInDemand = errors.New(
 		"der Eintrag steht noch im Bedarf eines laufenden Semesters – bitte dort zuerst mit „−“ herausnehmen")
+	// ErrTeacherEntryRefused is somebody who may not enter a teacher by hand.
+	ErrTeacherEntryRefused = errors.New("von Hand angelegt werden Lehrpersonen nur von Fachgruppenleitungen und Dekanat")
+	// ErrLocalTeacherInvalid is a teacher entered by hand whose description does not hold
+	// together — no surname, no plausible address.
+	ErrLocalTeacherInvalid = errors.New("die Angaben zur Lehrperson sind nicht gültig")
+	// ErrTeacherMailTaken is an address that somebody who teaches, or somebody with an account,
+	// already has. One sentence for both on purpose: the repair is the same — pick that person
+	// in the list instead — and the answer is given only to callers with full reach.
+	ErrTeacherMailTaken = errors.New(
+		"unter dieser Adresse gibt es schon eine Lehrperson oder ein Konto – bitte in der Liste auswählen")
+	// ErrTeacherNotFound is an id that names no teacher entered by hand.
+	ErrTeacherNotFound = errors.New("diese Lehrperson gibt es nicht")
 )
 
 // CatalogueService answers questions about the module catalogue and takes the one decision that
@@ -580,4 +592,91 @@ func mayRead(actor principal.Actor) error {
 // repaired — a code with a space in it is refused by the lookup rather than rearranged.
 func normaliseProgrammeCode(code string) string {
 	return strings.ToUpper(strings.TrimSpace(code))
+}
+
+// MaxLocalTeacherName is as long as a surname or given name may be.
+const MaxLocalTeacherName = 100
+
+// CreateLocalTeacher enters somebody who teaches and whom the ZPA does not list yet.
+//
+// # Why
+//
+// A lecturer on contract is in the ZPA at the latest once they hold a course, and planning
+// happens before that: somebody won for next semester is assigned in the spring and listed in the
+// autumn. Until then the assignment had nobody to pick. The row is an ordinary teacher row, so
+// assignments, competences and the contract-lecturer hours work on it unchanged, and once the ZPA
+// lists the same address the nightly import takes it over and keeps its id.
+//
+// # Who
+//
+// policy.MayEnterTeacher: the subject group leads and the dean's office, with full reach. No
+// phase condition, like a local module: a teacher hangs off no semester.
+//
+// Grants nothing. The row is master data, not an account.
+func (s *CatalogueService) CreateLocalTeacher(ctx context.Context, actor principal.Actor,
+	spec NewLocalTeacher,
+) (*Teacher, error) {
+	if !policy.MayEnterTeacher(actor) {
+		return nil, ErrTeacherEntryRefused
+	}
+	spec, err := validLocalTeacher(spec)
+	if err != nil {
+		return nil, err
+	}
+	spec.Active = true
+	return s.store.CreateLocalTeacher(ctx, spec, actor.ID)
+}
+
+// ChangeLocalTeacher corrects a teacher entered by hand, or takes them out of the lists with
+// Active false. There is no delete: assignments and competences may point at the row.
+//
+// On the terms of CreateLocalTeacher. Any lead may correct any such row, not only the one who
+// entered it: the person is in no group yet, so there is no narrower reach to judge against.
+func (s *CatalogueService) ChangeLocalTeacher(ctx context.Context, actor principal.Actor,
+	id uuid.UUID, spec NewLocalTeacher,
+) (*Teacher, error) {
+	if !policy.MayEnterTeacher(actor) {
+		return nil, ErrTeacherEntryRefused
+	}
+	spec, err := validLocalTeacher(spec)
+	if err != nil {
+		return nil, err
+	}
+	return s.store.UpdateLocalTeacher(ctx, id, spec)
+}
+
+// validLocalTeacher normalises what somebody typed and refuses what cannot be stored.
+//
+// The address is lower-cased because it is the link to everything else — the column is citext,
+// but the import compares against the view's lower-cased value and a list reads better in one
+// casing. The check is deliberately loose: one "@" with something on both sides. Whether an
+// address works is for the mail server to say; this only keeps a name typed into the wrong field
+// out of the one column that identifies the row.
+func validLocalTeacher(spec NewLocalTeacher) (NewLocalTeacher, error) {
+	spec.Surname = strings.Join(strings.Fields(spec.Surname), " ")
+	spec.GivenName = strings.Join(strings.Fields(spec.GivenName), " ")
+	spec.Mail = strings.ToLower(strings.TrimSpace(spec.Mail))
+
+	switch {
+	case spec.Surname == "":
+		return spec, fmt.Errorf("%w: der Nachname fehlt", ErrLocalTeacherInvalid)
+	case len(spec.Surname) > MaxLocalTeacherName || len(spec.GivenName) > MaxLocalTeacherName:
+		return spec, fmt.Errorf("%w: der Name ist zu lang", ErrLocalTeacherInvalid)
+	case strings.Contains(spec.Surname, ",") || strings.Contains(spec.GivenName, ","):
+		// The comma is what separates surname and given name in the sort spelling, and what
+		// turns it round for display. One inside a name would split it in the wrong place.
+		return spec, fmt.Errorf("%w: ein Name enthält kein Komma", ErrLocalTeacherInvalid)
+	case !plausibleMail(spec.Mail):
+		return spec, fmt.Errorf("%w: die Adresse ist keine Mailadresse", ErrLocalTeacherInvalid)
+	}
+	return spec, nil
+}
+
+func plausibleMail(mail string) bool {
+	if len(mail) > MaxMailLength || strings.ContainsAny(mail, " \t\n,;<>") {
+		return false
+	}
+	local, host, found := strings.Cut(mail, "@")
+	return found && local != "" && host != "" && !strings.Contains(host, "@") &&
+		strings.Contains(host, ".")
 }

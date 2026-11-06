@@ -7,8 +7,8 @@ import (
 	"github.com/obcode/tallox.go/internal/principal"
 )
 
-// Entering a teacher by hand: the dean's office, or a subject group lead with a group, and only
-// with full reach.
+// Entering a teacher by hand: the dean's office, or a subject group lead with a group, or a
+// programme lead with a programme, and only with full reach.
 func TestEnteringATeacherIsForTheLeadsAndTheDeansOffice(t *testing.T) {
 	t.Parallel()
 
@@ -18,7 +18,8 @@ func TestEnteringATeacherIsForTheLeadsAndTheDeansOffice(t *testing.T) {
 		roles := policy.RolesOf(c.actor)
 		want := c.actor.ActsWithFullReach() &&
 			(roles.Has(policy.RoleDeansOffice) ||
-				(roles.Has(policy.RoleSubjectGroupLead) && c.scoped != ""))
+				((roles.Has(policy.RoleSubjectGroupLead) || roles.Has(policy.RoleProgrammeLead)) &&
+					c.scoped != ""))
 		if got != want {
 			t.Errorf("%s %s scoped=%q: MayEnterTeacher = %v, want %v",
 				c.label, c.door, c.scoped, got, want)

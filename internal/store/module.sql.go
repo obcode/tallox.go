@@ -744,6 +744,27 @@ func (q *Queries) ModuleHasOpenInstance(ctx context.Context, moduleID uuid.UUID)
 	return open, err
 }
 
+const moduleIsTakenOutOfLists = `-- name: ModuleIsTakenOutOfLists :one
+SELECT (source = 'LOCAL' AND NOT active)::bool AS inactive
+  FROM module
+ WHERE id = $1
+   FOR SHARE
+`
+
+// Whether a module is a local course somebody took out of the lists, read under a share lock.
+//
+// The other half of ModuleHasOpenInstance. Deactivating writes the module row and then asks for
+// open instances; declaring one locks the same row and then inserts. Whichever comes second
+// waits for the first to commit and then sees what it did, so the two can never both succeed.
+// Imported rows answer false: their `active` is the examination office's flag, not a decision
+// of this faculty, and planning has never asked about it.
+func (q *Queries) ModuleIsTakenOutOfLists(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, moduleIsTakenOutOfLists, id)
+	var inactive bool
+	err := row.Scan(&inactive)
+	return inactive, err
+}
+
 const moduleOfferingsFor = `-- name: ModuleOfferingsFor :many
 SELECT o.id, o.module_id, o.spo_id, o.is_duty, o.module_codes, o.focuses, o.baskets,
        o.min_programme_semester,

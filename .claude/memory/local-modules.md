@@ -122,3 +122,19 @@ bekommen soll. Wählbar ist **jede aktive** Fachgruppe, nicht nur eine selbst ge
   `setModulesSubjectGroup` unverändert, eine Studiengangsleitung ohne Fachgruppe kann ihr Modul
   nicht wieder herausnehmen. Golden-Matrizen unverändert. Keine Pflicht für FWP-Platzhalter,
   keine „neu"-Markierung.
+
+## Kein Bedarf für Stillgelegtes (seit 2026-11-10)
+
+Gegenrichtung zu `MODULE_IN_DEMAND`: für eine **lokale** Zeile mit `active = false` lehnen alle
+vier Wege, die eine Instanz anlegen, ab — `declareCourseInstance`, `duplicateCourseInstance`,
+`planDemand` (Zeile `MODULE_INACTIVE` in `refused`, der Rest läuft) und
+`copyDemandFromSemester` (bleibt zurück, gezählt in `CopyDemandReport.inactive`). Fehler
+`domain.ErrModuleInactive`, Reparatur: im Modulkatalog wieder aufnehmen.
+
+- Nur `source = 'LOCAL'`: das `active` einer ZPA-Zeile ist das Flag des ZPA, danach hat die
+  Planung nie gefragt — das zu ändern wäre eine eigene Entscheidung.
+- Kein Wettlauf: `ModuleIsTakenOutOfLists` liest die Modulzeile `FOR SHARE` im Schreib-Tx;
+  `UpdateLocalModule` schreibt dieselbe Zeile und fragt *danach* nach offenen Instanzen. Wer
+  zweit kommt, wartet und sieht unter READ COMMITTED, was der erste getan hat.
+- Der Ausgang dafür ist ein FINAL-Semester: dessen Instanzen überleben das Stilllegen, und genau
+  von dort kopiert oder dupliziert man.

@@ -97,3 +97,48 @@ func TestALocalModuleInDemandIsDeactivatedOnlyAfterItIsWithdrawnThroughEveryDoor
 		})
 	}
 }
+
+// The other direction: a course taken out of the lists cannot be declared again. Declaring is
+// @fullReach, so a plain token stops at that gate, and the two doors that may plan get the same
+// refusal.
+func TestADeactivatedLocalModuleCannotBeDeclaredThroughEveryDoor(t *testing.T) {
+	t.Parallel()
+
+	f := demandHandler(t,
+		map[string][]string{testdata.Vier.Mail: {storetest.FixtureProgrammeA}},
+		grants{testdata.Vier, []string{"PROGRAMME_LEAD"}})
+
+	browser := graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+	doors := []struct {
+		name string
+		c    *graphqltest.Client
+		code string
+	}{
+		{"browser", browser, "MODULE_INACTIVE"},
+		{"token", graphqltest.New(f.handler).WithToken(testdata.Vier.Token).On(graphqltest.Token),
+			"FULL_REACH_REQUIRED"},
+		{"full reach", graphqltest.New(f.handler).
+			WithToken(fullReachToken(t, f.schema, testdata.Vier)).On(graphqltest.Token),
+			"MODULE_INACTIVE"},
+	}
+
+	for _, door := range doors {
+		t.Run(door.name, func(t *testing.T) {
+			name := "FWP-Platzhalter stillgelegt (" + door.name + ")"
+
+			var created localModuleResult
+			browser.MustQuery(t, createLocalMutation,
+				localInput(storetest.FixtureProgrammeA, name, "FWP_PLACEHOLDER"), &created)
+			id := created.CreateLocalModule.ID
+			browser.MustQuery(t, changeLocalMutation,
+				deactivated(id, storetest.FixtureProgrammeA, name), nil)
+
+			assertRefusal(t, door.c.Do(t, declareMutation, map[string]any{"in": map[string]any{
+				"semester":  "2027-SS",
+				"programme": storetest.FixtureProgrammeA,
+				"moduleId":  id,
+				"track":     "A",
+			}}), door.code)
+		})
+	}
+}

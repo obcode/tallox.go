@@ -37,7 +37,7 @@ type MutationResolver interface {
 	SetInstancePartTaughtBy(ctx context.Context, id string, faculty *string) (*model.CourseInstance, error)
 	SetProgrammePlanningStatus(ctx context.Context, code string, status domain.ProgrammeStatus) (*model.Programme, error)
 	SetProgrammeDegree(ctx context.Context, code string, degree *domain.Degree) (*model.Programme, error)
-	CreateLocalModule(ctx context.Context, input model.LocalModuleInput) (*model.Module, error)
+	CreateLocalModule(ctx context.Context, input model.LocalModuleInput, subjectGroup *string) (*model.Module, error)
 	ChangeLocalModule(ctx context.Context, id string, input model.LocalModuleInput) (*model.Module, error)
 	SetModuleComponents(ctx context.Context, moduleID string, components []*model.ModuleComponentInput) (*model.Module, error)
 	ApplyModuleSplitToInstances(ctx context.Context, moduleID string, dryRun bool) (*model.ModuleSplitApplication, error)
@@ -405,6 +405,14 @@ func (ec *executionContext) field_Mutation_createLocalModule_args(ctx context.Co
 		return nil, err
 	}
 	args["input"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "subjectGroup",
+		func(ctx context.Context, v any) (*string, error) {
+			return ec.unmarshalOID2ᚖstring(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["subjectGroup"] = arg1
 	return args, nil
 }
 
@@ -2738,7 +2746,7 @@ func (ec *executionContext) _Mutation_createLocalModule(ctx context.Context, fie
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().CreateLocalModule(ctx, fc.Args["input"].(model.LocalModuleInput))
+			return ec.Resolvers.Mutation().CreateLocalModule(ctx, fc.Args["input"].(model.LocalModuleInput), fc.Args["subjectGroup"].(*string))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Module) graphql.Marshaler {

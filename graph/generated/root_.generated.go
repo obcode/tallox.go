@@ -420,7 +420,7 @@ type ComplexityRoot struct {
 		ConfirmMyAssignments          func(childComplexity int, semester string) int
 		CopyDemandFromSemester        func(childComplexity int, from string, to string, programme string) int
 		CorrectDesiredTeachingHours   func(childComplexity int, semester string, person string, minHours *float64, maxHours *float64, note *string) int
-		CreateLocalModule             func(childComplexity int, input model.LocalModuleInput) int
+		CreateLocalModule             func(childComplexity int, input model.LocalModuleInput, subjectGroup *string) int
 		CreateLocalTeacher            func(childComplexity int, input model.LocalTeacherInput) int
 		CreatePerson                  func(childComplexity int, mail string, name *string) int
 		CreatePersonalAccessToken     func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput, fullReach bool) int
@@ -2490,7 +2490,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.CreateLocalModule(childComplexity, args["input"].(model.LocalModuleInput)), true
+		return e.ComplexityRoot.Mutation.CreateLocalModule(childComplexity, args["input"].(model.LocalModuleInput), args["subjectGroup"].(*string)), true
 	case "Mutation.createLocalTeacher":
 		if e.ComplexityRoot.Mutation.CreateLocalTeacher == nil {
 			break
@@ -6647,8 +6647,21 @@ extend type Mutation {
 
   A second course of the same name in the same programme is ` + "`" + `MODULE_NAME_TAKEN` + "`" + ` — there is no
   other identity for a row somebody typed, so two clicks on the button are one row.
+
+  ` + "`" + `subjectGroup` + "`" + ` files the new row under a subject group in the same step — **any active group**,
+  not only one the caller leads. Whoever may enter the course may say which subject group it
+  belongs to, because a brand-new row has no instances and no wishes yet, so choosing its group
+  moves nobody's reading rights. Moving it later is filing, and that stays with the subject group
+  leads and the administration (` + "`" + `setModulesSubjectGroup` + "`" + `). The group is checked only after the
+  permission: a caller who may not enter the course is told ` + "`" + `NOT_YOUR_PROGRAMME` + "`" + ` whatever group
+  it names, and a group that does not exist or has been retired is ` + "`" + `SUBJECT_GROUP_NOT_FOUND` + "`" + `, in
+  which case nothing is written at all. Optional, also for FWP placeholders.
   """
-  createLocalModule(input: LocalModuleInput!): Module! @scope(area: PLANNING, verb: WRITE)
+  createLocalModule(
+    input: LocalModuleInput!
+    "The subject group to file the new row under, by id. Absent or null leaves it unfiled."
+    subjectGroup: ID
+  ): Module! @scope(area: PLANNING, verb: WRITE)
 
   """
   Correct one, or take it out of the lists with ` + "`" + `active: false` + "`" + `.
@@ -6664,6 +6677,10 @@ extend type Mutation {
   in a semester that is not ` + "`" + `FINAL` + "`" + `: taking it out of the lists would hide demand that still costs
   hours. Withdraw those instances first (` + "`" + `withdrawCourseInstance` + "`" + `). Instances are not
   confidential, so the refusal says nothing a caller could not read anyway.
+
+  Takes no subject group, unlike ` + "`" + `createLocalModule` + "`" + `: once the row exists, its group decides who
+  reads the unpublished wishes on its instances, so changing it is filing
+  (` + "`" + `setModulesSubjectGroup` + "`" + `) and follows that mutation's rule.
   """
   changeLocalModule(id: ID!, input: LocalModuleInput!): Module!
     @scope(area: PLANNING, verb: WRITE)

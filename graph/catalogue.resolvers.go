@@ -122,7 +122,7 @@ func (r *mutationResolver) SetProgrammeDegree(ctx context.Context, code string, 
 }
 
 // CreateLocalModule is the resolver for the createLocalModule field.
-func (r *mutationResolver) CreateLocalModule(ctx context.Context, input model.LocalModuleInput) (*model.Module, error) {
+func (r *mutationResolver) CreateLocalModule(ctx context.Context, input model.LocalModuleInput, subjectGroup *string) (*model.Module, error) {
 	actor := principal.From(ctx)
 
 	spec, err := localModuleSpec(input)

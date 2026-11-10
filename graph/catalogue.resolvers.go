@@ -130,6 +130,17 @@ func (r *mutationResolver) CreateLocalModule(ctx context.Context, input model.Lo
 		return nil, err
 	}
 
+	// Not refused here when it does not parse: the service judges the permission first, so that
+	// a caller who may not enter the course learns nothing about the group they named. An id
+	// that is not one names no group, which is what uuid.Nil does too.
+	if subjectGroup != nil {
+		group, err := uuid.Parse(*subjectGroup)
+		if err != nil {
+			group = uuid.Nil
+		}
+		spec.SubjectGroupID = &group
+	}
+
 	// The code goes to the service rather than being resolved here: "does this programme exist,
 	// and does the faculty plan it" are rules, and the rules live one layer down.
 	created, err := r.Catalogue.CreateLocalModule(ctx, actor, input.Programme, spec)

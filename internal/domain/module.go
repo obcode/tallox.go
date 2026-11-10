@@ -492,7 +492,9 @@ type CatalogueReader interface {
 	// ProgrammeDegrees maps the code of every programme with a recorded degree to it. A
 	// programme nobody has recorded one for is absent.
 	ProgrammeDegrees(ctx context.Context) (map[string]Degree, error)
-	// CreateLocalModule adds a catalogue row the faculty enters itself, with its split.
+	// CreateLocalModule adds a catalogue row the faculty enters itself, with its split and, when
+	// spec names one, its subject group. ErrSubjectGroupNotFound for a group that does not exist
+	// or has been retired, and then nothing is written.
 	CreateLocalModule(ctx context.Context, spec NewLocalModule, by uuid.UUID) (*Module, error)
 	// UpdateLocalModule corrects one, or takes it out of the lists. Never touches an imported
 	// row: the statement names the source.
@@ -547,4 +549,8 @@ type NewLocalModule struct {
 	Active              bool
 	// Components is the split, or empty to leave the proposal standing.
 	Components []ModuleComponent
+	// SubjectGroupID files a new row under a subject group in the same transaction, or nil to
+	// leave it unfiled. Read only on creation: changing the group of an existing row is filing,
+	// which has its own rule. uuid.Nil names no group and is refused as one that does not exist.
+	SubjectGroupID *uuid.UUID
 }

@@ -234,3 +234,27 @@ func ModuleFilingRefusal(a principal.Actor) string {
 	}
 	return ModuleFilingReason
 }
+
+// MayChooseSubjectGroupOnCreation is whether somebody entering a local module may name the
+// subject group it is filed under, in the same step.
+//
+// Exactly those who may enter the course at all — the lead of its home programme and the dean's
+// office, MayPlanProgramme — and for **any** group, not only one they lead. That is the
+// difference from MayFileModule, and it is deliberate rather than an exception to it: filing is
+// guarded because moving a module moves who may read the unpublished wishes on its instances. A
+// row that does not exist yet has no instances and no wishes, so naming its first group moves
+// nothing that anybody could already read; it only saves the subject group lead the work of
+// pulling in a course nobody else knows about yet.
+//
+// Hence also no full-reach condition, unlike FilingScope: a plain token that may enter the course
+// may name its group, because the argument above does not depend on the door.
+//
+// Once the row exists this rule no longer applies. Changing its group is filing, and MayFileModule
+// decides it — a programme lead who chose a foreign group at creation cannot take the module
+// back out of it.
+//
+// The group's existence is not this rule's question: the service asks it only after this has
+// said yes, so that a caller who may not enter the course cannot probe which group ids exist.
+func MayChooseSubjectGroupOnCreation(a principal.Actor, homeProgrammeID uuid.UUID) bool {
+	return MayPlanProgramme(a, homeProgrammeID)
+}

@@ -402,3 +402,60 @@ func filingActors() []struct {
 	}
 	return out
 }
+
+// Whoever may enter a local module may name its first subject group — any group — through every
+// door; afterwards the same person still may not re-file it.
+//
+// The pair of assertions is the point: choosing at creation is wider than MayFileModule on
+// purpose, and the test fails if somebody widens filing to match, or narrows creation to it.
+func TestTheCreatorOfALocalModuleChoosesAnyGroupButCannotRefileIt(t *testing.T) {
+	t.Parallel()
+
+	programmeLead := func(kind principal.Kind) principal.Actor {
+		a := testdata.Vier.Actor(kind, string(policy.RoleProgrammeLead))
+		a.RoleScopes = []principal.RoleScope{
+			{Role: string(policy.RoleProgrammeLead), ProgrammeID: programmeOne},
+		}
+		return a
+	}
+	fullReach := testdata.Vier.FullReachActor(string(policy.RoleProgrammeLead))
+	fullReach.RoleScopes = programmeLead(principal.KindToken).RoleScopes
+
+	for name, lead := range map[string]principal.Actor{
+		"browser":    programmeLead(principal.KindInteractive),
+		"token":      programmeLead(principal.KindToken),
+		"full reach": fullReach,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if !policy.MayChooseSubjectGroupOnCreation(lead, programmeOne) {
+				t.Error("the lead of the home programme may not choose the new module's group")
+			}
+			if policy.MayChooseSubjectGroupOnCreation(lead, programmeTwo) {
+				t.Error("a lead may choose the group of a module in somebody else's programme")
+			}
+			// Leads no group, so neither end of a later move is in reach.
+			if policy.MayFileModule(lead, groupOne, groupTwo) || policy.MayFileModule(lead, groupOne, uuid.Nil) {
+				t.Error("choosing a group at creation has turned into a right to re-file")
+			}
+		})
+	}
+
+	deans := testdata.Fuenf.Actor(principal.KindToken, string(policy.RoleDeansOffice))
+	if !policy.MayChooseSubjectGroupOnCreation(deans, programmeTwo) {
+		t.Error("the dean's office may not choose the group of a module it may enter")
+	}
+
+	for name, a := range map[string]principal.Actor{
+		"lecturer":           testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer)),
+		"subject group lead": headOf(testdata.Drei, principal.KindInteractive, groupOne),
+		"admin":              testdata.Sechs.Actor(principal.KindInteractive, string(policy.RoleAdmin)),
+		"unscoped programme lead": testdata.Vier.Actor(principal.KindInteractive,
+			string(policy.RoleProgrammeLead)),
+	} {
+		if policy.MayChooseSubjectGroupOnCreation(a, programmeOne) {
+			t.Errorf("a %s may choose the group of a module they may not enter", name)
+		}
+	}
+}

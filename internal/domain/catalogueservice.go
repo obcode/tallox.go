@@ -454,6 +454,12 @@ const MaxLocalModuleName = 200
 // SetModuleComponents uses, and the same sentence behind it: a module is planned where it is at
 // home. Deliberately **no phase condition**: a module hangs off no semester, so there is no phase
 // that could close it. The phase gate applies where it belongs, at the instance.
+//
+// # Its subject group
+//
+// spec.SubjectGroupID may name any active group, not only one the caller leads — see
+// policy.MayChooseSubjectGroupOnCreation for why that is not a way around filing. A group that
+// does not exist or is retired is ErrSubjectGroupNotFound, and then no module row is written.
 func (s *CatalogueService) CreateLocalModule(ctx context.Context, actor principal.Actor,
 	code string, spec NewLocalModule,
 ) (*Module, error) {
@@ -482,6 +488,15 @@ func (s *CatalogueService) CreateLocalModule(ctx context.Context, actor principa
 	spec, err = validLocalModule(spec)
 	if err != nil {
 		return nil, err
+	}
+
+	// The group comes last, after every check above has said yes: a caller who may not enter the
+	// course must not learn from the answer whether the group id they sent exists. Whether it
+	// does, and is active, is asked by the store inside the write's transaction — a group retired
+	// between a read here and the insert would otherwise still receive the module.
+	if spec.SubjectGroupID != nil &&
+		!policy.MayChooseSubjectGroupOnCreation(actor, programme.ID) {
+		return nil, ErrNotYourProgramme
 	}
 	return s.store.CreateLocalModule(ctx, spec, actor.ID)
 }
@@ -523,6 +538,8 @@ func (s *CatalogueService) ChangeLocalModule(ctx context.Context, actor principa
 	}
 
 	spec.HomeProgrammeID = module.HomeProgramme.ID
+	// Never re-filed from here: changing the group of an existing row is filing, with its own rule.
+	spec.SubjectGroupID = nil
 	spec, err = validLocalModule(spec)
 	if err != nil {
 		return nil, err

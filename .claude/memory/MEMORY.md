@@ -17,7 +17,7 @@ Kollegium — das gehört nach `tallox.dev`.
 - [Welche Studiengänge geplant werden](programme-planning-status.md) — warum das ZPA es nicht sagt (gemessen), und was aus der Spalte folgt
 - [Abschluss am Studiengang](programme-degree.md) — Bachelor/Master von Hand gepflegt, NULL statt geraten, Feld-Resolver gegen das stille null
 - [Studiengangsleitungen lesbar](programme-leads.md) — `Programme.leads` für alle Konten, ohne Partnerkonten und abgelaufene Grants
-- [Lokale Module und FWP-Platzhalter](local-modules.md) — warum eine `module`-Zeile statt einer eigenen Tabelle, und warum drei FWPs drei Züge sind
+- [Lokale Module und FWP-Platzhalter](local-modules.md) — warum eine `module`-Zeile statt einer eigenen Tabelle, warum drei FWPs drei Züge sind, und die Fachgruppe beim Anlegen (jede aktive, kein Umhängen danach)
 - [Lehrende von Hand](local-teachers.md) — bis das ZPA sie liefert: gleiche Tabelle, Übernahme über die Adresse vor dem Upsert, `@fullReach`, eindeutig gegen Konten, kein Löschen
 - [Zulassung von Lehrenden](admitting-a-teacher.md) — wie aus einer ZPA-Lehrperson ein Konto wird, und die drei Entscheidungen darin
 - [Zugriffslog](access-log.md) — was es festhält, was es bewusst nicht kann, und warum die Reihenfolge der Middlewares tragend ist

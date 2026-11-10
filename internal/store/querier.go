@@ -765,6 +765,13 @@ type Querier interface {
 	// the interface would show a run in progress that nothing is progressing. The cutoff is passed
 	// in rather than hard-coded here so the caller's reasoning about it stays in Go.
 	FailAbandonedZPASyncRuns(ctx context.Context, olderThan time.Time) ([]uuid.UUID, error)
+	// The subject group a local module is entered with, in the transaction that inserts it.
+	//
+	// Selected from subject_group rather than inserted as a value, so that "exists and is active" is
+	// asked by the same statement that writes: a group retired a moment earlier yields no row, and
+	// the caller rolls the whole module back. A plain INSERT would only catch a group that does not
+	// exist (through the foreign key) and would file the module under a retired one.
+	FileNewLocalModule(ctx context.Context, arg FileNewLocalModuleParams) (int64, error)
 	// Fill a part that nobody holds. Returns no row if somebody already does, or if another faculty
 	// teaches it.
 	//

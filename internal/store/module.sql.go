@@ -12,6 +12,34 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const fileNewLocalModule = `-- name: FileNewLocalModule :execrows
+INSERT INTO module_subject_group (module_id, subject_group_id, assigned_by)
+SELECT $1::uuid, g.id, $2::uuid
+FROM subject_group g
+WHERE g.id = $3::uuid
+  AND g.active
+`
+
+type FileNewLocalModuleParams struct {
+	ModuleID       uuid.UUID
+	AssignedBy     uuid.NullUUID
+	SubjectGroupID uuid.UUID
+}
+
+// The subject group a local module is entered with, in the transaction that inserts it.
+//
+// Selected from subject_group rather than inserted as a value, so that "exists and is active" is
+// asked by the same statement that writes: a group retired a moment earlier yields no row, and
+// the caller rolls the whole module back. A plain INSERT would only catch a group that does not
+// exist (through the foreign key) and would file the module under a retired one.
+func (q *Queries) FileNewLocalModule(ctx context.Context, arg FileNewLocalModuleParams) (int64, error) {
+	result, err := q.db.Exec(ctx, fileNewLocalModule, arg.ModuleID, arg.AssignedBy, arg.SubjectGroupID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const insertLocalModule = `-- name: InsertLocalModule :one
 INSERT INTO module (home_programme_id, name, course_type, frequency, contact_hours_per_week,
                     credits, source, kind, created_by)

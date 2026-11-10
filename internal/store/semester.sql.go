@@ -61,6 +61,33 @@ func (q *Queries) AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterP
 	return i, err
 }
 
+const advanceToWishesOnRelease = `-- name: AdvanceToWishesOnRelease :execrows
+UPDATE semester
+SET phase = 'WISHES',
+    updated_at = now()
+WHERE id = $1::uuid
+  AND phase = 'DEMAND_PLANNING'
+`
+
+// The one phase switch nobody clicks: the first programme that releases its demand for wishes
+// moves its semester from DEMAND_PLANNING to WISHES (2026-11-10).
+//
+// Compare-and-set like AdvanceSemesterPhase, with the expected phase written into the statement
+// rather than passed: it only ever means "the planning has reached the wishes", never any other
+// step. Zero rows is the ordinary answer — already further on, or the dean's office switched it
+// a moment earlier — and nothing to report, so a release racing a manual switch still yields
+// exactly one step.
+//
+// Called by the release in the same transaction, never by a trigger: a fixture or an import that
+// writes demand_completion directly must not move a phase as a side effect.
+func (q *Queries) AdvanceToWishesOnRelease(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, advanceToWishesOnRelease, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearPlanningSemester = `-- name: ClearPlanningSemester :exec
 UPDATE semester
 SET is_planning_semester = false,

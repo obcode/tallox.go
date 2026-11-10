@@ -9,6 +9,11 @@ package policy
 // arrived is a process nobody trusts. It also makes the switch a visible artefact at the
 // faculty retreat: somebody flips it, and everyone can see who and when.
 //
+// One step is not clicked by the dean's office: the first study programme that releases its
+// demand for wishes moves a semester from DEMAND_PLANNING to WISHES, in the same transaction as
+// the release (since 2026-11-10). Still an act somebody performs rather than a date arriving —
+// the programme lead's — and only that step; withdrawing the release never moves it back.
+//
 // The phase is separate from wishes_published_at. It is tempting to fold them together —
 // "publication happens when the wish phase ends" — but the process needs both halves
 // independently: the wish phase can close without publishing (so late entries stop while the

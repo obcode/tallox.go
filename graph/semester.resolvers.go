@@ -8,7 +8,6 @@ package graph
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/obcode/tallox.go/graph/generated"
@@ -162,7 +161,12 @@ func (r *queryResolver) Semester(ctx context.Context, code string) (*model.Semes
 
 // DemandRelease is the resolver for the demandRelease field.
 func (r *semesterResolver) DemandRelease(ctx context.Context, obj *model.Semester) (*model.DemandRelease, error) {
-	panic(fmt.Errorf("not implemented: DemandRelease - demandRelease"))
+	actor := principal.From(ctx)
+	counted, err := r.Marks.DemandRelease(ctx, actor, obj.Code)
+	if err != nil {
+		return nil, planningMarkError(actor, err)
+	}
+	return &model.DemandRelease{Released: counted.Released, Planned: counted.Planned}, nil
 }
 
 // Semester returns generated.SemesterResolver implementation.

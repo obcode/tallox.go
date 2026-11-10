@@ -67,6 +67,17 @@ type DemandCompletion struct {
 	CompletedBy uuid.UUID
 }
 
+// DemandRelease is how far the releases of one semester have got: Released of the Planned
+// programmes have released their demand for wishes. Only programmes the faculty plans count, on
+// both sides.
+//
+// Public like the announcements it counts: it says something about programmes and the process,
+// nothing about anybody's interest in anything.
+type DemandRelease struct {
+	Released int
+	Planned  int
+}
+
 // ReviewCompletion is one study programme announcing that its review of a semester is done:
 // after the assignment, its lead has gone over the demand, its cut and who teaches what, and the
 // figures stand as far as anybody knows today.
@@ -121,7 +132,10 @@ func (c WishWriteContext) Found() bool { return c.Semester.Recorded() }
 type PlanningMarkStore interface {
 	// DemandCompletions returns the announcements of one semester.
 	DemandCompletions(ctx context.Context, semesterCode string) ([]DemandCompletion, error)
-	// AnnounceDemandComplete records or refreshes one, by semester and programme code.
+	// DemandRelease counts the planned programmes of one semester and how many have released.
+	DemandRelease(ctx context.Context, semesterCode string) (DemandRelease, error)
+	// AnnounceDemandComplete records or refreshes one, by semester and programme code. In the
+	// same transaction it moves a semester still in DEMAND_PLANNING on to WISHES.
 	AnnounceDemandComplete(ctx context.Context, semesterCode, programme string, by uuid.UUID,
 	) (*DemandCompletion, error)
 	// WithdrawDemandComplete removes one. Reports whether there was one.
@@ -188,12 +202,37 @@ func (s *PlanningMarkService) DemandCompletions(ctx context.Context, actor princ
 	return s.store.DemandCompletions(ctx, semester.Code)
 }
 
+// DemandRelease is how many of the programmes this faculty plans have released their demand for
+// a semester, out of how many.
+//
+// Readable by anybody with an account, for the reason DemandCompletions is: it is the same fact,
+// counted.
+func (s *PlanningMarkService) DemandRelease(ctx context.Context, actor principal.Actor,
+	semesterCode string) (DemandRelease, error) {
+	if !actor.Authenticated() {
+		return DemandRelease{}, ErrNotAuthenticated
+	}
+	semester, err := s.semesters.ByCode(ctx, actor, semesterCode)
+	if err != nil {
+		return DemandRelease{}, err
+	}
+	return s.store.DemandRelease(ctx, semester.Code)
+}
+
 // SetDemandComplete announces a study programme's demand as settled, or withdraws the
 // announcement.
 //
 // Not bound by the phase, unlike writing the demand itself. Announcing is a statement about work
 // somebody did rather than a change to the plan, and a finished semester whose demand was never
 // announced is a fact somebody may still want to record.
+//
+// Announcing moves the semester on from DEMAND_PLANNING to WISHES when it is still there
+// (2026-11-10): the first release is the moment the wishes begin, and a phase that kept saying
+// "demand planning" afterwards sent colleagues looking in the wrong place. It is the only phase
+// switch nobody clicks, and only that one step — any other phase stays. Withdrawing never moves
+// it back: other programmes may have released, and the dean's office switches back if it must.
+// The permission check above runs first, so a refused release changes neither the marks nor the
+// phase.
 func (s *PlanningMarkService) SetDemandComplete(ctx context.Context, actor principal.Actor,
 	semesterCode, programme string, complete bool) (*DemandCompletion, error) {
 	if !actor.Authenticated() {

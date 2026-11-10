@@ -264,6 +264,29 @@ func (ec *executionContext) fieldContext_CopyDemandReport_notPlanned(_ context.C
 	return graphql.NewScalarFieldContext("CopyDemandReport", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _CopyDemandReport_inactive(ctx context.Context, field graphql.CollectedField, obj *model.CopyDemandReport) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_CopyDemandReport_inactive(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Inactive, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_CopyDemandReport_inactive(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("CopyDemandReport", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _CopyDemandReport_partsCreated(ctx context.Context, field graphql.CollectedField, obj *model.CopyDemandReport) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1975,6 +1998,11 @@ func (ec *executionContext) _CopyDemandReport(ctx context.Context, sel ast.Selec
 			}
 		case "notPlanned":
 			out.Values[i] = ec._CopyDemandReport_notPlanned(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "inactive":
+			out.Values[i] = ec._CopyDemandReport_inactive(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

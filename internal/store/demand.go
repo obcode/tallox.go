@@ -498,6 +498,25 @@ func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.Cour
 // looks like — one built by the writer, one by the reader — and the two would drift on the first
 // field somebody adds to a query without adding it to the other.
 
+// refuseInactiveModule is ErrModuleInactive for a local course that was taken out of the lists.
+//
+// Every path that declares an instance asks, inside its own transaction: the query holds a share
+// lock on the module row, which is what keeps a deactivation running at the same moment from
+// slipping between this check and the insert (see ModuleIsTakenOutOfLists).
+func refuseInactiveModule(ctx context.Context, q *Queries, moduleID uuid.UUID) error {
+	inactive, err := q.ModuleIsTakenOutOfLists(ctx, moduleID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ErrModuleNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("cannot read whether the module is in the lists: %w", err)
+	}
+	if inactive {
+		return domain.ErrModuleInactive
+	}
+	return nil
+}
+
 // statedComponents is what an instance's parts are made from: the split somebody confirmed.
 //
 // Read inside the caller's transaction, because "this module has no split" and "this module had
@@ -615,6 +634,9 @@ func (d *Demand) CreateCourseInstance(ctx context.Context, spec domain.NewCourse
 
 	q := New(tx)
 
+	if err := refuseInactiveModule(ctx, q, spec.ModuleID); err != nil {
+		return nil, err
+	}
 	components, err := statedComponents(ctx, q, spec.ModuleID)
 	if err != nil {
 		return nil, err
@@ -718,6 +740,10 @@ func (d *Demand) DuplicateCourseInstance(ctx context.Context, id uuid.UUID, trac
 	// prevent.
 	if source.CoveredAcceptedAt.Valid {
 		return nil, domain.ErrInstanceCovered
+	}
+	// The source can predate the deactivation: a semester that is over keeps its instances.
+	if err := refuseInactiveModule(ctx, q, source.ModuleID); err != nil {
+		return nil, err
 	}
 
 	parts, err := q.InstancePartsFor(ctx, []uuid.UUID{id})
@@ -2098,7 +2124,11 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 
 	// Independent work is not planned any more (domain.CourseType.IndependentWork), and an
 	// instance of it from before that rule stays behind, counted rather than carried forward.
+	// A local course taken out of the lists since stays behind too: the source semester is over,
+	// so its instances survived the deactivation, and copying them would bring back demand nobody
+	// can see.
 	independent := make(map[uuid.UUID]bool)
+	inactive := make(map[uuid.UUID]bool)
 	for _, source := range sources {
 		if _, seen := independent[source.ModuleID]; seen {
 			continue
@@ -2108,11 +2138,21 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 			return counts, fmt.Errorf("cannot read the module of a copied instance: %w", err)
 		}
 		independent[source.ModuleID] = domain.CourseType(module.CourseType).IndependentWork()
+		switch err := refuseInactiveModule(ctx, q, source.ModuleID); {
+		case errors.Is(err, domain.ErrModuleInactive):
+			inactive[source.ModuleID] = true
+		case err != nil:
+			return counts, err
+		}
 	}
 
 	for _, source := range sources {
 		if independent[source.ModuleID] {
 			counts.NotPlanned++
+			continue
+		}
+		if inactive[source.ModuleID] {
+			counts.Inactive++
 			continue
 		}
 		newID, err := q.InsertCourseInstanceIfAbsent(ctx, InsertCourseInstanceIfAbsentParams{
@@ -2680,6 +2720,9 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 	q := New(tx)
 
 	components, err := statedComponents(ctx, q, pc.entry.ModuleID)
+	if err == nil {
+		err = refuseInactiveModule(ctx, q, pc.entry.ModuleID)
+	}
 	if err != nil {
 		// Both of these cost the row and not the screen. A module that vanished between the load
 		// and the save is somebody else's deletion, not this caller's mistake — and it must not
@@ -2691,6 +2734,7 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 			{domain.ErrModuleNotDecomposed, "MODULE_NOT_DECOMPOSED"},
 			{domain.ErrModuleNotPlanned, "MODULE_NOT_PLANNED"},
 			{domain.ErrModuleNotFound, "MODULE_NOT_FOUND"},
+			{domain.ErrModuleInactive, "MODULE_INACTIVE"},
 		} {
 			if errors.Is(err, known.sentinel) {
 				plan.Refused = append(plan.Refused, domain.DemandRefusal{

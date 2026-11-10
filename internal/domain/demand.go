@@ -42,6 +42,12 @@ var (
 		"dieses Modul ist selbständiges Arbeiten (Abschlussarbeit, Praxissemester, " +
 			"Bachelorseminar) und wird nicht geplant, sondern direkt zwischen Studierenden und " +
 			"Lehrenden vereinbart")
+	// ErrModuleInactive is demand for a course this faculty entered and then took out of the
+	// lists. It no longer appears in the catalogue or on the demand page, so an instance of it
+	// would cost hours where nobody looks — the state ErrModuleInDemand keeps from arising in the
+	// other direction. Only local courses: an imported module's `active` is the ZPA's flag.
+	ErrModuleInactive = errors.New(
+		"dieser Eintrag ist stillgelegt – bitte ihn zuerst im Modulkatalog wieder aufnehmen")
 	// ErrTrackTaken is this exact instance already existing: same semester, module, programme
 	// and parallel cohort.
 	//
@@ -414,6 +420,9 @@ type CopyCounts struct {
 	// NotPlanned is how many were left behind because their module is independent work, which is
 	// not planned (CourseType.IndependentWork) — an instance from before that rule.
 	NotPlanned int
+	// Inactive is how many were left behind because their module is a local course that was
+	// taken out of the lists since (ErrModuleInactive).
+	Inactive int
 	// PartsCreated is how many parts came with them.
 	PartsCreated int
 	// CoverageRequested is how many copied cohorts asked again to be covered by another

@@ -353,6 +353,19 @@ SELECT EXISTS (
        AND s.phase <> 'FINAL'
 )::bool AS open;
 
+-- name: ModuleIsTakenOutOfLists :one
+-- Whether a module is a local course somebody took out of the lists, read under a share lock.
+--
+-- The other half of ModuleHasOpenInstance. Deactivating writes the module row and then asks for
+-- open instances; declaring one locks the same row and then inserts. Whichever comes second
+-- waits for the first to commit and then sees what it did, so the two can never both succeed.
+-- Imported rows answer false: their `active` is the examination office's flag, not a decision
+-- of this faculty, and planning has never asked about it.
+SELECT (source = 'LOCAL' AND NOT active)::bool AS inactive
+  FROM module
+ WHERE id = $1
+   FOR SHARE;
+
 -- name: SetProgrammePlanningStatus :one
 -- Record that this faculty plans a programme, or no longer does.
 --

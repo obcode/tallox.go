@@ -1149,6 +1149,14 @@ type Querier interface {
 	// where nobody sees them. FINAL is the only phase that ends a semester, so it is the only one
 	// that does not count.
 	ModuleHasOpenInstance(ctx context.Context, moduleID uuid.UUID) (bool, error)
+	// Whether a module is a local course somebody took out of the lists, read under a share lock.
+	//
+	// The other half of ModuleHasOpenInstance. Deactivating writes the module row and then asks for
+	// open instances; declaring one locks the same row and then inserts. Whichever comes second
+	// waits for the first to commit and then sees what it did, so the two can never both succeed.
+	// Imported rows answer false: their `active` is the examination office's flag, not a decision
+	// of this faculty, and planning has never asked about it.
+	ModuleIsTakenOutOfLists(ctx context.Context, id uuid.UUID) (bool, error)
 	// Where a set of modules counts, in one statement, joined to the regulations they count in.
 	//
 	// Unfiltered by programme on purpose, even when the list was filtered by one. A module's

@@ -117,6 +117,7 @@ type ComplexityRoot struct {
 	Announcement struct {
 		Audience       func(childComplexity int) int
 		Body           func(childComplexity int) int
+		BodyHTML       func(childComplexity int) int
 		ID             func(childComplexity int) int
 		RecipientCount func(childComplexity int) int
 		Sender         func(childComplexity int) int
@@ -1194,6 +1195,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Announcement.Body(childComplexity), true
+	case "Announcement.bodyHtml":
+		if e.ComplexityRoot.Announcement.BodyHTML == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Announcement.BodyHTML(childComplexity), true
 	case "Announcement.id":
 		if e.ComplexityRoot.Announcement.ID == nil {
 			break
@@ -9059,6 +9066,12 @@ type Announcement {
   "As written: paragraphs, lists, ` + "`" + `**bold**` + "`" + `, ` + "`" + `[links](https://…)` + "`" + `. No HTML."
   body: String!
   """
+  The body rendered, with the same small Markdown the mail uses: ` + "`" + `p` + "`" + `, ` + "`" + `ul` + "`" + `, ` + "`" + `ol` + "`" + `, ` + "`" + `li` + "`" + `, ` + "`" + `br` + "`" + `,
+  ` + "`" + `strong` + "`" + ` and ` + "`" + `a` + "`" + ` (http, https and mailto only), everything else escaped. No styles and no
+  attributes but ` + "`" + `href` + "`" + ` and ` + "`" + `rel` + "`" + ` — a page styles it, as a mail client is given inline styles.
+  """
+  bodyHtml: String!
+  """
   How many it went to — for the sender only, ` + "`" + `null` + "`" + ` for everybody else. The sender may read every
   row the audience is made of, so the figure tells them nothing new; to a recipient it would.
   """
@@ -11474,6 +11487,8 @@ func (ec *executionContext) childFields_Announcement(ctx context.Context, field 
 		return ec.fieldContext_Announcement_subject(ctx, field)
 	case "body":
 		return ec.fieldContext_Announcement_body(ctx, field)
+	case "bodyHtml":
+		return ec.fieldContext_Announcement_bodyHtml(ctx, field)
 	case "recipientCount":
 		return ec.fieldContext_Announcement_recipientCount(ctx, field)
 	case "sentAt":

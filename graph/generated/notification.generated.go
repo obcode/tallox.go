@@ -158,6 +158,29 @@ func (ec *executionContext) fieldContext_Announcement_body(_ context.Context, fi
 	return graphql.NewScalarFieldContext("Announcement", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _Announcement_bodyHtml(ctx context.Context, field graphql.CollectedField, obj *model.Announcement) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Announcement_bodyHtml(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.BodyHTML, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Announcement_bodyHtml(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Announcement", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _Announcement_recipientCount(ctx context.Context, field graphql.CollectedField, obj *model.Announcement) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -836,6 +859,11 @@ func (ec *executionContext) _Announcement(ctx context.Context, sel ast.Selection
 			}
 		case "body":
 			out.Values[i] = ec._Announcement_body(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "bodyHtml":
+			out.Values[i] = ec._Announcement_bodyHtml(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

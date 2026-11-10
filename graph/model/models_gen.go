@@ -218,6 +218,10 @@ type Announcement struct {
 	Subject string `json:"subject"`
 	// As written: paragraphs, lists, `**bold**`, `[links](https://…)`. No HTML.
 	Body string `json:"body"`
+	// The body rendered, with the same small Markdown the mail uses: `p`, `ul`, `ol`, `li`, `br`,
+	// `strong` and `a` (http, https and mailto only), everything else escaped. No styles and no
+	// attributes but `href` and `rel` — a page styles it, as a mail client is given inline styles.
+	BodyHTML string `json:"bodyHtml"`
 	// How many it went to — for the sender only, `null` for everybody else. The sender may read every
 	// row the audience is made of, so the figure tells them nothing new; to a recipient it would.
 	RecipientCount *int `json:"recipientCount,omitempty"`

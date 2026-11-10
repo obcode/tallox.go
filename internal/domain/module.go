@@ -222,8 +222,8 @@ func (m Module) SplitIsEstimated() bool {
 	return len(m.Components) == 0 && len(m.ProposedComponents()) > 0
 }
 
-// Plannable reports whether an instance can be declared for this module: whether somebody has
-// stated its split.
+// Plannable reports whether an instance can be declared for this module: whether it is planned
+// at all (not IndependentWork), and whether somebody has stated its split.
 //
 // The proposal used to be enough, and that was taken back on 2026-10-16. A guess is not harmless
 // once parts are made from it: "je nach Fach" proposes one OTHER part of the module's full hours,
@@ -236,7 +236,13 @@ func (m Module) SplitIsEstimated() bool {
 // three places that must agree: the picker that offers a module, the refusal that turns one away,
 // and the transaction that writes the parts.
 func (m Module) Plannable() bool {
-	return len(m.Components) > 0
+	return !m.IndependentWork() && len(m.Components) > 0
+}
+
+// IndependentWork reports whether the module is not planned at all: a thesis, the practical
+// semester, the bachelor seminar — see CourseType.IndependentWork.
+func (m Module) IndependentWork() bool {
+	return m.CourseType.IndependentWork()
 }
 
 // PracticalKind is the kind of part a "how many groups" figure multiplies.

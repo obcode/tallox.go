@@ -65,3 +65,20 @@ func TestBasketsAreTheUnionOverOneProgrammesVersions(t *testing.T) {
 		t.Errorf("a programme whose catalogue does not list the module has the baskets %v, want nil", got)
 	}
 }
+
+// Independent work is decided by the course type alone, and a split does not make it plannable.
+func TestIndependentWorkIsNeverPlannable(t *testing.T) {
+	t.Parallel()
+
+	split := []domain.ModuleComponent{{Kind: domain.PartKindLecture, TeachingHours: 2}}
+	for _, c := range domain.AllCourseTypes() {
+		m := domain.Module{CourseType: c, Components: split}
+		want := c == domain.CourseTypeSelfStudy
+		if m.IndependentWork() != want {
+			t.Errorf("%s: IndependentWork = %v, want %v", c, m.IndependentWork(), want)
+		}
+		if m.Plannable() == want {
+			t.Errorf("%s with a split: Plannable = %v, want %v", c, m.Plannable(), !want)
+		}
+	}
+}

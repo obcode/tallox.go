@@ -277,6 +277,21 @@ const (
 	CourseTypeDependsOnSubject CourseType = "DEPENDS_ON_SUBJECT"
 )
 
+// IndependentWork reports whether a module of this course type is not planned at all.
+//
+// The examination office's "selbständiges Arbeiten" is exactly the theses, the practical semester
+// and the bachelor seminar — twelve modules, all compulsory, none of them taught to a cohort.
+// Students arrange them directly with a teacher, so there is no instance to declare, no
+// competence to state and no interest to note down; offered like any other compulsory module, a
+// thesis was a way to meet the minimum of compulsory competences without stating one. Decided on
+// 2026-11-10.
+//
+// The SQL that counts compulsory modules and the write paths ask the same question as
+// `course_type <> 'SELF_STUDY'`; this is the one place that says why.
+func (c CourseType) IndependentWork() bool {
+	return c == CourseTypeSelfStudy
+}
+
 // AllCourseTypes returns every course type, most common first.
 func AllCourseTypes() []CourseType {
 	return []CourseType{

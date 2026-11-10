@@ -76,6 +76,11 @@ func (r *moduleResolver) PracticalKind(ctx context.Context, obj *model.Module) (
 	return &kind, nil
 }
 
+// IndependentWork is the resolver for the independentWork field.
+func (r *moduleResolver) IndependentWork(ctx context.Context, obj *model.Module) (bool, error) {
+	return obj.Domain.IndependentWork(), nil
+}
+
 // Plannable is the resolver for the plannable field.
 func (r *moduleResolver) Plannable(ctx context.Context, obj *model.Module) (bool, error) {
 	return obj.Domain.Plannable(), nil
@@ -184,7 +189,7 @@ func (r *mutationResolver) ApplyModuleSplitToInstances(ctx context.Context, modu
 	}
 
 	applied, err := r.Demand.ApplyModuleSplit(ctx, actor, id, dryRun)
-	if errors.Is(err, domain.ErrModuleNotDecomposed) {
+	if errors.Is(err, domain.ErrModuleNotDecomposed) || errors.Is(err, domain.ErrModuleNotPlanned) {
 		return nil, demandUserFacing(actor, err)
 	}
 	if err != nil {

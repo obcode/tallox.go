@@ -520,9 +520,23 @@ type Module {
   """
   practicalKind: InstancePartKind
   """
+  Whether the module is independent work — a thesis, the practical semester, the bachelor seminar:
+  the catalogue's course type `SELF_STUDY`.
+
+  Such a module is **not planned at all**. Students arrange it directly with a teacher, so no
+  instance is declared for it, nobody states a competence for it, and nobody notes down an
+  interest in it: `planDemand`, `declareCourseInstance`, `copyDemand`, `setMyCompetence`,
+  `setTeacherCompetence` and `setAdvanceWish` refuse or skip it with `MODULE_NOT_PLANNED`, and it
+  counts towards no number of compulsory modules. It stays in the catalogue, because it is in the
+  regulations. A picker that offers modules to plan, to state a competence for or to note down
+  leaves it out.
+  """
+  independentWork: Boolean!
+  """
   Whether an instance can be declared for this module.
 
-  True once somebody has stated the split (`components` is not empty). A proposal is **not**
+  False for independent work (`independentWork`), whatever its split.
+  Otherwise true once somebody has stated the split (`components` is not empty). A proposal is **not**
   enough: the parts of an instance are made from the confirmed split only, so that a guess never
   ends up as planned teaching hours. The repair for a module that is not plannable is
   `setModuleComponents` — with `proposedComponents` where the guess is right.

@@ -27,6 +27,7 @@ type ModuleResolver interface {
 	ProposedComponents(ctx context.Context, obj *model.Module) ([]*model.ComponentProposal, error)
 	SplitIsEstimated(ctx context.Context, obj *model.Module) (bool, error)
 	PracticalKind(ctx context.Context, obj *model.Module) (*domain.InstancePartKind, error)
+	IndependentWork(ctx context.Context, obj *model.Module) (bool, error)
 	Plannable(ctx context.Context, obj *model.Module) (bool, error)
 	ProgrammeSemester(ctx context.Context, obj *model.Module, programme string) (*int, error)
 }
@@ -928,6 +929,29 @@ func (ec *executionContext) _Module_practicalKind(ctx context.Context, field gra
 }
 func (ec *executionContext) fieldContext_Module_practicalKind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Module", field, true, true, errors.New("field of type InstancePartKind does not have child fields"))
+}
+
+func (ec *executionContext) _Module_independentWork(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Module_independentWork(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Module().IndependentWork(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Module_independentWork(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Module", field, true, true, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _Module_plannable(ctx context.Context, field graphql.CollectedField, obj *model.Module) (ret graphql.Marshaler) {
@@ -2854,6 +2878,44 @@ func (ec *executionContext) _Module(ctx context.Context, sel ast.SelectionSet, o
 				}()
 				res = ec._Module_practicalKind(ctx, field, obj)
 				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "independentWork":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Module_independentWork(ctx, field, obj)
+				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
 				return res

@@ -100,6 +100,19 @@ func (w *Wishes) AdvanceWishReleased(ctx context.Context, semesterCode string,
 // SetAdvanceWish stores the person's own.
 func (w *Wishes) SetAdvanceWish(ctx context.Context, personID, programmeID uuid.UUID,
 	a domain.NewAdvanceWish) (uuid.UUID, error) {
+	// Independent work — a thesis — is never planned, so there is nothing to note down for it:
+	// see domain.CourseType.IndependentWork.
+	module, err := New(w.pool).ModuleByID(ctx, a.ModuleID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, domain.ErrModuleNotFound
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("cannot read the module: %w", err)
+	}
+	if domain.CourseType(module.CourseType).IndependentWork() {
+		return uuid.Nil, domain.ErrModuleNotPlanned
+	}
+
 	level, _ := a.Priority.Level()
 	params := UpsertAdvanceWishParams{
 		PersonID:    personID,

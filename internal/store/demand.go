@@ -506,7 +506,21 @@ func (d *Demand) attach(ctx context.Context, q *Queries, instances []domain.Cour
 //
 // No fall back to the proposal any more — see domain.Module.Plannable for why. A module without a
 // confirmed split is ErrModuleNotDecomposed, which says what to repair.
+//
+// Independent work — a thesis — is ErrModuleNotPlanned whatever its split, and asked here because
+// every path that makes parts comes through this function: declaring, planning, applying a split,
+// giving a covered cohort its teaching back.
 func statedComponents(ctx context.Context, q *Queries, moduleID uuid.UUID) ([]domain.ModuleComponent, error) {
+	module, err := q.ModuleByID(ctx, moduleID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrModuleNotFound
+	} else if err != nil {
+		return nil, fmt.Errorf("cannot read the module: %w", err)
+	}
+	if domain.CourseType(module.CourseType).IndependentWork() {
+		return nil, domain.ErrModuleNotPlanned
+	}
+
 	rows, err := q.ModuleComponentsFor(ctx, []uuid.UUID{moduleID})
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the module's split: %w", err)
@@ -522,12 +536,6 @@ func statedComponents(ctx context.Context, q *Queries, moduleID uuid.UUID) ([]do
 			})
 		}
 		return out, nil
-	}
-
-	if _, err := q.ModuleByID(ctx, moduleID); errors.Is(err, pgx.ErrNoRows) {
-		return nil, domain.ErrModuleNotFound
-	} else if err != nil {
-		return nil, fmt.Errorf("cannot read the module: %w", err)
 	}
 	return nil, domain.ErrModuleNotDecomposed
 }
@@ -1887,11 +1895,15 @@ func (d *Demand) ReleaseInstanceCoverage(ctx context.Context, guestID uuid.UUID)
 
 	if wasAccepted {
 		components, err := statedComponents(ctx, q, guest.ModuleID)
-		if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrModuleNotPlanned):
+			// A thesis has no teaching to give back; ending the coverage must still be possible.
+		case err != nil:
 			return nil, err
-		}
-		if _, err := partsFromSplit(ctx, q, guestID, components, nil); err != nil {
-			return nil, fmt.Errorf("cannot give the cohort its teaching back: %w", err)
+		default:
+			if _, err := partsFromSplit(ctx, q, guestID, components, nil); err != nil {
+				return nil, fmt.Errorf("cannot give the cohort its teaching back: %w", err)
+			}
 		}
 	}
 
@@ -2084,7 +2096,25 @@ func (d *Demand) CopyDemand(ctx context.Context, from, to domain.Semester, progr
 	}
 	var pending []pendingCoverage
 
+	// Independent work is not planned any more (domain.CourseType.IndependentWork), and an
+	// instance of it from before that rule stays behind, counted rather than carried forward.
+	independent := make(map[uuid.UUID]bool)
 	for _, source := range sources {
+		if _, seen := independent[source.ModuleID]; seen {
+			continue
+		}
+		module, err := q.ModuleByID(ctx, source.ModuleID)
+		if err != nil {
+			return counts, fmt.Errorf("cannot read the module of a copied instance: %w", err)
+		}
+		independent[source.ModuleID] = domain.CourseType(module.CourseType).IndependentWork()
+	}
+
+	for _, source := range sources {
+		if independent[source.ModuleID] {
+			counts.NotPlanned++
+			continue
+		}
 		newID, err := q.InsertCourseInstanceIfAbsent(ctx, InsertCourseInstanceIfAbsentParams{
 			SemesterID:        to.ID,
 			ModuleID:          source.ModuleID,
@@ -2659,6 +2689,7 @@ func (d *Demand) createForPlan(ctx context.Context, tx pgx.Tx, plan *domain.Dema
 			code     string
 		}{
 			{domain.ErrModuleNotDecomposed, "MODULE_NOT_DECOMPOSED"},
+			{domain.ErrModuleNotPlanned, "MODULE_NOT_PLANNED"},
 			{domain.ErrModuleNotFound, "MODULE_NOT_FOUND"},
 		} {
 			if errors.Is(err, known.sentinel) {
@@ -2824,7 +2855,7 @@ func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.Deman
 	if err != nil {
 		// A module with nothing to make parts from was already reported where it was created;
 		// an existing cohort of one simply keeps what it has.
-		if errors.Is(err, domain.ErrModuleNotDecomposed) {
+		if errors.Is(err, domain.ErrModuleNotDecomposed) || errors.Is(err, domain.ErrModuleNotPlanned) {
 			return nil
 		}
 		return err

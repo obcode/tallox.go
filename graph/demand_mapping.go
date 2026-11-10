@@ -186,6 +186,7 @@ func copyReportModel(r domain.CopyReport) *model.CopyDemandReport {
 		Programme:           programmeModel(r.Programme),
 		Created:             r.Counts.Created,
 		Skipped:             r.Counts.Skipped,
+		NotPlanned:          r.Counts.NotPlanned,
 		PartsCreated:        r.Counts.PartsCreated,
 		CoverageRequested:   r.Counts.CoverageRequested,
 		CoverageNotPossible: r.Counts.CoverageNotPossible,
@@ -315,6 +316,8 @@ func demandUserFacing(actor principal.Actor, err error) error {
 		return refusal("ENGLISH_NOT_OFFERED", err.Error())
 	case errors.Is(err, domain.ErrModuleNotDecomposed):
 		return refusal("MODULE_NOT_DECOMPOSED", err.Error())
+	case errors.Is(err, domain.ErrModuleNotPlanned):
+		return refusal("MODULE_NOT_PLANNED", err.Error())
 	case errors.Is(err, domain.ErrTrackTaken):
 		return refusal("TRACK_TAKEN", err.Error())
 	case errors.Is(err, domain.ErrInstanceInUse):

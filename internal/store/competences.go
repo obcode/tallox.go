@@ -116,6 +116,7 @@ func (c *Competences) ModuleContext(ctx context.Context,
 	return domain.CompetenceModuleContext{
 		Found:          true,
 		Open:           row.Open,
+		Planned:        !domain.CourseType(row.CourseType).IndependentWork(),
 		SubjectGroupID: row.SubjectGroupID.UUID,
 		CallerIsMember: row.IsMember,
 	}, nil

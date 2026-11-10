@@ -62,6 +62,7 @@ func (w *Wishes) AdvanceWishes(ctx context.Context, q domain.AdvanceWishQuery,
 				Name:              row.ModuleName,
 				HomeProgrammeCode: row.ModuleHomeProgrammeCode,
 				Compulsory:        row.ModuleCompulsory,
+				IndependentWork:   domain.CourseType(row.ModuleCourseType).IndependentWork(),
 			},
 			Programme: domain.Programme{
 				ID: row.ProgrammeID, Code: row.ProgrammeCode, Title: row.ProgrammeTitle,

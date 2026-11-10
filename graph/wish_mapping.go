@@ -46,6 +46,7 @@ func advanceWishModel(a domain.AdvanceWish) *model.AdvanceWish {
 			Name:              a.Module.Name,
 			HomeProgrammeCode: a.Module.HomeProgrammeCode,
 			Compulsory:        a.Module.Compulsory,
+			IndependentWork:   a.Module.IndependentWork,
 		},
 		Programme:   programmeModel(a.Programme),
 		Priority:    a.Priority,

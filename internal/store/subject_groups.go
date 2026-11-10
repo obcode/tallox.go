@@ -337,7 +337,8 @@ func (s *SubjectGroups) ModulesOfSubjectGroup(ctx context.Context,
 	for _, row := range rows {
 		out = append(out, domain.ModuleRef{
 			ID: row.ID, Name: row.Name, HomeProgrammeCode: row.HomeProgrammeCode,
-			Compulsory: row.Compulsory,
+			Compulsory:      row.Compulsory,
+			IndependentWork: domain.CourseType(row.CourseType).IndependentWork(),
 		})
 	}
 	return out, nil

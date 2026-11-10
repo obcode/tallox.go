@@ -1041,6 +1041,10 @@ type ModuleRef struct {
 	// Compulsory under at least one version of some programme's regulations — the "Pflichtkatalog"
 	// the competence profile's minimum counts.
 	Compulsory bool `json:"compulsory"`
+	// Whether the module is independent work — a thesis, the practical semester — and so not planned
+	// at all: see `Module.independentWork`. A picker built from a subject group's modules leaves it
+	// out; a statement somebody made before stays readable and can be withdrawn.
+	IndependentWork bool `json:"independentWork"`
 }
 
 // What carrying a split over did, or — after a dry run — what it would do.

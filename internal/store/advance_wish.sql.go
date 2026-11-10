@@ -44,6 +44,7 @@ SELECT
     COALESCE(home.code, '')::text AS module_home_programme_code,
     EXISTS (SELECT 1 FROM module_offering o WHERE o.module_id = m.id AND o.is_duty)::boolean
         AS module_compulsory,
+    m.course_type AS module_course_type,
     person.mail AS person_mail, person.name AS person_name,
     COALESCE(t.short_name, '')::text AS person_sort_name,
     EXISTS (SELECT 1 FROM demand_completion dc
@@ -111,6 +112,7 @@ type AdvanceWishesRow struct {
 	SubjectGroupID          uuid.NullUUID
 	ModuleHomeProgrammeCode string
 	ModuleCompulsory        bool
+	ModuleCourseType        string
 	PersonMail              string
 	PersonName              string
 	PersonSortName          string
@@ -172,6 +174,7 @@ func (q *Queries) AdvanceWishes(ctx context.Context, arg AdvanceWishesParams) ([
 			&i.SubjectGroupID,
 			&i.ModuleHomeProgrammeCode,
 			&i.ModuleCompulsory,
+			&i.ModuleCourseType,
 			&i.PersonMail,
 			&i.PersonName,
 			&i.PersonSortName,

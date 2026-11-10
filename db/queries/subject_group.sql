@@ -191,7 +191,9 @@ WHERE g.module_id IS NULL AND m.retired_at IS NULL AND m.active;
 SELECT m.id, m.name, p.code AS home_programme_code,
        -- Compulsory under at least one version of some programme's regulations: what the
        -- competence profile counts, and what the page puts first.
-       EXISTS (SELECT 1 FROM module_offering o WHERE o.module_id = m.id AND o.is_duty) AS compulsory
+       EXISTS (SELECT 1 FROM module_offering o WHERE o.module_id = m.id AND o.is_duty) AS compulsory,
+       -- Whether it is planned at all: see CourseType.IndependentWork.
+       m.course_type
 FROM module_subject_group g
 JOIN module m ON m.id = g.module_id
 JOIN programme p ON p.id = m.home_programme_id

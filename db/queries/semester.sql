@@ -67,6 +67,24 @@ RETURNING id, code, phase, wishes_published_at, created_at, updated_at,
        desired_hours_frozen_at, desired_hours_frozen_by, desired_hours_published_at,
        desired_hours_published_by, assignment_confirmation_due, assignment_confirmation_due_by;
 
+-- name: AdvanceToWishesOnRelease :execrows
+-- The one phase switch nobody clicks: the first programme that releases its demand for wishes
+-- moves its semester from DEMAND_PLANNING to WISHES (2026-11-10).
+--
+-- Compare-and-set like AdvanceSemesterPhase, with the expected phase written into the statement
+-- rather than passed: it only ever means "the planning has reached the wishes", never any other
+-- step. Zero rows is the ordinary answer — already further on, or the dean's office switched it
+-- a moment earlier — and nothing to report, so a release racing a manual switch still yields
+-- exactly one step.
+--
+-- Called by the release in the same transaction, never by a trigger: a fixture or an import that
+-- writes demand_completion directly must not move a phase as a side effect.
+UPDATE semester
+SET phase = 'WISHES',
+    updated_at = now()
+WHERE id = sqlc.arg(id)::uuid
+  AND phase = 'DEMAND_PLANNING';
+
 -- name: PublishSemesterWishes :one
 -- Idempotent, and it keeps the *first* timestamp.
 --

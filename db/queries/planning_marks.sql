@@ -46,6 +46,21 @@ DELETE FROM demand_completion
  WHERE semester_id = (SELECT id FROM semester WHERE code = sqlc.arg(semester)::text)
    AND programme_id = (SELECT id FROM programme WHERE code = sqlc.arg(programme)::text);
 
+-- name: DemandReleaseOfSemester :one
+-- How far the releases of one semester have got: how many of the programmes this faculty plans
+-- have released their demand for wishes, out of how many.
+--
+-- Only programmes with planning_status = 'PLANNED', on both sides of the fraction: a release by a
+-- programme nobody plans any more would make "3 of 5" read as progress that is not there. Public
+-- like the list above — it counts programmes and their releases, never anything about wishes.
+SELECT COUNT(*) FILTER (WHERE EXISTS (
+           SELECT 1 FROM demand_completion dc
+           JOIN semester s ON s.id = dc.semester_id
+           WHERE s.code = sqlc.arg(semester)::text AND dc.programme_id = pr.id))::int AS released,
+       COUNT(*)::int AS planned
+FROM programme pr
+WHERE pr.planning_status = 'PLANNED';
+
 -- name: WishWindowsOfSemester :many
 -- The subject groups somebody has decided something about, for one semester.
 --

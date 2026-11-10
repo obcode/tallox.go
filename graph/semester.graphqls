@@ -14,6 +14,11 @@ The phase is stored and switched deliberately, never derived from the calendar. 
 and a process that moves on because a Tuesday arrived is one nobody trusts — this way the
 switch is an act somebody performs, visibly and at a moment everyone can point at.
 
+One switch is a consequence rather than a click: the first study programme that releases its
+demand for wishes (`setDemandComplete`) moves a semester in `DEMAND_PLANNING` on to `WISHES`.
+That is still an act somebody performs, just not the dean's office. Every other step is
+`advanceSemesterPhase`.
+
 A semester moves **one step at a time**, forwards or backwards. Backwards is the correction:
 reopening a plan is a normal thing for a faculty to do, and it should happen in the tool rather
 than around it.
@@ -21,7 +26,11 @@ than around it.
 enum Phase {
   "The programme leads declare which instances have to be offered."
   DEMAND_PLANNING
-  "Lecturers register interest. Entries are confidential until they are published — which is a separate decision, see `wishesPublishedAt`."
+  """
+  Lecturers register interest. Entries are confidential until they are published — which is a separate decision, see `wishesPublishedAt`.
+
+  Reached by itself when the first study programme releases its demand for wishes (`setDemandComplete`).
+  """
   WISHES
   "The subject group leads fill the instances."
   ASSIGNMENT
@@ -57,8 +66,20 @@ type Semester {
   """
   code: String!
 
-  "Where the planning stands."
+  """
+  Where the planning stands.
+
+  Switched by the dean's office (`advanceSemesterPhase`), with one exception: the first study
+  programme that releases its demand for wishes moves `DEMAND_PLANNING` on to `WISHES`. Withdrawing
+  that release does not move it back.
+  """
   phase: Phase!
+
+  """
+  How many of the study programmes this faculty plans have released their demand for wishes in
+  this semester, out of how many. Readable by everybody with an account, like `demandCompletions`.
+  """
+  demandRelease: DemandRelease!
 
   """
   Whether this is the semester the faculty is planning right now. At most one is.
@@ -208,6 +229,10 @@ extend type Mutation {
   `DEMAND_PLANNING`, so this works on any semester within reach without anything having to be
   set up first. If somebody else switched it between your reading it and this call, you get
   `PHASE_MOVED_ON` and nothing changes.
+
+  `DEMAND_PLANNING` to `WISHES` usually needs no call: the first study programme releasing its
+  demand (`setDemandComplete`) takes that step. Switching back to `DEMAND_PLANNING` stays possible,
+  and the next release moves it on again.
 
   The code is upper-cased and trimmed for you, so `2026-ws` is accepted. It is not otherwise
   repaired: `WS 2026` is refused rather than rearranged — that spelling is only unambiguous if

@@ -127,3 +127,10 @@ lehnen ohne sie mit `WISHES_NOT_RELEASED` ab — nach der Phase, vor der Fachgru
   `storetest.ReleaseWishes` frei, nur den Studiengang der Fixture-Instanz.
 - Die Freigabe übernimmt seit 2026-11-01 auch die Vormerkungen des Studiengangs als Wünsche —
   siehe [[wishes]], Abschnitt „Vormerkungen“.
+
+## Die Freigabe schaltet auch die Phase (2026-11-10)
+
+Die erste Freigabe eines Studiengangs bringt ein Semester aus `DEMAND_PLANNING` in `WISHES`, in
+derselben Transaktion (`AnnounceDemandComplete` → `AdvanceToWishesOnRelease`). Zurücknehmen
+lässt die Phase stehen. Details in [[semester-and-phase]]. Neu lesbar für alle:
+`Semester.demandRelease` (freigegeben von geplanten Studiengängen).

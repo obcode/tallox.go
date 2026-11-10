@@ -111,6 +111,18 @@ type Querier interface {
 	// would write ASSIGNMENT over the first one's WISHES — a skipped phase, arrived at by nobody's
 	// decision, and invisible afterwards because the row looks like somebody chose it.
 	AdvanceSemesterPhase(ctx context.Context, arg AdvanceSemesterPhaseParams) (Semester, error)
+	// The one phase switch nobody clicks: the first programme that releases its demand for wishes
+	// moves its semester from DEMAND_PLANNING to WISHES (2026-11-10).
+	//
+	// Compare-and-set like AdvanceSemesterPhase, with the expected phase written into the statement
+	// rather than passed: it only ever means "the planning has reached the wishes", never any other
+	// step. Zero rows is the ordinary answer — already further on, or the dean's office switched it
+	// a moment earlier — and nothing to report, so a release racing a manual switch still yields
+	// exactly one step.
+	//
+	// Called by the release in the same transaction, never by a trigger: a fixture or an import that
+	// writes demand_completion directly must not move a phase as a side effect.
+	AdvanceToWishesOnRelease(ctx context.Context, id uuid.UUID) (int64, error)
 	// What the write rule needs about a semester and programme, readable by everybody: whether the
 	// programme has released its demand for it (then the wish itself is what one enters).
 	AdvanceWishOffering(ctx context.Context, arg AdvanceWishOfferingParams) (bool, error)
@@ -667,6 +679,13 @@ type Querier interface {
 	// that refuses writes without saying why.
 	// Which study programmes have announced their demand as settled, for one semester.
 	DemandCompletionsOfSemester(ctx context.Context, semester string) ([]DemandCompletionsOfSemesterRow, error)
+	// How far the releases of one semester have got: how many of the programmes this faculty plans
+	// have released their demand for wishes, out of how many.
+	//
+	// Only programmes with planning_status = 'PLANNED', on both sides of the fraction: a release by a
+	// programme nobody plans any more would make "3 of 5" read as progress that is not there. Public
+	// like the list above — it counts programmes and their releases, never anything about wishes.
+	DemandReleaseOfSemester(ctx context.Context, semester string) (DemandReleaseOfSemesterRow, error)
 	// The colleagues of the faculty with their subject groups and, where the filter lets it through,
 	// the range they stated for one semester. The table the dean asked for, "für alle sichtbar".
 	//

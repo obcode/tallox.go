@@ -57,6 +57,22 @@ type DemandCompletion {
 }
 
 """
+How far the demand releases of one semester have got: `released` of the `planned` study programmes
+have released their demand for wishes (`setDemandComplete`).
+
+Only the programmes this faculty plans count, on both sides — a release by one nobody plans any
+more is in `demandCompletions` but not here. Readable by everybody with an account, like
+`demandCompletions` and `programmes`: it counts programmes and their releases and says nothing
+about anybody's wishes.
+"""
+type DemandRelease {
+  "How many of the planned study programmes have released their demand for this semester."
+  released: Int!
+  "How many study programmes this faculty plans."
+  planned: Int!
+}
+
+"""
 One study programme announcing that its review of a semester is done: after the assignment its
 lead has gone over the demand, its cut and who teaches what, and the figures stand against the
 quota as far as anybody knows today. An announcement only: unlike `DemandCompletion`, it blocks
@@ -142,6 +158,12 @@ extend type Mutation {
 
   Only the lead of that study programme and the dean's office. Not bound by the phase: announcing
   is a statement about work somebody did, not a change to the plan.
+
+  **Announcing moves the semester from `DEMAND_PLANNING` to `WISHES`** while it is still in
+  `DEMAND_PLANNING`: the first release is when the wishes begin. This is the one phase switch
+  nobody clicks, and it is only this step — a semester in any other phase stays where it is, and
+  if the dean's office switched it a moment earlier, there is still exactly one step. Withdrawing
+  never moves the phase back. A refused announcement changes neither the marks nor the phase.
   """
   setDemandComplete(
     "Four digits, a hyphen and SS or WS."

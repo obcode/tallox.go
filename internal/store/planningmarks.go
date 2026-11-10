@@ -57,7 +57,18 @@ func (m *PlanningMarks) DemandCompletions(ctx context.Context,
 	return out, nil
 }
 
-// AnnounceDemandComplete records or refreshes one announcement.
+// DemandRelease counts the planned programmes of one semester and how many have released.
+func (m *PlanningMarks) DemandRelease(ctx context.Context,
+	semesterCode string) (domain.DemandRelease, error) {
+	row, err := New(m.pool).DemandReleaseOfSemester(ctx, semesterCode)
+	if err != nil {
+		return domain.DemandRelease{}, fmt.Errorf("cannot count the demand releases: %w", err)
+	}
+	return domain.DemandRelease{Released: int(row.Released), Planned: int(row.Planned)}, nil
+}
+
+// AnnounceDemandComplete records or refreshes one announcement, and moves a semester still in
+// DEMAND_PLANNING on to WISHES.
 func (m *PlanningMarks) AnnounceDemandComplete(ctx context.Context, semesterCode, programme string,
 	by uuid.UUID) (*domain.DemandCompletion, error) {
 	tx, err := m.pool.Begin(ctx)
@@ -86,6 +97,17 @@ func (m *PlanningMarks) AnnounceDemandComplete(ctx context.Context, semesterCode
 	// it is reported — how many became wishes is the count before publication.
 	if err := convertPendingAdvanceWishes(ctx, q, row.SemesterID, row.ProgrammeID); err != nil {
 		return nil, err
+	}
+
+	// The first release moves the semester from DEMAND_PLANNING to WISHES (2026-11-10). Here and
+	// not in a trigger, so that a fixture writing the mark directly leaves the phase alone; in this
+	// transaction, so that nobody reads a released programme in a semester still showing the
+	// demand planning. Compare-and-set: no row is "already further on", including a switch by the
+	// dean's office a moment earlier, and is not an error. Every release while in DEMAND_PLANNING
+	// advances — also after the dean's office has deliberately gone back — because the release is
+	// the act that says the wishes have begun.
+	if _, err := q.AdvanceToWishesOnRelease(ctx, row.SemesterID); err != nil {
+		return nil, fmt.Errorf("cannot advance the semester to the wishes: %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("cannot commit: %w", err)

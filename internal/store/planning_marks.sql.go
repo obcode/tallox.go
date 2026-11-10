@@ -138,6 +138,34 @@ func (q *Queries) DemandCompletionsOfSemester(ctx context.Context, semester stri
 	return items, nil
 }
 
+const demandReleaseOfSemester = `-- name: DemandReleaseOfSemester :one
+SELECT COUNT(*) FILTER (WHERE EXISTS (
+           SELECT 1 FROM demand_completion dc
+           JOIN semester s ON s.id = dc.semester_id
+           WHERE s.code = $1::text AND dc.programme_id = pr.id))::int AS released,
+       COUNT(*)::int AS planned
+FROM programme pr
+WHERE pr.planning_status = 'PLANNED'
+`
+
+type DemandReleaseOfSemesterRow struct {
+	Released int32
+	Planned  int32
+}
+
+// How far the releases of one semester have got: how many of the programmes this faculty plans
+// have released their demand for wishes, out of how many.
+//
+// Only programmes with planning_status = 'PLANNED', on both sides of the fraction: a release by a
+// programme nobody plans any more would make "3 of 5" read as progress that is not there. Public
+// like the list above — it counts programmes and their releases, never anything about wishes.
+func (q *Queries) DemandReleaseOfSemester(ctx context.Context, semester string) (DemandReleaseOfSemesterRow, error) {
+	row := q.db.QueryRow(ctx, demandReleaseOfSemester, semester)
+	var i DemandReleaseOfSemesterRow
+	err := row.Scan(&i.Released, &i.Planned)
+	return i, err
+}
+
 const openWishWindowsOfSemester = `-- name: OpenWishWindowsOfSemester :many
 SELECT DISTINCT g.code::text AS code, g.name::text AS name
 FROM course_instance ci

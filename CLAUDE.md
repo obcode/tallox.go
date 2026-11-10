@@ -296,7 +296,10 @@ diff — and that file is the slide for the faculty retreat when someone asks wh
 when. Keep it committed and keep it readable.
 
 The semester phase lives in the database and is advanced by an audited mutation, **never
-derived from the calendar**.
+derived from the calendar**. One step is a consequence rather than a click (since 2026-11-10):
+the first programme that releases its demand for wishes (`setDemandComplete`) moves a semester
+in `DEMAND_PLANNING` on to `WISHES`, compare-and-set in the release's own transaction
+(`AdvanceToWishesOnRelease`), never in a trigger. Only that step; withdrawing never moves back.
 
 ### Administration, and the two things that protect it
 

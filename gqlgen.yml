@@ -125,6 +125,12 @@ models:
     fields:
       modules:
         resolver: true
+  # Counted per semester that asks rather than carried on the model: a semester reaches the API
+  # from a dozen queries and mutations, and only a screen showing the release progress wants it.
+  Semester:
+    fields:
+      demandRelease:
+        resolver: true
   Programme:
     fields:
       leads:

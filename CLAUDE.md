@@ -20,7 +20,9 @@ here, because the token path bypasses the GUI entirely.
 commit messages, documentation. The domain is German (Fachgruppe, Deputat, Wunsch), and the
 translation happens once, in `tallox.gui`, where the terms are read by the people who use
 them. The only German in the Go code is the user-facing strings the GUI shows: policy
-`Reason` texts, validation messages, and the authentication refusals in `internal/auth`.
+`Reason` texts, validation messages, and the authentication refusals in `internal/auth` —
+and, since 2026-11-10, the mails in `internal/mail`, which a person reads like the GUI but which
+the GUI never sees to translate.
 
 The mapping between the two vocabularies is written down once, in the doc comment on
 `policy.Role`: LECTURER = Dozierende, SUBJECT_GROUP_LEAD = Fachgruppenleitung,
@@ -65,6 +67,8 @@ internal/auth/             two authenticators, one middleware, the PAT format
 internal/policy/           visibility, phase and administration rules; role narrowing.
                            Pure: no DB, no HTTP, no GraphQL.
 internal/domain/           business logic — token lifetimes, validation. No I/O of its own.
+                           Also the mail dispatcher's logic (dispatch.go); its I/O is the seams.
+internal/mail/             mail templates (German), the small Markdown, the SMTP client
 internal/store/            the ONLY owner of pgxpool. sqlc-generated queries.
 internal/store/storetest/  integration harness: a migrated schema per test
 db/                        embedded SQL assets (db.Migrations)
@@ -216,7 +220,8 @@ full-reach token; `policy.MayActWithFullReach` is the rule.
   questions about rows, and a caller gets the mutation exactly when it may read the rows. A plain
   token gets neither; never open such a mutation to a plain token on its own.
 - **`@interactiveOnly`** (code `INTERACTIVE_ONLY`) is left on token management, person and role
-  administration (including admitting teachers) and the access log — nothing else.
+  administration (including admitting teachers), the access log, and sending and previewing
+  announcements (2026-11-10) — nothing else.
   `graph.TestOnlyAccessStaysInteractiveOnly` pins that list in both directions.
 
 Both are real gqlgen field directives, so *generated* code calls them and no resolver can forget
@@ -239,7 +244,8 @@ the sum is *computable* from them; what the plain token door withholds is the re
 per-person figure, not the arithmetic.) Also unpublished wishes of other people and every
 planning mutation. Not reachable via **any** token: **token management itself** (otherwise a
 leaked token mints its successors — refused by the service as well as by the directive), person
-and role administration, the access log.
+and role administration, the access log, announcements (a mail to the faculty in somebody's
+name belongs to a sign-in).
 
 **Errors leave with a code or not at all.** Every area's mapping ends in `internalRefusal`, and
 `graph.PresentError` replaces whatever still has no `extensions.code` with `INTERNAL` and the
@@ -357,9 +363,9 @@ default silently overrides the file and the file is decorative, which stays invi
 somebody sets a value that happens to equal a default.
 
 `UnmarshalExact`: an unknown key is a **startup failure**. Every key the file may carry is
-read by something, and the blocks that are planned but not wired (ZPA, SMTP) are commented out
+read by something, and the blocks that are planned but not wired are commented out
 in `deploy/tallox.yaml.example` rather than declared — so the file cannot document a setting
-the program ignores.
+the program ignores. (`mail:` was such a block as `smtp:` until 2026-11-10; it is read now.)
 
 Rule of thumb: YAML holds bootstrap values and secrets. Everything semester-scoped and
 user-editable (semester config, milestones, phases) lives in PostgreSQL and is edited through
@@ -452,3 +458,25 @@ exercised on the day it is needed, unless CI exercises it on a Tuesday.
 -shuffle=on` with coverage · the same integration tests on a from-scratch Testcontainers
 database · govulncheck. End-to-end lives in `tallox.gui`, where the auth proxy exists to be
 tested.
+
+## Mail
+
+Subscriptions to official events and announcements by those who lead the planning, since
+2026-11-10. Background and the decisions behind it in `.claude/memory/notifications.md`; the
+three rules in the migration `20261110120000_notifications.sql`. In short:
+
+- **Nothing writes an event.** `domain.Dispatcher` ticks every minute in the server process and
+  compares the planning's state with what it has announced (`notification_announced`,
+  `announced_instance`). A difference that has stood for `domain.NotificationSettle` becomes an
+  event. Do not add a hook to a write path — add a detection query to
+  `db/queries/notifications.sql` and seed its baseline in a migration, so that the first tick
+  after a deploy does not announce the past.
+- **Always opt-in, own rows only.** No call subscribes anybody else, no default subscription
+  exists, and a target set (`MY_…`) is resolved against the subscriber's own rows in the fan-out
+  query. A new set over other people's rows is a confidentiality decision, not a feature.
+- **A mail is an export.** It carries what every account may read, and somebody's own rows only
+  to them. Anything that reads `wish` to decide recipients lives in `wish.sql` under the filter
+  (`TestNoOtherQueryFileReadsWishes`). Addresses come from `person.mail` of active accounts,
+  joined when the mail is sent.
+- Without `mail.host` mail is queued and not sent. `-mail-preview <dir>` renders every kind of
+  mail from invented data; `internal/mail/testdata/*.golden` keeps the wording reviewable.

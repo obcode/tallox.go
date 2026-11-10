@@ -51,7 +51,18 @@ func accessReportExitCode(ctx context.Context, dsn string, since time.Duration, 
 		return 2
 	}
 
-	printAccessReport(out, report, since)
+	// The mail figures beside the access figures: one nightly page for the operator. A failure
+	// to count them is a line in the log, not a missing report.
+	mail, err := store.NewNotifications(pool).MailCounts(ctx, time.Now().Add(-since))
+	if err != nil {
+		log.Error().Err(err).Msg("cannot count the mail")
+	}
+
+	var counts *domain.MailCounts
+	if err == nil {
+		counts = &mail
+	}
+	printAccessReport(out, report, since, counts)
 	return 0
 }
 
@@ -62,7 +73,11 @@ func accessReportExitCode(ctx context.Context, dsn string, since time.Duration, 
 // entries themselves: the whole log is one click away behind the VPN and a signed-in session,
 // and a nightly mail carrying every colleague's movements is a movement profile leaving the
 // system into a mailbox.
-func printAccessReport(out io.Writer, report domain.AccessReport, since time.Duration) {
+//
+// The mail figures, when they could be read, go above the retention line: figures only, like the
+// access part — who was told what stays in the database.
+func printAccessReport(out io.Writer, report domain.AccessReport, since time.Duration,
+	mail *domain.MailCounts) {
 	s := report.Summary
 	c := s.Counts
 	w := &reportWriter{out: out}
@@ -147,6 +162,17 @@ func printAccessReport(out io.Writer, report domain.AccessReport, since time.Dur
 		}
 		w.printf("\n  Diese Tokens lesen, was die Person im Browser liest — auch unveröffentlichte\n")
 		w.printf("  Wünsche — und dürfen planen. Widerrufen kann sie nur die Person selbst.\n")
+	}
+
+	if mail != nil {
+		last := "noch keine"
+		if !mail.LastSentAt.IsZero() {
+			last = mail.LastSentAt.Format("2006-01-02 15:04")
+		}
+		w.printf("\nMAIL\n")
+		w.printf("  verschickt %d, fehlgeschlagen %d, in der Warteschlange %d, davon aus Rundmails %d\n",
+			mail.Sent, mail.Failed, mail.Pending, mail.AnnouncementMails)
+		w.printf("  zuletzt verschickt: %s\n", last)
 	}
 
 	w.printf("\nAufbewahrung: %s. Gelöscht wurden %d Einträge vor dem %s.\n",

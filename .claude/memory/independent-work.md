@@ -19,5 +19,9 @@ Mindestzahl an Pflichtfächern.
   Pflichtfach-Zählungen und „kann niemand“ lassen sie aus (SQL `course_type <> 'SELF_STUDY'`).
 - Bestehende Kompetenz-Einträge bleiben lesbar und zurückziehbar.
 
-Die GUI blendet sie in den Auswahllisten aus (folgt nach dem Server-Release).
+- Auch `ModuleRef.independentWork` (Module einer Fachgruppe, Vormerkungen) trägt die Markierung,
+  weil die Kompetenz-Seiten ihre Auswahl aus `mySubjectGroups.modules` bauen; ohne das Feld konnte
+  die GUI dort nichts ausblenden.
+
+Die GUI blendet sie in den Auswahllisten aus.
 Siehe [[catalogue-projection]], [[competences]], [[desired-hours]].

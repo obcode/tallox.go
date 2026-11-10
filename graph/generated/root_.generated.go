@@ -371,6 +371,7 @@ type ComplexityRoot struct {
 		Compulsory        func(childComplexity int) int
 		HomeProgrammeCode func(childComplexity int) int
 		ID                func(childComplexity int) int
+		IndependentWork   func(childComplexity int) int
 		Name              func(childComplexity int) int
 	}
 
@@ -2226,6 +2227,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ModuleRef.ID(childComplexity), true
+	case "ModuleRef.independentWork":
+		if e.ComplexityRoot.ModuleRef.IndependentWork == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ModuleRef.IndependentWork(childComplexity), true
 	case "ModuleRef.name":
 		if e.ComplexityRoot.ModuleRef.Name == nil {
 			break
@@ -9328,6 +9335,12 @@ type ModuleRef {
   the competence profile's minimum counts.
   """
   compulsory: Boolean!
+  """
+  Whether the module is independent work — a thesis, the practical semester — and so not planned
+  at all: see ` + "`" + `Module.independentWork` + "`" + `. A picker built from a subject group's modules leaves it
+  out; a statement somebody made before stays readable and can be withdrawn.
+  """
+  independentWork: Boolean!
 }
 
 """
@@ -11250,6 +11263,8 @@ func (ec *executionContext) childFields_ModuleRef(ctx context.Context, field gra
 		return ec.fieldContext_ModuleRef_homeProgrammeCode(ctx, field)
 	case "compulsory":
 		return ec.fieldContext_ModuleRef_compulsory(ctx, field)
+	case "independentWork":
+		return ec.fieldContext_ModuleRef_independentWork(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ModuleRef", field.Name)
 }

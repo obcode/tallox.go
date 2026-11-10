@@ -114,6 +114,10 @@ type ModuleRef struct {
 	// Compulsory is whether the module is compulsory under at least one set of regulations — what
 	// the competence profile's minimum counts.
 	Compulsory bool
+	// IndependentWork is whether the module is not planned at all — a thesis, the practical
+	// semester: see CourseType.IndependentWork. Carried so that a picker built from a group's
+	// modules can leave it out.
+	IndependentWork bool
 }
 
 // SubjectGroupStore is what the service needs from persistence.

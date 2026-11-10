@@ -120,6 +120,29 @@ func (ec *executionContext) fieldContext_ModuleRef_compulsory(_ context.Context,
 	return graphql.NewScalarFieldContext("ModuleRef", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _ModuleRef_independentWork(ctx context.Context, field graphql.CollectedField, obj *model.ModuleRef) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ModuleRef_independentWork(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.IndependentWork, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ModuleRef_independentWork(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ModuleRef", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
 func (ec *executionContext) _SubjectGroup_id(ctx context.Context, field graphql.CollectedField, obj *model.SubjectGroup) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -542,6 +565,11 @@ func (ec *executionContext) _ModuleRef(ctx context.Context, sel ast.SelectionSet
 			}
 		case "compulsory":
 			out.Values[i] = ec._ModuleRef_compulsory(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "independentWork":
+			out.Values[i] = ec._ModuleRef_independentWork(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}

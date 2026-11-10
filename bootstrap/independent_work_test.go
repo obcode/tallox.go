@@ -178,3 +178,52 @@ func TestIndependentWorkTakesNoAdvanceWishThroughBothDoors(t *testing.T) {
 			}
 		})
 }
+
+// A subject group's modules say which of them are independent work, so that the competence
+// profile can leave a thesis out of its picker — through both doors.
+func TestSubjectGroupModulesMarkIndependentWorkThroughBothDoors(t *testing.T) {
+	t.Parallel()
+
+	f := competenceHandler(t, grants{testdata.Eins, []string{"LECTURER"}})
+	f.join(t, testdata.Eins)
+
+	const query = `query { mySubjectGroups { modules { id independentWork } } }`
+	type answer struct {
+		MySubjectGroups []struct {
+			Modules []struct {
+				ID              string
+				IndependentWork bool
+			}
+		}
+	}
+	marked := func(t *testing.T, c *graphqltest.Client) (found, independent bool) {
+		t.Helper()
+		var out answer
+		c.MustQuery(t, query, nil, &out)
+		for _, g := range out.MySubjectGroups {
+			for _, m := range g.Modules {
+				if m.ID == f.module {
+					return true, m.IndependentWork
+				}
+			}
+		}
+		return false, false
+	}
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			if found, independent := marked(t, c); !found || independent {
+				t.Errorf("an ordinary module reads found=%v independentWork=%v, want found and not",
+					found, independent)
+			}
+		})
+
+	makeIndependentWork(t, f.schema, f.module)
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			if found, independent := marked(t, c); !found || !independent {
+				t.Errorf("a thesis reads found=%v independentWork=%v, want found and marked",
+					found, independent)
+			}
+		})
+}

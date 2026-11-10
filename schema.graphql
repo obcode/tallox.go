@@ -2234,6 +2234,12 @@ type ModuleRef {
   the competence profile's minimum counts.
   """
   compulsory: Boolean!
+  """
+  Whether the module is independent work — a thesis, the practical semester — and so not planned
+  at all: see `Module.independentWork`. A picker built from a subject group's modules leaves it
+  out; a statement somebody made before stays readable and can be withdrawn.
+  """
+  independentWork: Boolean!
 }
 """
 Where a catalogue row comes from.

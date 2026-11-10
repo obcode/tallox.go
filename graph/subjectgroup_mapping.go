@@ -130,6 +130,7 @@ func moduleRefModels(modules []domain.ModuleRef) []*model.ModuleRef {
 			Name:              m.Name,
 			HomeProgrammeCode: m.HomeProgrammeCode,
 			Compulsory:        m.Compulsory,
+			IndependentWork:   m.IndependentWork,
 		})
 	}
 	return out

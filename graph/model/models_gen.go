@@ -490,6 +490,10 @@ type CopyDemandReport struct {
 	// How many were left behind because their module is independent work — a thesis — which is not
 	// planned any more (see `Module.independentWork`). Counted rather than dropped silently.
 	NotPlanned int `json:"notPlanned"`
+	// How many were left behind because their module is a course this faculty entered and has since
+	// taken out of the lists (`changeLocalModule` with `active: false`). Counted rather than dropped
+	// silently; taking the course back in and copying again brings them over.
+	Inactive int `json:"inactive"`
 	// How many parts came with the new instances.
 	PartsCreated int `json:"partsCreated"`
 	// How many copied cohorts asked again to be covered by another study programme's event.
@@ -689,6 +693,8 @@ type DeclareCourseInstanceInput struct {
 	// The instance's parts are made from the module's confirmed split. A module whose split nobody has
 	// confirmed answers `MODULE_NOT_DECOMPOSED`; the repair is `setModuleComponents`. Independent
 	// work — a thesis — is not planned and answers `MODULE_NOT_PLANNED` (see `Module.independentWork`).
+	// A course this faculty entered and took out of the lists (`changeLocalModule` with
+	// `active: false`) answers `MODULE_INACTIVE`; the repair is taking it back in.
 	ModuleID string `json:"moduleId"`
 	// The parallel cohort, or empty for a module that runs once. One to three characters, upper-cased
 	// and trimmed for you.
@@ -802,7 +808,8 @@ type DemandRefusal struct {
 	ModuleName string `json:"moduleName"`
 	// The cohort the refusal is about.
 	Track string `json:"track"`
-	// The machine-readable half: `INSTANCE_IN_USE`, `TRACK_TAKEN`, `MODULE_NOT_DECOMPOSED`.
+	// The machine-readable half: `INSTANCE_IN_USE`, `TRACK_TAKEN`, `MODULE_NOT_DECOMPOSED`,
+	// `MODULE_INACTIVE`.
 	//
 	// A refusal costs exactly the cohort it is about; the rest of the plan is applied. That is why
 	// they are reported rather than raised: one module that cannot be withdrawn must not undo fifteen

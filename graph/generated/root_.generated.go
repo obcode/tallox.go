@@ -227,6 +227,7 @@ type ComplexityRoot struct {
 		CoverageRequested   func(childComplexity int) int
 		Created             func(childComplexity int) int
 		From                func(childComplexity int) int
+		Inactive            func(childComplexity int) int
 		Instances           func(childComplexity int) int
 		NotPlanned          func(childComplexity int) int
 		PartsCreated        func(childComplexity int) int
@@ -1600,6 +1601,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CopyDemandReport.From(childComplexity), true
+	case "CopyDemandReport.inactive":
+		if e.ComplexityRoot.CopyDemandReport.Inactive == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CopyDemandReport.Inactive(childComplexity), true
 	case "CopyDemandReport.instances":
 		if e.ComplexityRoot.CopyDemandReport.Instances == nil {
 			break
@@ -8065,6 +8072,12 @@ type CopyDemandReport {
   planned any more (see ` + "`" + `Module.independentWork` + "`" + `). Counted rather than dropped silently.
   """
   notPlanned: Int!
+  """
+  How many were left behind because their module is a course this faculty entered and has since
+  taken out of the lists (` + "`" + `changeLocalModule` + "`" + ` with ` + "`" + `active: false` + "`" + `). Counted rather than dropped
+  silently; taking the course back in and copying again brings them over.
+  """
+  inactive: Int!
   "How many parts came with the new instances."
   partsCreated: Int!
   """
@@ -8106,6 +8119,8 @@ input DeclareCourseInstanceInput {
   The instance's parts are made from the module's confirmed split. A module whose split nobody has
   confirmed answers ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `; the repair is ` + "`" + `setModuleComponents` + "`" + `. Independent
   work — a thesis — is not planned and answers ` + "`" + `MODULE_NOT_PLANNED` + "`" + ` (see ` + "`" + `Module.independentWork` + "`" + `).
+  A course this faculty entered and took out of the lists (` + "`" + `changeLocalModule` + "`" + ` with
+  ` + "`" + `active: false` + "`" + `) answers ` + "`" + `MODULE_INACTIVE` + "`" + `; the repair is taking it back in.
   """
   moduleId: ID!
   """
@@ -8214,7 +8229,8 @@ type DemandRefusal {
   "The cohort the refusal is about."
   track: String!
   """
-  The machine-readable half: ` + "`" + `INSTANCE_IN_USE` + "`" + `, ` + "`" + `TRACK_TAKEN` + "`" + `, ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `.
+  The machine-readable half: ` + "`" + `INSTANCE_IN_USE` + "`" + `, ` + "`" + `TRACK_TAKEN` + "`" + `, ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `,
+  ` + "`" + `MODULE_INACTIVE` + "`" + `.
 
   A refusal costs exactly the cohort it is about; the rest of the plan is applied. That is why
   they are reported rather than raised: one module that cannot be withdrawn must not undo fifteen
@@ -8366,6 +8382,10 @@ extend type Mutation {
   split states. A module whose split nobody has confirmed is refused with ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `
   — the proposal is never planned with.
 
+  A course this faculty entered and took out of the lists is refused with ` + "`" + `MODULE_INACTIVE` + "`" + `:
+  demand for it would be demand nobody can see in the catalogue. Take it back in first
+  (` + "`" + `changeLocalModule` + "`" + ` with ` + "`" + `active: true` + "`" + `).
+
   Declaring the same cohort twice is ` + "`" + `TRACK_TAKEN` + "`" + `.
   """
   declareCourseInstance(input: DeclareCourseInstanceInput!): CourseInstance!
@@ -8380,6 +8400,9 @@ extend type Mutation {
 
   A part that is already held for the sibling cohorts is **not** copied — it already serves the
   new one, and copying it would be the same lecture twice with its hours counted twice.
+
+  ` + "`" + `MODULE_INACTIVE` + "`" + ` for a course this faculty entered and has since taken out of the lists, as in
+  ` + "`" + `declareCourseInstance` + "`" + `.
   """
   duplicateCourseInstance(
     id: ID!
@@ -8551,7 +8574,9 @@ extend type Mutation {
   year, comes with it. That is the difference between this and declaring each instance by hand,
   and the reason it exists.
 
-  Instances already declared in the target are left untouched and counted as skipped. A shared
+  Instances already declared in the target are left untouched and counted as skipped. Instances
+  of a course this faculty entered and has since taken out of the lists stay behind, counted as
+  ` + "`" + `inactive` + "`" + `. A shared
   lecture stays shared, because its sibling cohort is copied too.
 
   The permission is about the **target** semester: what is being written is next year's demand.
@@ -11705,6 +11730,8 @@ func (ec *executionContext) childFields_CopyDemandReport(ctx context.Context, fi
 		return ec.fieldContext_CopyDemandReport_skipped(ctx, field)
 	case "notPlanned":
 		return ec.fieldContext_CopyDemandReport_notPlanned(ctx, field)
+	case "inactive":
+		return ec.fieldContext_CopyDemandReport_inactive(ctx, field)
 	case "partsCreated":
 		return ec.fieldContext_CopyDemandReport_partsCreated(ctx, field)
 	case "coverageRequested":

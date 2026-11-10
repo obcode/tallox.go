@@ -102,3 +102,23 @@ stillschweigend zwei Resolver-Methoden daraus. Jetzt heißt das interne Feld `Do
 und `CourseType`, aus demselben Grund.
 
 Siehe [[instance-identity]], [[catalogue-projection]], [[programme-planning-status]].
+
+## Fachgruppe beim Anlegen (seit 2026-11-10)
+
+`createLocalModule(input, subjectGroup: ID)` — das Argument am Feld, **nicht** in
+`LocalModuleInput`, weil `changeLocalModule` dieselbe Eingabe teilt und keinen Weg zum Umhängen
+bekommen soll. Wählbar ist **jede aktive** Fachgruppe, nicht nur eine selbst geleitete.
+
+- Regel: `policy.MayChooseSubjectGroupOnCreation` = `MayPlanProgramme`. Begründung: eine neue
+  Zeile hat weder Instanzen noch Wünsche, also verschiebt die erste Fachgruppe keine Leserechte.
+  Deshalb auch **kein `@fullReach`** am Feld — ein normales Token darf es.
+- Reihenfolge: erst alle bisherigen Prüfungen inkl. Berechtigung, dann die Gruppe. Wer nicht
+  anlegen darf, bekommt `NOT_YOUR_PROGRAMME` mit jeder Gruppen-ID, auch einer nicht parsbaren —
+  so lässt sich nicht ausprobieren, welche IDs es gibt.
+- „Existiert und aktiv" fragt die Store-Query `FileNewLocalModule` selbst (`INSERT … SELECT …
+  WHERE active`, `:execrows`) im Schreib-Tx; 0 Zeilen oder FK-Verletzung =
+  `SUBJECT_GROUP_NOT_FOUND`, und der Rollback nimmt die Modulzeile mit. `assigned_by` = wer anlegt.
+- Danach ist es Umhängen: `MayFileModule`/`FilingScope` und `@fullReach` an
+  `setModulesSubjectGroup` unverändert, eine Studiengangsleitung ohne Fachgruppe kann ihr Modul
+  nicht wieder herausnehmen. Golden-Matrizen unverändert. Keine Pflicht für FWP-Platzhalter,
+  keine „neu"-Markierung.

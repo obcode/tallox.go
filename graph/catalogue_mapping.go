@@ -318,6 +318,13 @@ func catalogueUserFacing(actor principal.Actor, err error) error {
 			Message:    err.Error(),
 			Extensions: map[string]any{"code": "MODULE_NAME_TAKEN"},
 		}
+	case errors.Is(err, domain.ErrSubjectGroupNotFound):
+		// Only from createLocalModule, and only after the permission said yes — so a caller who
+		// reads this one may enter the course, and learns no more than the group list shows them.
+		return &gqlerror.Error{
+			Message:    domain.ErrSubjectGroupNotFound.Error(),
+			Extensions: map[string]any{"code": "SUBJECT_GROUP_NOT_FOUND"},
+		}
 	case errors.Is(err, domain.ErrModuleInDemand):
 		// Its own code, because the repair is somewhere else: the demand page, where the cohorts
 		// are withdrawn. Instances are not confidential, so the refusal leaks nothing.

@@ -303,6 +303,19 @@ RETURNING id, name, home_programme_id, responsible_teacher_id, course_type, freq
        contact_hours_per_week, credits, active, official, retired_at, zpa_module_ref,
        source, kind;
 
+-- name: FileNewLocalModule :execrows
+-- The subject group a local module is entered with, in the transaction that inserts it.
+--
+-- Selected from subject_group rather than inserted as a value, so that "exists and is active" is
+-- asked by the same statement that writes: a group retired a moment earlier yields no row, and
+-- the caller rolls the whole module back. A plain INSERT would only catch a group that does not
+-- exist (through the foreign key) and would file the module under a retired one.
+INSERT INTO module_subject_group (module_id, subject_group_id, assigned_by)
+SELECT sqlc.arg(module_id)::uuid, g.id, sqlc.narg(assigned_by)::uuid
+FROM subject_group g
+WHERE g.id = sqlc.arg(subject_group_id)::uuid
+  AND g.active;
+
 -- name: UpdateLocalModule :one
 -- Correct one, or take it out of the lists with active = false.
 --

@@ -577,6 +577,9 @@ func nonNilUUID(id uuid.UUID) *uuid.UUID {
 //
 // The unique index on (home programme, lower(name)) is what makes a second click a no-op rather
 // than a second row, and 23505 becomes ErrLocalModuleNameTaken.
+//
+// A subject group in spec is written in the same transaction, with the creator as assigned_by.
+// A group that does not exist or is retired is ErrSubjectGroupNotFound and leaves no module row.
 func (m *Modules) CreateLocalModule(ctx context.Context, spec domain.NewLocalModule, by uuid.UUID,
 ) (*domain.Module, error) {
 	tx, err := m.pool.Begin(ctx)
@@ -606,6 +609,23 @@ func (m *Modules) CreateLocalModule(ctx context.Context, spec domain.NewLocalMod
 
 	if err := writeComponents(ctx, q, row.ID, spec.Components, by); err != nil {
 		return nil, err
+	}
+	if spec.SubjectGroupID != nil {
+		filed, err := q.FileNewLocalModule(ctx, FileNewLocalModuleParams{
+			ModuleID:       row.ID,
+			SubjectGroupID: *spec.SubjectGroupID,
+			AssignedBy:     nullUUID(nonNilUUID(by)),
+		})
+		// No row is a group that does not exist or has been retired; the foreign key is the
+		// same answer arriving through a group deleted in between. Either way the deferred
+		// rollback takes the module with it — a course that was meant to be filed and is not
+		// would land on the work list of unsorted modules without anybody having chosen that.
+		if isForeignKeyViolation(err) || (err == nil && filed == 0) {
+			return nil, domain.ErrSubjectGroupNotFound
+		}
+		if err != nil {
+			return nil, fmt.Errorf("cannot file the course under its subject group: %w", err)
+		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("cannot commit: %w", err)

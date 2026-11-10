@@ -183,7 +183,8 @@ extend type Mutation {
   State your own competence for a module, or change it.
 
   Only for the modules of the subject groups you are in — `COMPETENCE_OUTSIDE_GROUPS` otherwise.
-  Stating twice is changing your mind and keeps `createdAt`.
+  Not for independent work such as a thesis, which is not planned — `MODULE_NOT_PLANNED` (see
+  `Module.independentWork`). Stating twice is changing your mind and keeps `createdAt`.
   """
   setMyCompetence(
     moduleId: ID!

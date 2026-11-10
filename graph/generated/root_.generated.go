@@ -202,6 +202,7 @@ type ComplexityRoot struct {
 		Created             func(childComplexity int) int
 		From                func(childComplexity int) int
 		Instances           func(childComplexity int) int
+		NotPlanned          func(childComplexity int) int
 		PartsCreated        func(childComplexity int) int
 		Programme           func(childComplexity int) int
 		Skipped             func(childComplexity int) int
@@ -331,6 +332,7 @@ type ComplexityRoot struct {
 		HomeProgramme           func(childComplexity int) int
 		ID                      func(childComplexity int) int
 		InCatalogue             func(childComplexity int, programme string) int
+		IndependentWork         func(childComplexity int) int
 		Kind                    func(childComplexity int) int
 		Name                    func(childComplexity int) int
 		Offerings               func(childComplexity int) int
@@ -1445,6 +1447,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CopyDemandReport.Instances(childComplexity), true
+	case "CopyDemandReport.notPlanned":
+		if e.ComplexityRoot.CopyDemandReport.NotPlanned == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CopyDemandReport.NotPlanned(childComplexity), true
 	case "CopyDemandReport.partsCreated":
 		if e.ComplexityRoot.CopyDemandReport.PartsCreated == nil {
 			break
@@ -2030,6 +2038,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Module.InCatalogue(childComplexity, args["programme"].(string)), true
+	case "Module.independentWork":
+		if e.ComplexityRoot.Module.IndependentWork == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Module.IndependentWork(childComplexity), true
 	case "Module.kind":
 		if e.ComplexityRoot.Module.Kind == nil {
 			break
@@ -6209,9 +6223,23 @@ type Module {
   """
   practicalKind: InstancePartKind
   """
+  Whether the module is independent work — a thesis, the practical semester, the bachelor seminar:
+  the catalogue's course type ` + "`" + `SELF_STUDY` + "`" + `.
+
+  Such a module is **not planned at all**. Students arrange it directly with a teacher, so no
+  instance is declared for it, nobody states a competence for it, and nobody notes down an
+  interest in it: ` + "`" + `planDemand` + "`" + `, ` + "`" + `declareCourseInstance` + "`" + `, ` + "`" + `copyDemand` + "`" + `, ` + "`" + `setMyCompetence` + "`" + `,
+  ` + "`" + `setTeacherCompetence` + "`" + ` and ` + "`" + `setAdvanceWish` + "`" + ` refuse or skip it with ` + "`" + `MODULE_NOT_PLANNED` + "`" + `, and it
+  counts towards no number of compulsory modules. It stays in the catalogue, because it is in the
+  regulations. A picker that offers modules to plan, to state a competence for or to note down
+  leaves it out.
+  """
+  independentWork: Boolean!
+  """
   Whether an instance can be declared for this module.
 
-  True once somebody has stated the split (` + "`" + `components` + "`" + ` is not empty). A proposal is **not**
+  False for independent work (` + "`" + `independentWork` + "`" + `), whatever its split.
+  Otherwise true once somebody has stated the split (` + "`" + `components` + "`" + ` is not empty). A proposal is **not**
   enough: the parts of an instance are made from the confirmed split only, so that a guess never
   ends up as planned teaching hours. The repair for a module that is not plannable is
   ` + "`" + `setModuleComponents` + "`" + ` — with ` + "`" + `proposedComponents` + "`" + ` where the guess is right.
@@ -6965,7 +6993,8 @@ extend type Mutation {
   State your own competence for a module, or change it.
 
   Only for the modules of the subject groups you are in — ` + "`" + `COMPETENCE_OUTSIDE_GROUPS` + "`" + ` otherwise.
-  Stating twice is changing your mind and keeps ` + "`" + `createdAt` + "`" + `.
+  Not for independent work such as a thesis, which is not planned — ` + "`" + `MODULE_NOT_PLANNED` + "`" + ` (see
+  ` + "`" + `Module.independentWork` + "`" + `). Stating twice is changing your mind and keeps ` + "`" + `createdAt` + "`" + `.
   """
   setMyCompetence(
     moduleId: ID!
@@ -7665,6 +7694,11 @@ type CopyDemandReport {
   has since corrected there.
   """
   skipped: Int!
+  """
+  How many were left behind because their module is independent work — a thesis — which is not
+  planned any more (see ` + "`" + `Module.independentWork` + "`" + `). Counted rather than dropped silently.
+  """
+  notPlanned: Int!
   "How many parts came with the new instances."
   partsCreated: Int!
   """
@@ -7704,7 +7738,8 @@ input DeclareCourseInstanceInput {
   The module, by id.
 
   The instance's parts are made from the module's confirmed split. A module whose split nobody has
-  confirmed answers ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `; the repair is ` + "`" + `setModuleComponents` + "`" + `.
+  confirmed answers ` + "`" + `MODULE_NOT_DECOMPOSED` + "`" + `; the repair is ` + "`" + `setModuleComponents` + "`" + `. Independent
+  work — a thesis — is not planned and answers ` + "`" + `MODULE_NOT_PLANNED` + "`" + ` (see ` + "`" + `Module.independentWork` + "`" + `).
   """
   moduleId: ID!
   """
@@ -9964,7 +9999,8 @@ extend type Mutation {
   any wish round: being early is the point. ` + "`" + `ADVANCE_WISH_RELEASED` + "`" + ` once the programme has released
   its demand for that semester — enter the wish itself then. ` + "`" + `ADVANCE_WISH_CONVERTED` + "`" + ` for one that
   has already become wishes. ` + "`" + `WISH_PRIORITY_INVALID` + "`" + `, ` + "`" + `WISH_NOTE_TOO_LONG` + "`" + ` and
-  ` + "`" + `WISH_TRACK_LIMIT_INVALID` + "`" + ` as on a wish; ` + "`" + `PROGRAMME_NOT_FOUND` + "`" + `, ` + "`" + `MODULE_NOT_FOUND` + "`" + `.
+  ` + "`" + `WISH_TRACK_LIMIT_INVALID` + "`" + ` as on a wish; ` + "`" + `PROGRAMME_NOT_FOUND` + "`" + `, ` + "`" + `MODULE_NOT_FOUND` + "`" + `;
+  ` + "`" + `MODULE_NOT_PLANNED` + "`" + ` for independent work such as a thesis (see ` + "`" + `Module.independentWork` + "`" + `).
   """
   setAdvanceWish(
     "Four digits, a hyphen and SS or WS, within ten years."
@@ -10874,6 +10910,8 @@ func (ec *executionContext) childFields_CopyDemandReport(ctx context.Context, fi
 		return ec.fieldContext_CopyDemandReport_created(ctx, field)
 	case "skipped":
 		return ec.fieldContext_CopyDemandReport_skipped(ctx, field)
+	case "notPlanned":
+		return ec.fieldContext_CopyDemandReport_notPlanned(ctx, field)
 	case "partsCreated":
 		return ec.fieldContext_CopyDemandReport_partsCreated(ctx, field)
 	case "coverageRequested":
@@ -11160,6 +11198,8 @@ func (ec *executionContext) childFields_Module(ctx context.Context, field graphq
 		return ec.fieldContext_Module_splitIsEstimated(ctx, field)
 	case "practicalKind":
 		return ec.fieldContext_Module_practicalKind(ctx, field)
+	case "independentWork":
+		return ec.fieldContext_Module_independentWork(ctx, field)
 	case "plannable":
 		return ec.fieldContext_Module_plannable(ctx, field)
 	case "programmeSemester":

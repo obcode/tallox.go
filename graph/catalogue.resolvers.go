@@ -8,6 +8,7 @@ package graph
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/obcode/tallox.go/graph/generated"
@@ -74,6 +75,11 @@ func (r *moduleResolver) PracticalKind(ctx context.Context, obj *model.Module) (
 		return nil, nil
 	}
 	return &kind, nil
+}
+
+// IndependentWork is the resolver for the independentWork field.
+func (r *moduleResolver) IndependentWork(ctx context.Context, obj *model.Module) (bool, error) {
+	panic(fmt.Errorf("not implemented: IndependentWork - independentWork"))
 }
 
 // Plannable is the resolver for the plannable field.

@@ -367,6 +367,11 @@ type CopyDemandReport {
   has since corrected there.
   """
   skipped: Int!
+  """
+  How many were left behind because their module is independent work — a thesis — which is not
+  planned any more (see `Module.independentWork`). Counted rather than dropped silently.
+  """
+  notPlanned: Int!
   "How many parts came with the new instances."
   partsCreated: Int!
   """
@@ -406,7 +411,8 @@ input DeclareCourseInstanceInput {
   The module, by id.
 
   The instance's parts are made from the module's confirmed split. A module whose split nobody has
-  confirmed answers `MODULE_NOT_DECOMPOSED`; the repair is `setModuleComponents`.
+  confirmed answers `MODULE_NOT_DECOMPOSED`; the repair is `setModuleComponents`. Independent
+  work — a thesis — is not planned and answers `MODULE_NOT_PLANNED` (see `Module.independentWork`).
   """
   moduleId: ID!
   """

@@ -428,6 +428,9 @@ type CopyDemandReport struct {
 	// A copy never overwrites work in the semester it copies into — including a cohort year somebody
 	// has since corrected there.
 	Skipped int `json:"skipped"`
+	// How many were left behind because their module is independent work — a thesis — which is not
+	// planned any more (see `Module.independentWork`). Counted rather than dropped silently.
+	NotPlanned int `json:"notPlanned"`
 	// How many parts came with the new instances.
 	PartsCreated int `json:"partsCreated"`
 	// How many copied cohorts asked again to be covered by another study programme's event.
@@ -625,7 +628,8 @@ type DeclareCourseInstanceInput struct {
 	// The module, by id.
 	//
 	// The instance's parts are made from the module's confirmed split. A module whose split nobody has
-	// confirmed answers `MODULE_NOT_DECOMPOSED`; the repair is `setModuleComponents`.
+	// confirmed answers `MODULE_NOT_DECOMPOSED`; the repair is `setModuleComponents`. Independent
+	// work — a thesis — is not planned and answers `MODULE_NOT_PLANNED` (see `Module.independentWork`).
 	ModuleID string `json:"moduleId"`
 	// The parallel cohort, or empty for a module that runs once. One to three characters, upper-cased
 	// and trimmed for you.

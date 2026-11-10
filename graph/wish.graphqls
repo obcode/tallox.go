@@ -317,7 +317,8 @@ extend type Mutation {
   any wish round: being early is the point. `ADVANCE_WISH_RELEASED` once the programme has released
   its demand for that semester — enter the wish itself then. `ADVANCE_WISH_CONVERTED` for one that
   has already become wishes. `WISH_PRIORITY_INVALID`, `WISH_NOTE_TOO_LONG` and
-  `WISH_TRACK_LIMIT_INVALID` as on a wish; `PROGRAMME_NOT_FOUND`, `MODULE_NOT_FOUND`.
+  `WISH_TRACK_LIMIT_INVALID` as on a wish; `PROGRAMME_NOT_FOUND`, `MODULE_NOT_FOUND`;
+  `MODULE_NOT_PLANNED` for independent work such as a thesis (see `Module.independentWork`).
   """
   setAdvanceWish(
     "Four digits, a hyphen and SS or WS, within ten years."

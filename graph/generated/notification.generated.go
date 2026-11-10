@@ -239,8 +239,8 @@ func (ec *executionContext) _AnnouncementAudience_subjectGroup(ctx context.Conte
 			return obj.SubjectGroup, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.SubjectGroup) graphql.Marshaler {
-			return ec.marshalOSubjectGroup2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroup(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.SubjectGroupRef) graphql.Marshaler {
+			return ec.marshalOSubjectGroupRef2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupRef(ctx, selections, v)
 		},
 		true,
 		false,
@@ -253,7 +253,7 @@ func (ec *executionContext) fieldContext_AnnouncementAudience_subjectGroup(_ con
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_SubjectGroup(ctx, field)
+			return ec.childFields_SubjectGroupRef(ctx, field)
 		},
 	}
 	return fc, nil
@@ -574,8 +574,8 @@ func (ec *executionContext) _NotificationSubscription_subjectGroup(ctx context.C
 			return obj.SubjectGroup, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v *model.SubjectGroup) graphql.Marshaler {
-			return ec.marshalOSubjectGroup2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroup(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v *model.SubjectGroupRef) graphql.Marshaler {
+			return ec.marshalOSubjectGroupRef2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupRef(ctx, selections, v)
 		},
 		true,
 		false,
@@ -588,7 +588,7 @@ func (ec *executionContext) fieldContext_NotificationSubscription_subjectGroup(_
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return ec.childFields_SubjectGroup(ctx, field)
+			return ec.childFields_SubjectGroupRef(ctx, field)
 		},
 	}
 	return fc, nil

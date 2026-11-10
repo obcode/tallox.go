@@ -225,3 +225,30 @@ WHERE l.person_id = sqlc.arg(person_id)::uuid
                     AND sib.semester_id = l.semester_id
                     AND sib.module_id = l.module_id
                     AND sib.programme_id = l.programme_id);
+
+-- name: WishersOfProgramme :many
+-- Who has registered interest in an instance of one programme in one semester: the half of an
+-- announcement's PROGRAMME audience that is made of wishes (announcements.sql has the other).
+--
+-- Here and filtered like every other read of this table, with the sender's filter: the people an
+-- announcement reaches are a list of wishers, and the count its sender is shown is a count of
+-- them. Only the programme's lead and the dean's office may ask, and their filter lets those rows
+-- through — but that is the policy's argument, and this query does not take it on trust.
+SELECT DISTINCT w.person_id
+FROM wish w
+JOIN course_instance ci ON ci.id = w.course_instance_id
+JOIN programme prog ON prog.id = ci.programme_id
+LEFT JOIN module_subject_group msg ON msg.module_id = ci.module_id
+JOIN person ON person.id = w.person_id AND person.active
+WHERE ci.semester_id = sqlc.arg(semester_id)::uuid
+  AND prog.id = sqlc.arg(programme_id)::uuid
+  AND (
+      sqlc.arg('scope')::text = 'all'
+      OR (sqlc.arg('scope')::text = 'own'
+          AND w.person_id = sqlc.arg(owner_id)::uuid)
+      OR (sqlc.arg('scope')::text = 'own_or_scoped'
+          AND (w.person_id = sqlc.arg(owner_id)::uuid
+               OR prog.id = ANY (sqlc.arg(programme_ids)::uuid[])
+               OR msg.subject_group_id = ANY (sqlc.arg(subject_group_ids)::uuid[])))
+  )
+ORDER BY w.person_id;

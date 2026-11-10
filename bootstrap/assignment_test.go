@@ -13,6 +13,7 @@ import (
 	"github.com/obcode/tallox.go/internal/buildinfo"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/graphqltest"
+	"github.com/obcode/tallox.go/internal/mail"
 	"github.com/obcode/tallox.go/internal/policy"
 	"github.com/obcode/tallox.go/internal/principal"
 	"github.com/obcode/tallox.go/internal/store"
@@ -132,6 +133,9 @@ func assignmentHandler(t *testing.T, people ...grants) assignmentAPIFixture {
 		Wishes:        domain.NewWishService(store.NewWishes(s.Pool), planning),
 		Marks:         domain.NewPlanningMarkService(store.NewPlanningMarks(s.Pool), planning),
 		Staffing:      domain.NewAssignmentService(store.NewAssignments(s.Pool), planning),
+		Notifications: domain.NewNotificationService(store.NewNotifications(s.Pool)),
+		Announcements: domain.NewAnnouncementService(store.NewNotifications(s.Pool),
+			mail.NewRenderer("https://tallox.example.org"), nil),
 	})
 	return f
 }

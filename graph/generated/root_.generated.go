@@ -8964,7 +8964,7 @@ type NotificationSubscription {
   "Only events about this study programme."
   programme: Programme
   "Only events about this subject group."
-  subjectGroup: SubjectGroup
+  subjectGroup: SubjectGroupRef
   "Only events about the rows of this set."
   targetSet: NotificationTargetSet
   "When its mails go out."
@@ -9025,7 +9025,7 @@ type AnnouncementAudience {
   "Which kind of audience."
   kind: AnnouncementAudienceKind!
   "For ` + "`" + `SUBJECT_GROUP` + "`" + `."
-  subjectGroup: SubjectGroup
+  subjectGroup: SubjectGroupRef
   "For ` + "`" + `PROGRAMME` + "`" + `."
   programme: Programme
   "For ` + "`" + `PROGRAMME` + "`" + `: the semester whose teaching it is about."

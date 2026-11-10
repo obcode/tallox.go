@@ -44,6 +44,33 @@ type AdvanceWish struct {
 	UpdatedAt    time.Time
 }
 
+type AnnouncedInstance struct {
+	CourseInstanceID uuid.UUID
+	SemesterID       uuid.UUID
+	ModuleID         uuid.UUID
+	ProgrammeID      uuid.UUID
+	Track            string
+	AnnouncedAt      time.Time
+}
+
+type Announcement struct {
+	ID             uuid.UUID
+	SenderID       uuid.UUID
+	AudienceKind   string
+	SubjectGroupID uuid.NullUUID
+	ProgrammeID    uuid.NullUUID
+	SemesterID     uuid.NullUUID
+	Subject        string
+	Body           string
+	RecipientCount int32
+	SentAt         time.Time
+}
+
+type AnnouncementRecipient struct {
+	AnnouncementID uuid.UUID
+	PersonID       uuid.UUID
+}
+
 type Assignment struct {
 	ID             uuid.UUID
 	InstancePartID uuid.UUID
@@ -141,6 +168,22 @@ type InstancePart struct {
 	TaughtBy            *string
 }
 
+type MailOutbox struct {
+	ID            uuid.UUID
+	PersonID      uuid.UUID
+	Category      string
+	ReplyTo       string
+	Subject       string
+	Html          string
+	TextBody      string
+	State         string
+	Attempts      int32
+	NextAttemptAt time.Time
+	SentAt        pgtype.Timestamptz
+	LastError     string
+	CreatedAt     time.Time
+}
+
 type Module struct {
 	ID                     uuid.UUID
 	HomeProgrammeID        uuid.UUID
@@ -199,6 +242,53 @@ type ModuleSubjectGroup struct {
 	SubjectGroupID uuid.UUID
 	AssignedAt     time.Time
 	AssignedBy     uuid.NullUUID
+}
+
+type NotificationAnnounced struct {
+	Key         string
+	Value       string
+	AnnouncedAt time.Time
+}
+
+type NotificationDelivery struct {
+	EventID        uuid.UUID
+	PersonID       uuid.UUID
+	SubscriptionID uuid.NullUUID
+	Delivery       string
+	MailID         uuid.NullUUID
+	CreatedAt      time.Time
+}
+
+type NotificationEvent struct {
+	ID               uuid.UUID
+	Kind             string
+	SemesterID       uuid.NullUUID
+	ModuleID         uuid.NullUUID
+	ProgrammeID      uuid.NullUUID
+	SubjectGroupID   uuid.NullUUID
+	CourseInstanceID uuid.NullUUID
+	PersonID         uuid.NullUUID
+	Detail           string
+	OccurredAt       time.Time
+	FannedOutAt      pgtype.Timestamptz
+}
+
+type NotificationSetting struct {
+	PersonID    uuid.UUID
+	PausedUntil pgtype.Date
+}
+
+type NotificationSubscription struct {
+	ID             uuid.UUID
+	PersonID       uuid.UUID
+	Kind           string
+	SemesterCode   *string
+	ModuleID       uuid.NullUUID
+	ProgrammeID    uuid.NullUUID
+	SubjectGroupID uuid.NullUUID
+	TargetSet      *string
+	Delivery       string
+	CreatedAt      time.Time
 }
 
 type Person struct {

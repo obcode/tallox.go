@@ -230,7 +230,7 @@ type AnnouncementAudience struct {
 	// Which kind of audience.
 	Kind AnnouncementAudienceKind `json:"kind"`
 	// For `SUBJECT_GROUP`.
-	SubjectGroup *SubjectGroup `json:"subjectGroup,omitempty"`
+	SubjectGroup *SubjectGroupRef `json:"subjectGroup,omitempty"`
 	// For `PROGRAMME`.
 	Programme *Programme `json:"programme,omitempty"`
 	// For `PROGRAMME`: the semester whose teaching it is about.
@@ -1190,7 +1190,7 @@ type NotificationSubscription struct {
 	// Only events about this study programme.
 	Programme *Programme `json:"programme,omitempty"`
 	// Only events about this subject group.
-	SubjectGroup *SubjectGroup `json:"subjectGroup,omitempty"`
+	SubjectGroup *SubjectGroupRef `json:"subjectGroup,omitempty"`
 	// Only events about the rows of this set.
 	TargetSet *NotificationTargetSet `json:"targetSet,omitempty"`
 	// When its mails go out.

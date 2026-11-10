@@ -498,7 +498,7 @@ type AnnouncementAudience {
   """
   For `SUBJECT_GROUP`.
   """
-  subjectGroup: SubjectGroup
+  subjectGroup: SubjectGroupRef
   """
   For `PROGRAMME`.
   """
@@ -3966,7 +3966,7 @@ type NotificationSubscription {
   """
   Only events about this subject group.
   """
-  subjectGroup: SubjectGroup
+  subjectGroup: SubjectGroupRef
   """
   Only events about the rows of this set.
   """

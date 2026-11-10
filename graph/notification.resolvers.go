@@ -7,62 +7,144 @@ package graph
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/obcode/tallox.go/graph/model"
+	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/principal"
 )
 
 // SubscribeNotification is the resolver for the subscribeNotification field.
 func (r *mutationResolver) SubscribeNotification(ctx context.Context, input model.NotificationSubscriptionInput) (*model.NotificationSubscription, error) {
-	panic(fmt.Errorf("not implemented: SubscribeNotification - subscribeNotification"))
+	in, err := notificationSubscriptionInput(input)
+	if err != nil {
+		return nil, err
+	}
+	sub, err := r.Notifications.Subscribe(ctx, principal.From(ctx), in)
+	if err != nil {
+		return nil, notificationError(err)
+	}
+	return notificationSubscriptionModel(*sub), nil
 }
 
 // SubscribeRecommendedNotifications is the resolver for the subscribeRecommendedNotifications field.
 func (r *mutationResolver) SubscribeRecommendedNotifications(ctx context.Context) ([]*model.NotificationSubscription, error) {
-	panic(fmt.Errorf("not implemented: SubscribeRecommendedNotifications - subscribeRecommendedNotifications"))
+	list, err := r.Notifications.SubscribeRecommended(ctx, principal.From(ctx))
+	if err != nil {
+		return nil, notificationError(err)
+	}
+	return notificationSubscriptionModels(list), nil
 }
 
 // SetNotificationDelivery is the resolver for the setNotificationDelivery field.
 func (r *mutationResolver) SetNotificationDelivery(ctx context.Context, id string, delivery model.NotificationDelivery) (*model.NotificationSubscription, error) {
-	panic(fmt.Errorf("not implemented: SetNotificationDelivery - setNotificationDelivery"))
+	subID, err := parseID(id)
+	if err != nil {
+		return nil, err
+	}
+	sub, err := r.Notifications.SetDelivery(ctx, principal.From(ctx), subID, domain.NotificationDelivery(delivery))
+	if err != nil {
+		return nil, notificationError(err)
+	}
+	return notificationSubscriptionModel(*sub), nil
 }
 
 // UnsubscribeNotification is the resolver for the unsubscribeNotification field.
 func (r *mutationResolver) UnsubscribeNotification(ctx context.Context, id string) (bool, error) {
-	panic(fmt.Errorf("not implemented: UnsubscribeNotification - unsubscribeNotification"))
+	subID, err := parseID(id)
+	if err != nil {
+		return false, err
+	}
+	removed, err := r.Notifications.Unsubscribe(ctx, principal.From(ctx), subID)
+	if err != nil {
+		return false, notificationError(err)
+	}
+	return removed, nil
 }
 
 // PauseNotifications is the resolver for the pauseNotifications field.
 func (r *mutationResolver) PauseNotifications(ctx context.Context, until *model.Date) (*model.NotificationSettings, error) {
-	panic(fmt.Errorf("not implemented: PauseNotifications - pauseNotifications"))
+	settings, err := r.Notifications.Pause(ctx, principal.From(ctx), dateOrZero(until))
+	if err != nil {
+		return nil, notificationError(err)
+	}
+	return notificationSettingsModel(settings), nil
 }
 
 // SendAnnouncement is the resolver for the sendAnnouncement field.
 func (r *mutationResolver) SendAnnouncement(ctx context.Context, audience model.AnnouncementAudienceInput, subject string, body string) (*model.Announcement, error) {
-	panic(fmt.Errorf("not implemented: SendAnnouncement - sendAnnouncement"))
+	in, err := announcementAudienceInput(audience)
+	if err != nil {
+		return nil, err
+	}
+	sent, err := r.Announcements.Send(ctx, principal.From(ctx), in, subject, body)
+	if err != nil {
+		return nil, notificationError(err)
+	}
+	return announcementModel(*sent), nil
 }
 
 // MyNotificationSubscriptions is the resolver for the myNotificationSubscriptions field.
 func (r *queryResolver) MyNotificationSubscriptions(ctx context.Context) ([]*model.NotificationSubscription, error) {
-	panic(fmt.Errorf("not implemented: MyNotificationSubscriptions - myNotificationSubscriptions"))
+	list, err := r.Notifications.MySubscriptions(ctx, principal.From(ctx))
+	if err != nil {
+		return nil, notificationError(err)
+	}
+	return notificationSubscriptionModels(list), nil
 }
 
 // MyNotificationSettings is the resolver for the myNotificationSettings field.
 func (r *queryResolver) MyNotificationSettings(ctx context.Context) (*model.NotificationSettings, error) {
-	panic(fmt.Errorf("not implemented: MyNotificationSettings - myNotificationSettings"))
+	settings, err := r.Notifications.Settings(ctx, principal.From(ctx))
+	if err != nil {
+		return nil, notificationError(err)
+	}
+	return notificationSettingsModel(settings), nil
 }
 
 // AnnouncementAudiences is the resolver for the announcementAudiences field.
 func (r *queryResolver) AnnouncementAudiences(ctx context.Context, semester *string) ([]*model.AnnouncementAudience, error) {
-	panic(fmt.Errorf("not implemented: AnnouncementAudiences - announcementAudiences"))
+	code := ""
+	if semester != nil {
+		code = *semester
+	}
+	list, err := r.Resolver.Announcements.Audiences(ctx, principal.From(ctx), code)
+	if err != nil {
+		return nil, notificationError(err)
+	}
+	out := make([]*model.AnnouncementAudience, 0, len(list))
+	for _, a := range list {
+		out = append(out, announcementAudienceModel(a))
+	}
+	return out, nil
 }
 
 // Announcements is the resolver for the announcements field.
 func (r *queryResolver) Announcements(ctx context.Context) ([]*model.Announcement, error) {
-	panic(fmt.Errorf("not implemented: Announcements - announcements"))
+	list, err := r.Resolver.Announcements.List(ctx, principal.From(ctx))
+	if err != nil {
+		return nil, notificationError(err)
+	}
+	out := make([]*model.Announcement, 0, len(list))
+	for _, a := range list {
+		out = append(out, announcementModel(a))
+	}
+	return out, nil
 }
 
 // PreviewAnnouncement is the resolver for the previewAnnouncement field.
 func (r *queryResolver) PreviewAnnouncement(ctx context.Context, audience model.AnnouncementAudienceInput, subject string, body string) (*model.AnnouncementPreview, error) {
-	panic(fmt.Errorf("not implemented: PreviewAnnouncement - previewAnnouncement"))
+	in, err := announcementAudienceInput(audience)
+	if err != nil {
+		return nil, err
+	}
+	preview, err := r.Resolver.Announcements.Preview(ctx, principal.From(ctx), in, subject, body)
+	if err != nil {
+		return nil, notificationError(err)
+	}
+	return &model.AnnouncementPreview{
+		Subject:        preview.Mail.Subject,
+		HTML:           preview.Mail.HTML,
+		Text:           preview.Mail.Text,
+		RecipientCount: preview.RecipientCount,
+	}, nil
 }

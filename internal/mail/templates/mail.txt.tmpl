@@ -1,0 +1,22 @@
+{{.Title}}
+{{.Underline}}
+{{if .Greeting}}
+{{.Greeting}}
+{{end}}{{if .Intro}}
+{{.Intro}}
+{{end}}{{if .BodyText}}
+{{.BodyText}}
+{{end}}{{range .Sections}}
+{{.Heading}}
+{{range .Items}}
+  • {{.Text}}{{if .Meta}}
+    {{.Meta}}{{end}}{{if .Link}}
+    {{.Link}}{{end}}
+{{end}}{{end}}{{if .Button}}
+{{.Button.Label}}: {{.Button.URL}}
+{{end}}
+-- {{range .Footer}}
+{{.}}{{end}}{{if .Manage}}
+{{.Manage.Label}}: {{.Manage.URL}}{{end}}
+
+Tallox · Einsatzplanung Fakultät 07 · nur im eduVPN erreichbar

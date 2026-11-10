@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
@@ -76,6 +77,7 @@ type Querier interface {
 	// it to themselves. Listed every night for as long as it holds, not only on the night it was made,
 	// because "somebody can read every wish right now" is the standing fact worth reading.
 	AccessSelfGrants(ctx context.Context, until time.Time) ([]AccessSelfGrantsRow, error)
+	AddAnnouncementRecipients(ctx context.Context, arg AddAnnouncementRecipientsParams) error
 	// Move hours onto or off a part, in numeric rather than in float: what dividing takes off one part
 	// and puts on the other has to add up to the cent, or the instance's figure drifts by a rounding.
 	// A part with no hours stated is treated as zero, which only rejoining can meet: dividing refuses
@@ -153,6 +155,23 @@ type Querier interface {
 	AnnounceDemandComplete(ctx context.Context, arg AnnounceDemandCompleteParams) (DemandCompletion, error)
 	// Announce the review as done, or re-announce after a later change. The timestamp moves.
 	AnnounceReviewComplete(ctx context.Context, arg AnnounceReviewCompleteParams) (ReviewCompletion, error)
+	// The programmes this faculty plans: an audience only exists where there is a demand.
+	AnnouncementProgrammes(ctx context.Context) ([]AnnouncementProgrammesRow, error)
+	// Announcements: who an audience reaches, and the archive.
+	//
+	// The recipients are active accounts and nobody else — never a teacher without one, never an
+	// address from anywhere but person.mail. Who may ask for which audience is decided in
+	// internal/policy before any of these runs.
+	// One query for every kind, so that "an active account" is written once.
+	//
+	// PROGRAMME is whoever holds a part of one of the programme's instances in the semester. Who
+	// wished for one is the other half, and reads the wish table — so it is in wish.sql
+	// (WishersOfProgramme), under the filter every read of that table carries.
+	AnnouncementRecipients(ctx context.Context, arg AnnouncementRecipientsParams) ([]uuid.UUID, error)
+	AnnouncementSubjectGroups(ctx context.Context) ([]AnnouncementSubjectGroupsRow, error)
+	// What one person sent or received, newest first.
+	AnnouncementsOf(ctx context.Context, personID uuid.UUID) ([]AnnouncementsOfRow, error)
+	AnnouncementsSentSince(ctx context.Context, arg AnnouncementsSentSinceParams) (int32, error)
 	// A batch, because the task this exists for is assigning 506 modules and a screen that saves one
 	// row per click is a task nobody finishes.
 	//
@@ -304,6 +323,9 @@ type Querier interface {
 	// And what the host in turn borrows from its own sibling cohorts.
 	BorrowedInstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]BorrowedInstancePartsForRow, error)
 	CatalogueProjectionNotes(ctx context.Context, projectionID uuid.UUID) ([]CatalogueProjectionNotesRow, error)
+	// The next mails to send, leased for ten minutes so that no other sender takes them while this
+	// one talks to the server. The address is read from the account now — never from anywhere else.
+	ClaimMail(ctx context.Context, arg ClaimMailParams) ([]ClaimMailRow, error)
 	// Give a part back. The row count is the answer: nothing cleared means it was not there.
 	ClearAssignment(ctx context.Context, id uuid.UUID) (int64, error)
 	// Take a figure back. No row is "not stated", which is the state this returns to.
@@ -592,6 +614,7 @@ type Querier interface {
 	// the side where a request is answered, so a query that hid the unanswered ones would hide the
 	// only thing that needs doing.
 	CoveringInstancesFor(ctx context.Context, instanceIds []uuid.UUID) ([]CoveringInstancesForRow, error)
+	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (CreateAnnouncementRow, error)
 	// People and their role grants.
 	//
 	// Every read that resolves an identity returns the roles with it, in one round trip. Two
@@ -723,6 +746,38 @@ type Querier interface {
 	// left above an upper one that the previous image shortened.
 	// The examination office's spelling, for the one register of names (domain.PlainName).
 	DesiredTeachingHours(ctx context.Context, arg DesiredTeachingHoursParams) ([]DesiredTeachingHoursRow, error)
+	// An advance wish resolved by its programme's release: converted into wishes, or not offered
+	// because the released demand has no cohort of the module. NOT_OFFERED can still become CONVERTED
+	// when a cohort is declared later, and is told again then.
+	DetectAdvanceWishes(ctx context.Context, cutoff time.Time) (int64, error)
+	// The due date set, or moved. Cleared says nothing.
+	DetectConfirmationDues(ctx context.Context, cutoff time.Time) (int64, error)
+	// Three days before the date, once, to each account holding something in the semester whose
+	// confirmation is missing or out of date — an event about that person's own rows, so only they
+	// can ever be told.
+	DetectConfirmationReminders(ctx context.Context, today pgtype.Date) (int64, error)
+	DetectDemandReleases(ctx context.Context, cutoff time.Time) (int64, error)
+	// An instance in a released demand, once both have stood for the settle time. Declared and
+	// deleted again in that time, it was never offered; declared after the release, it is offered
+	// when it has stood. The subject group is the module's at this moment.
+	DetectOfferedInstances(ctx context.Context, cutoff time.Time) (int64, error)
+	// A semester nobody has announced a phase for started in the first one.
+	DetectPhases(ctx context.Context, cutoff time.Time) (int64, error)
+	// The four irreversible acts of the dean's office. No settle time: there is no taking them back.
+	DetectPublications(ctx context.Context) (int64, error)
+	DetectReviewCompletions(ctx context.Context, cutoff time.Time) (int64, error)
+	// A door compared with the last state announced, where nothing announced reads as open — the same
+	// reading an absent wish_window row has. Shut and opened again within the settle time compares
+	// equal and says nothing.
+	DetectWishWindows(ctx context.Context, cutoff time.Time) (int64, error)
+	// An announced instance that no longer exists, told to whoever heard it was on.
+	DetectWithdrawnInstances(ctx context.Context) (int64, error)
+	// A mail queued for somebody who has since been deactivated is not sent.
+	DropMailToInactive(ctx context.Context) (int64, error)
+	// What is to be sent now, with everything a mail says about it: immediate deliveries always,
+	// daily ones that arrived before the last morning slot. Ordered so that one person's rows are
+	// together.
+	DueNotificationDeliveries(ctx context.Context, dailyCutoff time.Time) ([]DueNotificationDeliveriesRow, error)
 	// Get this mail address a person row, creating one if there is none.
 	//
 	// The reconciliation of the protected administrators runs through here on every start, so it
@@ -765,6 +820,10 @@ type Querier interface {
 	// the interface would show a run in progress that nothing is progressing. The cutoff is passed
 	// in rather than hard-coded here so the caller's reasoning about it stays in Go.
 	FailAbandonedZPASyncRuns(ctx context.Context, olderThan time.Time) ([]uuid.UUID, error)
+	// Who is to be told: every active, unpaused subscriber whose subscription matches, once per
+	// event however many of their subscriptions do. A target set is resolved against the
+	// subscriber's own rows and nobody else's; an event about one person reaches only that person.
+	FanOutNotificationEvents(ctx context.Context, arg FanOutNotificationEventsParams) (int64, error)
 	// The subject group a local module is entered with, in the transaction that inserts it.
 	//
 	// Selected from subject_group rather than inserted as a value, so that "exists and is active" is
@@ -872,6 +931,7 @@ type Querier interface {
 	// not the silence this is watching for.
 	LastSuccessfulZPASyncRun(ctx context.Context) (LastSuccessfulZPASyncRunRow, error)
 	LatestCatalogueProjections(ctx context.Context, limit int32) ([]LatestCatalogueProjectionsRow, error)
+	LinkDeliveriesToMail(ctx context.Context, arg LinkDeliveriesToMailParams) error
 	// Connect each module to the person the source names as responsible for it.
 	//
 	// Runs after both, because it needs both. Matched on the address, lower-cased on the teacher
@@ -1035,6 +1095,12 @@ type Querier interface {
 	// which takes FOR SHARE; the foreign key check of an assignment only takes FOR KEY SHARE, and that
 	// alone would let a fill slip past a part that is just being given away.
 	LockInstancePart(ctx context.Context, id uuid.UUID) (LockInstancePartRow, error)
+	// One dispatcher at a time, across replicas: the detection queries are idempotent, but two of
+	// them interleaving could each see the other's fact as not yet announced.
+	//
+	// Keyed by the schema, because an advisory lock is database-wide: the integration tests run one
+	// schema each, in parallel, in one database, and a constant key had them skip each other's ticks.
+	LockNotificationDispatch(ctx context.Context) (bool, error)
 	// Whether an address is already somebody's account, other than through this very teacher row.
 	//
 	// A person with an account and no teacher row is assignable as that person already. A teacher
@@ -1042,9 +1108,15 @@ type Querier interface {
 	// every sum over assignments between them. The exception is the row being edited: once its
 	// address has an account, that is the link working as designed, not a second identity.
 	MailBelongsToAnotherAccount(ctx context.Context, arg MailBelongsToAnotherAccountParams) (bool, error)
+	// For the nightly report and the smoke test: figures, never contents.
+	MailCounts(ctx context.Context, since time.Time) (MailCountsRow, error)
 	// The codes ProjectProgrammes had to leave out, so the report can name them. Named as the source
 	// writes them; one with an alias is judged by the code it maps to, and is no finding.
 	MalformedProgrammeCodes(ctx context.Context) ([]string, error)
+	// Retried until the attempts run out, then FAILED — which the nightly report counts.
+	MarkMailFailed(ctx context.Context, arg MarkMailFailedParams) error
+	MarkMailSent(ctx context.Context, id uuid.UUID) error
+	MarkNotificationEventsFannedOut(ctx context.Context, eventIds []uuid.UUID) error
 	// Make this semester the one being planned.
 	//
 	// Unconditional and idempotent in effect: setting the semester that is already set rewrites the
@@ -1069,6 +1141,7 @@ type Querier interface {
 	ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, error)
 	// The splits of a set of modules, in one statement.
 	ModuleComponentsFor(ctx context.Context, moduleIds []uuid.UUID) ([]ModuleComponentsForRow, error)
+	ModuleExists(ctx context.Context, id uuid.UUID) (bool, error)
 	// Whether a module is still in the demand of a semester that is not over.
 	//
 	// What keeps a local course from being taken out of the lists while it still costs hours: a
@@ -1121,6 +1194,21 @@ type Querier interface {
 	// COALESCE with the cast outside, for the same reason as above — MAX over no rows is NULL, and
 	// an instance with no parts yet is the ordinary state of one whose module has an empty split.
 	NextInstancePartPosition(ctx context.Context, courseInstanceID uuid.UUID) (int32, error)
+	NotificationSettingsOf(ctx context.Context, personID uuid.UUID) (pgtype.Date, error)
+	NotificationSubscriptionCount(ctx context.Context, personID uuid.UUID) (int32, error)
+	// Mail: subscriptions, the comparison that notices what became official, the fan-out to
+	// subscribers, and the outbox. See migration 20261110120000 for the three rules.
+	//
+	// THE DETECTION QUERIES
+	//
+	// Each compares one kind of state the planning keeps with what has been announced
+	// (notification_announced, announced_instance), records the new value and writes an event — in
+	// one statement, so that a fact is announced once however often the dispatcher runs. `cutoff` is
+	// now minus domain.NotificationSettle: a state younger than that has not stood long enough to be
+	// told, and one undone in that time is never seen at all.
+	//
+	// None of them reads a wish or an assignment of anybody but the person an event is about.
+	NotificationSubscriptionsOf(ctx context.Context, personID uuid.UUID) ([]NotificationSubscriptionsOfRow, error)
 	// The subject groups whose wish round is still open in one semester: active, with at least one
 	// instance planned in it, and no row saying the round is shut. An absent row is open, so this is
 	// every such group minus the closed ones, not a read of the rows.
@@ -1153,6 +1241,7 @@ type Querier interface {
 	// in two, or one another faculty teaches. Sharing deletes the siblings' parts of that kind, and
 	// either fact would go with them without anybody being told.
 	PartsOfKindAreDividedOrElsewhere(ctx context.Context, arg PartsOfKindAreDividedOrElsewhereParams) (bool, error)
+	PendingNotificationEvents(ctx context.Context) ([]uuid.UUID, error)
 	// Joined to the teacher list like ListPeople, so that one person and the list agree about the
 	// name a list is sorted by. Not so for PersonByMail above: that one authenticates every request
 	// on the browser door, and a join it has no use for does not belong on that path.
@@ -1190,6 +1279,7 @@ type Querier interface {
 	// of this statement, and a LIMIT here would quietly return one of several if that ever stopped
 	// being true.
 	PlanningSemester(ctx context.Context) (Semester, error)
+	PlanningSemesterCodeForAnnouncements(ctx context.Context) (string, error)
 	// One programme, whatever its planning status.
 	//
 	// Deliberately unfiltered: reading the demand of a programme that has run out is a legitimate
@@ -1210,6 +1300,7 @@ type Querier interface {
 	// Only those: a programme without a row has no quota, which the controlling shows as "no figure"
 	// rather than as zero — zero would read as a programme with nothing to spend.
 	ProgrammeQuotasOfYear(ctx context.Context, studyYear int32) ([]ProgrammeQuotasOfYearRow, error)
+	ProgrammeRefByCode(ctx context.Context, code string) (ProgrammeRefByCodeRow, error)
 	// Which study programmes a set of people lead.
 	//
 	// For a list of people in one statement rather than one per row, the same shape the catalogue
@@ -1326,6 +1417,7 @@ type Querier interface {
 	// silently stopped working shows up as a number that stops moving rather than as a table that
 	// quietly grows for a year.
 	PruneAccessLog(ctx context.Context, cutoff time.Time) (int64, error)
+	PruneNotifications(ctx context.Context, before time.Time) error
 	// After a withdrawal: drop the caller's bounds that no longer qualify any wish of theirs, for the
 	// reason SetWishTrackLimit refuses one on nothing.
 	PruneOwnWishTrackLimits(ctx context.Context, personID uuid.UUID) error
@@ -1350,6 +1442,9 @@ type Querier interface {
 	// updated_at stays untouched when nothing changed, so a repeated call does not make the row
 	// look edited.
 	PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Semester, error)
+	// One mail per recipient, the same text for each: an announcement names nobody but its sender.
+	QueueAnnouncementMails(ctx context.Context, arg QueueAnnouncementMailsParams) error
+	QueueMail(ctx context.Context, arg QueueMailParams) (uuid.UUID, error)
 	// The access log: one row per operation, plus the sign-ins that were refused before there was
 	// an operation at all.
 	//
@@ -1488,6 +1583,8 @@ type Querier interface {
 	// Over how many semesters a module runs. The faculty's own fact, like the split: the import never
 	// writes this column.
 	SetModuleSemesterSpan(ctx context.Context, arg SetModuleSemesterSpanParams) (int64, error)
+	SetNotificationDelivery(ctx context.Context, arg SetNotificationDeliveryParams) (int64, error)
+	SetNotificationPausedUntil(ctx context.Context, arg SetNotificationPausedUntilParams) error
 	// Deactivation is how a leaver loses access to everything at once, tokens included.
 	//
 	// The guard against deactivating the last administrator is not here. It cannot be: it depends
@@ -1561,6 +1658,7 @@ type Querier interface {
 	// job that was never scheduled, and is how "the import stopped three weeks ago" happens.
 	StartZPASyncRun(ctx context.Context, arg StartZPASyncRunParams) (ZpaSyncRun, error)
 	SubjectGroupByID(ctx context.Context, id uuid.UUID) (SubjectGroupByIDRow, error)
+	SubjectGroupExists(ctx context.Context, id uuid.UUID) (bool, error)
 	// Who leads each of these groups.
 	//
 	// The expiry filter is the same rule person_role_scope applies, applied again because this reads
@@ -1573,6 +1671,7 @@ type Querier interface {
 	// No expiry filter, and the asymmetry with the query above is the point: membership is not a
 	// grant. It says which subjects a colleague works in, it grants nothing, and it does not run out.
 	SubjectGroupMembersFor(ctx context.Context, groupIds []uuid.UUID) ([]SubjectGroupMembersForRow, error)
+	SubjectGroupRefByID(ctx context.Context, id uuid.UUID) (SubjectGroupRefByIDRow, error)
 	// Which subject groups a set of people lead.
 	//
 	// The counterpart of ProgrammeScopesFor, one table over and with the same expiry filter: a
@@ -1621,6 +1720,8 @@ type Querier interface {
 	// lead could not be revoked without destroying the group. A count is the same requirement in the
 	// form the beta testers can actually finish.
 	SubjectGroupsWithoutLead(ctx context.Context) (int32, error)
+	// Subscribing to what one already follows is that subscription, with the delivery now asked for.
+	SubscribeNotification(ctx context.Context, arg SubscribeNotificationParams) (uuid.UUID, error)
 	// One teacher and their account, by teacher id.
 	//
 	// No retired filter, unlike the list above. The id always comes from that list, so the only way
@@ -1697,6 +1798,7 @@ type Querier interface {
 	UnassignProgrammes(ctx context.Context, arg UnassignProgrammesParams) error
 	// The pieces of a shared part are shared too, and stop being shared with it.
 	UnsharePartsOfInstance(ctx context.Context, courseInstanceID uuid.UUID) error
+	Unsubscribe(ctx context.Context, arg UnsubscribeParams) (int64, error)
 	// The two things about an instance that are editable: which cohort it is, and which year.
 	//
 	// The module, the programme and the semester are not. Changing one of those is not an edit of
@@ -1815,6 +1917,14 @@ type Querier interface {
 	// for the instance, and the note says which half. A covered cohort holds no parts at all and is
 	// not elsewhere by this; its teaching is ours, in another programme.
 	WishWriteContext(ctx context.Context, instanceID uuid.UUID) (WishWriteContextRow, error)
+	// Who has registered interest in an instance of one programme in one semester: the half of an
+	// announcement's PROGRAMME audience that is made of wishes (announcements.sql has the other).
+	//
+	// Here and filtered like every other read of this table, with the sender's filter: the people an
+	// announcement reaches are a list of wishers, and the count its sender is shown is a count of
+	// them. Only the programme's lead and the dean's office may ask, and their filter lets those rows
+	// through — but that is the policy's argument, and this query does not take it on trust.
+	WishersOfProgramme(ctx context.Context, arg WishersOfProgrammeParams) ([]uuid.UUID, error)
 	// Wishes: one person's interest in one course instance.
 	//
 	// THE RULE THIS FILE IS MADE OF

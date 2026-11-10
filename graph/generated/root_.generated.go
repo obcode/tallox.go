@@ -114,6 +114,30 @@ type ComplexityRoot struct {
 		UpdatedAt   func(childComplexity int) int
 	}
 
+	Announcement struct {
+		Audience       func(childComplexity int) int
+		Body           func(childComplexity int) int
+		ID             func(childComplexity int) int
+		RecipientCount func(childComplexity int) int
+		Sender         func(childComplexity int) int
+		SentAt         func(childComplexity int) int
+		Subject        func(childComplexity int) int
+	}
+
+	AnnouncementAudience struct {
+		Kind         func(childComplexity int) int
+		Programme    func(childComplexity int) int
+		Semester     func(childComplexity int) int
+		SubjectGroup func(childComplexity int) int
+	}
+
+	AnnouncementPreview struct {
+		HTML           func(childComplexity int) int
+		RecipientCount func(childComplexity int) int
+		Subject        func(childComplexity int) int
+		Text           func(childComplexity int) int
+	}
+
 	AssignedLoad struct {
 		BySubjectGroup func(childComplexity int) int
 		Person         func(childComplexity int) int
@@ -408,78 +432,100 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AcceptInstanceCoverage        func(childComplexity int, id string) int
-		AddInstancePart               func(childComplexity int, instanceID string, kind domain.InstancePartKind, teachingHours *float64) int
-		AdvanceSemesterPhase          func(childComplexity int, code string, to policy.Phase) int
-		ApplyModuleSplitToInstances   func(childComplexity int, moduleID string, dryRun bool) int
-		ChangeCourseInstance          func(childComplexity int, id string, track string, programmeSemester *int) int
-		ChangeInstancePart            func(childComplexity int, id string, kind domain.InstancePartKind, teachingHours *float64) int
-		ChangeLocalModule             func(childComplexity int, id string, input model.LocalModuleInput) int
-		ChangeLocalTeacher            func(childComplexity int, id string, input model.LocalTeacherInput) int
-		ClearAssignment               func(childComplexity int, id string) int
-		ConfirmMyAssignments          func(childComplexity int, semester string) int
-		CopyDemandFromSemester        func(childComplexity int, from string, to string, programme string) int
-		CorrectDesiredTeachingHours   func(childComplexity int, semester string, person string, minHours *float64, maxHours *float64, note *string) int
-		CreateLocalModule             func(childComplexity int, input model.LocalModuleInput, subjectGroup *string) int
-		CreateLocalTeacher            func(childComplexity int, input model.LocalTeacherInput) int
-		CreatePerson                  func(childComplexity int, mail string, name *string) int
-		CreatePersonalAccessToken     func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput, fullReach bool) int
-		CreateSubjectGroup            func(childComplexity int, code string, name string) int
-		DeclareCourseInstance         func(childComplexity int, input model.DeclareCourseInstanceInput) int
-		DivideInstancePart            func(childComplexity int, id string, teachingHours float64) int
-		DuplicateCourseInstance       func(childComplexity int, id string, track string, sourceTrack *string) int
-		FreezeDesiredHours            func(childComplexity int, code string) int
-		PlanDemand                    func(childComplexity int, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) int
-		ProjectZpaCatalogue           func(childComplexity int) int
-		PublishAssignments            func(childComplexity int, code string) int
-		PublishDesiredHours           func(childComplexity int, code string) int
-		PublishWishes                 func(childComplexity int, code string) int
-		RejoinInstancePart            func(childComplexity int, id string) int
-		ReleaseInstanceCoverage       func(childComplexity int, id string) int
-		RemoveInstancePart            func(childComplexity int, id string) int
-		RenamePerson                  func(childComplexity int, id string, name string) int
-		RenameSubjectGroup            func(childComplexity int, id string, name string) int
-		RequestInstanceCoverage       func(childComplexity int, id string, coveredBy string) int
-		RevokePersonalAccessToken     func(childComplexity int, id string) int
-		SetAdvanceWish                func(childComplexity int, semester string, module string, programme string, priority domain.WishPriority, note *string, maxTracks *int) int
-		SetAssignment                 func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
-		SetAssignmentConfirmationDue  func(childComplexity int, code string, due *model.Date) int
-		SetCourseInstanceCiE          func(childComplexity int, id string, cie bool) int
-		SetCourseInstanceFormat       func(childComplexity int, id string, delivery domain.Delivery, taughtInEnglish *bool) int
-		SetCourseInstanceTopic        func(childComplexity int, id string, topic string) int
-		SetDemandComplete             func(childComplexity int, semester string, programme string, complete bool) int
-		SetDesiredTeachingHours       func(childComplexity int, semester string, minHours *float64, maxHours *float64, hours *float64, note *string) int
-		SetInstancePartTaughtBy       func(childComplexity int, id string, faculty *string) int
-		SetModuleComponents           func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
-		SetModuleProjectBased         func(childComplexity int, moduleID string, projectBased bool) int
-		SetModuleSemesterSpan         func(childComplexity int, moduleID string, semesters int) int
-		SetModulesSubjectGroup        func(childComplexity int, moduleIds []string, subjectGroup *string) int
-		SetMyCompetence               func(childComplexity int, moduleID string, level domain.CompetenceLevel, note *string) int
-		SetMySubjectGroups            func(childComplexity int, subjectGroupIds []string) int
-		SetPersonActive               func(childComplexity int, id string, active bool) int
-		SetPersonProgrammes           func(childComplexity int, id string, programmes []string, role *policy.Role) int
-		SetPersonRoles                func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
-		SetPlanningSemester           func(childComplexity int, code string) int
-		SetProgrammeDegree            func(childComplexity int, code string, degree *domain.Degree) int
-		SetProgrammePlanningStatus    func(childComplexity int, code string, status domain.ProgrammeStatus) int
-		SetProgrammeQuota             func(childComplexity int, programme string, studyYear int, teachingHours *float64) int
-		SetReviewComplete             func(childComplexity int, semester string, programme string, complete bool) int
-		SetSubjectGroupActive         func(childComplexity int, id string, active bool) int
-		SetSubjectGroupLeads          func(childComplexity int, id string, personIds []string) int
-		SetSubjectGroupMembers        func(childComplexity int, id string, personIds []string) int
-		SetTeacherAdmitted            func(childComplexity int, teacherID string, admitted bool) int
-		SetTeacherCompetence          func(childComplexity int, moduleID string, teacherID string, level domain.CompetenceLevel, note *string) int
-		SetWish                       func(childComplexity int, courseInstanceID string, priority domain.WishPriority, note *string, cie bool) int
-		SetWishTrackLimit             func(childComplexity int, courseInstanceID string, maxTracks *int) int
-		SetWishWindow                 func(childComplexity int, semester string, subjectGroupID string, open bool) int
-		ShareInstancePartAcrossTracks func(childComplexity int, id string) int
-		SplitInstancePartAcrossTracks func(childComplexity int, id string) int
-		SyncZpaNow                    func(childComplexity int) int
-		WithdrawAdvanceWish           func(childComplexity int, id string) int
-		WithdrawCourseInstance        func(childComplexity int, id string) int
-		WithdrawMyCompetence          func(childComplexity int, id string) int
-		WithdrawTeacherCompetence     func(childComplexity int, id string) int
-		WithdrawWish                  func(childComplexity int, id string) int
+		AcceptInstanceCoverage            func(childComplexity int, id string) int
+		AddInstancePart                   func(childComplexity int, instanceID string, kind domain.InstancePartKind, teachingHours *float64) int
+		AdvanceSemesterPhase              func(childComplexity int, code string, to policy.Phase) int
+		ApplyModuleSplitToInstances       func(childComplexity int, moduleID string, dryRun bool) int
+		ChangeCourseInstance              func(childComplexity int, id string, track string, programmeSemester *int) int
+		ChangeInstancePart                func(childComplexity int, id string, kind domain.InstancePartKind, teachingHours *float64) int
+		ChangeLocalModule                 func(childComplexity int, id string, input model.LocalModuleInput) int
+		ChangeLocalTeacher                func(childComplexity int, id string, input model.LocalTeacherInput) int
+		ClearAssignment                   func(childComplexity int, id string) int
+		ConfirmMyAssignments              func(childComplexity int, semester string) int
+		CopyDemandFromSemester            func(childComplexity int, from string, to string, programme string) int
+		CorrectDesiredTeachingHours       func(childComplexity int, semester string, person string, minHours *float64, maxHours *float64, note *string) int
+		CreateLocalModule                 func(childComplexity int, input model.LocalModuleInput, subjectGroup *string) int
+		CreateLocalTeacher                func(childComplexity int, input model.LocalTeacherInput) int
+		CreatePerson                      func(childComplexity int, mail string, name *string) int
+		CreatePersonalAccessToken         func(childComplexity int, description string, expiresInDays *int, scopes []*model.ScopeGrantInput, fullReach bool) int
+		CreateSubjectGroup                func(childComplexity int, code string, name string) int
+		DeclareCourseInstance             func(childComplexity int, input model.DeclareCourseInstanceInput) int
+		DivideInstancePart                func(childComplexity int, id string, teachingHours float64) int
+		DuplicateCourseInstance           func(childComplexity int, id string, track string, sourceTrack *string) int
+		FreezeDesiredHours                func(childComplexity int, code string) int
+		PauseNotifications                func(childComplexity int, until *model.Date) int
+		PlanDemand                        func(childComplexity int, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) int
+		ProjectZpaCatalogue               func(childComplexity int) int
+		PublishAssignments                func(childComplexity int, code string) int
+		PublishDesiredHours               func(childComplexity int, code string) int
+		PublishWishes                     func(childComplexity int, code string) int
+		RejoinInstancePart                func(childComplexity int, id string) int
+		ReleaseInstanceCoverage           func(childComplexity int, id string) int
+		RemoveInstancePart                func(childComplexity int, id string) int
+		RenamePerson                      func(childComplexity int, id string, name string) int
+		RenameSubjectGroup                func(childComplexity int, id string, name string) int
+		RequestInstanceCoverage           func(childComplexity int, id string, coveredBy string) int
+		RevokePersonalAccessToken         func(childComplexity int, id string) int
+		SendAnnouncement                  func(childComplexity int, audience model.AnnouncementAudienceInput, subject string, body string) int
+		SetAdvanceWish                    func(childComplexity int, semester string, module string, programme string, priority domain.WishPriority, note *string, maxTracks *int) int
+		SetAssignment                     func(childComplexity int, instancePartID string, personID *string, teacherID *string, note *string, replacing *string) int
+		SetAssignmentConfirmationDue      func(childComplexity int, code string, due *model.Date) int
+		SetCourseInstanceCiE              func(childComplexity int, id string, cie bool) int
+		SetCourseInstanceFormat           func(childComplexity int, id string, delivery domain.Delivery, taughtInEnglish *bool) int
+		SetCourseInstanceTopic            func(childComplexity int, id string, topic string) int
+		SetDemandComplete                 func(childComplexity int, semester string, programme string, complete bool) int
+		SetDesiredTeachingHours           func(childComplexity int, semester string, minHours *float64, maxHours *float64, hours *float64, note *string) int
+		SetInstancePartTaughtBy           func(childComplexity int, id string, faculty *string) int
+		SetModuleComponents               func(childComplexity int, moduleID string, components []*model.ModuleComponentInput) int
+		SetModuleProjectBased             func(childComplexity int, moduleID string, projectBased bool) int
+		SetModuleSemesterSpan             func(childComplexity int, moduleID string, semesters int) int
+		SetModulesSubjectGroup            func(childComplexity int, moduleIds []string, subjectGroup *string) int
+		SetMyCompetence                   func(childComplexity int, moduleID string, level domain.CompetenceLevel, note *string) int
+		SetMySubjectGroups                func(childComplexity int, subjectGroupIds []string) int
+		SetNotificationDelivery           func(childComplexity int, id string, delivery model.NotificationDelivery) int
+		SetPersonActive                   func(childComplexity int, id string, active bool) int
+		SetPersonProgrammes               func(childComplexity int, id string, programmes []string, role *policy.Role) int
+		SetPersonRoles                    func(childComplexity int, id string, roles []policy.Role, expiresAt *time.Time) int
+		SetPlanningSemester               func(childComplexity int, code string) int
+		SetProgrammeDegree                func(childComplexity int, code string, degree *domain.Degree) int
+		SetProgrammePlanningStatus        func(childComplexity int, code string, status domain.ProgrammeStatus) int
+		SetProgrammeQuota                 func(childComplexity int, programme string, studyYear int, teachingHours *float64) int
+		SetReviewComplete                 func(childComplexity int, semester string, programme string, complete bool) int
+		SetSubjectGroupActive             func(childComplexity int, id string, active bool) int
+		SetSubjectGroupLeads              func(childComplexity int, id string, personIds []string) int
+		SetSubjectGroupMembers            func(childComplexity int, id string, personIds []string) int
+		SetTeacherAdmitted                func(childComplexity int, teacherID string, admitted bool) int
+		SetTeacherCompetence              func(childComplexity int, moduleID string, teacherID string, level domain.CompetenceLevel, note *string) int
+		SetWish                           func(childComplexity int, courseInstanceID string, priority domain.WishPriority, note *string, cie bool) int
+		SetWishTrackLimit                 func(childComplexity int, courseInstanceID string, maxTracks *int) int
+		SetWishWindow                     func(childComplexity int, semester string, subjectGroupID string, open bool) int
+		ShareInstancePartAcrossTracks     func(childComplexity int, id string) int
+		SplitInstancePartAcrossTracks     func(childComplexity int, id string) int
+		SubscribeNotification             func(childComplexity int, input model.NotificationSubscriptionInput) int
+		SubscribeRecommendedNotifications func(childComplexity int) int
+		SyncZpaNow                        func(childComplexity int) int
+		UnsubscribeNotification           func(childComplexity int, id string) int
+		WithdrawAdvanceWish               func(childComplexity int, id string) int
+		WithdrawCourseInstance            func(childComplexity int, id string) int
+		WithdrawMyCompetence              func(childComplexity int, id string) int
+		WithdrawTeacherCompetence         func(childComplexity int, id string) int
+		WithdrawWish                      func(childComplexity int, id string) int
+	}
+
+	NotificationSettings struct {
+		PausedUntil func(childComplexity int) int
+	}
+
+	NotificationSubscription struct {
+		CreatedAt    func(childComplexity int) int
+		Delivery     func(childComplexity int) int
+		ID           func(childComplexity int) int
+		Kind         func(childComplexity int) int
+		Module       func(childComplexity int) int
+		Programme    func(childComplexity int) int
+		Semester     func(childComplexity int) int
+		SubjectGroup func(childComplexity int) int
+		TargetSet    func(childComplexity int) int
 	}
 
 	Person struct {
@@ -555,60 +601,65 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		AccessLog                  func(childComplexity int, filter *model.AccessLogFilter, limit *int, before *string) int
-		AccessSummary              func(childComplexity int, from time.Time, until time.Time) int
-		AdvanceWishes              func(childComplexity int, semester string, programme *string, module *string, subjectGroupID *string) int
-		AssignedTeachingHours      func(childComplexity int, semester string, person *string) int
-		AssignmentConfirmations    func(childComplexity int, semester string) int
-		Assignments                func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
-		BuildInfo                  func(childComplexity int) int
-		CompetenceMemberStatus     func(childComplexity int, subjectGroup string) int
-		Competences                func(childComplexity int, module *string, subjectGroup *string, person *string, teacher *string) int
-		CourseInstance             func(childComplexity int, id string) int
-		CourseInstances            func(childComplexity int, semester string, programme *string, module *string, foreignHome *bool, degree *domain.Degree) int
-		DemandCompletions          func(childComplexity int, semester string) int
-		DesiredHoursOverview       func(childComplexity int, semester string) int
-		DesiredTeachingHours       func(childComplexity int, semester string, person *string) int
-		DiagnoseAccess             func(childComplexity int, mail string) int
-		Me                         func(childComplexity int) int
-		Module                     func(childComplexity int, id string) int
-		Modules                    func(childComplexity int, filter *model.ModuleFilter) int
-		ModulesWithoutCompetence   func(childComplexity int, subjectGroup string) int
-		ModulesWithoutSubjectGroup func(childComplexity int) int
-		MyAdvanceWishes            func(childComplexity int) int
-		MyAssignmentConfirmation   func(childComplexity int, semester string) int
-		MyAssignments              func(childComplexity int, semester *string) int
-		MyCompetenceStatus         func(childComplexity int) int
-		MyCompetenceTotal          func(childComplexity int) int
-		MyCompetences              func(childComplexity int) int
-		MyDesiredTeachingHours     func(childComplexity int, semester *string) int
-		MySubjectGroups            func(childComplexity int) int
-		MyTokens                   func(childComplexity int) int
-		MyWishes                   func(childComplexity int, semester *string) int
-		People                     func(childComplexity int, search *string, includeInactive *bool) int
-		Person                     func(childComplexity int, id string) int
-		PlanningSemester           func(childComplexity int) int
-		Programme                  func(childComplexity int, code string) int
-		ProgrammeQuotas            func(childComplexity int, studyYear int) int
-		Programmes                 func(childComplexity int, includeUnplanned bool) int
-		ReviewCompletions          func(childComplexity int, semester string) int
-		RoleGrants                 func(childComplexity int, personID string) int
-		Semester                   func(childComplexity int, code string) int
-		Semesters                  func(childComplexity int) int
-		Session                    func(childComplexity int) int
-		StudyYearLoad              func(childComplexity int, studyYear int) int
-		SubjectGroup               func(childComplexity int, id string) int
-		SubjectGroups              func(childComplexity int, includeInactive *bool) int
-		SubjectGroupsWithoutLead   func(childComplexity int) int
-		TeacherAccounts            func(childComplexity int) int
-		Teachers                   func(childComplexity int, search *string, includeInactive *bool) int
-		TeachingLoad               func(childComplexity int, semester string) int
-		WishWindows                func(childComplexity int, semester string) int
-		Wishes                     func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
-		ZpaCatalogueProjections    func(childComplexity int, limit *int) int
-		ZpaChanges                 func(childComplexity int, runID string) int
-		ZpaSyncRun                 func(childComplexity int, id string) int
-		ZpaSyncRuns                func(childComplexity int, limit *int) int
+		AccessLog                   func(childComplexity int, filter *model.AccessLogFilter, limit *int, before *string) int
+		AccessSummary               func(childComplexity int, from time.Time, until time.Time) int
+		AdvanceWishes               func(childComplexity int, semester string, programme *string, module *string, subjectGroupID *string) int
+		AnnouncementAudiences       func(childComplexity int, semester *string) int
+		Announcements               func(childComplexity int) int
+		AssignedTeachingHours       func(childComplexity int, semester string, person *string) int
+		AssignmentConfirmations     func(childComplexity int, semester string) int
+		Assignments                 func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
+		BuildInfo                   func(childComplexity int) int
+		CompetenceMemberStatus      func(childComplexity int, subjectGroup string) int
+		Competences                 func(childComplexity int, module *string, subjectGroup *string, person *string, teacher *string) int
+		CourseInstance              func(childComplexity int, id string) int
+		CourseInstances             func(childComplexity int, semester string, programme *string, module *string, foreignHome *bool, degree *domain.Degree) int
+		DemandCompletions           func(childComplexity int, semester string) int
+		DesiredHoursOverview        func(childComplexity int, semester string) int
+		DesiredTeachingHours        func(childComplexity int, semester string, person *string) int
+		DiagnoseAccess              func(childComplexity int, mail string) int
+		Me                          func(childComplexity int) int
+		Module                      func(childComplexity int, id string) int
+		Modules                     func(childComplexity int, filter *model.ModuleFilter) int
+		ModulesWithoutCompetence    func(childComplexity int, subjectGroup string) int
+		ModulesWithoutSubjectGroup  func(childComplexity int) int
+		MyAdvanceWishes             func(childComplexity int) int
+		MyAssignmentConfirmation    func(childComplexity int, semester string) int
+		MyAssignments               func(childComplexity int, semester *string) int
+		MyCompetenceStatus          func(childComplexity int) int
+		MyCompetenceTotal           func(childComplexity int) int
+		MyCompetences               func(childComplexity int) int
+		MyDesiredTeachingHours      func(childComplexity int, semester *string) int
+		MyNotificationSettings      func(childComplexity int) int
+		MyNotificationSubscriptions func(childComplexity int) int
+		MySubjectGroups             func(childComplexity int) int
+		MyTokens                    func(childComplexity int) int
+		MyWishes                    func(childComplexity int, semester *string) int
+		People                      func(childComplexity int, search *string, includeInactive *bool) int
+		Person                      func(childComplexity int, id string) int
+		PlanningSemester            func(childComplexity int) int
+		PreviewAnnouncement         func(childComplexity int, audience model.AnnouncementAudienceInput, subject string, body string) int
+		Programme                   func(childComplexity int, code string) int
+		ProgrammeQuotas             func(childComplexity int, studyYear int) int
+		Programmes                  func(childComplexity int, includeUnplanned bool) int
+		ReviewCompletions           func(childComplexity int, semester string) int
+		RoleGrants                  func(childComplexity int, personID string) int
+		Semester                    func(childComplexity int, code string) int
+		Semesters                   func(childComplexity int) int
+		Session                     func(childComplexity int) int
+		StudyYearLoad               func(childComplexity int, studyYear int) int
+		SubjectGroup                func(childComplexity int, id string) int
+		SubjectGroups               func(childComplexity int, includeInactive *bool) int
+		SubjectGroupsWithoutLead    func(childComplexity int) int
+		TeacherAccounts             func(childComplexity int) int
+		Teachers                    func(childComplexity int, search *string, includeInactive *bool) int
+		TeachingLoad                func(childComplexity int, semester string) int
+		WishWindows                 func(childComplexity int, semester string) int
+		Wishes                      func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
+		ZpaCatalogueProjections     func(childComplexity int, limit *int) int
+		ZpaChanges                  func(childComplexity int, runID string) int
+		ZpaSyncRun                  func(childComplexity int, id string) int
+		ZpaSyncRuns                 func(childComplexity int, limit *int) int
 	}
 
 	RefusedSignIn struct {
@@ -1130,6 +1181,99 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AdvanceWish.UpdatedAt(childComplexity), true
+
+	case "Announcement.audience":
+		if e.ComplexityRoot.Announcement.Audience == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Announcement.Audience(childComplexity), true
+	case "Announcement.body":
+		if e.ComplexityRoot.Announcement.Body == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Announcement.Body(childComplexity), true
+	case "Announcement.id":
+		if e.ComplexityRoot.Announcement.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Announcement.ID(childComplexity), true
+	case "Announcement.recipientCount":
+		if e.ComplexityRoot.Announcement.RecipientCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Announcement.RecipientCount(childComplexity), true
+	case "Announcement.sender":
+		if e.ComplexityRoot.Announcement.Sender == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Announcement.Sender(childComplexity), true
+	case "Announcement.sentAt":
+		if e.ComplexityRoot.Announcement.SentAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Announcement.SentAt(childComplexity), true
+	case "Announcement.subject":
+		if e.ComplexityRoot.Announcement.Subject == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Announcement.Subject(childComplexity), true
+
+	case "AnnouncementAudience.kind":
+		if e.ComplexityRoot.AnnouncementAudience.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnnouncementAudience.Kind(childComplexity), true
+	case "AnnouncementAudience.programme":
+		if e.ComplexityRoot.AnnouncementAudience.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnnouncementAudience.Programme(childComplexity), true
+	case "AnnouncementAudience.semester":
+		if e.ComplexityRoot.AnnouncementAudience.Semester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnnouncementAudience.Semester(childComplexity), true
+	case "AnnouncementAudience.subjectGroup":
+		if e.ComplexityRoot.AnnouncementAudience.SubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnnouncementAudience.SubjectGroup(childComplexity), true
+
+	case "AnnouncementPreview.html":
+		if e.ComplexityRoot.AnnouncementPreview.HTML == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnnouncementPreview.HTML(childComplexity), true
+	case "AnnouncementPreview.recipientCount":
+		if e.ComplexityRoot.AnnouncementPreview.RecipientCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnnouncementPreview.RecipientCount(childComplexity), true
+	case "AnnouncementPreview.subject":
+		if e.ComplexityRoot.AnnouncementPreview.Subject == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnnouncementPreview.Subject(childComplexity), true
+	case "AnnouncementPreview.text":
+		if e.ComplexityRoot.AnnouncementPreview.Text == nil {
+			break
+		}
+
+		return e.ComplexityRoot.AnnouncementPreview.Text(childComplexity), true
 
 	case "AssignedLoad.bySubjectGroup":
 		if e.ComplexityRoot.AssignedLoad.BySubjectGroup == nil {
@@ -2579,6 +2723,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.FreezeDesiredHours(childComplexity, args["code"].(string)), true
+	case "Mutation.pauseNotifications":
+		if e.ComplexityRoot.Mutation.PauseNotifications == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_pauseNotifications_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.PauseNotifications(childComplexity, args["until"].(*model.Date)), true
 	case "Mutation.planDemand":
 		if e.ComplexityRoot.Mutation.PlanDemand == nil {
 			break
@@ -2706,6 +2861,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RevokePersonalAccessToken(childComplexity, args["id"].(string)), true
+	case "Mutation.sendAnnouncement":
+		if e.ComplexityRoot.Mutation.SendAnnouncement == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_sendAnnouncement_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SendAnnouncement(childComplexity, args["audience"].(model.AnnouncementAudienceInput), args["subject"].(string), args["body"].(string)), true
 	case "Mutation.setAdvanceWish":
 		if e.ComplexityRoot.Mutation.SetAdvanceWish == nil {
 			break
@@ -2871,6 +3037,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SetMySubjectGroups(childComplexity, args["subjectGroupIds"].([]string)), true
+	case "Mutation.setNotificationDelivery":
+		if e.ComplexityRoot.Mutation.SetNotificationDelivery == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setNotificationDelivery_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetNotificationDelivery(childComplexity, args["id"].(string), args["delivery"].(model.NotificationDelivery)), true
 	case "Mutation.setPersonActive":
 		if e.ComplexityRoot.Mutation.SetPersonActive == nil {
 			break
@@ -3069,12 +3246,40 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.SplitInstancePartAcrossTracks(childComplexity, args["id"].(string)), true
+	case "Mutation.subscribeNotification":
+		if e.ComplexityRoot.Mutation.SubscribeNotification == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_subscribeNotification_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SubscribeNotification(childComplexity, args["input"].(model.NotificationSubscriptionInput)), true
+	case "Mutation.subscribeRecommendedNotifications":
+		if e.ComplexityRoot.Mutation.SubscribeRecommendedNotifications == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Mutation.SubscribeRecommendedNotifications(childComplexity), true
 	case "Mutation.syncZpaNow":
 		if e.ComplexityRoot.Mutation.SyncZpaNow == nil {
 			break
 		}
 
 		return e.ComplexityRoot.Mutation.SyncZpaNow(childComplexity), true
+	case "Mutation.unsubscribeNotification":
+		if e.ComplexityRoot.Mutation.UnsubscribeNotification == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_unsubscribeNotification_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.UnsubscribeNotification(childComplexity, args["id"].(string)), true
 	case "Mutation.withdrawAdvanceWish":
 		if e.ComplexityRoot.Mutation.WithdrawAdvanceWish == nil {
 			break
@@ -3130,6 +3335,68 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.WithdrawWish(childComplexity, args["id"].(string)), true
+
+	case "NotificationSettings.pausedUntil":
+		if e.ComplexityRoot.NotificationSettings.PausedUntil == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationSettings.PausedUntil(childComplexity), true
+
+	case "NotificationSubscription.createdAt":
+		if e.ComplexityRoot.NotificationSubscription.CreatedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationSubscription.CreatedAt(childComplexity), true
+	case "NotificationSubscription.delivery":
+		if e.ComplexityRoot.NotificationSubscription.Delivery == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationSubscription.Delivery(childComplexity), true
+	case "NotificationSubscription.id":
+		if e.ComplexityRoot.NotificationSubscription.ID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationSubscription.ID(childComplexity), true
+	case "NotificationSubscription.kind":
+		if e.ComplexityRoot.NotificationSubscription.Kind == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationSubscription.Kind(childComplexity), true
+	case "NotificationSubscription.module":
+		if e.ComplexityRoot.NotificationSubscription.Module == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationSubscription.Module(childComplexity), true
+	case "NotificationSubscription.programme":
+		if e.ComplexityRoot.NotificationSubscription.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationSubscription.Programme(childComplexity), true
+	case "NotificationSubscription.semester":
+		if e.ComplexityRoot.NotificationSubscription.Semester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationSubscription.Semester(childComplexity), true
+	case "NotificationSubscription.subjectGroup":
+		if e.ComplexityRoot.NotificationSubscription.SubjectGroup == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationSubscription.SubjectGroup(childComplexity), true
+	case "NotificationSubscription.targetSet":
+		if e.ComplexityRoot.NotificationSubscription.TargetSet == nil {
+			break
+		}
+
+		return e.ComplexityRoot.NotificationSubscription.TargetSet(childComplexity), true
 
 	case "Person.active":
 		if e.ComplexityRoot.Person.Active == nil {
@@ -3477,6 +3744,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.AdvanceWishes(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string), args["subjectGroupId"].(*string)), true
+	case "Query.announcementAudiences":
+		if e.ComplexityRoot.Query.AnnouncementAudiences == nil {
+			break
+		}
+
+		args, err := ec.field_Query_announcementAudiences_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.AnnouncementAudiences(childComplexity, args["semester"].(*string)), true
+	case "Query.announcements":
+		if e.ComplexityRoot.Query.Announcements == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.Announcements(childComplexity), true
 	case "Query.assignedTeachingHours":
 		if e.ComplexityRoot.Query.AssignedTeachingHours == nil {
 			break
@@ -3707,6 +3991,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.MyDesiredTeachingHours(childComplexity, args["semester"].(*string)), true
+	case "Query.myNotificationSettings":
+		if e.ComplexityRoot.Query.MyNotificationSettings == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.MyNotificationSettings(childComplexity), true
+	case "Query.myNotificationSubscriptions":
+		if e.ComplexityRoot.Query.MyNotificationSubscriptions == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.MyNotificationSubscriptions(childComplexity), true
 	case "Query.mySubjectGroups":
 		if e.ComplexityRoot.Query.MySubjectGroups == nil {
 			break
@@ -3758,6 +4054,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.PlanningSemester(childComplexity), true
+	case "Query.previewAnnouncement":
+		if e.ComplexityRoot.Query.PreviewAnnouncement == nil {
+			break
+		}
+
+		args, err := ec.field_Query_previewAnnouncement_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.PreviewAnnouncement(childComplexity, args["audience"].(model.AnnouncementAudienceInput), args["subject"].(string), args["body"].(string)), true
 	case "Query.programme":
 		if e.ComplexityRoot.Query.Programme == nil {
 			break
@@ -4736,6 +5043,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputAccessLogFilter,
+		ec.unmarshalInputAnnouncementAudienceInput,
 		ec.unmarshalInputDeclareCourseInstanceInput,
 		ec.unmarshalInputDemandEntryInput,
 		ec.unmarshalInputDemandTrackInput,
@@ -4743,6 +5051,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputLocalTeacherInput,
 		ec.unmarshalInputModuleComponentInput,
 		ec.unmarshalInputModuleFilter,
+		ec.unmarshalInputNotificationSubscriptionInput,
 		ec.unmarshalInputScopeGrantInput,
 	)
 	first := true
@@ -8377,7 +8686,10 @@ enum ScopeArea {
   Your own identity and session: who you are, which roles you hold, and which of them you are
   being judged by.
 
-  Fields: ` + "`" + `me` + "`" + `, ` + "`" + `session` + "`" + `.
+  Fields: ` + "`" + `me` + "`" + `, ` + "`" + `session` + "`" + `,
+  ` + "`" + `myNotificationSubscriptions` + "`" + `, ` + "`" + `myNotificationSettings` + "`" + `, ` + "`" + `subscribeNotification` + "`" + `,
+  ` + "`" + `subscribeRecommendedNotifications` + "`" + `, ` + "`" + `setNotificationDelivery` + "`" + `, ` + "`" + `unsubscribeNotification` + "`" + `,
+  ` + "`" + `pauseNotifications` + "`" + `.
   """
   PROFILE
 
@@ -8431,7 +8743,12 @@ enum ScopeArea {
   # correction refuses a plain token in the domain rather than by the directive, whose null
   # would read as "taken back".
 
-  ` + "`" + `freezeDesiredHours` + "`" + `, ` + "`" + `publishDesiredHours` + "`" + `, ` + "`" + `correctDesiredTeachingHours` + "`" + `.
+  ` + "`" + `freezeDesiredHours` + "`" + `, ` + "`" + `publishDesiredHours` + "`" + `, ` + "`" + `correctDesiredTeachingHours` + "`" + `,
+
+  # Announcements: reading them is open to every door, previewing and sending is
+  # @interactiveOnly — a mail to the faculty in somebody's name belongs to a sign-in.
+
+  ` + "`" + `announcementAudiences` + "`" + `, ` + "`" + `announcements` + "`" + `, ` + "`" + `previewAnnouncement` + "`" + `, ` + "`" + `sendAnnouncement` + "`" + `.
   """
   PLANNING
 
@@ -8530,6 +8847,316 @@ A moment in time, as an RFC 3339 string — for example ` + "`" + `2026-08-01T14
 Always in Europe/Berlin, the timezone the planning runs in.
 """
 scalar Time
+`, BuiltIn: false},
+	{Name: "../notification.graphqls", Input: `# Mail: subscriptions to what the planning makes official, and announcements by those who lead it.
+#
+# Decided 2026-11-10. Until then a colleague learned that a programme had released its demand or a
+# subject group had opened its wish round by looking, or because somebody wrote a mail by hand.
+#
+# ONLY WHAT IS OFFICIAL
+#
+# A mail is announced by an act that is already a statement: a programme releasing its demand
+# (` + "`" + `setDemandComplete` + "`" + `), a subject group opening or shutting its round, a semester's wishes or
+# assignments being published, a phase being advanced. Never by somebody ticking a module in the
+# demand — an instance declared and deleted again the same afternoon is not news, and one that
+# stands in a released demand is. Every event also waits a few minutes before it goes out, and an
+# act withdrawn in that time (a release clicked by mistake) sends nothing.
+#
+# A MAIL IS AN EXPORT
+#
+# It leaves the installation into an inbox, so it carries only what every account may already read
+# at the time it is sent — facts about the process — and, for something of your own, only to you.
+# Never anybody else's wish or assignment before publication, and never a count of them: "three
+# colleagues are interested" is the confidential information without a name in it.
+#
+# ALWAYS OPT-IN
+#
+# Nothing arrives that you did not subscribe to yourself: no subscription is created for you, not
+# even for your own advance wishes. Announcements are the exception, because they are official
+# post from the people who lead the planning, and they cannot be unsubscribed.
+#
+# Mail goes to the address the university's login asserts (` + "`" + `Person.mail` + "`" + `), to nobody without an
+# account and to no inactive account.
+
+"What a subscription is about: one kind of official event."
+enum NotificationKind {
+  """
+  A module is offered in a semester: an instance of it stands in a study programme's demand and
+  the programme has released that demand. An instance declared after the release counts once it
+  is declared. Withdrawing a release announces nothing — see ` + "`" + `MODULE_WITHDRAWN` + "`" + `.
+  """
+  MODULE_OFFERED
+  "An instance that was announced as offered has been withdrawn from the demand."
+  MODULE_WITHDRAWN
+  "A study programme has released its demand for a semester (` + "`" + `setDemandComplete` + "`" + `)."
+  DEMAND_RELEASED
+  "A subject group has opened or shut its wish round for a semester (` + "`" + `setWishWindow` + "`" + `)."
+  WISH_WINDOW_CHANGED
+  "A semester's wishes have been published."
+  WISHES_PUBLISHED
+  "A semester's assignments have been published."
+  ASSIGNMENTS_PUBLISHED
+  """
+  The dean's office has set the date by which everybody confirms their assignments, and again
+  three days before it while your own confirmation is still open or out of date.
+  """
+  CONFIRMATION_DUE
+  "The dean's office has frozen the desired teaching hours of a semester."
+  DESIRED_HOURS_FROZEN
+  "The dean's office has published the desired teaching hours of a semester."
+  DESIRED_HOURS_PUBLISHED
+  "A semester has moved to its next phase."
+  PHASE_ADVANCED
+  "A study programme has announced its review of a semester as done (` + "`" + `setReviewComplete` + "`" + `)."
+  REVIEW_COMPLETED
+  """
+  One of your advance wishes has been resolved by its programme's release: it became a wish, or
+  the module turned out not to be offered there.
+  """
+  ADVANCE_WISH_RESOLVED
+}
+
+"""
+A set a subscription follows instead of one module, programme or subject group: worked out each
+time an event arrives, so something added to it later is covered without subscribing again.
+
+Every one of them is about **your own** rows. There is deliberately no set over other people's —
+"every advance wish in my programme" would mail what the confidentiality rule keeps behind a
+signed-in session, and before publication it would be a count.
+"""
+enum NotificationTargetSet {
+  "The modules you have noted an advance wish for, and your advance wishes themselves."
+  MY_ADVANCE_WISHES
+  "The instances you have registered interest in, and their subject groups' wish rounds."
+  MY_WISHES
+  "The parts you have been assigned, and your confirmation."
+  MY_ASSIGNMENTS
+  "The modules in your competence profile."
+  MY_COMPETENCES
+  "The subject groups you are a member of."
+  MY_SUBJECT_GROUPS
+  "The study programmes you lead (` + "`" + `PROGRAMME_LEAD` + "`" + `). Empty for everybody else."
+  MY_PROGRAMMES
+}
+
+"When the mails of a subscription go out."
+enum NotificationDelivery {
+  "A few minutes after the event, bundled with whatever else arrived for you at the same time."
+  IMMEDIATE
+  "Once a day, in the morning, as one mail."
+  DAILY
+}
+
+"""
+One subscription: an event kind, narrowed by at most one target, optionally to one semester.
+
+No target means every event of that kind. ` + "`" + `MODULE_OFFERED` + "`" + ` on one module without a semester is
+"tell me whenever it is offered again".
+"""
+type NotificationSubscription {
+  id: ID!
+  "Which events."
+  kind: NotificationKind!
+  "Only this semester, or ` + "`" + `null` + "`" + ` for every semester."
+  semester: String
+  "Only events about this module."
+  module: ModuleRef
+  "Only events about this study programme."
+  programme: Programme
+  "Only events about this subject group."
+  subjectGroup: SubjectGroup
+  "Only events about the rows of this set."
+  targetSet: NotificationTargetSet
+  "When its mails go out."
+  delivery: NotificationDelivery!
+  createdAt: Time!
+}
+
+"A new subscription. At most one of ` + "`" + `moduleId` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `subjectGroupId` + "`" + ` and ` + "`" + `targetSet` + "`" + `."
+input NotificationSubscriptionInput {
+  "Which events."
+  kind: NotificationKind!
+  "Four digits, a hyphen and SS or WS; leave out for every semester."
+  semester: String
+  "Only events about this module."
+  moduleId: ID
+  "Only events about this study programme, by its code."
+  programme: String
+  "Only events about this subject group."
+  subjectGroupId: ID
+  "Only events about the rows of this set."
+  targetSet: NotificationTargetSet
+  "When its mails go out."
+  delivery: NotificationDelivery! = IMMEDIATE
+}
+
+"Your settings that apply to all your subscriptions."
+type NotificationSettings {
+  """
+  Until when no subscription mails go to you; ` + "`" + `null` + "`" + ` when they do. Events in that time are not
+  sent afterwards. Announcements still arrive.
+  """
+  pausedUntil: Date
+}
+
+"Who an announcement goes to."
+enum AnnouncementAudienceKind {
+  "The members of one subject group. Sent by its lead."
+  SUBJECT_GROUP
+  """
+  Everybody teaching or wishing to teach in one study programme in one semester: whoever holds a
+  part of one of its instances or has registered interest in one. Sent by its lead and the dean's
+  office, who read both anyway.
+  """
+  PROGRAMME
+  "Every colleague with an account in a role that teaches or plans. Sent by the dean's office."
+  COLLEAGUES
+  """
+  Everybody who leads: subject group leads, study programme leads and the dean's office. Sent by
+  any of them.
+  """
+  LEADS
+  "Every active account, whatever its roles. Sent by an administrator."
+  ALL_ACCOUNTS
+}
+
+"One audience an announcement can go to."
+type AnnouncementAudience {
+  "Which kind of audience."
+  kind: AnnouncementAudienceKind!
+  "For ` + "`" + `SUBJECT_GROUP` + "`" + `."
+  subjectGroup: SubjectGroup
+  "For ` + "`" + `PROGRAMME` + "`" + `."
+  programme: Programme
+  "For ` + "`" + `PROGRAMME` + "`" + `: the semester whose teaching it is about."
+  semester: String
+}
+
+"An audience, on the way in."
+input AnnouncementAudienceInput {
+  "Which kind of audience."
+  kind: AnnouncementAudienceKind!
+  "For ` + "`" + `SUBJECT_GROUP` + "`" + `."
+  subjectGroupId: ID
+  "For ` + "`" + `PROGRAMME` + "`" + `: the study programme's code."
+  programme: String
+  "For ` + "`" + `PROGRAMME` + "`" + `: four digits, a hyphen and SS or WS."
+  semester: String
+}
+
+"""
+An announcement: a mail somebody who leads the planning sent from here, kept so that it can be read
+again.
+"""
+type Announcement {
+  id: ID!
+  "Who sent it. Replies go to them."
+  sender: Person!
+  "Who it went to."
+  audience: AnnouncementAudience!
+  "The subject line."
+  subject: String!
+  "As written: paragraphs, lists, ` + "`" + `**bold**` + "`" + `, ` + "`" + `[links](https://…)` + "`" + `. No HTML."
+  body: String!
+  """
+  How many it went to — for the sender only, ` + "`" + `null` + "`" + ` for everybody else. The sender may read every
+  row the audience is made of, so the figure tells them nothing new; to a recipient it would.
+  """
+  recipientCount: Int
+  "When it was sent."
+  sentAt: Time!
+}
+
+"An announcement as it would go out, and to how many."
+type AnnouncementPreview {
+  "The subject line as it would be sent."
+  subject: String!
+  "The mail as HTML, exactly as it would be sent."
+  html: String!
+  "The plain-text part."
+  text: String!
+  "How many people the audience reaches today."
+  recipientCount: Int!
+}
+
+extend type Query {
+  "Your subscriptions, newest first. Reachable through every door: they are yours."
+  myNotificationSubscriptions: [NotificationSubscription!]! @scope(area: PROFILE, verb: READ)
+
+  "Your settings for all subscriptions."
+  myNotificationSettings: NotificationSettings! @scope(area: PROFILE, verb: READ)
+
+  """
+  The audiences you may send an announcement to. ` + "`" + `PROGRAMME` + "`" + ` audiences are listed for the
+  semester given, or for the planning semester.
+  """
+  announcementAudiences(
+    "Four digits, a hyphen and SS or WS."
+    semester: String
+  ): [AnnouncementAudience!]! @scope(area: PLANNING, verb: READ)
+
+  "The announcements you received or sent, newest first."
+  announcements: [Announcement!]! @scope(area: PLANNING, verb: READ)
+
+  """
+  An announcement rendered as it would go out, without sending it.
+
+  Interactive only, like sending: it answers how many an audience reaches.
+  """
+  previewAnnouncement(
+    audience: AnnouncementAudienceInput!
+    subject: String!
+    body: String!
+  ): AnnouncementPreview! @interactiveOnly @scope(area: PLANNING, verb: READ)
+}
+
+extend type Mutation {
+  """
+  Subscribe yourself. Subscribing to something you already follow answers the existing
+  subscription and changes nothing but its delivery.
+
+  Refusals: ` + "`" + `SUBSCRIPTION_INVALID` + "`" + ` for more than one target or a target that does not exist,
+  ` + "`" + `TOO_MANY_SUBSCRIPTIONS` + "`" + ` beyond 200.
+  """
+  subscribeNotification(
+    input: NotificationSubscriptionInput!
+  ): NotificationSubscription! @scope(area: PROFILE, verb: WRITE)
+
+  """
+  Subscribe yourself to everything about your own rows at once: each ` + "`" + `NotificationTargetSet` + "`" + `
+  with the kinds it fits. Offered as a single click, and still your click — nothing is subscribed
+  without it. Answers all your subscriptions.
+  """
+  subscribeRecommendedNotifications: [NotificationSubscription!]! @scope(area: PROFILE, verb: WRITE)
+
+  "Change when a subscription's mails go out."
+  setNotificationDelivery(
+    id: ID!
+    delivery: NotificationDelivery!
+  ): NotificationSubscription! @scope(area: PROFILE, verb: WRITE)
+
+  "Remove one of your subscriptions. False when there was none with that id."
+  unsubscribeNotification(id: ID!): Boolean! @scope(area: PROFILE, verb: WRITE)
+
+  "Pause your subscription mails until a date, or resume them with ` + "`" + `null` + "`" + `."
+  pauseNotifications(until: Date): NotificationSettings! @scope(area: PROFILE, verb: WRITE)
+
+  """
+  Send an announcement: one mail to each person of the audience, nobody seeing the others.
+
+  Only in a signed-in browser session: a mail to the whole faculty in somebody's name belongs to a
+  sign-in, not to a token in a script.
+
+  Refusals: ` + "`" + `AUDIENCE_NOT_ALLOWED` + "`" + ` for an audience you may not write to, ` + "`" + `AUDIENCE_EMPTY` + "`" + `,
+  ` + "`" + `ANNOUNCEMENT_INVALID` + "`" + ` for an empty or overlong subject or body, ` + "`" + `RATE_LIMITED` + "`" + ` beyond ten
+  announcements a day.
+  """
+  sendAnnouncement(
+    audience: AnnouncementAudienceInput!
+    subject: String!
+    body: String!
+  ): Announcement! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+}
 `, BuiltIn: false},
 	{Name: "../person.graphqls", Input: `# Roles are not a ladder — a person holds a set of them, and the same colleague may lead a
 # subject group and a study programme. Every rule in internal/policy therefore asks about the
@@ -10835,6 +11462,54 @@ func (ec *executionContext) childFields_AdvanceWish(ctx context.Context, field g
 	return nil, fmt.Errorf("no field named %q was found under type AdvanceWish", field.Name)
 }
 
+func (ec *executionContext) childFields_Announcement(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_Announcement_id(ctx, field)
+	case "sender":
+		return ec.fieldContext_Announcement_sender(ctx, field)
+	case "audience":
+		return ec.fieldContext_Announcement_audience(ctx, field)
+	case "subject":
+		return ec.fieldContext_Announcement_subject(ctx, field)
+	case "body":
+		return ec.fieldContext_Announcement_body(ctx, field)
+	case "recipientCount":
+		return ec.fieldContext_Announcement_recipientCount(ctx, field)
+	case "sentAt":
+		return ec.fieldContext_Announcement_sentAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type Announcement", field.Name)
+}
+
+func (ec *executionContext) childFields_AnnouncementAudience(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "kind":
+		return ec.fieldContext_AnnouncementAudience_kind(ctx, field)
+	case "subjectGroup":
+		return ec.fieldContext_AnnouncementAudience_subjectGroup(ctx, field)
+	case "programme":
+		return ec.fieldContext_AnnouncementAudience_programme(ctx, field)
+	case "semester":
+		return ec.fieldContext_AnnouncementAudience_semester(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AnnouncementAudience", field.Name)
+}
+
+func (ec *executionContext) childFields_AnnouncementPreview(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "subject":
+		return ec.fieldContext_AnnouncementPreview_subject(ctx, field)
+	case "html":
+		return ec.fieldContext_AnnouncementPreview_html(ctx, field)
+	case "text":
+		return ec.fieldContext_AnnouncementPreview_text(ctx, field)
+	case "recipientCount":
+		return ec.fieldContext_AnnouncementPreview_recipientCount(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type AnnouncementPreview", field.Name)
+}
+
 func (ec *executionContext) childFields_AssignedLoad(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "person":
@@ -11419,6 +12094,38 @@ func (ec *executionContext) childFields_ModuleWithoutCompetence(ctx context.Cont
 		return ec.fieldContext_ModuleWithoutCompetence_compulsory(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ModuleWithoutCompetence", field.Name)
+}
+
+func (ec *executionContext) childFields_NotificationSettings(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "pausedUntil":
+		return ec.fieldContext_NotificationSettings_pausedUntil(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type NotificationSettings", field.Name)
+}
+
+func (ec *executionContext) childFields_NotificationSubscription(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "id":
+		return ec.fieldContext_NotificationSubscription_id(ctx, field)
+	case "kind":
+		return ec.fieldContext_NotificationSubscription_kind(ctx, field)
+	case "semester":
+		return ec.fieldContext_NotificationSubscription_semester(ctx, field)
+	case "module":
+		return ec.fieldContext_NotificationSubscription_module(ctx, field)
+	case "programme":
+		return ec.fieldContext_NotificationSubscription_programme(ctx, field)
+	case "subjectGroup":
+		return ec.fieldContext_NotificationSubscription_subjectGroup(ctx, field)
+	case "targetSet":
+		return ec.fieldContext_NotificationSubscription_targetSet(ctx, field)
+	case "delivery":
+		return ec.fieldContext_NotificationSubscription_delivery(ctx, field)
+	case "createdAt":
+		return ec.fieldContext_NotificationSubscription_createdAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type NotificationSubscription", field.Name)
 }
 
 func (ec *executionContext) childFields_Person(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

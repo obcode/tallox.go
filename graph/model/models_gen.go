@@ -206,6 +206,61 @@ type AdvanceWish struct {
 	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
 }
 
+// An announcement: a mail somebody who leads the planning sent from here, kept so that it can be read
+// again.
+type Announcement struct {
+	ID string `json:"id"`
+	// Who sent it. Replies go to them.
+	Sender *Person `json:"sender"`
+	// Who it went to.
+	Audience *AnnouncementAudience `json:"audience"`
+	// The subject line.
+	Subject string `json:"subject"`
+	// As written: paragraphs, lists, `**bold**`, `[links](https://…)`. No HTML.
+	Body string `json:"body"`
+	// How many it went to — for the sender only, `null` for everybody else. The sender may read every
+	// row the audience is made of, so the figure tells them nothing new; to a recipient it would.
+	RecipientCount *int `json:"recipientCount,omitempty"`
+	// When it was sent.
+	SentAt time.Time `json:"sentAt"`
+}
+
+// One audience an announcement can go to.
+type AnnouncementAudience struct {
+	// Which kind of audience.
+	Kind AnnouncementAudienceKind `json:"kind"`
+	// For `SUBJECT_GROUP`.
+	SubjectGroup *SubjectGroup `json:"subjectGroup,omitempty"`
+	// For `PROGRAMME`.
+	Programme *Programme `json:"programme,omitempty"`
+	// For `PROGRAMME`: the semester whose teaching it is about.
+	Semester *string `json:"semester,omitempty"`
+}
+
+// An audience, on the way in.
+type AnnouncementAudienceInput struct {
+	// Which kind of audience.
+	Kind AnnouncementAudienceKind `json:"kind"`
+	// For `SUBJECT_GROUP`.
+	SubjectGroupID *string `json:"subjectGroupId,omitempty"`
+	// For `PROGRAMME`: the study programme's code.
+	Programme *string `json:"programme,omitempty"`
+	// For `PROGRAMME`: four digits, a hyphen and SS or WS.
+	Semester *string `json:"semester,omitempty"`
+}
+
+// An announcement as it would go out, and to how many.
+type AnnouncementPreview struct {
+	// The subject line as it would be sent.
+	Subject string `json:"subject"`
+	// The mail as HTML, exactly as it would be sent.
+	HTML string `json:"html"`
+	// The plain-text part.
+	Text string `json:"text"`
+	// How many people the audience reaches today.
+	RecipientCount int `json:"recipientCount"`
+}
+
 // How many hours a week one person already holds in a semester: in total, and by the subject group of
 // the modules they hold them in.
 //
@@ -1111,6 +1166,54 @@ type ModuleWithoutCompetence struct {
 // role administration are `@interactiveOnly` and answer no token at all. Writing your own wishes,
 // competences and desired hours works through every token. Each field says which applies.
 type Mutation struct {
+}
+
+// Your settings that apply to all your subscriptions.
+type NotificationSettings struct {
+	// Until when no subscription mails go to you; `null` when they do. Events in that time are not
+	// sent afterwards. Announcements still arrive.
+	PausedUntil *Date `json:"pausedUntil,omitempty"`
+}
+
+// One subscription: an event kind, narrowed by at most one target, optionally to one semester.
+//
+// No target means every event of that kind. `MODULE_OFFERED` on one module without a semester is
+// "tell me whenever it is offered again".
+type NotificationSubscription struct {
+	ID string `json:"id"`
+	// Which events.
+	Kind NotificationKind `json:"kind"`
+	// Only this semester, or `null` for every semester.
+	Semester *string `json:"semester,omitempty"`
+	// Only events about this module.
+	Module *ModuleRef `json:"module,omitempty"`
+	// Only events about this study programme.
+	Programme *Programme `json:"programme,omitempty"`
+	// Only events about this subject group.
+	SubjectGroup *SubjectGroup `json:"subjectGroup,omitempty"`
+	// Only events about the rows of this set.
+	TargetSet *NotificationTargetSet `json:"targetSet,omitempty"`
+	// When its mails go out.
+	Delivery  NotificationDelivery `json:"delivery"`
+	CreatedAt time.Time            `json:"createdAt"`
+}
+
+// A new subscription. At most one of `moduleId`, `programme`, `subjectGroupId` and `targetSet`.
+type NotificationSubscriptionInput struct {
+	// Which events.
+	Kind NotificationKind `json:"kind"`
+	// Four digits, a hyphen and SS or WS; leave out for every semester.
+	Semester *string `json:"semester,omitempty"`
+	// Only events about this module.
+	ModuleID *string `json:"moduleId,omitempty"`
+	// Only events about this study programme, by its code.
+	Programme *string `json:"programme,omitempty"`
+	// Only events about this subject group.
+	SubjectGroupID *string `json:"subjectGroupId,omitempty"`
+	// Only events about the rows of this set.
+	TargetSet *NotificationTargetSet `json:"targetSet,omitempty"`
+	// When its mails go out.
+	Delivery NotificationDelivery `json:"delivery"`
 }
 
 // A person in the planning.
@@ -2035,6 +2138,76 @@ func (e AdvanceWishStatus) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Who an announcement goes to.
+type AnnouncementAudienceKind string
+
+const (
+	// The members of one subject group. Sent by its lead.
+	AnnouncementAudienceKindSubjectGroup AnnouncementAudienceKind = "SUBJECT_GROUP"
+	// Everybody teaching or wishing to teach in one study programme in one semester: whoever holds a
+	// part of one of its instances or has registered interest in one. Sent by its lead and the dean's
+	// office, who read both anyway.
+	AnnouncementAudienceKindProgramme AnnouncementAudienceKind = "PROGRAMME"
+	// Every colleague with an account in a role that teaches or plans. Sent by the dean's office.
+	AnnouncementAudienceKindColleagues AnnouncementAudienceKind = "COLLEAGUES"
+	// Everybody who leads: subject group leads, study programme leads and the dean's office. Sent by
+	// any of them.
+	AnnouncementAudienceKindLeads AnnouncementAudienceKind = "LEADS"
+	// Every active account, whatever its roles. Sent by an administrator.
+	AnnouncementAudienceKindAllAccounts AnnouncementAudienceKind = "ALL_ACCOUNTS"
+)
+
+var AllAnnouncementAudienceKind = []AnnouncementAudienceKind{
+	AnnouncementAudienceKindSubjectGroup,
+	AnnouncementAudienceKindProgramme,
+	AnnouncementAudienceKindColleagues,
+	AnnouncementAudienceKindLeads,
+	AnnouncementAudienceKindAllAccounts,
+}
+
+func (e AnnouncementAudienceKind) IsValid() bool {
+	switch e {
+	case AnnouncementAudienceKindSubjectGroup, AnnouncementAudienceKindProgramme, AnnouncementAudienceKindColleagues, AnnouncementAudienceKindLeads, AnnouncementAudienceKindAllAccounts:
+		return true
+	}
+	return false
+}
+
+func (e AnnouncementAudienceKind) String() string {
+	return string(e)
+}
+
+func (e *AnnouncementAudienceKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = AnnouncementAudienceKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid AnnouncementAudienceKind", str)
+	}
+	return nil
+}
+
+func (e AnnouncementAudienceKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *AnnouncementAudienceKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e AnnouncementAudienceKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 // Where one person's confirmation of their assignments in a semester stands.
 type AssignmentConfirmationState string
 
@@ -2091,6 +2264,231 @@ func (e *AssignmentConfirmationState) UnmarshalJSON(b []byte) error {
 }
 
 func (e AssignmentConfirmationState) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// When the mails of a subscription go out.
+type NotificationDelivery string
+
+const (
+	// A few minutes after the event, bundled with whatever else arrived for you at the same time.
+	NotificationDeliveryImmediate NotificationDelivery = "IMMEDIATE"
+	// Once a day, in the morning, as one mail.
+	NotificationDeliveryDaily NotificationDelivery = "DAILY"
+)
+
+var AllNotificationDelivery = []NotificationDelivery{
+	NotificationDeliveryImmediate,
+	NotificationDeliveryDaily,
+}
+
+func (e NotificationDelivery) IsValid() bool {
+	switch e {
+	case NotificationDeliveryImmediate, NotificationDeliveryDaily:
+		return true
+	}
+	return false
+}
+
+func (e NotificationDelivery) String() string {
+	return string(e)
+}
+
+func (e *NotificationDelivery) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = NotificationDelivery(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid NotificationDelivery", str)
+	}
+	return nil
+}
+
+func (e NotificationDelivery) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *NotificationDelivery) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e NotificationDelivery) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// What a subscription is about: one kind of official event.
+type NotificationKind string
+
+const (
+	// A module is offered in a semester: an instance of it stands in a study programme's demand and
+	// the programme has released that demand. An instance declared after the release counts once it
+	// is declared. Withdrawing a release announces nothing — see `MODULE_WITHDRAWN`.
+	NotificationKindModuleOffered NotificationKind = "MODULE_OFFERED"
+	// An instance that was announced as offered has been withdrawn from the demand.
+	NotificationKindModuleWithdrawn NotificationKind = "MODULE_WITHDRAWN"
+	// A study programme has released its demand for a semester (`setDemandComplete`).
+	NotificationKindDemandReleased NotificationKind = "DEMAND_RELEASED"
+	// A subject group has opened or shut its wish round for a semester (`setWishWindow`).
+	NotificationKindWishWindowChanged NotificationKind = "WISH_WINDOW_CHANGED"
+	// A semester's wishes have been published.
+	NotificationKindWishesPublished NotificationKind = "WISHES_PUBLISHED"
+	// A semester's assignments have been published.
+	NotificationKindAssignmentsPublished NotificationKind = "ASSIGNMENTS_PUBLISHED"
+	// The dean's office has set the date by which everybody confirms their assignments, and again
+	// three days before it while your own confirmation is still open or out of date.
+	NotificationKindConfirmationDue NotificationKind = "CONFIRMATION_DUE"
+	// The dean's office has frozen the desired teaching hours of a semester.
+	NotificationKindDesiredHoursFrozen NotificationKind = "DESIRED_HOURS_FROZEN"
+	// The dean's office has published the desired teaching hours of a semester.
+	NotificationKindDesiredHoursPublished NotificationKind = "DESIRED_HOURS_PUBLISHED"
+	// A semester has moved to its next phase.
+	NotificationKindPhaseAdvanced NotificationKind = "PHASE_ADVANCED"
+	// A study programme has announced its review of a semester as done (`setReviewComplete`).
+	NotificationKindReviewCompleted NotificationKind = "REVIEW_COMPLETED"
+	// One of your advance wishes has been resolved by its programme's release: it became a wish, or
+	// the module turned out not to be offered there.
+	NotificationKindAdvanceWishResolved NotificationKind = "ADVANCE_WISH_RESOLVED"
+)
+
+var AllNotificationKind = []NotificationKind{
+	NotificationKindModuleOffered,
+	NotificationKindModuleWithdrawn,
+	NotificationKindDemandReleased,
+	NotificationKindWishWindowChanged,
+	NotificationKindWishesPublished,
+	NotificationKindAssignmentsPublished,
+	NotificationKindConfirmationDue,
+	NotificationKindDesiredHoursFrozen,
+	NotificationKindDesiredHoursPublished,
+	NotificationKindPhaseAdvanced,
+	NotificationKindReviewCompleted,
+	NotificationKindAdvanceWishResolved,
+}
+
+func (e NotificationKind) IsValid() bool {
+	switch e {
+	case NotificationKindModuleOffered, NotificationKindModuleWithdrawn, NotificationKindDemandReleased, NotificationKindWishWindowChanged, NotificationKindWishesPublished, NotificationKindAssignmentsPublished, NotificationKindConfirmationDue, NotificationKindDesiredHoursFrozen, NotificationKindDesiredHoursPublished, NotificationKindPhaseAdvanced, NotificationKindReviewCompleted, NotificationKindAdvanceWishResolved:
+		return true
+	}
+	return false
+}
+
+func (e NotificationKind) String() string {
+	return string(e)
+}
+
+func (e *NotificationKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = NotificationKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid NotificationKind", str)
+	}
+	return nil
+}
+
+func (e NotificationKind) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *NotificationKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e NotificationKind) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// A set a subscription follows instead of one module, programme or subject group: worked out each
+// time an event arrives, so something added to it later is covered without subscribing again.
+//
+// Every one of them is about **your own** rows. There is deliberately no set over other people's —
+// "every advance wish in my programme" would mail what the confidentiality rule keeps behind a
+// signed-in session, and before publication it would be a count.
+type NotificationTargetSet string
+
+const (
+	// The modules you have noted an advance wish for, and your advance wishes themselves.
+	NotificationTargetSetMyAdvanceWishes NotificationTargetSet = "MY_ADVANCE_WISHES"
+	// The instances you have registered interest in, and their subject groups' wish rounds.
+	NotificationTargetSetMyWishes NotificationTargetSet = "MY_WISHES"
+	// The parts you have been assigned, and your confirmation.
+	NotificationTargetSetMyAssignments NotificationTargetSet = "MY_ASSIGNMENTS"
+	// The modules in your competence profile.
+	NotificationTargetSetMyCompetences NotificationTargetSet = "MY_COMPETENCES"
+	// The subject groups you are a member of.
+	NotificationTargetSetMySubjectGroups NotificationTargetSet = "MY_SUBJECT_GROUPS"
+	// The study programmes you lead (`PROGRAMME_LEAD`). Empty for everybody else.
+	NotificationTargetSetMyProgrammes NotificationTargetSet = "MY_PROGRAMMES"
+)
+
+var AllNotificationTargetSet = []NotificationTargetSet{
+	NotificationTargetSetMyAdvanceWishes,
+	NotificationTargetSetMyWishes,
+	NotificationTargetSetMyAssignments,
+	NotificationTargetSetMyCompetences,
+	NotificationTargetSetMySubjectGroups,
+	NotificationTargetSetMyProgrammes,
+}
+
+func (e NotificationTargetSet) IsValid() bool {
+	switch e {
+	case NotificationTargetSetMyAdvanceWishes, NotificationTargetSetMyWishes, NotificationTargetSetMyAssignments, NotificationTargetSetMyCompetences, NotificationTargetSetMySubjectGroups, NotificationTargetSetMyProgrammes:
+		return true
+	}
+	return false
+}
+
+func (e NotificationTargetSet) String() string {
+	return string(e)
+}
+
+func (e *NotificationTargetSet) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = NotificationTargetSet(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid NotificationTargetSet", str)
+	}
+	return nil
+}
+
+func (e NotificationTargetSet) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *NotificationTargetSet) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e NotificationTargetSet) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

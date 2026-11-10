@@ -901,6 +901,13 @@ func (ec *executionContext) marshalNSubjectGroupRef2ᚖgithubᚗcomᚋobcodeᚋt
 	return ec._SubjectGroupRef(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalOModuleRef2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleRef(ctx context.Context, sel ast.SelectionSet, v *model.ModuleRef) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._ModuleRef(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalOSubjectGroup2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroup(ctx context.Context, sel ast.SelectionSet, v *model.SubjectGroup) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null

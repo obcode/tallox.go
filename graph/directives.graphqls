@@ -125,7 +125,10 @@ enum ScopeArea {
   Your own identity and session: who you are, which roles you hold, and which of them you are
   being judged by.
 
-  Fields: `me`, `session`.
+  Fields: `me`, `session`,
+  `myNotificationSubscriptions`, `myNotificationSettings`, `subscribeNotification`,
+  `subscribeRecommendedNotifications`, `setNotificationDelivery`, `unsubscribeNotification`,
+  `pauseNotifications`.
   """
   PROFILE
 
@@ -179,7 +182,12 @@ enum ScopeArea {
   # correction refuses a plain token in the domain rather than by the directive, whose null
   # would read as "taken back".
 
-  `freezeDesiredHours`, `publishDesiredHours`, `correctDesiredTeachingHours`.
+  `freezeDesiredHours`, `publishDesiredHours`, `correctDesiredTeachingHours`,
+
+  # Announcements: reading them is open to every door, previewing and sending is
+  # @interactiveOnly — a mail to the faculty in somebody's name belongs to a sign-in.
+
+  `announcementAudiences`, `announcements`, `previewAnnouncement`, `sendAnnouncement`.
   """
   PLANNING
 

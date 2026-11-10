@@ -182,3 +182,25 @@ aktuellen — das aktuelle liegt hinter der Marke und wird nicht mehr angeboten.
 
 Siehe [[scope-enforcement]] — `PLANNING` ist die erste Scope-Fläche, für die ein verengtes Token
 etwas Sinnvolles ausdrückt.
+
+## Die erste Freigabe startet die Wunschphase (2026-11-10)
+
+Ein Schritt wird nicht mehr geklickt: gibt der erste Studiengang seinen Bedarf für Wünsche frei
+(`setDemandComplete`), geht das Semester von `DEMAND_PLANNING` auf `WISHES`. Vorher stand die
+Phase wochenlang auf Bedarfsplanung, während schon gewünscht wurde, und „Jetzt dran“ schickte
+das Kollegium an die falsche Stelle.
+
+- **Compare-and-set** `AdvanceToWishesOnRelease :execrows` (`WHERE id = $1 AND phase =
+  'DEMAND_PLANNING'`), in **derselben Transaktion** wie die Freigabe. Null Zeilen heißt „schon
+  weiter“ und ist kein Fehler — auch das Rennen mit einem Klick des Dekanats endet so in genau
+  einem Schritt (Test mit zwei Goroutinen, zehn Runden).
+- **In Go, nicht als Trigger:** Fixtures (`storetest.ReleaseWishes`) und Reparaturen, die
+  `demand_completion` direkt schreiben, verschieben keine Phase.
+- **Jede** Freigabe in `DEMAND_PLANNING` schaltet, auch nachdem das Dekanat bewusst
+  zurückgeschaltet hat. Zurücknehmen schaltet **nie** zurück.
+- Andere Phasen bleiben, wie sie sind. Keine Migration für bestehende Semester (das Dekanat
+  schaltet einmal von Hand), keine Spalte `phase_changed_at`.
+- Dazu `Semester.demandRelease { released planned }`: zählt nur Studiengänge mit
+  `planning_status = 'PLANNED'`, auf beiden Seiten; öffentlich wie `demandCompletions`.
+- Die Schreibmatrix ändert sich nicht — die Phase ist außer `FINAL` Anzeige, deshalb bleiben auch
+  die Golden-Matrizen gleich.

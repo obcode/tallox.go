@@ -30,7 +30,7 @@ Kollegium — das gehört nach `tallox.dev`.
 - [Deckung über Studiengänge](instance-coverage.md) — ein Bedarf, von einem anderen Studiengang gehalten: der Fremdschlüssel mit vier Invarianten, warum das Koppeln beim Planen einseitig sein darf, und die Beförderung beim Rückzug
 - [SWS-Controlling](sws-controlling.md) — `teachingLoad`: Lehr-SWS je Heimatstudiengang wie das alte Excel-Sheet, Kontingent, Saldo (WiSe: Hälfte, SoSe: Rest nach dem WiSe), `studyYearLoad`, Filter `foreignHome`; Körbe offen
 - [Planungsmarken](planning-marks.md) — zwei Marken statt einer Phase; die Tür heißt abwesend offen, die Bedarfs-Freigabe (seit 2026-10-31) abwesend zu
-- [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf, und das Planungssemester
+- [Semester und Phase](semester-and-phase.md) — die erste Domänen-Tabelle: Identität, Nachbarschaftsregel, Compare-and-Set, wer schalten darf, und das Planungssemester; seit 2026-11-10 startet die erste Bedarfs-Freigabe die Wunschphase
 - [Kompetenzzone](competences.md) — am Modul ohne Semester, vertraulich ohne Veröffentlichung, Mitgliedschaft als Schreibregel, Lehrende ohne Konto durch die Fachgruppenleitung
 - [Studiengangs-Review](programme-review.md) — Phase REVIEW vor FINAL, alles offen bis Semesterende, Marke „Review fertig"
 - [Block und Englisch je Zug](instance-format.md) — Override gegen den ZPA-Default, Schreibregel der Zuteilung, Mitnahmepfade

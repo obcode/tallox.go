@@ -67,6 +67,8 @@ func competenceError(err error) error {
 		return refusal("COMPETENCE_FOR_TEACHER_REFUSED", policy.CompetenceForTeacherReason)
 	case errors.Is(err, domain.ErrCompetenceTeacherHasAccount):
 		return refusal("COMPETENCE_TEACHER_HAS_ACCOUNT", err.Error())
+	case errors.Is(err, domain.ErrModuleNotPlanned):
+		return refusal("MODULE_NOT_PLANNED", err.Error())
 	case errors.Is(err, domain.ErrCompetenceModuleRetired):
 		return refusal("COMPETENCE_MODULE_RETIRED", err.Error())
 	case errors.Is(err, domain.ErrCompetenceLevelInvalid):

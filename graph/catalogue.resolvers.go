@@ -8,7 +8,6 @@ package graph
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/obcode/tallox.go/graph/generated"
@@ -79,7 +78,7 @@ func (r *moduleResolver) PracticalKind(ctx context.Context, obj *model.Module) (
 
 // IndependentWork is the resolver for the independentWork field.
 func (r *moduleResolver) IndependentWork(ctx context.Context, obj *model.Module) (bool, error) {
-	panic(fmt.Errorf("not implemented: IndependentWork - independentWork"))
+	return obj.Domain.IndependentWork(), nil
 }
 
 // Plannable is the resolver for the plannable field.
@@ -190,7 +189,7 @@ func (r *mutationResolver) ApplyModuleSplitToInstances(ctx context.Context, modu
 	}
 
 	applied, err := r.Demand.ApplyModuleSplit(ctx, actor, id, dryRun)
-	if errors.Is(err, domain.ErrModuleNotDecomposed) {
+	if errors.Is(err, domain.ErrModuleNotDecomposed) || errors.Is(err, domain.ErrModuleNotPlanned) {
 		return nil, demandUserFacing(actor, err)
 	}
 	if err != nil {

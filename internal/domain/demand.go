@@ -35,6 +35,13 @@ var (
 	ErrModuleNotDecomposed = errors.New(
 		"für dieses Modul ist noch keine Aufteilung bestätigt — bitte zuerst die Aufteilung " +
 			"eintragen oder den Vorschlag übernehmen")
+	// ErrModuleNotPlanned is a module that is independent work — a thesis — and so is never
+	// planned: see CourseType.IndependentWork. One sentinel for the demand, the competences and
+	// the advance wishes, because the reason is the same in all three.
+	ErrModuleNotPlanned = errors.New(
+		"dieses Modul ist selbständiges Arbeiten (Abschlussarbeit, Praxissemester, " +
+			"Bachelorseminar) und wird nicht geplant, sondern direkt zwischen Studierenden und " +
+			"Lehrenden vereinbart")
 	// ErrTrackTaken is this exact instance already existing: same semester, module, programme
 	// and parallel cohort.
 	//
@@ -404,6 +411,9 @@ type CopyCounts struct {
 	// Skipped is how many were already declared in the target semester and were left exactly as
 	// they are. A copy never overwrites work in the semester it copies into.
 	Skipped int
+	// NotPlanned is how many were left behind because their module is independent work, which is
+	// not planned (CourseType.IndependentWork) — an instance from before that rule.
+	NotPlanned int
 	// PartsCreated is how many parts came with them.
 	PartsCreated int
 	// CoverageRequested is how many copied cohorts asked again to be covered by another

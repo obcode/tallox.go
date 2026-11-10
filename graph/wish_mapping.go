@@ -189,6 +189,8 @@ func wishError(err error) error {
 		return refusal("WISH_PRIORITY_INVALID", err.Error())
 	case errors.Is(err, domain.ErrAdvanceWishReleased):
 		return refusal("ADVANCE_WISH_RELEASED", err.Error())
+	case errors.Is(err, domain.ErrModuleNotPlanned):
+		return refusal("MODULE_NOT_PLANNED", err.Error())
 	case errors.Is(err, domain.ErrAdvanceWishConverted):
 		return refusal("ADVANCE_WISH_CONVERTED", err.Error())
 	case errors.Is(err, domain.ErrAdvanceWishNotFound):

@@ -157,6 +157,9 @@ type CompetenceModuleContext struct {
 	Found bool
 	// Open is false for a module the catalogue has retired.
 	Open bool
+	// Planned is false for independent work — a thesis — for which nobody states a competence:
+	// see CourseType.IndependentWork.
+	Planned bool
 	// SubjectGroupID is the module's group, or uuid.Nil.
 	SubjectGroupID uuid.UUID
 	// CallerIsMember is whether the person asked about is in that group.
@@ -239,6 +242,9 @@ func (s *CompetenceService) SetMine(ctx context.Context, actor principal.Actor, 
 	if !where.Open {
 		return nil, ErrCompetenceModuleRetired
 	}
+	if !where.Planned {
+		return nil, ErrModuleNotPlanned
+	}
 	if !policy.MayStateOwnCompetence(actor, where.CallerIsMember) {
 		return nil, ErrCompetenceOutsideGroups
 	}
@@ -284,6 +290,9 @@ func (s *CompetenceService) SetForTeacher(ctx context.Context, actor principal.A
 	}
 	if !where.Open {
 		return nil, ErrCompetenceModuleRetired
+	}
+	if !where.Planned {
+		return nil, ErrModuleNotPlanned
 	}
 
 	exists, err := s.store.TeacherExists(ctx, teacherID)

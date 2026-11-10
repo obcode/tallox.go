@@ -110,6 +110,7 @@ WHERE c.id = sqlc.arg(id)::uuid
 SELECT
     m.id,
     COALESCE(m.active AND m.retired_at IS NULL, false)::bool AS open,
+    m.course_type,
     msg.subject_group_id,
     EXISTS (
         SELECT 1 FROM person_subject_group psg
@@ -176,6 +177,8 @@ LEFT JOIN competence c ON c.module_id = m.id
     AND c.person_id = psg.person_id
     AND c.level = 'CAN_TEACH'
     AND m.active AND m.retired_at IS NULL
+    -- independent work (a thesis) is not planned: see domain.CourseType.IndependentWork
+    AND m.course_type <> 'SELF_STUDY'
     AND EXISTS (SELECT 1 FROM module_offering o WHERE o.module_id = m.id AND o.is_duty)
 WHERE psg.person_id = sqlc.arg(person_id)::uuid
   AND sg.active
@@ -194,6 +197,7 @@ WITH offered AS (
     JOIN module m ON m.id = msg.module_id
     WHERE psg.person_id = sqlc.arg(person_id)::uuid
       AND m.active AND m.retired_at IS NULL
+      AND m.course_type <> 'SELF_STUDY'
       AND EXISTS (SELECT 1 FROM module_offering o WHERE o.module_id = m.id AND o.is_duty)
 )
 SELECT
@@ -216,6 +220,7 @@ SELECT
         AND msg.subject_group_id = psg.subject_group_id
         AND c.level = 'CAN_TEACH'
         AND m.active AND m.retired_at IS NULL
+        AND m.course_type <> 'SELF_STUDY'
         AND EXISTS (SELECT 1 FROM module_offering o WHERE o.module_id = m.id AND o.is_duty)
     )::int AS can_teach_compulsory
 FROM person_subject_group psg
@@ -234,6 +239,7 @@ FROM module_subject_group msg
 JOIN module m ON m.id = msg.module_id
 WHERE msg.subject_group_id = sqlc.arg(subject_group_id)::uuid
   AND m.active AND m.retired_at IS NULL
+  AND m.course_type <> 'SELF_STUDY'
   AND NOT EXISTS (
       SELECT 1 FROM competence c WHERE c.module_id = m.id AND c.level = 'CAN_TEACH'
   )

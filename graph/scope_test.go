@@ -337,14 +337,17 @@ func TestEveryDemandMutationRefusesAToken(t *testing.T) {
 // Written out on purpose. Full reach made every other Kind restriction a matter of minting the
 // right token, so these are the fields where a sign-in is the only way in — token management
 // (a token that mints its successors outlives its own expiry), who has an account and with
-// which roles, and the access log. Adding a field here is cheap and needs no argument; taking
+// which roles, the access log, and sending announcements (2026-11-10: a mail to the faculty in
+// somebody's name belongs to a sign-in, and its preview answers how many an audience reaches).
+// Adding a field here is cheap and needs no argument; taking
 // one away is a change to that decision and should be the visible diff it is.
 var interactiveOnlyFields = []string{
 	"Mutation.createPerson", "Mutation.createPersonalAccessToken", "Mutation.renamePerson",
-	"Mutation.revokePersonalAccessToken", "Mutation.setPersonActive", "Mutation.setPersonProgrammes",
+	"Mutation.revokePersonalAccessToken", "Mutation.sendAnnouncement", "Mutation.setPersonActive", "Mutation.setPersonProgrammes",
 	"Mutation.setPersonRoles", "Mutation.setTeacherAdmitted",
 	"Query.accessLog", "Query.accessSummary", "Query.diagnoseAccess", "Query.myTokens",
-	"Query.people", "Query.person", "Query.roleGrants", "Query.teacherAccounts",
+	"Query.people", "Query.person", "Query.previewAnnouncement", "Query.roleGrants",
+	"Query.teacherAccounts",
 }
 
 // TestOnlyAccessStaysInteractiveOnly pins the browser-only surface to the list above, in both

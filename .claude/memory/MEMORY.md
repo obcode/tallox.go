@@ -42,6 +42,7 @@ Kollegium — das gehört nach `tallox.dev`.
 - [Einsicht](observer-role.md) — OBSERVER liest fakultätsweit alles Unvertrauliche plus ZPA-Status, keine Aussagen anderer (auch veröffentlicht nicht), schreibt nichts, nur befristet ≤ 180 Tage; neue Leseregeln fragen `Onlooker`
 - [Bestätigung der Zuteilung](assignment-confirmation.md) — Prüftermin je Semester, „passt so“ je Person, Zustand aus Fingerabdruck abgeleitet
 - [Selbständiges Arbeiten wird nicht geplant](independent-work.md) — seit 2026-11-10: Abschlussarbeiten & Co. (`SELF_STUDY`) weder Bedarf noch Kompetenz noch Vormerkung, `MODULE_NOT_PLANNED`
+- [Mail: Abos und Rundmails](notifications.md) — Abgleich statt Hooks, 10 min Entprellung, Opt-in, nur eigene Zeilen, nur person.mail; Advisory Lock pro Schema
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:
      eine Datei = ein Sachverhalt, Frontmatter mit name/description/metadata.type,

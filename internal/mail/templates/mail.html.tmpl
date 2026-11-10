@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>{{.Title}}</title>
+<style>
+  @media (prefers-color-scheme: dark) {
+    .tx-page { background:#0f172a !important; }
+    .tx-card { background:#1e293b !important; border-color:#334155 !important; }
+    .tx-text { color:#e2e8f0 !important; }
+    .tx-muted { color:#94a3b8 !important; }
+    .tx-item { border-color:#334155 !important; }
+    .tx-link { color:#93c5fd !important; }
+  }
+  @media (max-width: 620px) {
+    .tx-pad { padding-left:18px !important; padding-right:18px !important; }
+  }
+</style>
+</head>
+<body class="tx-page" style="margin:0;padding:0;background:#f1f5f9;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">{{.Preheader}}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="tx-page" style="background:#f1f5f9;">
+<tr><td align="center" style="padding:24px 8px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
+  <tr><td class="tx-pad" style="padding:0 28px 12px 28px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px;color:#475569;">
+    <span class="tx-muted" style="color:#475569;"><strong style="color:#0f766e;">Tallox</strong> · Einsatzplanung Fakultät 07</span>
+  </td></tr>
+  <tr><td class="tx-card" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr><td style="height:4px;background:{{.Accent}};border-radius:10px 10px 0 0;font-size:0;line-height:0;">&nbsp;</td></tr>
+      <tr><td class="tx-pad tx-text" style="padding:24px 28px 8px 28px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+        <div class="tx-muted" style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#64748b;margin:0 0 6px 0;">{{.Label}}</div>
+        <h1 style="margin:0 0 16px 0;font-size:21px;line-height:1.3;font-weight:650;">{{.Title}}</h1>
+        {{if .Greeting}}<p style="margin:0 0 12px 0;font-size:15px;line-height:1.55;">{{.Greeting}}</p>{{end}}
+        {{if .Intro}}<p style="margin:0 0 18px 0;font-size:15px;line-height:1.55;">{{.Intro}}</p>{{end}}
+        {{if .Body}}<div style="font-size:15px;line-height:1.6;">{{.Body}}</div>{{end}}
+        {{range .Sections}}
+        <h2 style="margin:20px 0 8px 0;font-size:15px;font-weight:650;">{{.Heading}}</h2>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          {{range .Items}}
+          <tr><td class="tx-item" style="padding:10px 0;border-top:1px solid #e2e8f0;font-size:15px;line-height:1.45;">
+            {{if .Link}}<a class="tx-link" href="{{.Link}}" style="color:#1d4ed8;text-decoration:none;font-weight:600;">{{.Text}}</a>{{else}}<span style="font-weight:600;">{{.Text}}</span>{{end}}
+            {{if .Meta}}<div class="tx-muted" style="font-size:13px;color:#64748b;margin-top:2px;">{{.Meta}}</div>{{end}}
+          </td></tr>
+          {{end}}
+        </table>
+        {{end}}
+        {{if .Button}}
+        <table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 8px 0;">
+          <tr><td style="border-radius:8px;background:{{.Accent}};">
+            <a href="{{.Button.URL}}" style="display:inline-block;padding:11px 20px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;">{{.Button.Label}}</a>
+          </td></tr>
+        </table>
+        {{end}}
+      </td></tr>
+      <tr><td class="tx-pad" style="padding:16px 28px 24px 28px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+        {{range .Footer}}<p class="tx-muted" style="margin:0 0 8px 0;font-size:13px;line-height:1.5;color:#64748b;">{{.}}</p>{{end}}
+        {{if .Manage}}<p style="margin:8px 0 0 0;font-size:13px;"><a class="tx-link" href="{{.Manage.URL}}" style="color:#1d4ed8;">{{.Manage.Label}}</a></p>{{end}}
+      </td></tr>
+    </table>
+  </td></tr>
+  <tr><td class="tx-pad tx-muted" style="padding:14px 28px 0 28px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;line-height:1.5;color:#94a3b8;">
+    Tallox ist nur im eduVPN erreichbar. Diese Mail wurde automatisch versandt.
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

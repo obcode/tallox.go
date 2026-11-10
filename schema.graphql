@@ -456,6 +456,129 @@ enum AdvanceWishStatus {
   NOT_OFFERED
 }
 """
+An announcement: a mail somebody who leads the planning sent from here, kept so that it can be read
+again.
+"""
+type Announcement {
+  id: ID!
+  """
+  Who sent it. Replies go to them.
+  """
+  sender: Person!
+  """
+  Who it went to.
+  """
+  audience: AnnouncementAudience!
+  """
+  The subject line.
+  """
+  subject: String!
+  """
+  As written: paragraphs, lists, `**bold**`, `[links](https://…)`. No HTML.
+  """
+  body: String!
+  """
+  How many it went to — for the sender only, `null` for everybody else. The sender may read every
+  row the audience is made of, so the figure tells them nothing new; to a recipient it would.
+  """
+  recipientCount: Int
+  """
+  When it was sent.
+  """
+  sentAt: Time!
+}
+"""
+One audience an announcement can go to.
+"""
+type AnnouncementAudience {
+  """
+  Which kind of audience.
+  """
+  kind: AnnouncementAudienceKind!
+  """
+  For `SUBJECT_GROUP`.
+  """
+  subjectGroup: SubjectGroupRef
+  """
+  For `PROGRAMME`.
+  """
+  programme: Programme
+  """
+  For `PROGRAMME`: the semester whose teaching it is about.
+  """
+  semester: String
+}
+"""
+An audience, on the way in.
+"""
+input AnnouncementAudienceInput {
+  """
+  Which kind of audience.
+  """
+  kind: AnnouncementAudienceKind!
+  """
+  For `SUBJECT_GROUP`.
+  """
+  subjectGroupId: ID
+  """
+  For `PROGRAMME`: the study programme's code.
+  """
+  programme: String
+  """
+  For `PROGRAMME`: four digits, a hyphen and SS or WS.
+  """
+  semester: String
+}
+"""
+Who an announcement goes to.
+"""
+enum AnnouncementAudienceKind {
+  """
+  The members of one subject group. Sent by its lead.
+  """
+  SUBJECT_GROUP
+  """
+  Everybody teaching or wishing to teach in one study programme in one semester: whoever holds a
+  part of one of its instances or has registered interest in one. Sent by its lead and the dean's
+  office, who read both anyway.
+  """
+  PROGRAMME
+  """
+  Every colleague with an account in a role that teaches or plans. Sent by the dean's office.
+  """
+  COLLEAGUES
+  """
+  Everybody who leads: subject group leads, study programme leads and the dean's office. Sent by
+  any of them.
+  """
+  LEADS
+  """
+  Every active account, whatever its roles. Sent by an administrator.
+  """
+  ALL_ACCOUNTS
+}
+"""
+An announcement as it would go out, and to how many.
+"""
+type AnnouncementPreview {
+  """
+  The subject line as it would be sent.
+  """
+  subject: String!
+  """
+  The mail as HTML, exactly as it would be sent.
+  """
+  html: String!
+  """
+  The plain-text part.
+  """
+  text: String!
+  """
+  How many people the audience reaches today.
+  """
+  recipientCount: Int!
+}
+"""
 How many hours a week one person already holds in a semester: in total, and by the subject group of
 the modules they hold them in.
 
@@ -3222,6 +3345,43 @@ type Mutation {
     programme: String!
   ): CopyDemandReport! @fullReach @scope(area: PLANNING, verb: WRITE)
   """
+  Subscribe yourself. Subscribing to something you already follow answers the existing
+  subscription and changes nothing but its delivery.
+
+  Refusals: `SUBSCRIPTION_INVALID` for more than one target or a target that does not exist,
+  `TOO_MANY_SUBSCRIPTIONS` beyond 200.
+  """
+  subscribeNotification(input: NotificationSubscriptionInput!): NotificationSubscription! @scope(area: PROFILE, verb: WRITE)
+  """
+  Subscribe yourself to everything about your own rows at once: each `NotificationTargetSet`
+  with the kinds it fits. Offered as a single click, and still your click — nothing is subscribed
+  without it. Answers all your subscriptions.
+  """
+  subscribeRecommendedNotifications: [NotificationSubscription!]! @scope(area: PROFILE, verb: WRITE)
+  """
+  Change when a subscription's mails go out.
+  """
+  setNotificationDelivery(id: ID!, delivery: NotificationDelivery!): NotificationSubscription! @scope(area: PROFILE, verb: WRITE)
+  """
+  Remove one of your subscriptions. False when there was none with that id.
+  """
+  unsubscribeNotification(id: ID!): Boolean! @scope(area: PROFILE, verb: WRITE)
+  """
+  Pause your subscription mails until a date, or resume them with `null`.
+  """
+  pauseNotifications(until: Date): NotificationSettings! @scope(area: PROFILE, verb: WRITE)
+  """
+  Send an announcement: one mail to each person of the audience, nobody seeing the others.
+
+  Only in a signed-in browser session: a mail to the whole faculty in somebody's name belongs to a
+  sign-in, not to a token in a script.
+
+  Refusals: `AUDIENCE_NOT_ALLOWED` for an audience you may not write to, `AUDIENCE_EMPTY`,
+  `ANNOUNCEMENT_INVALID` for an empty or overlong subject or body, `RATE_LIMITED` beyond ten
+  announcements a day.
+  """
+  sendAnnouncement(audience: AnnouncementAudienceInput!, subject: String!, body: String!): Announcement! @interactiveOnly @scope(area: PLANNING, verb: WRITE)
+  """
   Announce this study programme's demand as settled for a semester and release it for wishes, or
   withdraw the announcement.
 
@@ -3698,6 +3858,191 @@ type Mutation {
   plans with, so a plain token does not get it.
   """
   projectZpaCatalogue: ZpaCatalogueProjection! @fullReach @scope(area: ADMIN, verb: WRITE)
+}
+"""
+When the mails of a subscription go out.
+"""
+enum NotificationDelivery {
+  """
+  A few minutes after the event, bundled with whatever else arrived for you at the same time.
+  """
+  IMMEDIATE
+  """
+  Once a day, in the morning, as one mail.
+  """
+  DAILY
+}
+"""
+What a subscription is about: one kind of official event.
+"""
+enum NotificationKind {
+  """
+  A module is offered in a semester: an instance of it stands in a study programme's demand and
+  the programme has released that demand. An instance declared after the release counts once it
+  is declared. Withdrawing a release announces nothing — see `MODULE_WITHDRAWN`.
+  """
+  MODULE_OFFERED
+  """
+  An instance that was announced as offered has been withdrawn from the demand.
+  """
+  MODULE_WITHDRAWN
+  """
+  A study programme has released its demand for a semester (`setDemandComplete`).
+  """
+  DEMAND_RELEASED
+  """
+  A subject group has opened or shut its wish round for a semester (`setWishWindow`).
+  """
+  WISH_WINDOW_CHANGED
+  """
+  A semester's wishes have been published.
+  """
+  WISHES_PUBLISHED
+  """
+  A semester's assignments have been published.
+  """
+  ASSIGNMENTS_PUBLISHED
+  """
+  The dean's office has set the date by which everybody confirms their assignments, and again
+  three days before it while your own confirmation is still open or out of date.
+  """
+  CONFIRMATION_DUE
+  """
+  The dean's office has frozen the desired teaching hours of a semester.
+  """
+  DESIRED_HOURS_FROZEN
+  """
+  The dean's office has published the desired teaching hours of a semester.
+  """
+  DESIRED_HOURS_PUBLISHED
+  """
+  A semester has moved to its next phase.
+  """
+  PHASE_ADVANCED
+  """
+  A study programme has announced its review of a semester as done (`setReviewComplete`).
+  """
+  REVIEW_COMPLETED
+  """
+  One of your advance wishes has been resolved by its programme's release: it became a wish, or
+  the module turned out not to be offered there.
+  """
+  ADVANCE_WISH_RESOLVED
+}
+"""
+Your settings that apply to all your subscriptions.
+"""
+type NotificationSettings {
+  """
+  Until when no subscription mails go to you; `null` when they do. Events in that time are not
+  sent afterwards. Announcements still arrive.
+  """
+  pausedUntil: Date
+}
+"""
+One subscription: an event kind, narrowed by at most one target, optionally to one semester.
+
+No target means every event of that kind. `MODULE_OFFERED` on one module without a semester is
+"tell me whenever it is offered again".
+"""
+type NotificationSubscription {
+  id: ID!
+  """
+  Which events.
+  """
+  kind: NotificationKind!
+  """
+  Only this semester, or `null` for every semester.
+  """
+  semester: String
+  """
+  Only events about this module.
+  """
+  module: ModuleRef
+  """
+  Only events about this study programme.
+  """
+  programme: Programme
+  """
+  Only events about this subject group.
+  """
+  subjectGroup: SubjectGroupRef
+  """
+  Only events about the rows of this set.
+  """
+  targetSet: NotificationTargetSet
+  """
+  When its mails go out.
+  """
+  delivery: NotificationDelivery!
+  createdAt: Time!
+}
+"""
+A new subscription. At most one of `moduleId`, `programme`, `subjectGroupId` and `targetSet`.
+"""
+input NotificationSubscriptionInput {
+  """
+  Which events.
+  """
+  kind: NotificationKind!
+  """
+  Four digits, a hyphen and SS or WS; leave out for every semester.
+  """
+  semester: String
+  """
+  Only events about this module.
+  """
+  moduleId: ID
+  """
+  Only events about this study programme, by its code.
+  """
+  programme: String
+  """
+  Only events about this subject group.
+  """
+  subjectGroupId: ID
+  """
+  Only events about the rows of this set.
+  """
+  targetSet: NotificationTargetSet
+  """
+  When its mails go out.
+  """
+  delivery: NotificationDelivery! = IMMEDIATE
+}
+"""
+A set a subscription follows instead of one module, programme or subject group: worked out each
+time an event arrives, so something added to it later is covered without subscribing again.
+
+Every one of them is about **your own** rows. There is deliberately no set over other people's —
+"every advance wish in my programme" would mail what the confidentiality rule keeps behind a
+signed-in session, and before publication it would be a count.
+"""
+enum NotificationTargetSet {
+  """
+  The modules you have noted an advance wish for, and your advance wishes themselves.
+  """
+  MY_ADVANCE_WISHES
+  """
+  The instances you have registered interest in, and their subject groups' wish rounds.
+  """
+  MY_WISHES
+  """
+  The parts you have been assigned, and your confirmation.
+  """
+  MY_ASSIGNMENTS
+  """
+  The modules in your competence profile.
+  """
+  MY_COMPETENCES
+  """
+  The subject groups you are a member of.
+  """
+  MY_SUBJECT_GROUPS
+  """
+  The study programmes you lead (`PROGRAMME_LEAD`). Empty for everybody else.
+  """
+  MY_PROGRAMMES
 }
 """
 A person in the planning.
@@ -4467,6 +4812,34 @@ type Query {
   """
   courseInstance(id: ID!): CourseInstance @scope(area: PLANNING, verb: READ)
   """
+  Your subscriptions, newest first. Reachable through every door: they are yours.
+  """
+  myNotificationSubscriptions: [NotificationSubscription!]! @scope(area: PROFILE, verb: READ)
+  """
+  Your settings for all subscriptions.
+  """
+  myNotificationSettings: NotificationSettings! @scope(area: PROFILE, verb: READ)
+  """
+  The audiences you may send an announcement to. `PROGRAMME` audiences are listed for the
+  semester given, or for the planning semester.
+  """
+  announcementAudiences(
+    """
+    Four digits, a hyphen and SS or WS.
+    """
+    semester: String
+  ): [AnnouncementAudience!]! @scope(area: PLANNING, verb: READ)
+  """
+  The announcements you received or sent, newest first.
+  """
+  announcements: [Announcement!]! @scope(area: PLANNING, verb: READ)
+  """
+  An announcement rendered as it would go out, without sending it.
+
+  Interactive only, like sending: it answers how many an audience reaches.
+  """
+  previewAnnouncement(audience: AnnouncementAudienceInput!, subject: String!, body: String!): AnnouncementPreview! @interactiveOnly @scope(area: PLANNING, verb: READ)
+  """
   Who you are, as far as this server is concerned — or `null` if you are not signed in.
 
   The field to start with when writing a script: getting a person back means the token is
@@ -4928,7 +5301,10 @@ enum ScopeArea {
   Your own identity and session: who you are, which roles you hold, and which of them you are
   being judged by.
 
-  Fields: `me`, `session`.
+  Fields: `me`, `session`,
+  `myNotificationSubscriptions`, `myNotificationSettings`, `subscribeNotification`,
+  `subscribeRecommendedNotifications`, `setNotificationDelivery`, `unsubscribeNotification`,
+  `pauseNotifications`.
   """
   PROFILE
   """
@@ -4981,7 +5357,12 @@ enum ScopeArea {
   # correction refuses a plain token in the domain rather than by the directive, whose null
   # would read as "taken back".
 
-  `freezeDesiredHours`, `publishDesiredHours`, `correctDesiredTeachingHours`.
+  `freezeDesiredHours`, `publishDesiredHours`, `correctDesiredTeachingHours`,
+
+  # Announcements: reading them is open to every door, previewing and sending is
+  # @interactiveOnly — a mail to the faculty in somebody's name belongs to a sign-in.
+
+  `announcementAudiences`, `announcements`, `previewAnnouncement`, `sendAnnouncement`.
   """
   PLANNING
   """

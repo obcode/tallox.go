@@ -194,3 +194,26 @@ func TestTheNightlyReportListsObservers(t *testing.T) {
 		}
 	}
 }
+
+// The mail figures sit above the marker line, which stays the last one, and say nothing but
+// figures.
+func TestTheNightlyReportCountsMail(t *testing.T) {
+	t.Parallel()
+
+	var out strings.Builder
+	bootstrap.PrintAccessReportWithMailForTest(&out, reportWith(nil, nil), 24*time.Hour, domain.MailCounts{
+		Sent: 12, Failed: 1, Pending: 3, AnnouncementMails: 9,
+		LastSentAt: time.Date(2026, 11, 10, 7, 10, 0, 0, time.Local),
+	})
+	text := out.String()
+	for _, want := range []string{"MAIL\n", "verschickt 12, fehlgeschlagen 1, in der Warteschlange 3, davon aus Rundmails 9",
+		"zuletzt verschickt: 2026-11-10 07:10"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("missing %q in\n%s", want, text)
+		}
+	}
+	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
+	if got := lines[len(lines)-1]; !strings.HasPrefix(got, "Berichtenswert: ") {
+		t.Errorf("last line = %q, want the marker", got)
+	}
+}

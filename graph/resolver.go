@@ -93,4 +93,10 @@ type Resolver struct {
 	// called CourseInstances would be shadowed by the generated queryResolver method of the same
 	// name, and the error that produces takes a minute to read.
 	Demand *domain.DemandService
+	// Notifications is subscriptions to what the planning makes official: who wants to be told
+	// about what. Named for the area, for the reason the fields above are.
+	Notifications *domain.NotificationService
+	// Announcements is mail sent by those who lead the planning. Like Wishes, it is also the name
+	// of a generated queryResolver method, so query resolvers reach it as r.Resolver.Announcements.
+	Announcements *domain.AnnouncementService
 }

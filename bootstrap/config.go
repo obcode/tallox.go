@@ -20,9 +20,9 @@ const ConfigName = "tallox"
 // Every field here is read by something. That is a rule rather than an observation: a key
 // that a file documents and the program ignores is worse than no key at all, because somebody
 // eventually sets it, restarts, and believes the restart did what the comment promised. The
-// blocks that are planned but not wired — SMTP — are commented out in
-// deploy/tallox.yaml.example instead of being declared here, so the shape stays documented
-// without the file being able to lie.
+// blocks that are planned but not wired are commented out in deploy/tallox.yaml.example
+// instead of being declared here, so the shape stays documented without the file being able to
+// lie. (SMTP was the example until 2026-11-10; it is the `mail` block now.)
 //
 // The corollary is UnmarshalExact below: a key this struct does not know is a startup
 // failure, not a shrug. A typo in a production configuration file has to be loud on the
@@ -39,6 +39,7 @@ type Config struct {
 	Server ServerConfig
 	Auth   AuthConfig
 	ZPA    ZPAConfig
+	Mail   MailConfig
 	Log    LogConfig
 }
 
@@ -209,6 +210,56 @@ func (c ZPAConfig) Normalised() ZPAConfig {
 	}
 }
 
+// MailConfig is how mail leaves this installation: subscriptions to official events and
+// announcements, since 2026-11-10.
+//
+// Host empty is the emergency stop and the default, in the shape ZPAConfig argues for: there is
+// no `enabled` switch beside a filled-in password. Without a host the dispatcher still notices
+// what became official and queues the mails — so that setting a host later does not lose what
+// was decided meanwhile — and sends none. Queued mail older than domain.NotificationRetention is
+// pruned, so a backlog cannot grow without bound.
+//
+// Why the backend has an SMTP client at all, after the access report deliberately did without:
+// these mails are rendered per person and an announcement has to go out when it is sent, not at
+// the next cron slot. The cron path stays for the operational reports.
+type MailConfig struct {
+	// Host is the SMTP server; STARTTLS is mandatory.
+	Host string
+	// Port defaults to 587.
+	Port int
+	// Username and Password authenticate; both empty means none.
+	Username string
+	Password string
+	// From is the header and envelope sender. Must be accepted by the gateway for the account.
+	From string
+	// TestMail, when set, receives every mail instead of its recipient: the dry run.
+	TestMail string
+	// BaseURL is where the GUI is reached, for every link in a mail. Without a trailing slash.
+	BaseURL string
+}
+
+// Configured reports whether mail is sent at all.
+func (c MailConfig) Configured() bool { return strings.TrimSpace(c.Host) != "" }
+
+// Validate refuses a block that would send mail nobody can act on.
+func (c MailConfig) Validate() error {
+	if !c.Configured() {
+		return nil
+	}
+	if strings.TrimSpace(c.From) == "" {
+		return errors.New("mail.host is set but mail.from is not")
+	}
+	u, err := url.Parse(strings.TrimSpace(c.BaseURL))
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return fmt.Errorf("mail.baseurl %q must be an http or https address — every link in a mail starts with it",
+			c.BaseURL)
+	}
+	if c.Port < 0 || c.Port > 65535 {
+		return fmt.Errorf("mail.port %d is not a port", c.Port)
+	}
+	return nil
+}
+
 // LogConfig is the logging level, as a word rather than a boolean pair.
 type LogConfig struct {
 	// Level is debug, info, warn or error.
@@ -321,6 +372,10 @@ func LoadConfigFrom(explicitPath string, searchPaths ...string) (Config, string,
 		return Config{}, "", fmt.Errorf("cannot read %s: %w", v.ConfigFileUsed(), err)
 	}
 	cfg.ZPA = cfg.ZPA.Normalised()
+	if err := cfg.Mail.Validate(); err != nil {
+		return Config{}, "", fmt.Errorf("cannot read %s: %w", v.ConfigFileUsed(), err)
+	}
+	cfg.Mail.BaseURL = strings.TrimRight(strings.TrimSpace(cfg.Mail.BaseURL), "/")
 
 	return cfg, v.ConfigFileUsed(), nil
 }

@@ -312,6 +312,70 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 	return i, err
 }
 
+const wishersOfProgramme = `-- name: WishersOfProgramme :many
+SELECT DISTINCT w.person_id
+FROM wish w
+JOIN course_instance ci ON ci.id = w.course_instance_id
+JOIN programme prog ON prog.id = ci.programme_id
+LEFT JOIN module_subject_group msg ON msg.module_id = ci.module_id
+JOIN person ON person.id = w.person_id AND person.active
+WHERE ci.semester_id = $1::uuid
+  AND prog.id = $2::uuid
+  AND (
+      $3::text = 'all'
+      OR ($3::text = 'own'
+          AND w.person_id = $4::uuid)
+      OR ($3::text = 'own_or_scoped'
+          AND (w.person_id = $4::uuid
+               OR prog.id = ANY ($5::uuid[])
+               OR msg.subject_group_id = ANY ($6::uuid[])))
+  )
+ORDER BY w.person_id
+`
+
+type WishersOfProgrammeParams struct {
+	SemesterID      uuid.UUID
+	ProgrammeID     uuid.UUID
+	Scope           string
+	OwnerID         uuid.UUID
+	ProgrammeIds    []uuid.UUID
+	SubjectGroupIds []uuid.UUID
+}
+
+// Who has registered interest in an instance of one programme in one semester: the half of an
+// announcement's PROGRAMME audience that is made of wishes (announcements.sql has the other).
+//
+// Here and filtered like every other read of this table, with the sender's filter: the people an
+// announcement reaches are a list of wishers, and the count its sender is shown is a count of
+// them. Only the programme's lead and the dean's office may ask, and their filter lets those rows
+// through — but that is the policy's argument, and this query does not take it on trust.
+func (q *Queries) WishersOfProgramme(ctx context.Context, arg WishersOfProgrammeParams) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, wishersOfProgramme,
+		arg.SemesterID,
+		arg.ProgrammeID,
+		arg.Scope,
+		arg.OwnerID,
+		arg.ProgrammeIds,
+		arg.SubjectGroupIds,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var person_id uuid.UUID
+		if err := rows.Scan(&person_id); err != nil {
+			return nil, err
+		}
+		items = append(items, person_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const wishesOfSemester = `-- name: WishesOfSemester :many
 
 SELECT

@@ -16,7 +16,13 @@ import (
 
 // PrintAccessReportForTest renders the nightly report. See printAccessReport.
 func PrintAccessReportForTest(out io.Writer, report domain.AccessReport, since time.Duration) {
-	printAccessReport(out, report, since)
+	printAccessReport(out, report, since, nil)
+}
+
+// PrintAccessReportWithMailForTest renders the nightly report with the mail figures.
+func PrintAccessReportWithMailForTest(out io.Writer, report domain.AccessReport, since time.Duration,
+	mail domain.MailCounts) {
+	printAccessReport(out, report, since, &mail)
 }
 
 // PrintProjectionWarningsForTest renders the projection lines of the nightly ZPA report. See

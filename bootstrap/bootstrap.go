@@ -31,6 +31,7 @@ import (
 	"github.com/obcode/tallox.go/internal/auth"
 	"github.com/obcode/tallox.go/internal/buildinfo"
 	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/mail"
 	"github.com/obcode/tallox.go/internal/obs"
 	"github.com/obcode/tallox.go/internal/principal"
 	"github.com/obcode/tallox.go/internal/store"
@@ -116,6 +117,10 @@ type Options struct {
 	// accesses — which is what every test that does not care about the log runs as, and what
 	// keeps a missing log from being a missing server.
 	Access *domain.AccessService
+	// Notifications and Announcements are mail: subscriptions and announcements. Nil like the
+	// others in a test that never reaches them.
+	Notifications *domain.NotificationService
+	Announcements *domain.AnnouncementService
 }
 
 // Serve parses flags, sets up logging and runs the HTTP server until a signal arrives.
@@ -177,6 +182,8 @@ func Serve(build buildinfo.Info) {
 			"with -access-report: how far back to summarise")
 		// Where the configuration file is. Empty means "look for tallox.yaml in . and $HOME",
 		// which is what the container and the development loop both want.
+		mailPreview = flag.String("mail-preview", "",
+			"render one of every mail with invented data into this directory and exit")
 		configPath = flag.String("config", "",
 			"path to the configuration file (default: tallox.yaml in . or $HOME)")
 	)
@@ -230,6 +237,14 @@ func Serve(build buildinfo.Info) {
 	// an installation whose database is exactly what is broken.
 	if *checkConfig {
 		reportConfiguration(cfg, configFile, reporter != nil)
+		return
+	}
+	// Beside -check-config, and needs no database for the same reason: it is asked before a mail
+	// goes anywhere, about the text alone.
+	if *mailPreview != "" {
+		if err := runMailPreview(*mailPreview, cfg.Mail.BaseURL); err != nil {
+			log.Fatal().Err(err).Msg("cannot render the previews")
+		}
 		return
 	}
 
@@ -347,6 +362,11 @@ func Serve(build buildinfo.Info) {
 	marks := domain.NewPlanningMarkService(store.NewPlanningMarks(pool), planning)
 	imports := domain.NewZPASyncService(zpaCache, zpaSource, store.NewZPALock(pool), catalogueProjection)
 	access := domain.NewAccessService(store.NewAccess(pool))
+	notificationStore := store.NewNotifications(pool)
+	renderer := mail.NewRenderer(cfg.Mail.BaseURL)
+	notifications := domain.NewNotificationService(notificationStore)
+	announcements := domain.NewAnnouncementService(notificationStore, renderer, nil)
+	dispatcher := domain.NewDispatcher(notificationStore, renderer, mailSender(cfg.Mail), nil)
 
 	// Beside reconcileProtectedAdmins, and for a related reason: a process that died mid-sync
 	// leaves a RUNNING row that the interface would show as a run in progress forever. Not
@@ -388,6 +408,8 @@ func Serve(build buildinfo.Info) {
 			Expertise:     expertise,
 			Marks:         marks,
 			Access:        access,
+			Notifications: notifications,
+			Announcements: announcements,
 		}),
 		// The server's own guards against a connection that is held rather than used. The
 		// write timeout is the longest a request may take end to end; the ZPA sync and the
@@ -406,6 +428,16 @@ func Serve(build buildinfo.Info) {
 	}()
 	log.Info().Str("addr", cfg.Server.Addr()).Str("authMode", string(mode)).Msg("listening")
 
+	// The dispatcher runs in this process, beside the server: it is what turns official acts into
+	// mail and sends announcements as they are written. Without a mail host it still queues.
+	dispatchCtx, stopDispatch := context.WithCancel(ctx)
+	dispatched := make(chan struct{})
+	go func() {
+		defer close(dispatched)
+		dispatcher.Run(dispatchCtx, time.Minute)
+	}()
+	logMailConfiguration(cfg.Mail)
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
@@ -416,6 +448,8 @@ func Serve(build buildinfo.Info) {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Error().Err(err).Msg("cannot shut down cleanly")
 	}
+	stopDispatch()
+	<-dispatched
 	// After the server, so no new run can start while this waits for the ones already going: a
 	// sync somebody started from the interface finishes on its own and should not be lost to
 	// a deploy.
@@ -551,6 +585,14 @@ func reportConfiguration(cfg Config, configFile string, reporting bool) {
 	} else {
 		fmt.Println("zpa module import:  not configured")
 	}
+	switch {
+	case !cfg.Mail.Configured():
+		fmt.Println("mail:               not sent (no mail.host) — notifications are queued only")
+	case cfg.Mail.TestMail != "":
+		fmt.Printf("mail:               dry run, everything to %s (links to %s)\n", cfg.Mail.TestMail, cfg.Mail.BaseURL)
+	default:
+		fmt.Printf("mail:               sent via %s as %s (links to %s)\n", cfg.Mail.Host, cfg.Mail.From, cfg.Mail.BaseURL)
+	}
 	// From the environment, not from the file this command is about — but somebody checking
 	// what this image will do wants to know whether its errors will be seen by anyone. The
 	// state comes from setupReporting rather than from the variable, because a DSN that is
@@ -661,6 +703,8 @@ func graphqlHandler(opts Options) http.Handler {
 			Expertise:     opts.Expertise,
 			Marks:         opts.Marks,
 			Access:        opts.Access,
+			Notifications: opts.Notifications,
+			Announcements: opts.Announcements,
 		},
 		// The generated code fails closed on a directive with no implementation — the field
 		// errors with "directive interactiveOnly is not implemented" rather than passing

@@ -33,7 +33,9 @@ das Zusammenführen hieße Zuteilungen umhängen — Sache eines Menschen.
 ## Entscheidungen
 
 - **Wer:** `policy.MayEnterTeacher` = Fachgruppenleitung (irgendeiner Gruppe, die Person ist ja in
-  keiner) oder Dekanat, mit voller Reichweite. Jede Leitung darf jede lokale Zeile korrigieren.
+  keiner), Studiengangsleitung (irgendeines Studiengangs; seit 2026-11-06 auf Ollis Entscheidung,
+  weil sie im Review die Zuteilung ändert) oder Dekanat, mit voller Reichweite. Ungescopte
+  Leitungen nicht. Jede dieser Leitungen darf jede lokale Zeile korrigieren.
 - **`@fullReach` statt `@interactiveOnly`** (der Plan vom 2026-10-29 sagte interactiveOnly): seit
   dem 2026-10-28 steht dort nur noch Token-, Personen-/Rollenverwaltung und Zugriffsprotokoll,
   und eine Lehrperson anzulegen vergibt keinen Zugang. `TEACHER_MAIL_TAKEN` verrät aber, ob es zu

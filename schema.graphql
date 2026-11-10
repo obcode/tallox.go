@@ -1360,6 +1360,25 @@ type DemandRefusal {
   message: String!
 }
 """
+How far the demand releases of one semester have got: `released` of the `planned` study programmes
+have released their demand for wishes (`setDemandComplete`).
+
+Only the programmes this faculty plans count, on both sides — a release by one nobody plans any
+more is in `demandCompletions` but not here. Readable by everybody with an account, like
+`demandCompletions` and `programmes`: it counts programmes and their releases and says nothing
+about anybody's wishes.
+"""
+type DemandRelease {
+  """
+  How many of the planned study programmes have released their demand for this semester.
+  """
+  released: Int!
+  """
+  How many study programmes this faculty plans.
+  """
+  planned: Int!
+}
+"""
 One cohort of a module, on the way in: a letter and a number of parallel groups.
 """
 input DemandTrackInput {
@@ -3198,6 +3217,12 @@ type Mutation {
 
   Only the lead of that study programme and the dean's office. Not bound by the phase: announcing
   is a statement about work somebody did, not a change to the plan.
+
+  **Announcing moves the semester from `DEMAND_PLANNING` to `WISHES`** while it is still in
+  `DEMAND_PLANNING`: the first release is when the wishes begin. This is the one phase switch
+  nobody clicks, and it is only this step — a semester in any other phase stays where it is, and
+  if the dean's office switched it a moment earlier, there is still exactly one step. Withdrawing
+  never moves the phase back. A refused announcement changes neither the marks nor the phase.
   """
   setDemandComplete(
     """
@@ -3274,6 +3299,10 @@ type Mutation {
   `DEMAND_PLANNING`, so this works on any semester within reach without anything having to be
   set up first. If somebody else switched it between your reading it and this call, you get
   `PHASE_MOVED_ON` and nothing changes.
+
+  `DEMAND_PLANNING` to `WISHES` usually needs no call: the first study programme releasing its
+  demand (`setDemandComplete`) takes that step. Switching back to `DEMAND_PLANNING` stays possible,
+  and the next release moves it on again.
 
   The code is upper-cased and trimmed for you, so `2026-ws` is accepted. It is not otherwise
   repaired: `WS 2026` is refused rather than rearranged — that spelling is only unambiguous if
@@ -3784,6 +3813,11 @@ The phase is stored and switched deliberately, never derived from the calendar. 
 and a process that moves on because a Tuesday arrived is one nobody trusts — this way the
 switch is an act somebody performs, visibly and at a moment everyone can point at.
 
+One switch is a consequence rather than a click: the first study programme that releases its
+demand for wishes (`setDemandComplete`) moves a semester in `DEMAND_PLANNING` on to `WISHES`.
+That is still an act somebody performs, just not the dean's office. Every other step is
+`advanceSemesterPhase`.
+
 A semester moves **one step at a time**, forwards or backwards. Backwards is the correction:
 reopening a plan is a normal thing for a faculty to do, and it should happen in the tool rather
 than around it.
@@ -3795,6 +3829,8 @@ enum Phase {
   DEMAND_PLANNING
   """
   Lecturers register interest. Entries are confidential until they are published — which is a separate decision, see `wishesPublishedAt`.
+
+  Reached by itself when the first study programme releases its demand for wishes (`setDemandComplete`).
   """
   WISHES
   """
@@ -5039,8 +5075,17 @@ type Semester {
   code: String!
   """
   Where the planning stands.
+
+  Switched by the dean's office (`advanceSemesterPhase`), with one exception: the first study
+  programme that releases its demand for wishes moves `DEMAND_PLANNING` on to `WISHES`. Withdrawing
+  that release does not move it back.
   """
   phase: Phase!
+  """
+  How many of the study programmes this faculty plans have released their demand for wishes in
+  this semester, out of how many. Readable by everybody with an account, like `demandCompletions`.
+  """
+  demandRelease: DemandRelease!
   """
   Whether this is the semester the faculty is planning right now. At most one is.
 

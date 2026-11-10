@@ -8,8 +8,10 @@ package graph
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/obcode/tallox.go/graph/generated"
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
@@ -157,3 +159,13 @@ func (r *queryResolver) Semester(ctx context.Context, code string) (*model.Semes
 	}
 	return semesterModel(found), nil
 }
+
+// DemandRelease is the resolver for the demandRelease field.
+func (r *semesterResolver) DemandRelease(ctx context.Context, obj *model.Semester) (*model.DemandRelease, error) {
+	panic(fmt.Errorf("not implemented: DemandRelease - demandRelease"))
+}
+
+// Semester returns generated.SemesterResolver implementation.
+func (r *Resolver) Semester() generated.SemesterResolver { return &semesterResolver{r} }
+
+type semesterResolver struct{ *Resolver }

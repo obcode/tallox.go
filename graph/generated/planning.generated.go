@@ -103,6 +103,52 @@ func (ec *executionContext) fieldContext_DemandCompletion_completedAt(_ context.
 	return graphql.NewScalarFieldContext("DemandCompletion", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _DemandRelease_released(ctx context.Context, field graphql.CollectedField, obj *model.DemandRelease) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandRelease_released(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Released, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandRelease_released(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandRelease", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _DemandRelease_planned(ctx context.Context, field graphql.CollectedField, obj *model.DemandRelease) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandRelease_planned(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Planned, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DemandRelease_planned(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandRelease", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _ReviewCompletion_semester(ctx context.Context, field graphql.CollectedField, obj *model.ReviewCompletion) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -342,6 +388,49 @@ func (ec *executionContext) _DemandCompletion(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var demandReleaseImplementors = []string{"DemandRelease"}
+
+func (ec *executionContext) _DemandRelease(ctx context.Context, sel ast.SelectionSet, obj *model.DemandRelease) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, demandReleaseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DemandRelease")
+		case "released":
+			out.Values[i] = ec._DemandRelease_released(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "planned":
+			out.Values[i] = ec._DemandRelease_planned(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var reviewCompletionImplementors = []string{"ReviewCompletion"}
 
 func (ec *executionContext) _ReviewCompletion(ctx context.Context, sel ast.SelectionSet, obj *model.ReviewCompletion) graphql.Marshaler {
@@ -471,6 +560,20 @@ func (ec *executionContext) marshalNDemandCompletion2ᚖgithubᚗcomᚋobcodeᚋ
 		return graphql.Null
 	}
 	return ec._DemandCompletion(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNDemandRelease2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandRelease(ctx context.Context, sel ast.SelectionSet, v model.DemandRelease) graphql.Marshaler {
+	return ec._DemandRelease(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDemandRelease2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandRelease(ctx context.Context, sel ast.SelectionSet, v *model.DemandRelease) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DemandRelease(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNReviewCompletion2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐReviewCompletionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ReviewCompletion) graphql.Marshaler {

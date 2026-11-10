@@ -754,6 +754,20 @@ type DemandRefusal struct {
 	Message string `json:"message"`
 }
 
+// How far the demand releases of one semester have got: `released` of the `planned` study programmes
+// have released their demand for wishes (`setDemandComplete`).
+//
+// Only the programmes this faculty plans count, on both sides — a release by one nobody plans any
+// more is in `demandCompletions` but not here. Readable by everybody with an account, like
+// `demandCompletions` and `programmes`: it counts programmes and their releases and says nothing
+// about anybody's wishes.
+type DemandRelease struct {
+	// How many of the planned study programmes have released their demand for this semester.
+	Released int `json:"released"`
+	// How many study programmes this faculty plans.
+	Planned int `json:"planned"`
+}
+
 // One cohort of a module, on the way in: a letter and a number of parallel groups.
 type DemandTrackInput struct {
 	// The cohort letter — the A in IF3A — or empty for a module that runs once.
@@ -1402,7 +1416,14 @@ type Semester struct {
 	// worth having in a filename or a script rather than the id.
 	Code string `json:"code"`
 	// Where the planning stands.
+	//
+	// Switched by the dean's office (`advanceSemesterPhase`), with one exception: the first study
+	// programme that releases its demand for wishes moves `DEMAND_PLANNING` on to `WISHES`. Withdrawing
+	// that release does not move it back.
 	Phase policy.Phase `json:"phase"`
+	// How many of the study programmes this faculty plans have released their demand for wishes in
+	// this semester, out of how many. Readable by everybody with an account, like `demandCompletions`.
+	DemandRelease *DemandRelease `json:"demandRelease"`
 	// Whether this is the semester the faculty is planning right now. At most one is.
 	//
 	// The answer to "which semester is this page about" before anybody has chosen one — a

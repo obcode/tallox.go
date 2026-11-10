@@ -30,6 +30,7 @@ type ResolverRoot interface {
 	Mutation() MutationResolver
 	Programme() ProgrammeResolver
 	Query() QueryResolver
+	Semester() SemesterResolver
 	SubjectGroup() SubjectGroupResolver
 }
 
@@ -272,6 +273,11 @@ type ComplexityRoot struct {
 		ModuleID   func(childComplexity int) int
 		ModuleName func(childComplexity int) int
 		Track      func(childComplexity int) int
+	}
+
+	DemandRelease struct {
+		Planned  func(childComplexity int) int
+		Released func(childComplexity int) int
 	}
 
 	DesiredHoursOverviewRow struct {
@@ -632,6 +638,7 @@ type ComplexityRoot struct {
 		AssignmentsPublishedAt    func(childComplexity int) int
 		Code                      func(childComplexity int) int
 		DecidedAt                 func(childComplexity int) int
+		DemandRelease             func(childComplexity int) int
 		DesiredHoursFrozenAt      func(childComplexity int) int
 		DesiredHoursPublishedAt   func(childComplexity int) int
 		IsPlanningSemester        func(childComplexity int) int
@@ -1766,6 +1773,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.DemandRefusal.Track(childComplexity), true
+
+	case "DemandRelease.planned":
+		if e.ComplexityRoot.DemandRelease.Planned == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandRelease.Planned(childComplexity), true
+	case "DemandRelease.released":
+		if e.ComplexityRoot.DemandRelease.Released == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandRelease.Released(childComplexity), true
 
 	case "DesiredHoursOverviewRow.assignedLoad":
 		if e.ComplexityRoot.DesiredHoursOverviewRow.AssignedLoad == nil {
@@ -4055,6 +4075,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Semester.DecidedAt(childComplexity), true
+	case "Semester.demandRelease":
+		if e.ComplexityRoot.Semester.DemandRelease == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Semester.DemandRelease(childComplexity), true
 	case "Semester.desiredHoursFrozenAt":
 		if e.ComplexityRoot.Semester.DesiredHoursFrozenAt == nil {
 			break
@@ -8673,6 +8699,22 @@ type DemandCompletion {
 }
 
 """
+How far the demand releases of one semester have got: ` + "`" + `released` + "`" + ` of the ` + "`" + `planned` + "`" + ` study programmes
+have released their demand for wishes (` + "`" + `setDemandComplete` + "`" + `).
+
+Only the programmes this faculty plans count, on both sides — a release by one nobody plans any
+more is in ` + "`" + `demandCompletions` + "`" + ` but not here. Readable by everybody with an account, like
+` + "`" + `demandCompletions` + "`" + ` and ` + "`" + `programmes` + "`" + `: it counts programmes and their releases and says nothing
+about anybody's wishes.
+"""
+type DemandRelease {
+  "How many of the planned study programmes have released their demand for this semester."
+  released: Int!
+  "How many study programmes this faculty plans."
+  planned: Int!
+}
+
+"""
 One study programme announcing that its review of a semester is done: after the assignment its
 lead has gone over the demand, its cut and who teaches what, and the figures stand against the
 quota as far as anybody knows today. An announcement only: unlike ` + "`" + `DemandCompletion` + "`" + `, it blocks
@@ -8758,6 +8800,12 @@ extend type Mutation {
 
   Only the lead of that study programme and the dean's office. Not bound by the phase: announcing
   is a statement about work somebody did, not a change to the plan.
+
+  **Announcing moves the semester from ` + "`" + `DEMAND_PLANNING` + "`" + ` to ` + "`" + `WISHES` + "`" + `** while it is still in
+  ` + "`" + `DEMAND_PLANNING` + "`" + `: the first release is when the wishes begin. This is the one phase switch
+  nobody clicks, and it is only this step — a semester in any other phase stays where it is, and
+  if the dean's office switched it a moment earlier, there is still exactly one step. Withdrawing
+  never moves the phase back. A refused announcement changes neither the marks nor the phase.
   """
   setDemandComplete(
     "Four digits, a hyphen and SS or WS."
@@ -8868,6 +8916,11 @@ The phase is stored and switched deliberately, never derived from the calendar. 
 and a process that moves on because a Tuesday arrived is one nobody trusts — this way the
 switch is an act somebody performs, visibly and at a moment everyone can point at.
 
+One switch is a consequence rather than a click: the first study programme that releases its
+demand for wishes (` + "`" + `setDemandComplete` + "`" + `) moves a semester in ` + "`" + `DEMAND_PLANNING` + "`" + ` on to ` + "`" + `WISHES` + "`" + `.
+That is still an act somebody performs, just not the dean's office. Every other step is
+` + "`" + `advanceSemesterPhase` + "`" + `.
+
 A semester moves **one step at a time**, forwards or backwards. Backwards is the correction:
 reopening a plan is a normal thing for a faculty to do, and it should happen in the tool rather
 than around it.
@@ -8875,7 +8928,11 @@ than around it.
 enum Phase {
   "The programme leads declare which instances have to be offered."
   DEMAND_PLANNING
-  "Lecturers register interest. Entries are confidential until they are published — which is a separate decision, see ` + "`" + `wishesPublishedAt` + "`" + `."
+  """
+  Lecturers register interest. Entries are confidential until they are published — which is a separate decision, see ` + "`" + `wishesPublishedAt` + "`" + `.
+
+  Reached by itself when the first study programme releases its demand for wishes (` + "`" + `setDemandComplete` + "`" + `).
+  """
   WISHES
   "The subject group leads fill the instances."
   ASSIGNMENT
@@ -8911,8 +8968,20 @@ type Semester {
   """
   code: String!
 
-  "Where the planning stands."
+  """
+  Where the planning stands.
+
+  Switched by the dean's office (` + "`" + `advanceSemesterPhase` + "`" + `), with one exception: the first study
+  programme that releases its demand for wishes moves ` + "`" + `DEMAND_PLANNING` + "`" + ` on to ` + "`" + `WISHES` + "`" + `. Withdrawing
+  that release does not move it back.
+  """
   phase: Phase!
+
+  """
+  How many of the study programmes this faculty plans have released their demand for wishes in
+  this semester, out of how many. Readable by everybody with an account, like ` + "`" + `demandCompletions` + "`" + `.
+  """
+  demandRelease: DemandRelease!
 
   """
   Whether this is the semester the faculty is planning right now. At most one is.
@@ -9062,6 +9131,10 @@ extend type Mutation {
   ` + "`" + `DEMAND_PLANNING` + "`" + `, so this works on any semester within reach without anything having to be
   set up first. If somebody else switched it between your reading it and this call, you get
   ` + "`" + `PHASE_MOVED_ON` + "`" + ` and nothing changes.
+
+  ` + "`" + `DEMAND_PLANNING` + "`" + ` to ` + "`" + `WISHES` + "`" + ` usually needs no call: the first study programme releasing its
+  demand (` + "`" + `setDemandComplete` + "`" + `) takes that step. Switching back to ` + "`" + `DEMAND_PLANNING` + "`" + ` stays possible,
+  and the next release moves it on again.
 
   The code is upper-cased and trimmed for you, so ` + "`" + `2026-ws` + "`" + ` is accepted. It is not otherwise
   repaired: ` + "`" + `WS 2026` + "`" + ` is refused rather than rearranged — that spelling is only unambiguous if
@@ -11067,6 +11140,16 @@ func (ec *executionContext) childFields_DemandRefusal(ctx context.Context, field
 	return nil, fmt.Errorf("no field named %q was found under type DemandRefusal", field.Name)
 }
 
+func (ec *executionContext) childFields_DemandRelease(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "released":
+		return ec.fieldContext_DemandRelease_released(ctx, field)
+	case "planned":
+		return ec.fieldContext_DemandRelease_planned(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DemandRelease", field.Name)
+}
+
 func (ec *executionContext) childFields_DesiredHoursOverviewRow(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
 	case "person":
@@ -11515,6 +11598,8 @@ func (ec *executionContext) childFields_Semester(ctx context.Context, field grap
 		return ec.fieldContext_Semester_code(ctx, field)
 	case "phase":
 		return ec.fieldContext_Semester_phase(ctx, field)
+	case "demandRelease":
+		return ec.fieldContext_Semester_demandRelease(ctx, field)
 	case "isPlanningSemester":
 		return ec.fieldContext_Semester_isPlanningSemester(ctx, field)
 	case "reachablePhases":

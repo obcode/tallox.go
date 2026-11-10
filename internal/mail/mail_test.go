@@ -39,11 +39,33 @@ func TestMarkdownRendersWhatAnAnnouncementUses(t *testing.T) {
 		"<ul", "<li style=\"margin:0 0 6px 0;\">eins</li>",
 		"<ol", "<li style=\"margin:0 0 6px 0;\">dann</li>",
 		`<a href="https://tallox.example.org/ablauf" `, `</a>.`,
-		`<a href="https://tallox.example.org" style="color:#1d4ed8;text-decoration:underline;">hier</a>`,
+		`<a href="https://tallox.example.org" rel="noopener noreferrer" style="color:#1d4ed8;text-decoration:underline;">hier</a>`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in\n%s", want, got)
 		}
+	}
+}
+
+// TestTheFragmentIsTheMailWithoutStyles: the archive shows the same tags the mail carries, with
+// no style attribute for a page's themes to fight, and escapes just the same.
+func TestTheFragmentIsTheMailWithoutStyles(t *testing.T) {
+	t.Parallel()
+
+	body := "Hallo **alle**,\n\n- eins\n- zwei\n\n[hier](https://tallox.example.org) <script>x</script>"
+	got := mail.MarkdownFragment(body)
+	want := `<p>Hallo <strong>alle</strong>,</p><ul><li>eins</li><li>zwei</li></ul>` +
+		`<p><a href="https://tallox.example.org" rel="noopener noreferrer">hier</a> &lt;script&gt;x&lt;/script&gt;</p>`
+	if got != want {
+		t.Errorf("MarkdownFragment =\n%s\nwant\n%s", got, want)
+	}
+	if strings.Contains(got, "style=") {
+		t.Error("the fragment carries a style attribute")
+	}
+	stripped := strings.NewReplacer(` style="margin:0 0 16px 0;"`, "", ` style="margin:0 0 16px 0;padding-left:22px;"`, "",
+		` style="margin:0 0 6px 0;"`, "", ` style="color:#1d4ed8;text-decoration:underline;"`, "").Replace(mail.MarkdownHTML(body))
+	if stripped != got {
+		t.Errorf("the mail and the fragment differ in more than styles:\n%s\n%s", stripped, got)
 	}
 }
 

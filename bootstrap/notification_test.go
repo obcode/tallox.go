@@ -25,7 +25,7 @@ const previewAnnouncementQuery = `query($a: AnnouncementAudienceInput!, $s: Stri
 	previewAnnouncement(audience: $a, subject: $s, body: $b) { subject recipientCount html }
 }`
 
-const announcementsQuery = `{ announcements { subject recipientCount sender { mail } } }`
+const announcementsQuery = `{ announcements { subject bodyHtml recipientCount sender { mail } } }`
 
 func TestSubscriptionsAreOwnThroughEveryDoor(t *testing.T) {
 	t.Parallel()
@@ -162,12 +162,17 @@ func TestAnnouncementsAreSentOnlyFromABrowser(t *testing.T) {
 			var out struct {
 				Announcements []struct {
 					Subject        string
+					BodyHTML       string `json:"bodyHtml"`
 					RecipientCount *int
 				}
 			}
 			c.MustQuery(t, announcementsQuery, nil, &out)
 			if len(out.Announcements) != 1 || out.Announcements[0].RecipientCount != nil {
-				t.Errorf("Eins reads %+v", out.Announcements)
+				t.Fatalf("Eins reads %+v", out.Announcements)
+			}
+			// Rendered like the mail, and without its inline styles.
+			if got := out.Announcements[0].BodyHTML; got != "<p>Ein <strong>Text</strong>.</p>" {
+				t.Errorf("bodyHtml = %q", got)
 			}
 		})
 }

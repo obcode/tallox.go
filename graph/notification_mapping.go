@@ -8,6 +8,7 @@ import (
 
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
+	"github.com/obcode/tallox.go/internal/mail"
 	"github.com/obcode/tallox.go/internal/policy"
 )
 
@@ -118,6 +119,8 @@ func announcementModel(a domain.Announcement) *model.Announcement {
 		Audience: announcementAudienceModel(a.Audience),
 		Subject:  a.Subject,
 		Body:     a.Body,
+		// The same renderer as the mail, so the archive shows what arrived; escaped there.
+		BodyHTML: mail.MarkdownFragment(a.Body),
 		SentAt:   a.SentAt,
 	}
 	if a.RecipientCount >= 0 {

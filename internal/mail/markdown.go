@@ -28,29 +28,46 @@ var (
 )
 
 // MarkdownHTML renders a body as HTML, styled inline for mail clients.
-func MarkdownHTML(body string) string {
+func MarkdownHTML(body string) string { return render(body, mailStyles) }
+
+// MarkdownFragment renders a body as bare HTML for a page that styles it itself — the archive in
+// the GUI, through Announcement.bodyHtml. The same tags as the mail, no style attributes: inline
+// colours would fight the page's themes.
+func MarkdownFragment(body string) string { return render(body, styles{}) }
+
+// styles are the inline style attributes of each tag, empty for none.
+type styles struct{ p, list, li, a string }
+
+var mailStyles = styles{
+	p:    ` style="margin:0 0 16px 0;"`,
+	list: ` style="margin:0 0 16px 0;padding-left:22px;"`,
+	li:   ` style="margin:0 0 6px 0;"`,
+	a:    ` style="color:#1d4ed8;text-decoration:underline;"`,
+}
+
+func render(body string, st styles) string {
 	var b strings.Builder
 	for _, block := range blocks(body) {
 		lines := strings.Split(block, "\n")
 		switch {
 		case allMatch(lines, bulletPattern):
-			b.WriteString(`<ul style="margin:0 0 16px 0;padding-left:22px;">`)
+			b.WriteString(`<ul` + st.list + `>`)
 			for _, l := range lines {
-				b.WriteString(`<li style="margin:0 0 6px 0;">` + inline(bulletPattern.FindStringSubmatch(l)[1]) + `</li>`)
+				b.WriteString(`<li` + st.li + `>` + inline(bulletPattern.FindStringSubmatch(l)[1], st) + `</li>`)
 			}
 			b.WriteString(`</ul>`)
 		case allMatch(lines, numberedPattern):
-			b.WriteString(`<ol style="margin:0 0 16px 0;padding-left:22px;">`)
+			b.WriteString(`<ol` + st.list + `>`)
 			for _, l := range lines {
-				b.WriteString(`<li style="margin:0 0 6px 0;">` + inline(numberedPattern.FindStringSubmatch(l)[1]) + `</li>`)
+				b.WriteString(`<li` + st.li + `>` + inline(numberedPattern.FindStringSubmatch(l)[1], st) + `</li>`)
 			}
 			b.WriteString(`</ol>`)
 		default:
 			parts := make([]string, 0, len(lines))
 			for _, l := range lines {
-				parts = append(parts, inline(strings.TrimRight(l, " ")))
+				parts = append(parts, inline(strings.TrimRight(l, " "), st))
 			}
-			b.WriteString(`<p style="margin:0 0 16px 0;">` + strings.Join(parts, "<br>") + `</p>`)
+			b.WriteString(`<p` + st.p + `>` + strings.Join(parts, "<br>") + `</p>`)
 		}
 	}
 	return b.String()
@@ -79,23 +96,23 @@ func allMatch(lines []string, p *regexp.Regexp) bool {
 
 // inline escapes a line and turns the few inline patterns back into tags. The patterns run on
 // the escaped text, so nothing they produce was ever markup somebody typed.
-func inline(line string) string {
+func inline(line string, st styles) string {
 	s := html.EscapeString(line)
 	s = linkPattern.ReplaceAllStringFunc(s, func(m string) string {
 		parts := linkPattern.FindStringSubmatch(m)
-		return linkTag(parts[2], parts[1])
+		return linkTag(parts[2], parts[1], st)
 	})
 	s = bareURLPattern.ReplaceAllStringFunc(s, func(m string) string {
 		parts := bareURLPattern.FindStringSubmatch(m)
 		// A sentence that ends in an address ends in punctuation that is not part of it.
 		address := strings.TrimRight(parts[2], ".,;:!?")
-		return parts[1] + linkTag(address, address) + parts[2][len(address):]
+		return parts[1] + linkTag(address, address, st) + parts[2][len(address):]
 	})
 	return boldPattern.ReplaceAllString(s, `<strong>$1</strong>`)
 }
 
 // linkTag takes an already escaped URL and text. A URL inside an existing link tag is not
 // linked twice: bareURLPattern needs whitespace or a bracket before it, and href=" is neither.
-func linkTag(escapedURL, escapedText string) string {
-	return `<a href="` + escapedURL + `" style="color:#1d4ed8;text-decoration:underline;">` + escapedText + `</a>`
+func linkTag(escapedURL, escapedText string, st styles) string {
+	return `<a href="` + escapedURL + `" rel="noopener noreferrer"` + st.a + `>` + escapedText + `</a>`
 }

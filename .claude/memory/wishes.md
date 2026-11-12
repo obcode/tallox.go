@@ -213,3 +213,24 @@ nicht gebraucht wird. Ausdrücklich ohne Anspruch. Oliver hat entschieden:
   (`programme_id` NULL). Frühe Vormerkungen fragen die Runde weiter nicht.
 - Eine späte bekommt **keine** `ADVANCE_WISH_RESOLVED`-Mail „nicht angeboten“ — das wusste ihr
   Autor beim Eintragen (`DetectAdvanceWishes`).
+
+## Anteil am Zug (`share_hours`, 2026-11-12)
+
+Collab-Meldung #37: zwei teilen sich eine Vorlesung (je Zug die Hälfte), und ein Wunsch auf den
+ganzen Zug behauptet mehr SWS, als man halten will. Olli: im Normalfall wünscht man den ganzen Zug,
+**zusätzlich** kann man einen Anteil angeben — vorerst **nur ganze SWS**, keine Prozentangabe,
+solange es keine konkrete Anforderung gibt.
+
+- Spalte `wish.share_hours smallint` (nullable, CHECK > 0), Migration `20261112210000_wish_share.sql`,
+  additiv. `NULL` = ganzer Zug, also jede bestehende Zeile.
+- Obergrenze in der Domain (`domain.WishShare`): 1 bis SWS des Zuges aufgerundet, sonst
+  `WISH_SHARE_OUT_OF_RANGE`; auch für einen Zug ohne angegebene SWS. Ein Anteil ≥ den SWS wird als
+  `NULL` gespeichert — „4 von 4“ und „alles“ sind ein Wunsch. Geprüft nur beim Schreiben: die SWS
+  hängen an den Teilen und ändern sich mit ihnen, ein Leser kappt.
+- `setWish(shareHours:)` wie `note`: bei jedem Aufruf geschrieben, weglassen = ganzer Zug.
+- **Sichtbar wie die Stufe**, nicht wie die Notiz (Olli, 2026-11-12): gehört zu „wer will was“.
+  Keine eigene Policy, keine neue Golden-Matrix; Spalte einer schon gefilterten Zeile.
+- Sagt „wie viel“, nie „welcher Teil“ — das bleibt in der Notiz und in der Zuteilung
+  („abtrennen“). Die Regel „Wunsch → Instanz, Zuteilung → Teil“ oben gilt unverändert.
+- Zusammenlegen (`handOverWishes`): die überlebende Zeile bekommt den größeren Anteil, `NULL`
+  (ganzer Zug) gewinnt (`MergeCollidingWishShares`). Vormerkungen übernehmen keinen Anteil.

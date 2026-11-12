@@ -346,6 +346,22 @@ WHERE keep.person_id = other.person_id
   AND other.note <> keep.note
   AND (keep.priority, keep.created_at, keep.id) < (other.priority, other.created_at, other.id);
 
+-- name: MergeCollidingWishShares :exec
+-- And the larger of the two shares, on the same surviving row: whoever wished for part of one
+-- cohort and part of the other still offers the larger of the two after the merge, and a wish for
+-- a whole cohort (NULL) stays one for the whole. Neither offer shrinks because two cohorts merged.
+UPDATE wish keep
+SET share_hours = CASE WHEN keep.share_hours IS NULL OR other.share_hours IS NULL THEN NULL
+                       ELSE GREATEST(keep.share_hours, other.share_hours) END,
+    updated_at = now()
+FROM wish other
+WHERE keep.person_id = other.person_id
+  AND keep.course_instance_id IN (@from_instance::uuid, @to_instance::uuid)
+  AND other.course_instance_id IN (@from_instance::uuid, @to_instance::uuid)
+  AND keep.id <> other.id
+  AND keep.share_hours IS DISTINCT FROM other.share_hours
+  AND (keep.priority, keep.created_at, keep.id) < (other.priority, other.created_at, other.id);
+
 -- name: DeleteWeakerCollidingWishes :exec
 -- Then the weaker of each pair goes: the strongest priority wins (1 is "unbedingt"), ties go to the
 -- older entry. Migration 16's order, so a person cannot tell which of the two merges happened to

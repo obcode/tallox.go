@@ -1519,6 +1519,33 @@ func (q *Queries) MergeCollidingWishNotes(ctx context.Context, arg MergeCollidin
 	return err
 }
 
+const mergeCollidingWishShares = `-- name: MergeCollidingWishShares :exec
+UPDATE wish keep
+SET share_hours = CASE WHEN keep.share_hours IS NULL OR other.share_hours IS NULL THEN NULL
+                       ELSE GREATEST(keep.share_hours, other.share_hours) END,
+    updated_at = now()
+FROM wish other
+WHERE keep.person_id = other.person_id
+  AND keep.course_instance_id IN ($1::uuid, $2::uuid)
+  AND other.course_instance_id IN ($1::uuid, $2::uuid)
+  AND keep.id <> other.id
+  AND keep.share_hours IS DISTINCT FROM other.share_hours
+  AND (keep.priority, keep.created_at, keep.id) < (other.priority, other.created_at, other.id)
+`
+
+type MergeCollidingWishSharesParams struct {
+	FromInstance uuid.UUID
+	ToInstance   uuid.UUID
+}
+
+// And the larger of the two shares, on the same surviving row: whoever wished for part of one
+// cohort and part of the other still offers the larger of the two after the merge, and a wish for
+// a whole cohort (NULL) stays one for the whole. Neither offer shrinks because two cohorts merged.
+func (q *Queries) MergeCollidingWishShares(ctx context.Context, arg MergeCollidingWishSharesParams) error {
+	_, err := q.db.Exec(ctx, mergeCollidingWishShares, arg.FromInstance, arg.ToInstance)
+	return err
+}
+
 const moveInstancePartsTo = `-- name: MoveInstancePartsTo :execrows
 UPDATE instance_part
 SET course_instance_id = $1::uuid, updated_at = now()

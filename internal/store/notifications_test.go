@@ -236,7 +236,7 @@ func TestMyWishesDoesNotReachOtherPeoplesWishes(t *testing.T) {
 	f := newNotificationFixture(t)
 	ctx := t.Context()
 	f.release(t)
-	if _, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishFirstChoice, "", false); err != nil {
+	if _, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishFirstChoice, "", false, 0); err != nil {
 		t.Fatalf("cannot wish: %v", err)
 	}
 	for _, who := range []testdata.Persona{testdata.Eins, testdata.Zwei} {
@@ -334,7 +334,7 @@ func TestProgrammeAudienceIsWhoWishedOrHolds(t *testing.T) {
 	f := newNotificationFixture(t)
 	ctx := t.Context()
 	f.release(t)
-	if _, err := f.wishes.SetWish(ctx, f.instance, testdata.Zwei.ID(), domain.WishHappyTo, "", false); err != nil {
+	if _, err := f.wishes.SetWish(ctx, f.instance, testdata.Zwei.ID(), domain.WishHappyTo, "", false, 0); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.schema.Pool.Exec(ctx, `INSERT INTO assignment (instance_part_id, person_id) VALUES ($1, $2)`,

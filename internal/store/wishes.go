@@ -146,7 +146,7 @@ func (w *Wishes) WishByID(ctx context.Context, id uuid.UUID,
 
 // SetWish registers or updates one person's own interest.
 func (w *Wishes) SetWish(ctx context.Context, instanceID, personID uuid.UUID,
-	priority domain.WishPriority, note string, cie bool) (*domain.Wish, error) {
+	priority domain.WishPriority, note string, cie bool, shareHours int) (*domain.Wish, error) {
 	level, ok := priority.Level()
 	if !ok {
 		return nil, domain.ErrWishPriorityInvalid
@@ -158,6 +158,7 @@ func (w *Wishes) SetWish(ctx context.Context, instanceID, personID uuid.UUID,
 		Priority:         level,
 		Note:             note,
 		Cie:              cie,
+		ShareHours:       shareHoursOrNil(shareHours),
 	})
 	// The instance may have been withdrawn between the phase check and the write.
 	if isForeignKeyViolation(err) {
@@ -203,6 +204,18 @@ func (w *Wishes) WithdrawWish(ctx context.Context, id, personID uuid.UUID) error
 }
 
 // trackLimitFrom is the stored bound, or 0 for none.
+// shareHoursOrNil is the column's NULL for the whole cohort.
+func shareHoursOrNil(hours int) *int16 {
+	if hours == 0 {
+		return nil
+	}
+	stored := int16(hours) //nolint:gosec // bounded by the cohort's hours in domain.WishShare
+	return &stored
+}
+
+// shareHoursFrom is zero, the whole cohort, for the column's NULL.
+func shareHoursFrom(stored *int16) int { return trackLimitFrom(stored) }
+
 func trackLimitFrom(stored *int16) int {
 	if stored == nil {
 		return 0
@@ -271,6 +284,7 @@ type wishRow struct {
 	Priority               int16
 	Note                   string
 	Cie                    bool
+	ShareHours             *int16
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
 	Track                  string
@@ -331,6 +345,7 @@ func wishFrom(row wishRow) domain.Wish {
 		Priority:       domain.WishPriorityFromLevel(row.Priority),
 		Note:           row.Note,
 		CiE:            row.Cie,
+		ShareHours:     shareHoursFrom(row.ShareHours),
 		TrackLimit:     trackLimitFrom(row.TrackLimit),
 		CreatedAt:      row.CreatedAt,
 		UpdatedAt:      row.UpdatedAt,

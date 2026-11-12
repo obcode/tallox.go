@@ -380,7 +380,11 @@ SELECT s.id, s.code, s.phase, s.wishes_published_at,
        -- What the module description says about language, for the rule that CiE may only be
        -- offered where it names English (domain.Module.EnglishPossible decides).
        m.source AS module_source, m.teaching_language AS module_teaching_language,
-       m.other_language AS module_other_language
+       m.other_language AS module_other_language,
+       -- What the cohort's parts state, summed like the wish row's teaching_hours: the upper bound
+       -- of a share of it (domain.WishShareFits).
+       COALESCE((SELECT SUM(p.teaching_hours) FROM instance_part p
+                  WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours
 FROM course_instance ci
 JOIN semester s ON s.id = ci.semester_id
 JOIN module m ON m.id = ci.module_id
@@ -402,6 +406,7 @@ type WishWriteContextRow struct {
 	ModuleSource           string
 	ModuleTeachingLanguage *string
 	ModuleOtherLanguage    *string
+	TeachingHours          float64
 }
 
 // Everything the wish write rule needs about one instance, in one statement.
@@ -439,6 +444,7 @@ func (q *Queries) WishWriteContext(ctx context.Context, instanceID uuid.UUID) (W
 		&i.ModuleSource,
 		&i.ModuleTeachingLanguage,
 		&i.ModuleOtherLanguage,
+		&i.TeachingHours,
 	)
 	return i, err
 }

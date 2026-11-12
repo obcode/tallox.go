@@ -219,7 +219,7 @@ func TestConversionKeepsTheStrongerWishAndBothNotes(t *testing.T) {
 	cohort := f.cohort(t, f.programme, "")
 	// A wish that is already there — entered while an earlier release held, then withdrawn.
 	if _, err := f.wishes.SetWish(t.Context(), cohort, testdata.Eins.ID(), domain.WishFirstChoice,
-		"nur die Vorlesung", false); err != nil {
+		"nur die Vorlesung", false, 0); err != nil {
 		t.Fatalf("cannot register the wish: %v", err)
 	}
 	f.release(t, storetest.FixtureProgrammeA)

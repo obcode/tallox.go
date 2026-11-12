@@ -462,6 +462,7 @@ type Wish struct {
 	UpdatedAt        time.Time
 	CourseInstanceID uuid.UUID
 	Cie              bool
+	ShareHours       *int16
 }
 
 type WishTrackLimit struct {

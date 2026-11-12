@@ -125,9 +125,11 @@ type Querier interface {
 	// Called by the release in the same transaction, never by a trigger: a fixture or an import that
 	// writes demand_completion directly must not move a phase as a side effect.
 	AdvanceToWishesOnRelease(ctx context.Context, id uuid.UUID) (int64, error)
-	// What the write rule needs about a semester and programme, readable by everybody: whether the
-	// programme has released its demand for it (then the wish itself is what one enters).
-	AdvanceWishOffering(ctx context.Context, arg AdvanceWishOfferingParams) (bool, error)
+	// What the write rule needs about a semester, programme and module, readable by everybody:
+	// whether the programme has released its demand for it, and whether that demand has a cohort of
+	// the module (then the wish itself is what one enters). Both are facts about the process, the
+	// same ones the status is derived from; neither says anything about anybody's wishes.
+	AdvanceWishOffering(ctx context.Context, arg AdvanceWishOfferingParams) (AdvanceWishOfferingRow, error)
 	// Advance wishes ("Vormerkungen"): interest in a module for a semester whose demand is not
 	// settled yet. See migration 20261101100000.
 	//
@@ -433,12 +435,19 @@ type Querier interface {
 	// Per programme only: there is no per-person figure here, by design.
 	ContractLecturerHoursByProgramme(ctx context.Context, arg ContractLecturerHoursByProgrammeParams) ([]ContractLecturerHoursByProgrammeRow, error)
 	// Turn the pending advance wishes of one programme and semester into wishes, where there is now a
-	// cohort to wish for. Run inside the transaction that released the demand or created a cohort.
+	// cohort to wish for. Run inside the transaction that released the demand or created a cohort,
+	// and — with programme_id NULL, for every programme of the semester — in the one that reopens a
+	// subject group's wish round.
 	//
 	// Only once the programme has released the semester, and not in a finished one. A cohort taught
-	// entirely by another faculty is skipped, as setWish refuses it. The subject group's wish window
-	// is not consulted: an advance wish can only have been entered before the release, so it was
-	// stated before any round on this demand could have opened or shut.
+	// entirely by another faculty is skipped, as setWish refuses it.
+	//
+	// The subject group's wish window is consulted only for one noted down after the release. One
+	// entered before was stated before any round on this demand could have opened or shut; one
+	// entered after can have been stated after the round closed, and converting it then would be a
+	// way around the closed round. It stays an advance wish until the round is open again.
+	// COALESCE(ww.open, true) is the fail-open reading of WishWriteContext: no row, or a module in no
+	// subject group, is open.
 	//
 	// An existing wish of the same person on a cohort keeps the stronger priority and both notes, the
 	// rule handOverWishes applies. Reports nothing — "2 advance wishes converted" is the count.
@@ -748,7 +757,9 @@ type Querier interface {
 	DesiredTeachingHours(ctx context.Context, arg DesiredTeachingHoursParams) ([]DesiredTeachingHoursRow, error)
 	// An advance wish resolved by its programme's release: converted into wishes, or not offered
 	// because the released demand has no cohort of the module. NOT_OFFERED can still become CONVERTED
-	// when a cohort is declared later, and is told again then.
+	// when a cohort is declared later, and is told again then. One noted down after the release for a
+	// module the demand already lacked is not told NOT_OFFERED: that is what its author knew when
+	// writing it, and a mail saying so is noise.
 	DetectAdvanceWishes(ctx context.Context, cutoff time.Time) (int64, error)
 	// The due date set, or moved. Cleared says nothing.
 	DetectConfirmationDues(ctx context.Context, cutoff time.Time) (int64, error)
@@ -1852,6 +1863,9 @@ type Querier interface {
 	UpdateLocalTeacher(ctx context.Context, arg UpdateLocalTeacherParams) (uuid.UUID, error)
 	// Note one down, or change it while it is pending. A converted one is not touched: from then on
 	// it is the wish that is changed, and the store reports zero rows as that refusal.
+	//
+	// noted_after_release is written on insert only: changing a pending one later does not make it a
+	// later statement (migration 20261112160000).
 	UpsertAdvanceWish(ctx context.Context, arg UpsertAdvanceWishParams) (uuid.UUID, error)
 	// State one's own competence for a module, or change it. person_id and entered_by are both the
 	// caller, and the CHECK says they have to be.

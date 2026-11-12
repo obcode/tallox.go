@@ -241,7 +241,9 @@ SELECT 'MODULE_WITHDRAWN', g.semester_id, g.module_id, g.programme_id, msg.subje
 -- name: DetectAdvanceWishes :execrows
 -- An advance wish resolved by its programme's release: converted into wishes, or not offered
 -- because the released demand has no cohort of the module. NOT_OFFERED can still become CONVERTED
--- when a cohort is declared later, and is told again then.
+-- when a cohort is declared later, and is told again then. One noted down after the release for a
+-- module the demand already lacked is not told NOT_OFFERED: that is what its author knew when
+-- writing it, and a mail saying so is noise.
 WITH current AS (
     SELECT aw.id, aw.person_id, aw.module_id, aw.programme_id, s.id AS semester_id,
            CASE WHEN aw.converted_at IS NOT NULL THEN 'CONVERTED' ELSE 'NOT_OFFERED' END AS state
@@ -251,9 +253,10 @@ WITH current AS (
      WHERE dc.completed_at <= sqlc.arg(cutoff)::timestamptz
        AND s.phase <> 'FINAL'
        AND (aw.converted_at IS NOT NULL
-            OR NOT EXISTS (SELECT 1 FROM course_instance ci
-                            WHERE ci.semester_id = s.id AND ci.programme_id = aw.programme_id
-                              AND ci.module_id = aw.module_id))
+            OR (NOT aw.noted_after_release
+                AND NOT EXISTS (SELECT 1 FROM course_instance ci
+                                WHERE ci.semester_id = s.id AND ci.programme_id = aw.programme_id
+                                  AND ci.module_id = aw.module_id)))
 ), due AS (
     SELECT c.*, 'ADVANCE_WISH:' || c.id AS key
       FROM current c

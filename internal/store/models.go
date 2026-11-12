@@ -31,17 +31,18 @@ type AccessLog struct {
 }
 
 type AdvanceWish struct {
-	ID           uuid.UUID
-	PersonID     uuid.UUID
-	SemesterCode string
-	ModuleID     uuid.UUID
-	ProgrammeID  uuid.UUID
-	Priority     int16
-	Note         string
-	MaxTracks    *int16
-	ConvertedAt  pgtype.Timestamptz
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	ID                uuid.UUID
+	PersonID          uuid.UUID
+	SemesterCode      string
+	ModuleID          uuid.UUID
+	ProgrammeID       uuid.UUID
+	Priority          int16
+	Note              string
+	MaxTracks         *int16
+	ConvertedAt       pgtype.Timestamptz
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+	NotedAfterRelease bool
 }
 
 type AnnouncedInstance struct {

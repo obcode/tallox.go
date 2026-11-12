@@ -309,6 +309,97 @@ func TestAnAdvanceWishIsWithdrawnOnlyByItsOwner(t *testing.T) {
 	}
 }
 
+// Since 2026-11-12: after the release, a module the demand lacks can still be noted down — the
+// demand may grow, and the lead wants to see who would teach it. Through either door; it reads
+// NOT_OFFERED, and becomes wishes when the lead adds the module. A module the demand has stays
+// refused, with the same answer whether or not anybody else wants it.
+func TestAnAdvanceWishCanBeNotedAfterTheReleaseForAModuleNotInTheDemand(t *testing.T) {
+	t.Parallel()
+
+	f := wishHandler(t,
+		grants{testdata.Eins, []string{"LECTURER"}},
+		grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+	)
+	f.leadProgramme(t, testdata.Vier, f.programme)
+	f.releaseAdvance(t, testdata.Vier)
+
+	graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+		func(t *testing.T, c *graphqltest.Client) {
+			var out struct{ SetAdvanceWish struct{ Status, Note string } }
+			c.MustQuery(t, setAdvanceWishMutation, map[string]any{
+				"s": advanceSemester, "m": moduleIDOfFixture(t, f).String(), "p": f.programme,
+				"prio": "HAPPY_TO", "note": "Wahlfach", "n": nil,
+			}, &out)
+			if out.SetAdvanceWish.Status != "NOT_OFFERED" || out.SetAdvanceWish.Note != "Wahlfach" {
+				t.Errorf("noted down after the release it reads %+v, want NOT_OFFERED with the note",
+					out.SetAdvanceWish)
+			}
+		})
+
+	// The lead adds the module to the released demand: the advance wish becomes the wish.
+	var plan planReport
+	graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).MustQuery(t, planMutation, map[string]any{
+		"s": advanceSemester, "p": f.programme, "d": false,
+		"e": []map[string]any{{
+			"moduleId": moduleIDOfFixture(t, f).String(),
+			"tracks":   []map[string]any{{"track": "", "groups": 1}},
+		}},
+	}, &plan)
+	var mine struct{ MyWishes []struct{ Note string } }
+	graphqltest.New(f.handler).AsUser(testdata.Eins.Mail).MustQuery(t, myWishesQuery,
+		map[string]any{"s": advanceSemester}, &mine)
+	if len(mine.MyWishes) != 1 || mine.MyWishes[0].Note != "Wahlfach" {
+		t.Fatalf("after the lead added the module the wishes are %+v, want the one noted down",
+			mine.MyWishes)
+	}
+}
+
+func TestTheRefusalAfterTheReleaseSaysNothingAboutOthers(t *testing.T) {
+	t.Parallel()
+
+	refusal := func(t *testing.T, withOthers bool) string {
+		t.Helper()
+		f := wishHandler(t,
+			grants{testdata.Eins, []string{"LECTURER"}},
+			grants{testdata.Zwei, []string{"LECTURER"}},
+			grants{testdata.Vier, []string{"LECTURER", "PROGRAMME_LEAD"}},
+		)
+		f.leadProgramme(t, testdata.Vier, f.programme)
+		if withOthers {
+			f.noteAdvance(t, graphqltest.New(f.handler).AsUser(testdata.Zwei.Mail), "FIRST_CHOICE",
+				"", nil)
+		}
+		var plan planReport
+		graphqltest.New(f.handler).AsUser(testdata.Vier.Mail).MustQuery(t, planMutation,
+			map[string]any{
+				"s": advanceSemester, "p": f.programme, "d": false,
+				"e": []map[string]any{{
+					"moduleId": moduleIDOfFixture(t, f).String(),
+					"tracks":   []map[string]any{{"track": "", "groups": 1}},
+				}},
+			}, &plan)
+		f.releaseAdvance(t, testdata.Vier)
+
+		var messages []string
+		graphqltest.EachDoor(t, f.handler, testdata.Eins.Mail, testdata.Eins.Token,
+			func(t *testing.T, c *graphqltest.Client) {
+				resp := c.Do(t, setAdvanceWishMutation, map[string]any{
+					"s": advanceSemester, "m": moduleIDOfFixture(t, f).String(), "p": f.programme,
+					"prio": "HAPPY_TO", "note": nil, "n": nil,
+				})
+				assertRefusal(t, resp, "ADVANCE_WISH_RELEASED")
+				graphqltest.AssertNoLeak(t, strings.Join(resp.Messages(), " "),
+					append(graphqltest.DatabaseNoise(), testdata.Zwei.Mail)...)
+				messages = append(messages, resp.Messages()...)
+			})
+		return strings.Join(messages, "|")
+	}
+
+	if with, without := refusal(t, true), refusal(t, false); with != without {
+		t.Errorf("the refusal differs with somebody else's interest:\n%s\n%s", with, without)
+	}
+}
+
 func moduleIDOfFixture(t *testing.T, f wishFixture) uuid.UUID {
 	t.Helper()
 	return moduleIDOf(t, f.schema, storetest.FixtureModuleOrdinary)

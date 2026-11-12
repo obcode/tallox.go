@@ -86,21 +86,22 @@ func (w *Wishes) AdvanceWishes(ctx context.Context, q domain.AdvanceWishQuery,
 	return out, nil
 }
 
-// AdvanceWishReleased is whether the programme has released its demand for the semester.
-func (w *Wishes) AdvanceWishReleased(ctx context.Context, semesterCode string,
-	programmeID uuid.UUID) (bool, error) {
-	released, err := New(w.pool).AdvanceWishOffering(ctx, AdvanceWishOfferingParams{
-		Semester: semesterCode, ProgrammeID: programmeID,
+// AdvanceWishOffering is whether the programme has released its demand for the semester, and
+// whether that demand has a cohort of the module.
+func (w *Wishes) AdvanceWishOffering(ctx context.Context, semesterCode string,
+	programmeID, moduleID uuid.UUID) (released, offered bool, err error) {
+	row, err := New(w.pool).AdvanceWishOffering(ctx, AdvanceWishOfferingParams{
+		Semester: semesterCode, ProgrammeID: programmeID, ModuleID: moduleID,
 	})
 	if err != nil {
-		return false, fmt.Errorf("cannot read the release: %w", err)
+		return false, false, fmt.Errorf("cannot read the release: %w", err)
 	}
-	return released, nil
+	return row.Released, row.Offered, nil
 }
 
 // SetAdvanceWish stores the person's own.
 func (w *Wishes) SetAdvanceWish(ctx context.Context, personID, programmeID uuid.UUID,
-	a domain.NewAdvanceWish) (uuid.UUID, error) {
+	a domain.NewAdvanceWish, afterRelease bool) (uuid.UUID, error) {
 	// Independent work — a thesis — is never planned, so there is nothing to note down for it:
 	// see domain.CourseType.IndependentWork.
 	module, err := New(w.pool).ModuleByID(ctx, a.ModuleID)
@@ -122,6 +123,8 @@ func (w *Wishes) SetAdvanceWish(ctx context.Context, personID, programmeID uuid.
 		ProgrammeID: programmeID,
 		Priority:    level,
 		Note:        a.Note,
+
+		NotedAfterRelease: afterRelease,
 	}
 	if a.MaxTracks != nil {
 		bound := int16(*a.MaxTracks) //nolint:gosec // bounded to 1..9 by the service and a CHECK
@@ -162,9 +165,11 @@ func (w *Wishes) ProgrammeIDByCode(ctx context.Context, code string) (uuid.UUID,
 // convertPendingAdvanceWishes turns the pending advance wishes of one programme and semester into wishes
 // where there is now a cohort to wish for. Called inside every transaction that releases a
 // programme's demand or gives it a cohort; does nothing where the programme is not released.
+// uuid.Nil for the programme means every programme of the semester — the reopening of a wish
+// round, which can make post-release advance wishes convertible in all of them at once.
 func convertPendingAdvanceWishes(ctx context.Context, q *Queries, semesterID, programmeID uuid.UUID) error {
 	if err := q.ConvertAdvanceWishes(ctx, ConvertAdvanceWishesParams{
-		SemesterID: semesterID, ProgrammeID: programmeID,
+		SemesterID: semesterID, ProgrammeID: nullUUID(nonNilUUID(programmeID)),
 	}); err != nil {
 		return fmt.Errorf("cannot convert the advance wishes: %w", err)
 	}

@@ -38,10 +38,17 @@ func newAdvanceFixture(t *testing.T) advanceFixture {
 func (f advanceFixture) note(t *testing.T, who testdata.Persona, programme uuid.UUID,
 	priority domain.WishPriority, note string, maxTracks *int) uuid.UUID {
 	t.Helper()
+	return f.noteAt(t, who, programme, priority, note, maxTracks, false)
+}
+
+// noteAt is note with the flag the service sets for one noted down after the programme's release.
+func (f advanceFixture) noteAt(t *testing.T, who testdata.Persona, programme uuid.UUID,
+	priority domain.WishPriority, note string, maxTracks *int, afterRelease bool) uuid.UUID {
+	t.Helper()
 	id, err := f.wishes.SetAdvanceWish(t.Context(), who.ID(), programme, domain.NewAdvanceWish{
 		SemesterCode: advanceSemester, ModuleID: f.module, Priority: priority, Note: note,
 		MaxTracks: maxTracks,
-	})
+	}, afterRelease)
 	if err != nil {
 		t.Fatalf("cannot note down the advance wish: %v", err)
 	}
@@ -198,7 +205,7 @@ func TestAnAdvanceWishConvertsOnce(t *testing.T) {
 	// And a converted one is changed as a wish, not as an advance wish.
 	_, err := f.wishes.SetAdvanceWish(t.Context(), testdata.Eins.ID(), f.programme, domain.NewAdvanceWish{
 		SemesterCode: advanceSemester, ModuleID: f.module, Priority: domain.WishIfNeeded,
-	})
+	}, false)
 	if !errors.Is(err, domain.ErrAdvanceWishConverted) {
 		t.Errorf("changing a converted advance wish answered %v, want ErrAdvanceWishConverted", err)
 	}
@@ -303,5 +310,85 @@ func TestNotingDownAnAdvanceWishRecordsNoSemester(t *testing.T) {
 	}
 	if rows != 0 {
 		t.Error("an advance wish recorded a semester row: it is no decision about the semester")
+	}
+}
+
+// setRound opens or shuts the wish round of the fixture module's subject group for the advance semester.
+func (f advanceFixture) setRound(t *testing.T, open bool) {
+	t.Helper()
+	f.semester(t)
+	if _, err := f.marks.SetWishWindow(t.Context(), advanceSemester, f.group, open, uuid.Nil); err != nil {
+		t.Fatalf("cannot switch the wish round: %v", err)
+	}
+}
+
+// Since 2026-11-12 an advance wish may be noted down after the release, for a module the demand
+// lacks. When the module enters the demand it becomes wishes like any other — while the round is
+// open.
+func TestAnAdvanceWishNotedAfterTheReleaseConvertsWhileTheRoundIsOpen(t *testing.T) {
+	t.Parallel()
+	f := newAdvanceFixture(t)
+
+	f.release(t, storetest.FixtureProgrammeA)
+	f.noteAt(t, testdata.Eins, f.programme, domain.WishHappyTo, "Wahlfach", nil, true)
+	if rows := f.advanceOf(t, testdata.Eins); len(rows) != 1 || rows[0].Status() != domain.AdvanceWishNotOffered {
+		t.Fatalf("noted down after a release without the module it reads %+v, want NOT_OFFERED", rows)
+	}
+
+	cohort := f.cohort(t, f.programme, "")
+	got := f.wishesOf(t, testdata.Eins)
+	if len(got) != 1 || got[0].Instance.ID != cohort || got[0].Note != "Wahlfach" {
+		t.Fatalf("after the module entered the demand the wishes are %+v, want one on its cohort", got)
+	}
+}
+
+// The closed round is not walked around: noted down after the release, it stays an advance wish
+// while the module's round is shut, and becomes wishes when the round opens again.
+func TestAnAdvanceWishNotedAfterTheReleaseWaitsForAShutRound(t *testing.T) {
+	t.Parallel()
+	f := newAdvanceFixture(t)
+
+	f.release(t, storetest.FixtureProgrammeA)
+	f.setRound(t, false)
+	f.noteAt(t, testdata.Eins, f.programme, domain.WishHappyTo, "", nil, true)
+	f.cohort(t, f.programme, "")
+
+	if got := f.wishesOf(t, testdata.Eins); len(got) != 0 {
+		t.Fatalf("with the round shut there are %d wishes, want none", len(got))
+	}
+	if rows := f.advanceOf(t, testdata.Eins); len(rows) != 1 || rows[0].Status() != domain.AdvanceWishPending {
+		t.Fatalf("with the round shut it reads %+v, want it still pending", rows)
+	}
+
+	// Shutting it again converts nothing; opening it does.
+	f.setRound(t, false)
+	if got := f.wishesOf(t, testdata.Eins); len(got) != 0 {
+		t.Fatalf("shutting the round again made %d wishes, want none", len(got))
+	}
+	f.setRound(t, true)
+	if got := f.wishesOf(t, testdata.Eins); len(got) != 1 {
+		t.Fatalf("after the round reopened there are %d wishes, want one", len(got))
+	}
+	if rows := f.advanceOf(t, testdata.Eins); rows[0].Status() != domain.AdvanceWishConverted {
+		t.Errorf("after the round reopened it reads %s, want converted", rows[0].Status())
+	}
+}
+
+// One noted down before the release was stated before any round on this demand: a shut round does
+// not hold it back, as before.
+func TestAnAdvanceWishNotedBeforeTheReleaseIgnoresTheRound(t *testing.T) {
+	t.Parallel()
+	f := newAdvanceFixture(t)
+
+	f.note(t, testdata.Eins, f.programme, domain.WishHappyTo, "", nil)
+	f.release(t, storetest.FixtureProgrammeA)
+	f.setRound(t, false)
+	// Changing it after the release does not make it a later statement.
+	f.noteAt(t, testdata.Eins, f.programme, domain.WishFirstChoice, "", nil, true)
+	f.cohort(t, f.programme, "")
+
+	got := f.wishesOf(t, testdata.Eins)
+	if len(got) != 1 || got[0].Priority != domain.WishFirstChoice {
+		t.Fatalf("the wishes are %+v, want one FIRST_CHOICE despite the shut round", got)
 	}
 }

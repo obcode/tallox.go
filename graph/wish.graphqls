@@ -234,13 +234,17 @@ Where an advance wish stands. Derived when it is read: a cohort declared after t
 it without anybody touching the advance wish.
 """
 enum AdvanceWishStatus {
-  "Waiting for the study programme to release its demand for the semester."
+  """
+  Waiting for the study programme to release its demand with a cohort of the module — or, for one
+  noted down after the release, for the module's wish round to be open when the cohort comes.
+  """
   PENDING
   "Has become a wish on each cohort of the module in that programme — change those from now on."
   CONVERTED
   """
-  The study programme released its demand without a cohort of the module: you are not needed for
-  this one, as things stand. Becomes `CONVERTED` should a cohort still be declared.
+  The study programme released its demand without a cohort of the module: not in the demand, as
+  things stand. Becomes `CONVERTED` should a cohort still be declared. Also what one noted down
+  after the release reads until then — the lead sees who would teach it should the demand grow.
   """
   NOT_OFFERED
 }
@@ -255,6 +259,10 @@ except the cohort, because the cohorts are what the demand planning decides. Whe
 releases its demand (`setDemandComplete`), it becomes a wish (`Wish`) on every cohort of the module
 there is, with its priority and note, and `maxTracks` as `trackLimit`. A cohort declared after the
 release takes it then. It converts once: a wish withdrawn afterwards does not come back.
+
+After the release one may still be noted down for a module the released demand lacks; it waits
+there for the module to be added. That one becomes wishes only while the module's subject group has
+its wish round open — when the cohort comes, or when the round is opened again.
 
 Visible exactly like the wish it is going to be — to you; with full reach to the leads of the
 programme it names and of the module's subject group, and to the dean's office; to everybody once
@@ -315,7 +323,8 @@ extend type Mutation {
 
   Yours only. Open in every phase but a finished semester (`WISH_PHASE_CLOSED`) and regardless of
   any wish round: being early is the point. `ADVANCE_WISH_RELEASED` once the programme has released
-  its demand for that semester — enter the wish itself then. `ADVANCE_WISH_CONVERTED` for one that
+  its demand for that semester **with a cohort of the module** — enter the wish itself then; a
+  module the released demand lacks can still be noted down. `ADVANCE_WISH_CONVERTED` for one that
   has already become wishes. `WISH_PRIORITY_INVALID`, `WISH_NOTE_TOO_LONG` and
   `WISH_TRACK_LIMIT_INVALID` as on a wish; `PROGRAMME_NOT_FOUND`, `MODULE_NOT_FOUND`;
   `MODULE_NOT_PLANNED` for independent work such as a thesis (see `Module.independentWork`).

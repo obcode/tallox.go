@@ -397,3 +397,40 @@ func TestAnAnnouncementQueuesOneMailPerRecipient(t *testing.T) {
 		t.Fatalf("Eins reads %v, %v", list, err)
 	}
 }
+
+// An advance wish noted down after the release for a module the demand lacks is NOT_OFFERED from
+// its first moment — which its author knew when writing it. No mail says so; one noted down before
+// the release still hears it.
+func TestAnAdvanceWishNotedAfterTheReleaseIsNotToldNotOffered(t *testing.T) {
+	t.Parallel()
+	f := newNotificationFixture(t)
+	ctx := t.Context()
+	for _, who := range []testdata.Persona{testdata.Eins, testdata.Zwei} {
+		f.subscribe(t, who, domain.NewNotificationSubscription{
+			Kind: domain.NotifyAdvanceWishResolved, TargetSet: domain.TargetMyAdvanceWishes})
+	}
+	note := func(who testdata.Persona, afterRelease bool) {
+		t.Helper()
+		if _, err := f.wishes.SetAdvanceWish(ctx, who.ID(), f.otherProgramme, domain.NewAdvanceWish{
+			SemesterCode: f.semester.Code, ModuleID: f.module, Priority: domain.WishHappyTo,
+		}, afterRelease); err != nil {
+			t.Fatalf("cannot note down: %v", err)
+		}
+	}
+
+	var otherProgrammeCode string
+	if err := f.schema.Pool.QueryRow(ctx, `SELECT code FROM programme WHERE id = $1`,
+		f.otherProgramme).Scan(&otherProgrammeCode); err != nil {
+		t.Fatalf("cannot read the programme: %v", err)
+	}
+	note(testdata.Zwei, false)
+	if _, err := f.marks.AnnounceDemandComplete(ctx, f.semester.Code, otherProgrammeCode,
+		uuid.Nil); err != nil {
+		t.Fatalf("cannot release: %v", err)
+	}
+	note(testdata.Eins, true)
+
+	if got := recipients(f.tick(t, later())); !slices.Equal(got, []string{testdata.Zwei.Mail}) {
+		t.Fatalf("recipients %v, want only Zwei, who noted it down before the release", got)
+	}
+}

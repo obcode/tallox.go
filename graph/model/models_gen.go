@@ -177,6 +177,10 @@ type AccessSummary struct {
 // there is, with its priority and note, and `maxTracks` as `trackLimit`. A cohort declared after the
 // release takes it then. It converts once: a wish withdrawn afterwards does not come back.
 //
+// After the release one may still be noted down for a module the released demand lacks; it waits
+// there for the module to be added. That one becomes wishes only while the module's subject group has
+// its wish round open — when the cohort comes, or when the round is opened again.
+//
 // Visible exactly like the wish it is going to be — to you; with full reach to the leads of the
 // programme it names and of the module's subject group, and to the dean's office; to everybody once
 // the semester's wishes are published. Never counted.
@@ -2091,12 +2095,14 @@ func (e AccessOutcome) MarshalJSON() ([]byte, error) {
 type AdvanceWishStatus string
 
 const (
-	// Waiting for the study programme to release its demand for the semester.
+	// Waiting for the study programme to release its demand with a cohort of the module — or, for one
+	// noted down after the release, for the module's wish round to be open when the cohort comes.
 	AdvanceWishStatusPending AdvanceWishStatus = "PENDING"
 	// Has become a wish on each cohort of the module in that programme — change those from now on.
 	AdvanceWishStatusConverted AdvanceWishStatus = "CONVERTED"
-	// The study programme released its demand without a cohort of the module: you are not needed for
-	// this one, as things stand. Becomes `CONVERTED` should a cohort still be declared.
+	// The study programme released its demand without a cohort of the module: not in the demand, as
+	// things stand. Becomes `CONVERTED` should a cohort still be declared. Also what one noted down
+	// after the release reads until then — the lead sees who would teach it should the demand grow.
 	AdvanceWishStatusNotOffered AdvanceWishStatus = "NOT_OFFERED"
 )
 

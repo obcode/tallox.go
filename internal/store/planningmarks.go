@@ -239,7 +239,14 @@ func (m *PlanningMarks) WishWindows(ctx context.Context,
 // SetWishWindow opens or shuts one subject group's wish round.
 func (m *PlanningMarks) SetWishWindow(ctx context.Context, semesterCode string,
 	subjectGroupID uuid.UUID, open bool, by uuid.UUID) (*domain.WishWindow, error) {
-	_, err := New(m.pool).SetWishWindow(ctx, SetWishWindowParams{
+	tx, err := m.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot begin: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := New(tx)
+
+	row, err := q.SetWishWindow(ctx, SetWishWindowParams{
 		Semester:       semesterCode,
 		SubjectGroupID: subjectGroupID,
 		Open:           open,
@@ -256,6 +263,18 @@ func (m *PlanningMarks) SetWishWindow(ctx context.Context, semesterCode string,
 	}
 	if err != nil {
 		return nil, fmt.Errorf("cannot switch the wish window: %w", err)
+	}
+	// An advance wish noted down after its programme's release waits for an open round before it
+	// becomes wishes (ConvertAdvanceWishes). Opening the round is that moment, for every programme
+	// of the semester, in this transaction — the same as a release or a new cohort. Nothing of it
+	// is reported.
+	if open {
+		if err := convertPendingAdvanceWishes(ctx, q, row.SemesterID, uuid.Nil); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("cannot commit: %w", err)
 	}
 
 	list, err := m.WishWindows(ctx, semesterCode)

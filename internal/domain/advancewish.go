@@ -26,8 +26,11 @@ import (
 // policy.WishVisibility and policy.CanReadWishDetails apply unchanged.
 
 var (
-	// ErrAdvanceWishReleased is noting something down for a demand that is already settled — then
-	// there are cohorts, or there are none, and the wish itself is what one enters.
+	// ErrAdvanceWishReleased is noting something down for a module the programme's released demand
+	// already has a cohort of — then the wish on that cohort is what one enters. A module the
+	// released demand lacks may still be noted down (since 2026-11-12): the demand can grow, and
+	// the lead wants to see who would teach it. The code ADVANCE_WISH_RELEASED is older than that
+	// narrowing and stays, because the GUI and scripts branch on it.
 	ErrAdvanceWishReleased = errors.New(
 		"der Bedarf dieses Studiengangs ist für das Semester schon freigegeben — " +
 			"bitte direkt einen Wunsch eintragen")
@@ -119,11 +122,15 @@ type NewAdvanceWish struct {
 // AdvanceWishStore is what the service needs from persistence.
 type AdvanceWishStore interface {
 	AdvanceWishes(ctx context.Context, q AdvanceWishQuery, filter policy.WishFilter) ([]AdvanceWish, error)
-	// AdvanceWishReleased is whether the programme has released its demand for the semester.
-	AdvanceWishReleased(ctx context.Context, semesterCode string, programmeID uuid.UUID) (bool, error)
+	// AdvanceWishOffering is whether the programme has released its demand for the semester, and
+	// whether that demand has a cohort of the module. Facts about the process, nobody's wishes.
+	AdvanceWishOffering(ctx context.Context, semesterCode string, programmeID, moduleID uuid.UUID) (released, offered bool, err error)
 	// SetAdvanceWish stores the person's own and returns its id; ErrAdvanceWishConverted where it
-	// has already become wishes, ErrModuleNotFound for a module that is not there.
-	SetAdvanceWish(ctx context.Context, personID, programmeID uuid.UUID, a NewAdvanceWish) (uuid.UUID, error)
+	// has already become wishes, ErrModuleNotFound for a module that is not there. afterRelease
+	// marks a new one as noted down after the programme released its demand; it is ignored when
+	// an existing one is changed.
+	SetAdvanceWish(ctx context.Context, personID, programmeID uuid.UUID, a NewAdvanceWish,
+		afterRelease bool) (uuid.UUID, error)
 	// WithdrawAdvanceWish removes the person's own; ErrAdvanceWishNotFound for anything else.
 	WithdrawAdvanceWish(ctx context.Context, id, personID uuid.UUID) error
 	ProgrammeIDByCode(ctx context.Context, code string) (uuid.UUID, error)
@@ -176,10 +183,17 @@ func (s *WishService) MyAdvanceWishes(ctx context.Context, actor principal.Actor
 // SetAdvanceWish notes down the actor's own interest in a module for a coming semester, or changes
 // it while it is pending.
 //
-// Open in every phase but FINAL and regardless of any wish round: being early is the point. Refused
-// once the programme has released that semester's demand, because then there is a wish to enter
-// instead — and an advance wish entered after the release would reach the cohorts past the subject
-// group's wish window.
+// Open in every phase but FINAL and regardless of any wish round: being early is the point.
+//
+// Once the programme has released that semester's demand, refused for a module the demand has a
+// cohort of — then there is a wish to enter instead — and accepted for one it lacks (decided
+// 2026-11-10): a released demand can still grow, and the lead wants to see who would teach the
+// module. Such a one is marked as noted down after the release; it becomes wishes when the
+// module enters the demand only while the module's subject group has its wish round open, so
+// that a closed round cannot be walked around (ConvertAdvanceWishes in internal/store).
+//
+// The refusal depends on the cohorts alone, which everybody may read — never on anybody's wishes
+// or advance wishes.
 func (s *WishService) SetAdvanceWish(ctx context.Context, actor principal.Actor,
 	a NewAdvanceWish) (*AdvanceWish, error) {
 	if !actor.Authenticated() {
@@ -215,15 +229,15 @@ func (s *WishService) SetAdvanceWish(ctx context.Context, actor principal.Actor,
 	if programmeID == uuid.Nil {
 		return nil, ErrProgrammeNotFound
 	}
-	released, err := s.store.AdvanceWishReleased(ctx, semester.Code, programmeID)
+	released, offered, err := s.store.AdvanceWishOffering(ctx, semester.Code, programmeID, a.ModuleID)
 	if err != nil {
 		return nil, err
 	}
-	if released {
+	if released && offered {
 		return nil, ErrAdvanceWishReleased
 	}
 
-	id, err := s.store.SetAdvanceWish(ctx, actor.ID, programmeID, a)
+	id, err := s.store.SetAdvanceWish(ctx, actor.ID, programmeID, a, released)
 	if err != nil {
 		return nil, err
 	}

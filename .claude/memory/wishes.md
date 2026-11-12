@@ -201,3 +201,15 @@ nicht gebraucht wird. Ausdrücklich ohne Anspruch. Oliver hat entschieden:
   ist gleich, ob Vormerkungen existieren oder nicht (`TestTheReleaseSaysNothingAboutAdvanceWishes`).
 - Ändern nur solange `PENDING` (`ADVANCE_WISH_CONVERTED`), Zurückziehen immer; die entstandenen
   Wünsche bleiben.
+- **Auch nach der Freigabe (2026-11-12, Olli am 2026-11-10):** ein freigegebener Bedarf kann noch
+  wachsen, und die Studiengangsleitung will sehen, wer ein Wahlfach anbieten würde. Verweigert
+  (`ADVANCE_WISH_RELEASED`, Code unverändert) nur noch, wenn der freigegebene Bedarf **eine Instanz
+  des Moduls** hat — dann ist der Wunsch das Richtige. Sonst angenommen, Status `NOT_OFFERED`,
+  Spalte `noted_after_release` (nur beim Insert gesetzt; Ändern macht eine frühe nicht zur späten).
+- **Damit gilt die Wunschrunde doch, aber nur für späte:** `ConvertAdvanceWishes` übernimmt eine
+  `noted_after_release` nur, solange die Runde der Fachgruppe des Moduls offen ist (abwesend =
+  offen). Sonst bliebe die geschlossene Runde umgehbar: vormerken, warten, bis das Modul in den
+  Bedarf kommt. `SetWishWindow(open=true)` ruft die Übernahme für alle Studiengänge des Semesters
+  (`programme_id` NULL). Frühe Vormerkungen fragen die Runde weiter nicht.
+- Eine späte bekommt **keine** `ADVANCE_WISH_RESOLVED`-Mail „nicht angeboten“ — das wusste ihr
+  Autor beim Eintragen (`DetectAdvanceWishes`).

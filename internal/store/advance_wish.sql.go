@@ -17,21 +17,34 @@ const advanceWishOffering = `-- name: AdvanceWishOffering :one
 SELECT EXISTS (SELECT 1 FROM demand_completion dc
                JOIN semester s ON s.id = dc.semester_id
                WHERE s.code = $1::text
-                 AND dc.programme_id = $2::uuid)::boolean AS released
+                 AND dc.programme_id = $2::uuid)::boolean AS released,
+       EXISTS (SELECT 1 FROM course_instance ci
+               JOIN semester s ON s.id = ci.semester_id
+               WHERE s.code = $1::text
+                 AND ci.programme_id = $2::uuid
+                 AND ci.module_id = $3::uuid)::boolean AS offered
 `
 
 type AdvanceWishOfferingParams struct {
 	Semester    string
 	ProgrammeID uuid.UUID
+	ModuleID    uuid.UUID
 }
 
-// What the write rule needs about a semester and programme, readable by everybody: whether the
-// programme has released its demand for it (then the wish itself is what one enters).
-func (q *Queries) AdvanceWishOffering(ctx context.Context, arg AdvanceWishOfferingParams) (bool, error) {
-	row := q.db.QueryRow(ctx, advanceWishOffering, arg.Semester, arg.ProgrammeID)
-	var released bool
-	err := row.Scan(&released)
-	return released, err
+type AdvanceWishOfferingRow struct {
+	Released bool
+	Offered  bool
+}
+
+// What the write rule needs about a semester, programme and module, readable by everybody:
+// whether the programme has released its demand for it, and whether that demand has a cohort of
+// the module (then the wish itself is what one enters). Both are facts about the process, the
+// same ones the status is derived from; neither says anything about anybody's wishes.
+func (q *Queries) AdvanceWishOffering(ctx context.Context, arg AdvanceWishOfferingParams) (AdvanceWishOfferingRow, error) {
+	row := q.db.QueryRow(ctx, advanceWishOffering, arg.Semester, arg.ProgrammeID, arg.ModuleID)
+	var i AdvanceWishOfferingRow
+	err := row.Scan(&i.Released, &i.Offered)
+	return i, err
 }
 
 const advanceWishes = `-- name: AdvanceWishes :many
@@ -198,8 +211,13 @@ WITH due AS (
       FROM semester s
      WHERE s.code = aw.semester_code
        AND s.id = $1::uuid
-       AND aw.programme_id = $2::uuid
+       AND ($2::uuid IS NULL OR aw.programme_id = $2::uuid)
        AND aw.converted_at IS NULL
+       AND (NOT aw.noted_after_release
+            OR NOT EXISTS (SELECT 1 FROM module_subject_group msg
+                           JOIN wish_window ww ON ww.subject_group_id = msg.subject_group_id
+                                              AND ww.semester_id = s.id
+                           WHERE msg.module_id = aw.module_id AND NOT ww.open))
        AND s.phase <> 'FINAL'
        AND EXISTS (SELECT 1 FROM demand_completion dc
                    WHERE dc.semester_id = s.id AND dc.programme_id = aw.programme_id)
@@ -242,16 +260,23 @@ ON CONFLICT (person_id, semester_id, module_id, programme_id) DO NOTHING
 
 type ConvertAdvanceWishesParams struct {
 	SemesterID  uuid.UUID
-	ProgrammeID uuid.UUID
+	ProgrammeID uuid.NullUUID
 }
 
 // Turn the pending advance wishes of one programme and semester into wishes, where there is now a
-// cohort to wish for. Run inside the transaction that released the demand or created a cohort.
+// cohort to wish for. Run inside the transaction that released the demand or created a cohort,
+// and — with programme_id NULL, for every programme of the semester — in the one that reopens a
+// subject group's wish round.
 //
 // Only once the programme has released the semester, and not in a finished one. A cohort taught
-// entirely by another faculty is skipped, as setWish refuses it. The subject group's wish window
-// is not consulted: an advance wish can only have been entered before the release, so it was
-// stated before any round on this demand could have opened or shut.
+// entirely by another faculty is skipped, as setWish refuses it.
+//
+// The subject group's wish window is consulted only for one noted down after the release. One
+// entered before was stated before any round on this demand could have opened or shut; one
+// entered after can have been stated after the round closed, and converting it then would be a
+// way around the closed round. It stays an advance wish until the round is open again.
+// COALESCE(ww.open, true) is the fail-open reading of WishWriteContext: no row, or a module in no
+// subject group, is open.
 //
 // An existing wish of the same person on a cohort keeps the stronger priority and both notes, the
 // rule handOverWishes applies. Reports nothing — "2 advance wishes converted" is the count.
@@ -281,10 +306,10 @@ func (q *Queries) DeleteOwnAdvanceWish(ctx context.Context, arg DeleteOwnAdvance
 
 const upsertAdvanceWish = `-- name: UpsertAdvanceWish :one
 INSERT INTO advance_wish (person_id, semester_code, module_id, programme_id, priority, note,
-                          max_tracks)
+                          max_tracks, noted_after_release)
 VALUES ($1::uuid, $2::text, $3::uuid,
         $4::uuid, $5::smallint, $6::text,
-        $7::smallint)
+        $7::smallint, $8::boolean)
 ON CONFLICT (person_id, semester_code, module_id, programme_id) DO UPDATE
 SET priority = EXCLUDED.priority,
     note = EXCLUDED.note,
@@ -295,17 +320,21 @@ RETURNING id
 `
 
 type UpsertAdvanceWishParams struct {
-	PersonID    uuid.UUID
-	Semester    string
-	ModuleID    uuid.UUID
-	ProgrammeID uuid.UUID
-	Priority    int16
-	Note        string
-	MaxTracks   *int16
+	PersonID          uuid.UUID
+	Semester          string
+	ModuleID          uuid.UUID
+	ProgrammeID       uuid.UUID
+	Priority          int16
+	Note              string
+	MaxTracks         *int16
+	NotedAfterRelease bool
 }
 
 // Note one down, or change it while it is pending. A converted one is not touched: from then on
 // it is the wish that is changed, and the store reports zero rows as that refusal.
+//
+// noted_after_release is written on insert only: changing a pending one later does not make it a
+// later statement (migration 20261112160000).
 func (q *Queries) UpsertAdvanceWish(ctx context.Context, arg UpsertAdvanceWishParams) (uuid.UUID, error) {
 	row := q.db.QueryRow(ctx, upsertAdvanceWish,
 		arg.PersonID,
@@ -315,6 +344,7 @@ func (q *Queries) UpsertAdvanceWish(ctx context.Context, arg UpsertAdvanceWishPa
 		arg.Priority,
 		arg.Note,
 		arg.MaxTracks,
+		arg.NotedAfterRelease,
 	)
 	var id uuid.UUID
 	err := row.Scan(&id)

@@ -115,14 +115,15 @@ func (q *Queries) SetWishTrackLimit(ctx context.Context, arg SetWishTrackLimitPa
 }
 
 const upsertWish = `-- name: UpsertWish :one
-INSERT INTO wish (course_instance_id, person_id, priority, note, cie)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO wish (course_instance_id, person_id, priority, note, cie, share_hours)
+VALUES ($1, $2, $3, $4, $5, $6::smallint)
 ON CONFLICT (course_instance_id, person_id) DO UPDATE
 SET priority = EXCLUDED.priority,
     note = EXCLUDED.note,
     cie = EXCLUDED.cie,
+    share_hours = EXCLUDED.share_hours,
     updated_at = now()
-RETURNING id, course_instance_id, person_id, priority, note, cie, created_at, updated_at
+RETURNING id, course_instance_id, person_id, priority, note, cie, share_hours, created_at, updated_at
 `
 
 type UpsertWishParams struct {
@@ -131,6 +132,7 @@ type UpsertWishParams struct {
 	Priority         int16
 	Note             string
 	Cie              bool
+	ShareHours       *int16
 }
 
 type UpsertWishRow struct {
@@ -140,6 +142,7 @@ type UpsertWishRow struct {
 	Priority         int16
 	Note             string
 	Cie              bool
+	ShareHours       *int16
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }
@@ -159,6 +162,7 @@ func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertW
 		arg.Priority,
 		arg.Note,
 		arg.Cie,
+		arg.ShareHours,
 	)
 	var i UpsertWishRow
 	err := row.Scan(
@@ -168,6 +172,7 @@ func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertW
 		&i.Priority,
 		&i.Note,
 		&i.Cie,
+		&i.ShareHours,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -176,7 +181,8 @@ func (q *Queries) UpsertWish(ctx context.Context, arg UpsertWishParams) (UpsertW
 
 const wishByID = `-- name: WishByID :one
 SELECT
-    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.share_hours,
+    w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
     -- How the cohort is taught, so that an instance read through an assignment or a wish says the
     -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
@@ -239,6 +245,7 @@ type WishByIDRow struct {
 	Priority               int16
 	Note                   string
 	Cie                    bool
+	ShareHours             *int16
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
 	Track                  string
@@ -284,6 +291,7 @@ func (q *Queries) WishByID(ctx context.Context, arg WishByIDParams) (WishByIDRow
 		&i.Priority,
 		&i.Note,
 		&i.Cie,
+		&i.ShareHours,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Track,
@@ -379,7 +387,8 @@ func (q *Queries) WishersOfProgramme(ctx context.Context, arg WishersOfProgramme
 const wishesOfSemester = `-- name: WishesOfSemester :many
 
 SELECT
-    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.share_hours,
+    w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
     -- How the cohort is taught, so that an instance read through an assignment or a wish says the
     -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
@@ -453,6 +462,7 @@ type WishesOfSemesterRow struct {
 	Priority               int16
 	Note                   string
 	Cie                    bool
+	ShareHours             *int16
 	CreatedAt              time.Time
 	UpdatedAt              time.Time
 	Track                  string
@@ -550,6 +560,7 @@ func (q *Queries) WishesOfSemester(ctx context.Context, arg WishesOfSemesterPara
 			&i.Priority,
 			&i.Note,
 			&i.Cie,
+			&i.ShareHours,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Track,

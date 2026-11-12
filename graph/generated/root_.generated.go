@@ -498,7 +498,7 @@ type ComplexityRoot struct {
 		SetSubjectGroupMembers            func(childComplexity int, id string, personIds []string) int
 		SetTeacherAdmitted                func(childComplexity int, teacherID string, admitted bool) int
 		SetTeacherCompetence              func(childComplexity int, moduleID string, teacherID string, level domain.CompetenceLevel, note *string) int
-		SetWish                           func(childComplexity int, courseInstanceID string, priority domain.WishPriority, note *string, cie bool) int
+		SetWish                           func(childComplexity int, courseInstanceID string, priority domain.WishPriority, note *string, cie bool, shareHours *int) int
 		SetWishTrackLimit                 func(childComplexity int, courseInstanceID string, maxTracks *int) int
 		SetWishWindow                     func(childComplexity int, semester string, subjectGroupID string, open bool) int
 		ShareInstancePartAcrossTracks     func(childComplexity int, id string) int
@@ -780,6 +780,7 @@ type ComplexityRoot struct {
 		Note       func(childComplexity int) int
 		Person     func(childComplexity int) int
 		Priority   func(childComplexity int) int
+		ShareHours func(childComplexity int) int
 		TrackLimit func(childComplexity int) int
 		UpdatedAt  func(childComplexity int) int
 	}
@@ -3215,7 +3216,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.ComplexityRoot.Mutation.SetWish(childComplexity, args["courseInstanceId"].(string), args["priority"].(domain.WishPriority), args["note"].(*string), args["cie"].(bool)), true
+		return e.ComplexityRoot.Mutation.SetWish(childComplexity, args["courseInstanceId"].(string), args["priority"].(domain.WishPriority), args["note"].(*string), args["cie"].(bool), args["shareHours"].(*int)), true
 	case "Mutation.setWishTrackLimit":
 		if e.ComplexityRoot.Mutation.SetWishTrackLimit == nil {
 			break
@@ -4777,6 +4778,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Wish.Priority(childComplexity), true
+	case "Wish.shareHours":
+		if e.ComplexityRoot.Wish.ShareHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Wish.ShareHours(childComplexity), true
 	case "Wish.trackLimit":
 		if e.ComplexityRoot.Wish.TrackLimit == nil {
 			break
@@ -10560,6 +10567,17 @@ type Wish {
   """
   cie: Boolean!
   """
+  The owner's share of the cohort, in whole teaching hours (SWS): „4 der 8 SWS“, for a lecture
+  two people divide between them. ` + "`" + `null` + "`" + ` for the whole cohort, which is the ordinary wish.
+
+  A statement of how much, not of which part: who holds the lecture and who the laboratory is
+  still settled in the assignment, and „nur der Teil Diskrete Mathematik“ stays in ` + "`" + `note` + "`" + `.
+
+  Visible wherever the wish is, like ` + "`" + `priority` + "`" + `: it is part of what somebody wants, not their own
+  words.
+  """
+  shareHours: Int
+  """
   When it was first registered. ` + "`" + `null` + "`" + ` where the note is empty for you: the order in which people
   registered is the first-come information the confidentiality rule exists to make irrelevant.
   """
@@ -10642,6 +10660,13 @@ extend type Mutation {
     it out is ` + "`" + `false` + "`" + `. ` + "`" + `ENGLISH_NOT_OFFERED` + "`" + ` where the module description does not name English.
     """
     cie: Boolean! = false
+    """
+    Your share of the cohort in whole teaching hours (SWS), from 1 up to the cohort's hours rounded
+    up. Like ` + "`" + `note` + "`" + `, written with every call: leaving it out, or ` + "`" + `null` + "`" + `, is the whole cohort, and so
+    is a share as large as the cohort's hours. ` + "`" + `WISH_SHARE_OUT_OF_RANGE` + "`" + ` otherwise, and for a cohort
+    whose hours nobody has stated yet.
+    """
+    shareHours: Int
   ): Wish! @scope(area: WISHES, verb: WRITE)
 
   """
@@ -12555,6 +12580,8 @@ func (ec *executionContext) childFields_Wish(ctx context.Context, field graphql.
 		return ec.fieldContext_Wish_trackLimit(ctx, field)
 	case "cie":
 		return ec.fieldContext_Wish_cie(ctx, field)
+	case "shareHours":
+		return ec.fieldContext_Wish_shareHours(ctx, field)
 	case "createdAt":
 		return ec.fieldContext_Wish_createdAt(ctx, field)
 	case "updatedAt":

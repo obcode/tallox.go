@@ -1813,6 +1813,15 @@ type Wish struct {
 	//
 	// Visible wherever the wish is, like `priority`.
 	Cie bool `json:"cie"`
+	// The owner's share of the cohort, in whole teaching hours (SWS): „4 der 8 SWS“, for a lecture
+	// two people divide between them. `null` for the whole cohort, which is the ordinary wish.
+	//
+	// A statement of how much, not of which part: who holds the lecture and who the laboratory is
+	// still settled in the assignment, and „nur der Teil Diskrete Mathematik“ stays in `note`.
+	//
+	// Visible wherever the wish is, like `priority`: it is part of what somebody wants, not their own
+	// words.
+	ShareHours *int `json:"shareHours,omitempty"`
 	// When it was first registered. `null` where the note is empty for you: the order in which people
 	// registered is the first-come information the confidentiality rule exists to make irrelevant.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`

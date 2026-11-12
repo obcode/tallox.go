@@ -282,3 +282,78 @@ func TestWithdrawingOneCohortHandsItsWishesToASibling(t *testing.T) {
 		t.Errorf("withdrawing the last wished-for cohort answered %v, want ErrInstanceInUse", err)
 	}
 }
+
+// Somebody who wished for part of one cohort and part of the other keeps the larger share after
+// the merge, and a wish for a whole cohort stays one for the whole: neither offer shrinks because
+// a lead merged two cohorts.
+func TestMergingCohortsKeepsTheLargerShare(t *testing.T) {
+	t.Parallel()
+
+	two, four := int16(2), int16(4)
+	for _, c := range []struct {
+		name     string
+		onA, onB *int16
+		want     *int16
+	}{
+		{"both shares", &two, &four, &four},
+		{"a share and the whole cohort", &two, nil, nil},
+		{"the whole cohort and a share", nil, &two, nil},
+		{"one share alike", &two, &two, &two},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := newDemandFixture(t)
+			ctx := t.Context()
+			a, b := f.twoCohorts(t)
+
+			storetest.SeedPerson(t, f.schema, testdata.Eins, "LECTURER")
+			// The weaker priority on the cohort that stays, so that the survivor is B's row and the
+			// share has to travel with the merge, not merely stay where it was.
+			for _, w := range []struct {
+				instance uuid.UUID
+				priority int
+				share    *int16
+			}{{a.ID, 2, c.onA}, {b.ID, 1, c.onB}} {
+				if _, err := f.schema.Pool.Exec(ctx,
+					`INSERT INTO wish (course_instance_id, person_id, priority, share_hours)
+					 VALUES ($1, $2, $3, $4)`, w.instance, testdata.Eins.ID(), w.priority, w.share); err != nil {
+					t.Fatalf("cannot register interest: %v", err)
+				}
+			}
+
+			if _, err := f.demand.PlanDemand(ctx, f.semester.Code, f.programme,
+				[]domain.DemandEntry{planEntry(f.module, track("A", 1))}, uuid.Nil, false); err != nil {
+				t.Fatalf("merging gave %v", err)
+			}
+
+			var got []*int16
+			rows, err := f.schema.Pool.Query(ctx,
+				`SELECT share_hours FROM wish WHERE person_id = $1`, testdata.Eins.ID())
+			if err != nil {
+				t.Fatalf("cannot read the wishes: %v", err)
+			}
+			defer rows.Close()
+			for rows.Next() {
+				var s *int16
+				if err := rows.Scan(&s); err != nil {
+					t.Fatalf("cannot scan: %v", err)
+				}
+				got = append(got, s)
+			}
+			if len(got) != 1 {
+				t.Fatalf("%d wishes after the merge, want one", len(got))
+			}
+			if (got[0] == nil) != (c.want == nil) || (got[0] != nil && *got[0] != *c.want) {
+				t.Errorf("the share after the merge is %v, want %v", deref(got[0]), deref(c.want))
+			}
+		})
+	}
+}
+
+func deref(p *int16) any {
+	if p == nil {
+		return "the whole cohort"
+	}
+	return *p
+}

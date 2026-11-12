@@ -31,6 +31,7 @@ func wishModel(w domain.Wish) *model.Wish {
 		Note:       w.Note,
 		TrackLimit: trackLimitOrNil(w.TrackLimit),
 		Cie:        w.CiE,
+		ShareHours: shareHoursOrNil(w.ShareHours),
 		CreatedAt:  timeOrNil(w.CreatedAt),
 		UpdatedAt:  timeOrNil(w.UpdatedAt),
 	}
@@ -177,6 +178,8 @@ func wishError(err error) error {
 		return refusal("INSTANCE_TAUGHT_ELSEWHERE", err.Error())
 	case errors.Is(err, domain.ErrEnglishNotOffered):
 		return refusal("ENGLISH_NOT_OFFERED", err.Error())
+	case errors.Is(err, domain.ErrWishShareOutOfRange):
+		return refusal("WISH_SHARE_OUT_OF_RANGE", err.Error())
 	case errors.Is(err, domain.ErrWishNotFound):
 		return refusal("WISH_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrWishNoteTooLong):
@@ -230,6 +233,9 @@ func timeOrNil(t time.Time) *time.Time {
 }
 
 // trackLimitOrNil is a bound for the schema, or null for none.
+// shareHoursOrNil is `null`, the whole cohort, for no share.
+func shareHoursOrNil(hours int) *int { return trackLimitOrNil(hours) }
+
 func trackLimitOrNil(limit int) *int {
 	if limit == 0 {
 		return nil

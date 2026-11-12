@@ -1149,6 +1149,10 @@ type Querier interface {
 	// migration 16 applied when wishes moved from parts to instances — joined with " · ", truncated to
 	// the length the CHECK allows — written to whichever of the two rows survives (see the next query).
 	MergeCollidingWishNotes(ctx context.Context, arg MergeCollidingWishNotesParams) error
+	// And the larger of the two shares, on the same surviving row: whoever wished for part of one
+	// cohort and part of the other still offers the larger of the two after the merge, and a wish for
+	// a whole cohort (NULL) stays one for the whole. Neither offer shrinks because two cohorts merged.
+	MergeCollidingWishShares(ctx context.Context, arg MergeCollidingWishSharesParams) error
 	ModuleByID(ctx context.Context, id uuid.UUID) (ModuleByIDRow, error)
 	// The splits of a set of modules, in one statement.
 	ModuleComponentsFor(ctx context.Context, moduleIds []uuid.UUID) ([]ModuleComponentsForRow, error)

@@ -89,7 +89,7 @@ type MutationResolver interface {
 	SetSubjectGroupMembers(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error)
 	SetMySubjectGroups(ctx context.Context, subjectGroupIds []string) ([]*model.SubjectGroup, error)
 	SetSubjectGroupLeads(ctx context.Context, id string, personIds []string) (*model.SubjectGroup, error)
-	SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string, cie bool) (*model.Wish, error)
+	SetWish(ctx context.Context, courseInstanceID string, priority domain.WishPriority, note *string, cie bool, shareHours *int) (*model.Wish, error)
 	WithdrawWish(ctx context.Context, id string) (string, error)
 	SetWishTrackLimit(ctx context.Context, courseInstanceID string, maxTracks *int) (*int, error)
 	SetAdvanceWish(ctx context.Context, semester string, module string, programme string, priority domain.WishPriority, note *string, maxTracks *int) (*model.AdvanceWish, error)
@@ -1705,6 +1705,14 @@ func (ec *executionContext) field_Mutation_setWish_args(ctx context.Context, raw
 		return nil, err
 	}
 	args["cie"] = arg3
+	arg4, err := graphql.ProcessArgField(ctx, rawArgs, "shareHours",
+		func(ctx context.Context, v any) (*int, error) {
+			return ec.unmarshalOInt2ᚖint(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["shareHours"] = arg4
 	return args, nil
 }
 
@@ -5538,7 +5546,7 @@ func (ec *executionContext) _Mutation_setWish(ctx context.Context, field graphql
 		},
 		func(ctx context.Context) (any, error) {
 			fc := graphql.GetFieldContext(ctx)
-			return ec.Resolvers.Mutation().SetWish(ctx, fc.Args["courseInstanceId"].(string), fc.Args["priority"].(domain.WishPriority), fc.Args["note"].(*string), fc.Args["cie"].(bool))
+			return ec.Resolvers.Mutation().SetWish(ctx, fc.Args["courseInstanceId"].(string), fc.Args["priority"].(domain.WishPriority), fc.Args["note"].(*string), fc.Args["cie"].(bool), fc.Args["shareHours"].(*int))
 		},
 		nil,
 		func(ctx context.Context, selections ast.SelectionSet, v *model.Wish) graphql.Marshaler {

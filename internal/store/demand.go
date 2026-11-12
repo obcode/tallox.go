@@ -1516,6 +1516,11 @@ func handOverWishes(ctx context.Context, q *Queries, instanceID uuid.UUID) error
 	}); err != nil {
 		return fmt.Errorf("cannot merge the notes of a double wish: %w", err)
 	}
+	if err := q.MergeCollidingWishShares(ctx, MergeCollidingWishSharesParams{
+		FromInstance: instanceID, ToInstance: target,
+	}); err != nil {
+		return fmt.Errorf("cannot merge the shares of a double wish: %w", err)
+	}
 	if err := q.DeleteWeakerCollidingWishes(ctx, DeleteWeakerCollidingWishesParams{
 		FromInstance: instanceID, ToInstance: target,
 	}); err != nil {

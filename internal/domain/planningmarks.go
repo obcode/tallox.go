@@ -123,6 +123,9 @@ type WishWriteContext struct {
 	// EnglishPossible is whether the module description names English (Module.EnglishPossible):
 	// only then may a wish offer the cohort as a course in English.
 	EnglishPossible bool
+	// TeachingHours is the sum over the cohort's parts, as the wish row reads it: the upper bound
+	// of a share of the cohort (WishShare).
+	TeachingHours float64
 }
 
 // Found reports whether the instance exists.

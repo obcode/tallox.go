@@ -232,7 +232,7 @@ func TestAShutWindowRefusesAWishAndAReopenedOneTakesItAgain(t *testing.T) {
 	owner := testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer))
 	storetest.ReleaseWishes(t, f.schema, f.semester.Code, storetest.FixtureProgrammeA)
 
-	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishHappyTo, "", false); err != nil {
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishHappyTo, "", false, nil); err != nil {
 		t.Fatalf("registering interest with an open window failed: %v", err)
 	}
 
@@ -240,7 +240,7 @@ func TestAShutWindowRefusesAWishAndAReopenedOneTakesItAgain(t *testing.T) {
 		t.Fatalf("cannot shut the window: %v", err)
 	}
 
-	_, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false)
+	_, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false, nil)
 	if !errors.Is(err, domain.ErrWishWindowClosed) {
 		t.Errorf("registering interest with a shut window gave %v, want ErrWishWindowClosed", err)
 	}
@@ -258,7 +258,7 @@ func TestAShutWindowRefusesAWishAndAReopenedOneTakesItAgain(t *testing.T) {
 	if _, err := m.SetWishWindow(ctx, f.semester.Code, f.group, true, testdata.Drei.ID()); err != nil {
 		t.Fatalf("cannot reopen: %v", err)
 	}
-	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false); err != nil {
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false, nil); err != nil {
 		t.Errorf("registering interest after reopening failed: %v", err)
 	}
 }
@@ -322,7 +322,7 @@ func TestTheReleaseGatesEveryWishWrite(t *testing.T) {
 	owner := testdata.Eins.Actor(principal.KindInteractive, string(policy.RoleLecturer))
 	limit := 1
 
-	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishHappyTo, "", false); !errors.Is(err,
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishHappyTo, "", false, nil); !errors.Is(err,
 		domain.ErrWishesNotReleased) {
 		t.Errorf("registering interest before the release gave %v, want ErrWishesNotReleased", err)
 	}
@@ -335,7 +335,7 @@ func TestTheReleaseGatesEveryWishWrite(t *testing.T) {
 		testdata.Vier.ID()); err != nil {
 		t.Fatalf("cannot release the programme: %v", err)
 	}
-	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishHappyTo, "", false); err != nil {
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishHappyTo, "", false, nil); err != nil {
 		t.Fatalf("registering interest after the release failed: %v", err)
 	}
 
@@ -350,7 +350,7 @@ func TestTheReleaseGatesEveryWishWrite(t *testing.T) {
 	}
 
 	// But it is not changed, bounded or withdrawn until the programme releases again.
-	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false); !errors.Is(
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false, nil); !errors.Is(
 		err, domain.ErrWishesNotReleased) {
 		t.Errorf("correcting after the release was withdrawn gave %v, want ErrWishesNotReleased", err)
 	}
@@ -370,7 +370,7 @@ func TestTheReleaseGatesEveryWishWrite(t *testing.T) {
 	if _, err := m.SetWishWindow(ctx, f.semester.Code, f.group, false, testdata.Drei.ID()); err != nil {
 		t.Fatalf("cannot shut the window: %v", err)
 	}
-	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false); !errors.Is(
+	if _, err := wishes.Set(ctx, owner, f.instance, domain.WishFirstChoice, "", false, nil); !errors.Is(
 		err, domain.ErrWishWindowClosed) {
 		t.Errorf("released with a shut window gave %v, want ErrWishWindowClosed", err)
 	}

@@ -44,7 +44,8 @@
 -- subject group of its module. module_subject_group is a LEFT JOIN and has to be: a module nobody has sorted into a subject group yet is the ordinary state until the
 -- faculty has worked through its catalogue, and its wishes still belong to somebody.
 SELECT
-    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.share_hours,
+    w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
     -- How the cohort is taught, so that an instance read through an assignment or a wish says the
     -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
@@ -105,7 +106,8 @@ ORDER BY sem.code, m.name, ci.track, w.priority,
 -- does not have — and the realistic shape of that mistake is somebody adding a by-id lookup
 -- because "it is only one row".
 SELECT
-    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.created_at, w.updated_at,
+    w.id, w.course_instance_id, w.person_id, w.priority, w.note, w.cie, w.share_hours,
+    w.created_at, w.updated_at,
     ci.track, ci.topic, ci.programme_semester,
     -- How the cohort is taught, so that an instance read through an assignment or a wish says the
     -- same as one read on its own (CourseInstance.delivery, taughtInEnglish, cie).
@@ -161,14 +163,15 @@ WHERE w.id = sqlc.arg(id)::uuid
 --
 -- Only ever the caller's own row. person_id comes from the actor and never from the request; see
 -- the header of migration 15.
-INSERT INTO wish (course_instance_id, person_id, priority, note, cie)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO wish (course_instance_id, person_id, priority, note, cie, share_hours)
+VALUES ($1, $2, $3, $4, $5, sqlc.narg('share_hours')::smallint)
 ON CONFLICT (course_instance_id, person_id) DO UPDATE
 SET priority = EXCLUDED.priority,
     note = EXCLUDED.note,
     cie = EXCLUDED.cie,
+    share_hours = EXCLUDED.share_hours,
     updated_at = now()
-RETURNING id, course_instance_id, person_id, priority, note, cie, created_at, updated_at;
+RETURNING id, course_instance_id, person_id, priority, note, cie, share_hours, created_at, updated_at;
 
 -- name: DeleteOwnWish :execrows
 -- Withdraw one's own wish.

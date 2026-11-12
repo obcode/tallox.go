@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
 	"time"
 
@@ -57,6 +58,11 @@ var (
 	// much later by somebody who has forgotten it.
 	ErrWishTrackLimitWithoutWishes = errors.New(
 		"„höchstens“ gilt für eingetragene Wünsche — zuerst einen der Züge wählen")
+	// ErrWishShareOutOfRange is a share of a cohort below one hour or above the cohort's hours, or
+	// a share of a cohort whose hours nobody has stated yet. Says something about the cohort, which
+	// everybody may read, and nothing about anybody else's wish.
+	ErrWishShareOutOfRange = errors.New(
+		"der Anteil geht von 1 SWS bis zu den SWS des Zuges, in ganzen SWS")
 )
 
 // MaxWishTrackLimit mirrors wish_track_limit_in_range.
@@ -151,6 +157,11 @@ type Wish struct {
 	// wherever the wish is, like the priority — it is part of what somebody offers, not their own
 	// words.
 	CiE bool
+	// ShareHours is the owner's share of the cohort in whole teaching hours, or zero for the whole
+	// cohort — the ordinary wish (decided 2026-11-12; a percentage waits for a concrete need). Says
+	// how much, never which part: that stays in the note and is settled in the assignment. Visible
+	// wherever the wish is, like the priority.
+	ShareHours int
 
 	// CreatedAt and UpdatedAt are the zero time where the reader may not see the details: the order
 	// in which people registered is the first-come information the rule exists to make irrelevant.
@@ -215,7 +226,7 @@ type WishStore interface {
 	WishByID(ctx context.Context, id uuid.UUID, filter policy.WishFilter) (*Wish, error)
 	// SetWish registers or updates the actor's own interest and returns the row.
 	SetWish(ctx context.Context, instanceID, personID uuid.UUID, priority WishPriority,
-		note string, cie bool) (*Wish, error)
+		note string, cie bool, shareHours int) (*Wish, error)
 	// WithdrawWish removes the actor's own. Returns ErrWishNotFound for anything else.
 	WithdrawWish(ctx context.Context, id, personID uuid.UUID) error
 	// SetWishTrackLimit bounds the person's own wishes for the cohorts of the instance's module in
@@ -318,7 +329,7 @@ func (s *WishService) Mine(ctx context.Context, actor principal.Actor,
 // behalf is not an expression of interest but somebody else's opinion about them, and the process
 // has a place for that — the assignment.
 func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID uuid.UUID,
-	priority WishPriority, note string, cie bool) (*Wish, error) {
+	priority WishPriority, note string, cie bool, share *int) (*Wish, error) {
 	if !actor.Authenticated() {
 		return nil, ErrNotAuthenticated
 	}
@@ -365,8 +376,38 @@ func (s *WishService) Set(ctx context.Context, actor principal.Actor, instanceID
 	if cie && !where.EnglishPossible {
 		return nil, ErrEnglishNotOffered
 	}
+	// Like the language: about the cohort's hours, which everybody may read.
+	shareHours, err := WishShare(share, where.TeachingHours)
+	if err != nil {
+		return nil, err
+	}
 
-	return s.store.SetWish(ctx, instanceID, actor.ID, priority, note, cie)
+	return s.store.SetWish(ctx, instanceID, actor.ID, priority, note, cie, shareHours)
+}
+
+// WishShare checks a share of a cohort against the cohort's teaching hours and returns what is
+// stored: zero for the whole cohort, otherwise the share.
+//
+// No share is the whole cohort. A share is whole teaching hours from one up to the cohort's hours
+// rounded up — a part may hold half hours, a share does not (decided 2026-11-12) — and a share as
+// large as the cohort's hours is the whole cohort too, stored as such, so that "4 of 4" and "all
+// of it" are not two different wishes. A cohort whose parts state no hours yet has nothing to take
+// a share of.
+//
+// The bound is checked when the wish is written and not afterwards: the cohort's hours live on its
+// parts and change with them, and a wish does not become wrong because a part was resized. A
+// reader caps the share at the hours it reads.
+func WishShare(share *int, cohortHours float64) (int, error) {
+	if share == nil {
+		return 0, nil
+	}
+	if *share < 1 || cohortHours <= 0 || float64(*share) > math.Ceil(cohortHours) {
+		return 0, ErrWishShareOutOfRange
+	}
+	if float64(*share) >= cohortHours {
+		return 0, nil
+	}
+	return *share, nil
 }
 
 // SetTrackLimit bounds the actor's own wishes for the cohorts of an instance's module in its

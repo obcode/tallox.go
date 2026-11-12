@@ -866,6 +866,29 @@ func (ec *executionContext) fieldContext_Wish_cie(_ context.Context, field graph
 	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
+func (ec *executionContext) _Wish_shareHours(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Wish_shareHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ShareHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Wish_shareHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _Wish_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1198,6 +1221,11 @@ func (ec *executionContext) _Wish(ctx context.Context, sel ast.SelectionSet, obj
 		case "cie":
 			out.Values[i] = ec._Wish_cie(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "shareHours":
+			out.Values[i] = ec._Wish_shareHours(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		case "createdAt":

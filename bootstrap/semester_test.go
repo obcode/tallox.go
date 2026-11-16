@@ -272,7 +272,14 @@ func TestAnAnonymousCallerSeesNoSemesters(t *testing.T) {
 			t.Parallel()
 
 			resp := graphqltest.New(h).On(door).Anonymous().Do(t, semestersQuery, nil)
-			assertRefusal(t, resp, "FORBIDDEN")
+			// UNAUTHENTICATED like every other area, and not the dean's-office sentence about
+			// switching a phase — nobody here tried to switch anything.
+			assertRefusal(t, resp, "UNAUTHENTICATED")
+			for _, m := range resp.Messages() {
+				if m == policy.SemesterAdminReason {
+					t.Errorf("an anonymous read is told about switching phases: %q", m)
+				}
+			}
 		})
 	}
 }

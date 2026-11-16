@@ -120,7 +120,7 @@ func (r *mutationResolver) PublishDesiredHours(ctx context.Context, code string)
 func (r *queryResolver) Semesters(ctx context.Context) ([]*model.Semester, error) {
 	list, err := r.Planning.List(ctx, principal.From(ctx))
 	if err != nil {
-		return nil, semesterUserFacing(err)
+		return nil, semesterReadError(err)
 	}
 
 	out := make([]*model.Semester, 0, len(list))
@@ -138,7 +138,7 @@ func (r *queryResolver) Semesters(ctx context.Context) ([]*model.Semester, error
 func (r *queryResolver) PlanningSemester(ctx context.Context) (*model.Semester, error) {
 	planning, err := r.Planning.PlanningSemester(ctx, principal.From(ctx))
 	if err != nil {
-		return nil, semesterUserFacing(err)
+		return nil, semesterReadError(err)
 	}
 	if !planning.Recorded() {
 		return nil, nil
@@ -154,7 +154,7 @@ func (r *queryResolver) Semester(ctx context.Context, code string) (*model.Semes
 	// of those are refusals with something to act on rather than a silent null.
 	found, err := r.Planning.ByCode(ctx, principal.From(ctx), code)
 	if err != nil {
-		return nil, semesterUserFacing(err)
+		return nil, semesterReadError(err)
 	}
 	return semesterModel(found), nil
 }

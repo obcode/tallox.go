@@ -73,6 +73,22 @@ func semesterModel(s domain.Semester) *model.Semester {
 // sentence is the part that gets reworded. The reasons come from internal/policy where the
 // refusal is a rule rather than a validation, so that the sentence a person reads and the rule
 // that produced it cannot drift apart.
+// semesterReadError translates a refused semester read.
+//
+// MayReadSemesters is "signed in" and nothing else, so a read that comes back ErrForbidden was
+// made by nobody. semesterUserFacing's sentence for ErrForbidden is about switching a phase —
+// right for the mutation, and nonsense to an anonymous caller who asked for the list. Every
+// other area answers that caller UNAUTHENTICATED; the semester reads now do too.
+//
+// Not changed in domain.SemesterService itself: ByCode is called from most services, each with
+// its own mapping of ErrForbidden, and the misleading sentence only ever reached the wire here.
+func semesterReadError(err error) error {
+	if errors.Is(err, domain.ErrForbidden) {
+		return refusal("UNAUTHENTICATED", "Nicht angemeldet.")
+	}
+	return semesterUserFacing(err)
+}
+
 func semesterUserFacing(err error) error {
 	switch {
 	case errors.Is(err, domain.ErrForbidden):

@@ -141,10 +141,12 @@ models:
       degree:
         resolver: true
   # Computed from the module already loaded with the instance, against the instance's own
-  # programme: one rule with Module.baskets, rather than a second copy on every construction site.
+  # programme: one rule with Module.baskets and Module.dutyStatus, rather than a second copy on every construction site.
   CourseInstance:
     fields:
       baskets:
+        resolver: true
+      dutyStatus:
         resolver: true
   ProgrammeStatus:
     model: github.com/obcode/tallox.go/internal/domain.ProgrammeStatus

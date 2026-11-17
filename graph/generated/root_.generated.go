@@ -245,6 +245,7 @@ type ComplexityRoot struct {
 		Covers                    func(childComplexity int) int
 		CreatedAt                 func(childComplexity int) int
 		Delivery                  func(childComplexity int) int
+		DutyStatus                func(childComplexity int) int
 		ID                        func(childComplexity int) int
 		Module                    func(childComplexity int) int
 		Note                      func(childComplexity int) int
@@ -1693,6 +1694,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.CourseInstance.Delivery(childComplexity), true
+	case "CourseInstance.dutyStatus":
+		if e.ComplexityRoot.CourseInstance.DutyStatus == nil {
+			break
+		}
+
+		return e.ComplexityRoot.CourseInstance.DutyStatus(childComplexity), true
 	case "CourseInstance.id":
 		if e.ComplexityRoot.CourseInstance.ID == nil {
 			break
@@ -7874,6 +7881,15 @@ type CourseInstance {
   """
   baskets: [String!]!
   """
+  Compulsory or elective in this cohort's own programme, folded over every version of its
+  regulations, or ` + "`" + `null` + "`" + ` if the module does not appear in that programme's catalogue.
+
+  The same answer as ` + "`" + `module { dutyStatus(programme:) }` + "`" + ` with this cohort's programme, for the
+  screens that list cohorts of several programmes side by side and cannot pass one argument per
+  row — the assignment page orders its modules by it. Catalogue data, like ` + "`" + `baskets` + "`" + `.
+  """
+  dutyStatus: DutyStatus
+  """
   The assignable units this cohort holds itself, in order.
 
   Made from the module's split when the instance is declared — one part per unit — and edited
@@ -11806,6 +11822,8 @@ func (ec *executionContext) childFields_CourseInstance(ctx context.Context, fiel
 		return ec.fieldContext_CourseInstance_topic(ctx, field)
 	case "baskets":
 		return ec.fieldContext_CourseInstance_baskets(ctx, field)
+	case "dutyStatus":
+		return ec.fieldContext_CourseInstance_dutyStatus(ctx, field)
 	case "parts":
 		return ec.fieldContext_CourseInstance_parts(ctx, field)
 	case "borrowedParts":

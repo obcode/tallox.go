@@ -614,6 +614,13 @@ type CourseInstance struct {
 	// row. Catalogue data, for display and filtering — never an identifier: a basket renamed between
 	// two versions of the regulations shows both names.
 	Baskets []string `json:"baskets"`
+	// Compulsory or elective in this cohort's own programme, folded over every version of its
+	// regulations, or `null` if the module does not appear in that programme's catalogue.
+	//
+	// The same answer as `module { dutyStatus(programme:) }` with this cohort's programme, for the
+	// screens that list cohorts of several programmes side by side and cannot pass one argument per
+	// row — the assignment page orders its modules by it. Catalogue data, like `baskets`.
+	DutyStatus *domain.DutyStatus `json:"dutyStatus,omitempty"`
 	// The assignable units this cohort holds itself, in order.
 	//
 	// Made from the module's split when the instance is declared — one part per unit — and edited

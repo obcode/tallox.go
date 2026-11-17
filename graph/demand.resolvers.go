@@ -29,6 +29,19 @@ func (r *courseInstanceResolver) Baskets(ctx context.Context, obj *model.CourseI
 	return baskets, nil
 }
 
+// DutyStatus is the resolver for the dutyStatus field.
+func (r *courseInstanceResolver) DutyStatus(ctx context.Context, obj *model.CourseInstance) (*domain.DutyStatus, error) {
+	if obj.Module == nil || obj.Programme == nil {
+		return nil, nil
+	}
+	status, ok := obj.Module.Domain.DutyStatus(normaliseCode(obj.Programme.Code))
+	if !ok {
+		// Like Module.dutyStatus: absent from the programme's catalogue is not the same as elective.
+		return nil, nil
+	}
+	return &status, nil
+}
+
 // PlanDemand is the resolver for the planDemand field.
 func (r *mutationResolver) PlanDemand(ctx context.Context, semester string, programme string, entries []*model.DemandEntryInput, dryRun bool) (*model.DemandPlanReport, error) {
 	actor := principal.From(ctx)

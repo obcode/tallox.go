@@ -148,6 +148,10 @@ type CatalogueProjection struct {
 	ModulesWritten    int
 	OfferingsWritten  int
 	OfferingsRemoved  int
+	// ModulesAdded counts the imported modules that were not in the catalogue before;
+	// AddedModules names up to twenty of them as "<programme code> · <name>".
+	ModulesAdded int
+	AddedModules []string
 
 	Error *string
 	Notes []CatalogueProjectionNote
@@ -163,4 +167,6 @@ type CatalogueStore interface {
 	Project(ctx context.Context, runID *uuid.UUID) (CatalogueProjection, error)
 	// LatestProjections returns the recent runs, newest first, each with its report.
 	LatestProjections(ctx context.Context, limit int) ([]CatalogueProjection, error)
+	// ProjectionOfRun returns the projection an import run triggered, or (nil, nil).
+	ProjectionOfRun(ctx context.Context, runID uuid.UUID) (*CatalogueProjection, error)
 }

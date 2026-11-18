@@ -1871,8 +1871,13 @@ type ZpaCatalogueProjection struct {
 	ProgrammesWritten int `json:"programmesWritten"`
 	// How many teachers were written.
 	TeachersWritten int `json:"teachersWritten"`
-	// How many modules were written.
+	// How many modules were written, new or not.
 	ModulesWritten int `json:"modulesWritten"`
+	// How many of them were not in the catalogue before — the answer to "is the module I asked the
+	// examination office for here now".
+	ModulesAdded int `json:"modulesAdded"`
+	// Up to twenty of those, each as the home programme's code and the module's name ("IF · …").
+	AddedModules []string `json:"addedModules"`
 	// How many entries of 'this module counts in these regulations' were written.
 	OfferingsWritten int `json:"offeringsWritten"`
 	// How many such entries were removed because the source stopped supporting them.
@@ -1951,6 +1956,12 @@ type ZpaSyncRun struct {
 	// How many objects were fetched in total.
 	Fetched int `json:"fetched"`
 	// How many were seen for the first time, or came back after an absence.
+	//
+	// This and the next two compare what was fetched with what the cache held before this run — the
+	// previous run, usually the nightly one. They say nothing about the catalogue: a module fetched at
+	// night is not new again in the morning, and a module the cache already held can still arrive in
+	// the catalogue with this run, if the last projection did not happen. What reached the catalogue
+	// is `projection.modulesAdded`.
 	Appeared int `json:"appeared"`
 	// How many already held objects had different content.
 	Changed int `json:"changed"`
@@ -1960,6 +1971,14 @@ type ZpaSyncRun struct {
 	Error *string `json:"error,omitempty"`
 	// What each endpoint did.
 	Kinds []*ZpaSyncRunKind `json:"kinds"`
+	// The rebuild of the catalogue this run triggered, or `null` when there was none: while the run
+	// is going, after a run that did not fully succeed, or for a run older than the projection's own
+	// record.
+	//
+	// It starts when the run has finished, so for a moment after `finishedAt` is set it is `null` or
+	// `RUNNING`. Whoever follows a run to learn what reached the catalogue keeps reading until it is
+	// settled.
+	Projection *ZpaCatalogueProjection `json:"projection,omitempty"`
 }
 
 // What one endpoint did within a run.

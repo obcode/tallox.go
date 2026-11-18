@@ -91,6 +91,53 @@ func (q *Queries) CatalogueProjectionNotes(ctx context.Context, projectionID uui
 	return items, nil
 }
 
+const catalogueProjectionOfRun = `-- name: CatalogueProjectionOfRun :one
+SELECT id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
+       modules_written, offerings_written, offerings_removed, error, modules_added, added_modules
+FROM zpa_catalogue_projection
+WHERE run_id = $1
+ORDER BY started_at DESC
+LIMIT 1
+`
+
+type CatalogueProjectionOfRunRow struct {
+	ID                uuid.UUID
+	RunID             uuid.NullUUID
+	StartedAt         time.Time
+	FinishedAt        pgtype.Timestamptz
+	Status            string
+	ProgrammesWritten int32
+	TeachersWritten   int32
+	ModulesWritten    int32
+	OfferingsWritten  int32
+	OfferingsRemoved  int32
+	Error             *string
+	ModulesAdded      int32
+	AddedModules      []string
+}
+
+// The projection an import run triggered. At most one today; the newest, should that change.
+func (q *Queries) CatalogueProjectionOfRun(ctx context.Context, runID uuid.NullUUID) (CatalogueProjectionOfRunRow, error) {
+	row := q.db.QueryRow(ctx, catalogueProjectionOfRun, runID)
+	var i CatalogueProjectionOfRunRow
+	err := row.Scan(
+		&i.ID,
+		&i.RunID,
+		&i.StartedAt,
+		&i.FinishedAt,
+		&i.Status,
+		&i.ProgrammesWritten,
+		&i.TeachersWritten,
+		&i.ModulesWritten,
+		&i.OfferingsWritten,
+		&i.OfferingsRemoved,
+		&i.Error,
+		&i.ModulesAdded,
+		&i.AddedModules,
+	)
+	return i, err
+}
+
 const countAssociationsWithUnknownRegulations = `-- name: CountAssociationsWithUnknownRegulations :one
 SELECT count(*)::integer AS count,
        (SELECT array_agg(spo_id::text ORDER BY spo_id)
@@ -484,10 +531,12 @@ SET status             = $1,
     modules_written    = $4,
     offerings_written  = $5,
     offerings_removed  = $6,
-    error              = $7
-WHERE id = $8
+    modules_added      = $7,
+    added_modules      = $8::text[],
+    error              = $9
+WHERE id = $10
 RETURNING id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
-          modules_written, offerings_written, offerings_removed, error
+          modules_written, offerings_written, offerings_removed, error, modules_added, added_modules
 `
 
 type FinishCatalogueProjectionParams struct {
@@ -497,6 +546,8 @@ type FinishCatalogueProjectionParams struct {
 	ModulesWritten    int32
 	OfferingsWritten  int32
 	OfferingsRemoved  int32
+	ModulesAdded      int32
+	AddedModules      []string
 	Error             *string
 	ID                uuid.UUID
 }
@@ -513,6 +564,8 @@ type FinishCatalogueProjectionRow struct {
 	OfferingsWritten  int32
 	OfferingsRemoved  int32
 	Error             *string
+	ModulesAdded      int32
+	AddedModules      []string
 }
 
 func (q *Queries) FinishCatalogueProjection(ctx context.Context, arg FinishCatalogueProjectionParams) (FinishCatalogueProjectionRow, error) {
@@ -523,6 +576,8 @@ func (q *Queries) FinishCatalogueProjection(ctx context.Context, arg FinishCatal
 		arg.ModulesWritten,
 		arg.OfferingsWritten,
 		arg.OfferingsRemoved,
+		arg.ModulesAdded,
+		arg.AddedModules,
 		arg.Error,
 		arg.ID,
 	)
@@ -539,13 +594,15 @@ func (q *Queries) FinishCatalogueProjection(ctx context.Context, arg FinishCatal
 		&i.OfferingsWritten,
 		&i.OfferingsRemoved,
 		&i.Error,
+		&i.ModulesAdded,
+		&i.AddedModules,
 	)
 	return i, err
 }
 
 const latestCatalogueProjections = `-- name: LatestCatalogueProjections :many
 SELECT id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
-       modules_written, offerings_written, offerings_removed, error
+       modules_written, offerings_written, offerings_removed, error, modules_added, added_modules
 FROM zpa_catalogue_projection
 ORDER BY started_at DESC
 LIMIT $1
@@ -563,6 +620,8 @@ type LatestCatalogueProjectionsRow struct {
 	OfferingsWritten  int32
 	OfferingsRemoved  int32
 	Error             *string
+	ModulesAdded      int32
+	AddedModules      []string
 }
 
 func (q *Queries) LatestCatalogueProjections(ctx context.Context, limit int32) ([]LatestCatalogueProjectionsRow, error) {
@@ -586,6 +645,8 @@ func (q *Queries) LatestCatalogueProjections(ctx context.Context, limit int32) (
 			&i.OfferingsWritten,
 			&i.OfferingsRemoved,
 			&i.Error,
+			&i.ModulesAdded,
+			&i.AddedModules,
 		); err != nil {
 			return nil, err
 		}
@@ -649,6 +710,40 @@ func (q *Queries) MalformedProgrammeCodes(ctx context.Context) ([]string, error)
 			return nil, err
 		}
 		items = append(items, code)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const modulesImportedInThisTransaction = `-- name: ModulesImportedInThisTransaction :many
+SELECT (p.code || ' · ' || m.name)::text AS label
+FROM module m
+JOIN programme p ON p.id = m.home_programme_id
+WHERE m.zpa_module_ref IS NOT NULL
+  AND m.created_at = now()
+ORDER BY p.code, m.name
+`
+
+// The imported modules ProjectModules just inserted, as "<programme code> · <name>".
+//
+// Read by created_at = now(): both are the transaction's start time, so inside the projection's
+// transaction this is exactly the rows its INSERT created and none that an ON CONFLICT updated.
+// Only meaningful in that transaction — anywhere else it is an arbitrary instant.
+func (q *Queries) ModulesImportedInThisTransaction(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, modulesImportedInThisTransaction)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var label string
+		if err := rows.Scan(&label); err != nil {
+			return nil, err
+		}
+		items = append(items, label)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -1009,7 +1104,7 @@ const startCatalogueProjection = `-- name: StartCatalogueProjection :one
 INSERT INTO zpa_catalogue_projection (run_id)
 VALUES ($1)
 RETURNING id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
-          modules_written, offerings_written, offerings_removed, error
+          modules_written, offerings_written, offerings_removed, error, modules_added, added_modules
 `
 
 type StartCatalogueProjectionRow struct {
@@ -1024,6 +1119,8 @@ type StartCatalogueProjectionRow struct {
 	OfferingsWritten  int32
 	OfferingsRemoved  int32
 	Error             *string
+	ModulesAdded      int32
+	AddedModules      []string
 }
 
 // The projection's own bookkeeping
@@ -1045,6 +1142,8 @@ func (q *Queries) StartCatalogueProjection(ctx context.Context, runID uuid.NullU
 		&i.OfferingsWritten,
 		&i.OfferingsRemoved,
 		&i.Error,
+		&i.ModulesAdded,
+		&i.AddedModules,
 	)
 	return i, err
 }

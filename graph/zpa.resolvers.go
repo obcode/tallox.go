@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/obcode/tallox.go/graph/generated"
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
@@ -44,8 +45,8 @@ func (r *mutationResolver) SyncZpaNow(ctx context.Context) (*model.ZpaSyncRun, e
 
 // ProjectZpaCatalogue is the resolver for the projectZpaCatalogue field.
 func (r *mutationResolver) ProjectZpaCatalogue(ctx context.Context) (*model.ZpaCatalogueProjection, error) {
-	if !policy.MayTriggerZPASync(principal.From(ctx)) {
-		return nil, zpaForbidden()
+	if !policy.MayProjectZPACatalogue(principal.From(ctx)) {
+		return nil, zpaProjectionForbidden()
 	}
 
 	projection, err := r.Import.ProjectCatalogue(ctx)
@@ -147,3 +148,30 @@ func (r *queryResolver) ZpaCatalogueProjections(ctx context.Context, limit *int)
 	}
 	return out, nil
 }
+
+// Projection is the resolver for the projection field.
+func (r *zpaSyncRunResolver) Projection(ctx context.Context, obj *model.ZpaSyncRun) (*model.ZpaCatalogueProjection, error) {
+	// The run was already read under mayReadImport, by whichever root field produced it; the
+	// check is repeated because a field resolver is a surface of its own.
+	if err := mayReadImport(principal.From(ctx)); err != nil {
+		return nil, err
+	}
+
+	runID, err := uuid.Parse(obj.ID)
+	if err != nil {
+		return nil, nil
+	}
+	projection, err := r.Import.ProjectionOfRun(ctx, runID)
+	if err != nil {
+		return nil, zpaUserFacing(err)
+	}
+	if projection == nil {
+		return nil, nil
+	}
+	return projectionModel(*projection), nil
+}
+
+// ZpaSyncRun returns generated.ZpaSyncRunResolver implementation.
+func (r *Resolver) ZpaSyncRun() generated.ZpaSyncRunResolver { return &zpaSyncRunResolver{r} }
+
+type zpaSyncRunResolver struct{ *Resolver }

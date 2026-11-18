@@ -2,10 +2,12 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -76,7 +78,12 @@ func (c *Catalogue) Project(ctx context.Context, runID *uuid.UUID) (domain.Catal
 		ModulesWritten:    int32(counts.Modules),
 		OfferingsWritten:  int32(counts.Offerings),
 		OfferingsRemoved:  int32(counts.OfferingsRemoved),
-		Error:             failure,
+		ModulesAdded:      int32(len(counts.AddedModules)),
+		// Never nil: a projection that failed before the modules has none, and a nil slice is
+		// written as NULL into a NOT NULL column — the finish would fail and leave the row
+		// RUNNING, which is the failure TestAProjectionCutOffMidwayIsRecordedAsFailed is about.
+		AddedModules: append([]string{}, sampleOf(counts.AddedModules)...),
+		Error:        failure,
 	})
 	if err != nil {
 		return domain.CatalogueProjection{}, fmt.Errorf("cannot finish the projection: %w", err)
@@ -97,6 +104,9 @@ type counts struct {
 	Modules          int
 	Offerings        int
 	OfferingsRemoved int
+	// AddedModules are the imported modules this projection inserted, all of them; the record
+	// keeps the count and the first twenty.
+	AddedModules []string
 }
 
 // project does the work in one transaction and returns what it did.
@@ -154,6 +164,14 @@ func (c *Catalogue) project(ctx context.Context, projectionID uuid.UUID) (counts
 		return done, nil, fmt.Errorf("cannot project the modules: %w", err)
 	}
 	done.Modules = int(modules)
+
+	// Right after the insert, in the same transaction, which is what makes created_at = now()
+	// mean "inserted by this projection".
+	added, err := q.ModulesImportedInThisTransaction(ctx)
+	if err != nil {
+		return done, nil, fmt.Errorf("cannot read the modules new to the catalogue: %w", err)
+	}
+	done.AddedModules = added
 
 	// After both, because it needs both.
 	if _, err := q.LinkModuleResponsibles(ctx); err != nil {
@@ -332,28 +350,54 @@ func (c *Catalogue) LatestProjections(ctx context.Context, limit int) ([]domain.
 
 	out := make([]domain.CatalogueProjection, 0, len(rows))
 	for _, row := range rows {
-		projection := projectionFrom(projectionRow(row))
-		notes, err := q.CatalogueProjectionNotes(ctx, row.ID)
+		projection, err := withNotes(ctx, q, projectionFrom(projectionRow(row)))
 		if err != nil {
-			return nil, fmt.Errorf("cannot read the report of %s: %w", row.ID, err)
-		}
-		for _, note := range notes {
-			code, ok := domain.ParseProjectionNoteCode(note.Code)
-			if !ok {
-				// A row written by a newer version. Skipping it is the safe reading: the
-				// constraint keeps the set closed, so this means the binary is older than the
-				// database, which rolling back an image does.
-				continue
-			}
-			projection.Notes = append(projection.Notes, domain.CatalogueProjectionNote{
-				Code:   code,
-				Count:  int(note.Count),
-				Sample: note.Sample,
-			})
+			return nil, err
 		}
 		out = append(out, projection)
 	}
 	return out, nil
+}
+
+// ProjectionOfRun returns the projection an import run triggered, with its report, or (nil, nil).
+func (c *Catalogue) ProjectionOfRun(ctx context.Context, runID uuid.UUID) (*domain.CatalogueProjection, error) {
+	q := New(c.pool)
+
+	row, err := q.CatalogueProjectionOfRun(ctx, uuid.NullUUID{UUID: runID, Valid: true})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("cannot read the projection of run %s: %w", runID, err)
+	}
+	projection, err := withNotes(ctx, q, projectionFrom(projectionRow(row)))
+	if err != nil {
+		return nil, err
+	}
+	return &projection, nil
+}
+
+// withNotes attaches a projection's report.
+func withNotes(ctx context.Context, q *Queries, projection domain.CatalogueProjection) (domain.CatalogueProjection, error) {
+	notes, err := q.CatalogueProjectionNotes(ctx, projection.ID)
+	if err != nil {
+		return projection, fmt.Errorf("cannot read the report of %s: %w", projection.ID, err)
+	}
+	for _, note := range notes {
+		code, ok := domain.ParseProjectionNoteCode(note.Code)
+		if !ok {
+			// A row written by a newer version. Skipping it is the safe reading: the
+			// constraint keeps the set closed, so this means the binary is older than the
+			// database, which rolling back an image does.
+			continue
+		}
+		projection.Notes = append(projection.Notes, domain.CatalogueProjectionNote{
+			Code:   code,
+			Count:  int(note.Count),
+			Sample: note.Sample,
+		})
+	}
+	return projection, nil
 }
 
 // projectionRow is the shape all three projection queries produce.
@@ -374,6 +418,8 @@ type projectionRow struct {
 	OfferingsWritten  int32
 	OfferingsRemoved  int32
 	Error             *string
+	ModulesAdded      int32
+	AddedModules      []string
 }
 
 func projectionFrom(row projectionRow) domain.CatalogueProjection {
@@ -387,6 +433,9 @@ func projectionFrom(row projectionRow) domain.CatalogueProjection {
 		OfferingsWritten:  int(row.OfferingsWritten),
 		OfferingsRemoved:  int(row.OfferingsRemoved),
 		Error:             row.Error,
+		ModulesAdded:      int(row.ModulesAdded),
+		// Never nil, so the wire never carries a null list.
+		AddedModules: append([]string{}, row.AddedModules...),
 	}
 	if row.RunID.Valid {
 		id := row.RunID.UUID

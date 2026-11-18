@@ -505,6 +505,8 @@ type ZpaCatalogueProjection struct {
 	OfferingsRemoved  int32
 	Error             *string
 	TeachersWritten   int32
+	ModulesAdded      int32
+	AddedModules      []string
 }
 
 type ZpaCatalogueProjectionNote struct {

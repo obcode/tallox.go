@@ -7,7 +7,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/obcode/tallox.go/graph/generated"
@@ -152,7 +151,24 @@ func (r *queryResolver) ZpaCatalogueProjections(ctx context.Context, limit *int)
 
 // Projection is the resolver for the projection field.
 func (r *zpaSyncRunResolver) Projection(ctx context.Context, obj *model.ZpaSyncRun) (*model.ZpaCatalogueProjection, error) {
-	panic(fmt.Errorf("not implemented: Projection - projection"))
+	// The run was already read under mayReadImport, by whichever root field produced it; the
+	// check is repeated because a field resolver is a surface of its own.
+	if err := mayReadImport(principal.From(ctx)); err != nil {
+		return nil, err
+	}
+
+	runID, err := uuid.Parse(obj.ID)
+	if err != nil {
+		return nil, nil
+	}
+	projection, err := r.Import.ProjectionOfRun(ctx, runID)
+	if err != nil {
+		return nil, zpaUserFacing(err)
+	}
+	if projection == nil {
+		return nil, nil
+	}
+	return projectionModel(*projection), nil
 }
 
 // ZpaSyncRun returns generated.ZpaSyncRunResolver implementation.

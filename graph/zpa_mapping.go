@@ -154,6 +154,8 @@ func projectionModel(p domain.CatalogueProjection) *model.ZpaCatalogueProjection
 		ModulesWritten:    p.ModulesWritten,
 		OfferingsWritten:  p.OfferingsWritten,
 		OfferingsRemoved:  p.OfferingsRemoved,
+		ModulesAdded:      p.ModulesAdded,
+		AddedModules:      append([]string{}, p.AddedModules...),
 		Error:             p.Error,
 		Notes:             make([]*model.ZpaProjectionNote, 0, len(p.Notes)),
 	}

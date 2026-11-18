@@ -441,6 +441,10 @@ func (f *fakeCatalogue) LatestProjections(context.Context, int) ([]domain.Catalo
 	return nil, nil
 }
 
+func (f *fakeCatalogue) ProjectionOfRun(context.Context, uuid.UUID) (*domain.CatalogueProjection, error) {
+	return nil, nil
+}
+
 // TestAPartialRunDoesNotProject.
 //
 // The projection removes offerings the source no longer supports. After a partial fetch, "no

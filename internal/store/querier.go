@@ -325,6 +325,8 @@ type Querier interface {
 	// And what the host in turn borrows from its own sibling cohorts.
 	BorrowedInstancePartsFor(ctx context.Context, instanceIds []uuid.UUID) ([]BorrowedInstancePartsForRow, error)
 	CatalogueProjectionNotes(ctx context.Context, projectionID uuid.UUID) ([]CatalogueProjectionNotesRow, error)
+	// The projection an import run triggered. At most one today; the newest, should that change.
+	CatalogueProjectionOfRun(ctx context.Context, runID uuid.NullUUID) (CatalogueProjectionOfRunRow, error)
 	// The next mails to send, leased for ten minutes so that no other sender takes them while this
 	// one talks to the server. The address is read from the account now — never from anywhere else.
 	ClaimMail(ctx context.Context, arg ClaimMailParams) ([]ClaimMailRow, error)
@@ -1185,6 +1187,12 @@ type Querier interface {
 	// with a filter would read the whole table to answer a question about twenty rows. Same ordering
 	// as the list, so that a screen sorted by module reads the same way in both places.
 	ModulesByIDs(ctx context.Context, ids []uuid.UUID) ([]ModulesByIDsRow, error)
+	// The imported modules ProjectModules just inserted, as "<programme code> · <name>".
+	//
+	// Read by created_at = now(): both are the transaction's start time, so inside the projection's
+	// transaction this is exactly the rows its INSERT created and none that an ON CONFLICT updated.
+	// Only meaningful in that transaction — anywhere else it is an arbitrary instant.
+	ModulesImportedInThisTransaction(ctx context.Context) ([]string, error)
 	// Which modules a subject group holds, for the screen that shows somebody what a group is about.
 	//
 	// The names and their home programme, and nothing else: this answers "is this my subject", not

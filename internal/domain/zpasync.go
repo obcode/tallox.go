@@ -626,6 +626,15 @@ func (s *ZPASyncService) CatalogueProjections(ctx context.Context, limit int) ([
 	return s.catalogue.LatestProjections(ctx, limit)
 }
 
+// ProjectionOfRun returns the rebuild of the catalogue a run triggered, or (nil, nil) — while it
+// is going, after a run that did not fully succeed, or when nothing is projected at all.
+func (s *ZPASyncService) ProjectionOfRun(ctx context.Context, runID uuid.UUID) (*CatalogueProjection, error) {
+	if s.catalogue == nil {
+		return nil, nil
+	}
+	return s.catalogue.ProjectionOfRun(ctx, runID)
+}
+
 // RunByID returns one run with its per-endpoint results, or (nil, nil).
 func (s *ZPASyncService) RunByID(ctx context.Context, id uuid.UUID) (*ZPASyncRun, error) {
 	return s.store.RunByID(ctx, id)

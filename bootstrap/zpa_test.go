@@ -475,6 +475,33 @@ func TestALeadSyncsTheCatalogue(t *testing.T) {
 	if done.Status != string(domain.ZPASyncSucceeded) {
 		t.Errorf("the run ended %s, want SUCCEEDED", done.Status)
 	}
+	// What reached the catalogue, read with the run. The stub delivers no modules, so none.
+	var projected struct {
+		ZpaSyncRun struct {
+			Projection *struct {
+				Status       string   `json:"status"`
+				ModulesAdded int      `json:"modulesAdded"`
+				AddedModules []string `json:"addedModules"`
+			} `json:"projection"`
+		} `json:"zpaSyncRun"`
+	}
+	// The projection follows the run's finish, so the page keeps reading until it has settled.
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		programmeLead.MustQuery(t, `query ($id: ID!) {
+			zpaSyncRun(id: $id) { projection { status modulesAdded addedModules } }
+		}`, map[string]any{"id": run.ID}, &projected)
+		p := projected.ZpaSyncRun.Projection
+		if (p != nil && p.Status != "RUNNING") || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if p := projected.ZpaSyncRun.Projection; p == nil || p.Status != "SUCCEEDED" ||
+		p.ModulesAdded != 0 || p.AddedModules == nil {
+		t.Errorf("the run's projection = %+v, want SUCCEEDED with an empty list", p)
+	}
+
 	var runs struct {
 		ZpaSyncRuns []struct{ ID string } `json:"zpaSyncRuns"`
 	}

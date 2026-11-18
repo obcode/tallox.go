@@ -179,6 +179,19 @@ SET home_programme_id      = EXCLUDED.home_programme_id,
     retired_at             = EXCLUDED.retired_at,
     updated_at             = now();
 
+-- name: ModulesImportedInThisTransaction :many
+-- The imported modules ProjectModules just inserted, as "<programme code> · <name>".
+--
+-- Read by created_at = now(): both are the transaction's start time, so inside the projection's
+-- transaction this is exactly the rows its INSERT created and none that an ON CONFLICT updated.
+-- Only meaningful in that transaction — anywhere else it is an arbitrary instant.
+SELECT (p.code || ' · ' || m.name)::text AS label
+FROM module m
+JOIN programme p ON p.id = m.home_programme_id
+WHERE m.zpa_module_ref IS NOT NULL
+  AND m.created_at = now()
+ORDER BY p.code, m.name;
+
 -- name: AdoptLocalTeachers :many
 -- A teacher entered by hand whom the source now lists: the same address is the same human.
 --
@@ -507,7 +520,7 @@ FROM conflicting;
 INSERT INTO zpa_catalogue_projection (run_id)
 VALUES (sqlc.narg(run_id))
 RETURNING id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
-          modules_written, offerings_written, offerings_removed, error;
+          modules_written, offerings_written, offerings_removed, error, modules_added, added_modules;
 
 -- name: FinishCatalogueProjection :one
 UPDATE zpa_catalogue_projection
@@ -518,10 +531,12 @@ SET status             = sqlc.arg(status),
     modules_written    = sqlc.arg(modules_written),
     offerings_written  = sqlc.arg(offerings_written),
     offerings_removed  = sqlc.arg(offerings_removed),
+    modules_added      = sqlc.arg(modules_added),
+    added_modules      = sqlc.arg(added_modules)::text[],
     error              = sqlc.narg(error)
 WHERE id = sqlc.arg(id)
 RETURNING id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
-          modules_written, offerings_written, offerings_removed, error;
+          modules_written, offerings_written, offerings_removed, error, modules_added, added_modules;
 
 -- name: FailAbandonedCatalogueProjections :many
 -- The projection's counterpart of FailAbandonedZPASyncRuns, called beside it at startup. A
@@ -545,10 +560,19 @@ SET count = EXCLUDED.count, sample = EXCLUDED.sample;
 
 -- name: LatestCatalogueProjections :many
 SELECT id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
-       modules_written, offerings_written, offerings_removed, error
+       modules_written, offerings_written, offerings_removed, error, modules_added, added_modules
 FROM zpa_catalogue_projection
 ORDER BY started_at DESC
 LIMIT $1;
+
+-- name: CatalogueProjectionOfRun :one
+-- The projection an import run triggered. At most one today; the newest, should that change.
+SELECT id, run_id, started_at, finished_at, status, programmes_written, teachers_written,
+       modules_written, offerings_written, offerings_removed, error, modules_added, added_modules
+FROM zpa_catalogue_projection
+WHERE run_id = $1
+ORDER BY started_at DESC
+LIMIT 1;
 
 -- name: CatalogueProjectionNotes :many
 SELECT code, count, sample

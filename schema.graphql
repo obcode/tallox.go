@@ -6447,6 +6447,10 @@ type ZpaSyncRun {
   The rebuild of the catalogue this run triggered, or `null` when there was none: while the run
   is going, after a run that did not fully succeed, or for a run older than the projection's own
   record.
+
+  It starts when the run has finished, so for a moment after `finishedAt` is set it is `null` or
+  `RUNNING`. Whoever follows a run to learn what reached the catalogue keeps reading until it is
+  settled.
   """
   projection: ZpaCatalogueProjection
 }

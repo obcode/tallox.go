@@ -7,8 +7,10 @@ package graph
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/obcode/tallox.go/graph/generated"
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/domain"
 	"github.com/obcode/tallox.go/internal/policy"
@@ -147,3 +149,13 @@ func (r *queryResolver) ZpaCatalogueProjections(ctx context.Context, limit *int)
 	}
 	return out, nil
 }
+
+// Projection is the resolver for the projection field.
+func (r *zpaSyncRunResolver) Projection(ctx context.Context, obj *model.ZpaSyncRun) (*model.ZpaCatalogueProjection, error) {
+	panic(fmt.Errorf("not implemented: Projection - projection"))
+}
+
+// ZpaSyncRun returns generated.ZpaSyncRunResolver implementation.
+func (r *Resolver) ZpaSyncRun() generated.ZpaSyncRunResolver { return &zpaSyncRunResolver{r} }
+
+type zpaSyncRunResolver struct{ *Resolver }

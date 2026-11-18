@@ -32,6 +32,7 @@ type ResolverRoot interface {
 	Query() QueryResolver
 	Semester() SemesterResolver
 	SubjectGroup() SubjectGroupResolver
+	ZpaSyncRun() ZpaSyncRunResolver
 }
 
 type DirectiveRoot struct {
@@ -794,9 +795,11 @@ type ComplexityRoot struct {
 	}
 
 	ZpaCatalogueProjection struct {
+		AddedModules      func(childComplexity int) int
 		Error             func(childComplexity int) int
 		FinishedAt        func(childComplexity int) int
 		ID                func(childComplexity int) int
+		ModulesAdded      func(childComplexity int) int
 		ModulesWritten    func(childComplexity int) int
 		Notes             func(childComplexity int) int
 		OfferingsRemoved  func(childComplexity int) int
@@ -833,6 +836,7 @@ type ComplexityRoot struct {
 		FinishedAt  func(childComplexity int) int
 		ID          func(childComplexity int) int
 		Kinds       func(childComplexity int) int
+		Projection  func(childComplexity int) int
 		StartedAt   func(childComplexity int) int
 		StartedBy   func(childComplexity int) int
 		Status      func(childComplexity int) int
@@ -4829,6 +4833,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.WishWindow.SubjectGroup(childComplexity), true
 
+	case "ZpaCatalogueProjection.addedModules":
+		if e.ComplexityRoot.ZpaCatalogueProjection.AddedModules == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.AddedModules(childComplexity), true
 	case "ZpaCatalogueProjection.error":
 		if e.ComplexityRoot.ZpaCatalogueProjection.Error == nil {
 			break
@@ -4847,6 +4857,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ZpaCatalogueProjection.ID(childComplexity), true
+	case "ZpaCatalogueProjection.modulesAdded":
+		if e.ComplexityRoot.ZpaCatalogueProjection.ModulesAdded == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaCatalogueProjection.ModulesAdded(childComplexity), true
 	case "ZpaCatalogueProjection.modulesWritten":
 		if e.ComplexityRoot.ZpaCatalogueProjection.ModulesWritten == nil {
 			break
@@ -5012,6 +5028,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ZpaSyncRun.Kinds(childComplexity), true
+	case "ZpaSyncRun.projection":
+		if e.ComplexityRoot.ZpaSyncRun.Projection == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ZpaSyncRun.Projection(childComplexity), true
 	case "ZpaSyncRun.startedAt":
 		if e.ComplexityRoot.ZpaSyncRun.StartedAt == nil {
 			break
@@ -11131,7 +11153,15 @@ type ZpaSyncRun {
   status: ZpaSyncStatus!
   "How many objects were fetched in total."
   fetched: Int!
-  "How many were seen for the first time, or came back after an absence."
+  """
+  How many were seen for the first time, or came back after an absence.
+
+  This and the next two compare what was fetched with what the cache held before this run — the
+  previous run, usually the nightly one. They say nothing about the catalogue: a module fetched at
+  night is not new again in the morning, and a module the cache already held can still arrive in
+  the catalogue with this run, if the last projection did not happen. What reached the catalogue
+  is ` + "`" + `projection.modulesAdded` + "`" + `.
+  """
   appeared: Int!
   "How many already held objects had different content."
   changed: Int!
@@ -11141,6 +11171,12 @@ type ZpaSyncRun {
   error: String
   "What each endpoint did."
   kinds: [ZpaSyncRunKind!]!
+  """
+  The rebuild of the catalogue this run triggered, or ` + "`" + `null` + "`" + ` when there was none: while the run
+  is going, after a run that did not fully succeed, or for a run older than the projection's own
+  record.
+  """
+  projection: ZpaCatalogueProjection
 }
 
 """
@@ -11182,6 +11218,9 @@ extend type Query {
   The one worth looking at is the most recent **successful** one and how long ago it was. The
   failure this import will actually have is not a wrong result — it is a job that quietly
   stopped weeks ago, while everything looks healthy and the planning uses stale data.
+
+  Readable by administration, the dean's office, the observer, and every programme or subject
+  group lead who leads something — whoever may start a run has to be able to follow it.
   """
   zpaSyncRuns(limit: Int = 20): [ZpaSyncRun!]! @fullReach @scope(area: ADMIN, verb: READ)
 
@@ -11205,9 +11244,14 @@ extend type Mutation {
   fills in one endpoint at a time, and ` + "`" + `finishedAt` + "`" + ` is set when it is done. A whole run takes
   about a quarter of a minute, nearly all of it waiting for the other system.
 
-  Refused with ZPA_SYNC_RUNNING if a run is already going, and with ZPA_SYNCED_RECENTLY for a
-  while after a successful run, because this reaches into another institution's system and a
-  button that can be held down should not be able to hammer it.
+  Open to administration, the dean's office, and every programme or subject group lead who leads
+  something (since 2026-11-18): a new module is entered in the examination office's system at a
+  lead's initiative, and the lead should not have to wait for the night to plan with it.
+
+  Refused with ZPA_SYNC_RUNNING if a run is already going, whoever started it — here or the
+  nightly job: one lock serialises them all, so two people pressing at once get one run. Refused
+  with ZPA_SYNCED_RECENTLY for a while after a successful run, because this reaches into another
+  institution's system and a button that can be held down should not be able to hammer it.
 
   ` + "`" + `@fullReach` + "`" + `: in a signed-in browser session or with a token minted with ` + "`" + `fullReach` + "`" + `. It is an
   outbound call using a shared credential; the access log records which token asked for it.
@@ -11352,8 +11396,17 @@ type ZpaCatalogueProjection {
   programmesWritten: Int!
   "How many teachers were written."
   teachersWritten: Int!
-  "How many modules were written."
+  "How many modules were written, new or not."
   modulesWritten: Int!
+  """
+  How many of them were not in the catalogue before — the answer to "is the module I asked the
+  examination office for here now".
+  """
+  modulesAdded: Int!
+  """
+  Up to twenty of those, each as the home programme's code and the module's name ("IF · …").
+  """
+  addedModules: [String!]!
   "How many entries of 'this module counts in these regulations' were written."
   offeringsWritten: Int!
   """
@@ -11387,6 +11440,9 @@ extend type Mutation {
   For when the rules of the projection change: a new rule has to be applicable to data already
   held, without waiting for the nightly job and without asking another institution's system for
   3861 objects that have not moved.
+
+  Administration and the dean's office only, unlike ` + "`" + `syncZpaNow` + "`" + `: a lead who wants a new module
+  asks for a sync, and every successful sync projects.
 
   Unlike ` + "`" + `syncZpaNow` + "`" + ` this reaches nothing outside this database, so there is nothing to hammer
   and no cooling-off period. ` + "`" + `@fullReach` + "`" + ` like ` + "`" + `syncZpaNow` + "`" + ` — it rewrites the catalogue everybody
@@ -12640,6 +12696,10 @@ func (ec *executionContext) childFields_ZpaCatalogueProjection(ctx context.Conte
 		return ec.fieldContext_ZpaCatalogueProjection_teachersWritten(ctx, field)
 	case "modulesWritten":
 		return ec.fieldContext_ZpaCatalogueProjection_modulesWritten(ctx, field)
+	case "modulesAdded":
+		return ec.fieldContext_ZpaCatalogueProjection_modulesAdded(ctx, field)
+	case "addedModules":
+		return ec.fieldContext_ZpaCatalogueProjection_addedModules(ctx, field)
 	case "offeringsWritten":
 		return ec.fieldContext_ZpaCatalogueProjection_offeringsWritten(ctx, field)
 	case "offeringsRemoved":
@@ -12710,6 +12770,8 @@ func (ec *executionContext) childFields_ZpaSyncRun(ctx context.Context, field gr
 		return ec.fieldContext_ZpaSyncRun_error(ctx, field)
 	case "kinds":
 		return ec.fieldContext_ZpaSyncRun_kinds(ctx, field)
+	case "projection":
+		return ec.fieldContext_ZpaSyncRun_projection(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ZpaSyncRun", field.Name)
 }

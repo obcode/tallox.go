@@ -125,6 +125,12 @@ models:
     fields:
       modules:
         resolver: true
+  # Looked up per run that asks for it: the run list is read once a second while a run is going,
+  # and only the line that describes a run's outcome wants its projection.
+  ZpaSyncRun:
+    fields:
+      projection:
+        resolver: true
   # Counted per semester that asks rather than carried on the model: a semester reaches the API
   # from a dozen queries and mutations, and only a screen showing the release progress wants it.
   Semester:

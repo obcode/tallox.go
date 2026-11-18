@@ -220,3 +220,32 @@ mit SPOs hat, kollidiert auf `zpa_spo_ref` — vorher von Hand zusammenführen.
 
 `PROGRAMME_CODE_MALFORMED` steht seitdem auch im Cron-Bericht (`HINWEIS: … Studiengangskürzel nicht
 übernommen`). Lehre: ein Filter, der still Planungsdaten verwirft, gehört in die Mail.
+
+## Leitungen am Knopf, und was „keine Änderungen“ misst (2026-11-18)
+
+**Wer anstößt:** seit 2026-11-18 neben ADMIN und DEANS_OFFICE auch jede Studiengangs- und
+Fachgruppenleitung, **die etwas leitet** (`leadsSomething` = `PlanningScope` oder
+`AssignmentScope` nicht leer). Grund: neue Module trägt das ZPA auf Initiative der Leitungen
+ein, und wer sie anlegen ließ, soll gleich damit planen. Eine ungescopte Leitung darf nichts.
+Lesen geht mit (`MayReadZPAImport`), weil man einen Lauf, den man startet, verfolgen können
+muss. **Das Neuprojizieren ohne Abruf** (`projectZpaCatalogue`, `MayProjectZPACatalogue`) bleibt
+bei ADMIN und DEANS_OFFICE. Es ist betrieblich (nach einer Regeländerung), und jeder
+erfolgreiche Lauf projiziert ohnehin.
+
+**Überschneidungen** waren schon vorher ausgeschlossen: ein Advisory-Lock für Knopf und Cron,
+`ZPA_SYNC_RUNNING`, dazu 10 min `ZPA_SYNCED_RECENTLY`. `TestALeadSyncsTheCatalogue` hält das
+für zwei Leitungen an zwei Türen fest.
+
+**Der Befund:** ein Handlauf meldete „keine Änderungen“, und trotzdem kam ein neues Modul.
+`appeared/changed/disappeared` vergleichen den Abruf mit dem **Cache**, nicht mit dem Katalog.
+Ein Modul, das der Nachtlauf schon geholt hat, ist morgens nicht wieder neu. Ein Modul, das im
+Cache liegt, während die letzte Projektion ausfiel (Lauf PARTIAL → keine Projektion), kommt mit
+dem nächsten erfolgreichen Lauf in den Katalog, ohne Cache-Diff. Seitdem zählt die Projektion
+selbst: `modules_added` und `added_modules` (bis 20, „<Kürzel> · <Name>“), gelesen über
+`created_at = now()` in ihrer Transaktion, und `ZpaSyncRun.projection`.
+
+**Falle:** Die Projektion startet erst **nach** `FinishRun`. Direkt nach `finishedAt` ist
+`projection` also null oder RUNNING; wer verfolgt, liest weiter. Zweite Falle, vom
+Abbruch-Test gefunden: ein nil-`[]string` schreibt sqlc als NULL in die NOT-NULL-Spalte. Die
+Finish-Zeile scheitert dann, und die Projektion bleibt RUNNING. Deshalb immer
+`append([]string{}, …)`.

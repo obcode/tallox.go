@@ -25,13 +25,16 @@ import "github.com/obcode/tallox.go/internal/principal"
 // building a neighbouring system needs to see, and nothing in a run report is about a person's
 // teaching. Reading only — see MayTriggerZPASync.
 //
+// The leads read it since 2026-11-18, because they may start a run (see MayTriggerZPASync) and a
+// button whose result one cannot read is half a button.
+//
 // With full reach only: a browser session or a token minted with full reach.
 func MayReadZPAImport(a principal.Actor) bool {
 	if !MayActWithFullReach(a) {
 		return false
 	}
 	roles := RolesOf(a)
-	return mayRunZPAImport(roles) || roles.Has(RoleObserver)
+	return mayRunZPAImport(roles) || leadsSomething(a) || roles.Has(RoleObserver)
 }
 
 // MayTriggerZPASync reports whether an actor may set off an import run by hand.
@@ -42,10 +45,27 @@ func MayReadZPAImport(a principal.Actor) bool {
 // no way to act on it, which is how people learn to ignore a screen. The observer is the exception
 // on purpose: it reads in order to understand, and an observer writes nothing anywhere.
 //
+// Programme and subject group leads joined on 2026-11-18. A new module is entered in the
+// examination office's system at their initiative, and the next thing they want is to plan with
+// it — waiting for the night, or for the dean's office to press a button, is a day lost for nothing.
+// Only a lead that leads something: an unscoped grant is the empty permission here as everywhere
+// else, and "may fetch the catalogue" is not a reason to read it differently.
+//
 // What keeps this from being a way to hammer the examination office's system is not the role
-// but the two limits around it: a run already in progress is returned rather than a second one
-// started, and a run that succeeded minutes ago is refused.
+// but the two limits around it, and they matter more with more people at the button: a run
+// already in progress refuses a second one (one advisory lock for the button and the nightly job
+// alike), and a run that succeeded minutes ago is refused.
 func MayTriggerZPASync(a principal.Actor) bool {
+	return MayActWithFullReach(a) && (mayRunZPAImport(RolesOf(a)) || leadsSomething(a))
+}
+
+// MayProjectZPACatalogue reports whether an actor may rebuild the catalogue from the cached
+// payloads without fetching.
+//
+// Not opened to the leads with the sync. A rebuild is for when the projection's rules change — an
+// operational act after a deploy, not something a planning question ever needs: a lead who wants
+// a new module asks for a sync, and every successful sync projects.
+func MayProjectZPACatalogue(a principal.Actor) bool {
 	return MayActWithFullReach(a) && mayRunZPAImport(RolesOf(a))
 }
 
@@ -53,7 +73,16 @@ func mayRunZPAImport(roles RoleSet) bool {
 	return roles.Has(RoleAdmin) || roles.Has(RoleDeansOffice)
 }
 
+// leadsSomething reports whether an actor leads at least one study programme or subject group.
+func leadsSomething(a principal.Actor) bool {
+	return !PlanningScope(a).Empty() || !AssignmentScope(a).Empty()
+}
+
 // ZPAImportReason is what a caller who failed those checks is told. German, like every other
 // string a person reads.
-const ZPAImportReason = "Den ZPA-Import betreiben die Administration und das Dekanat; " +
-	"mit der Rolle Einsicht lässt er sich nur lesen."
+const ZPAImportReason = "Den ZPA-Abgleich stoßen die Administration, das Dekanat und die " +
+	"Studiengangs- und Fachgruppenleitungen an; mit der Rolle Einsicht lässt er sich nur lesen."
+
+// ZPAProjectionReason is what a caller refused a rebuild of the catalogue is told.
+const ZPAProjectionReason = "Den Katalog ohne Abgleich neu aufbauen können nur die " +
+	"Administration und das Dekanat."

@@ -119,6 +119,16 @@ func zpaForbidden() error {
 	}
 }
 
+// zpaProjectionForbidden refuses a rebuild of the catalogue to somebody who may sync but not
+// rebuild — the leads, since 2026-11-18. A sentence of its own, because "only administration and
+// the dean's office" is the true reason here and the general one would tell a lead they may.
+func zpaProjectionForbidden() error {
+	return &gqlerror.Error{
+		Message:    policy.ZPAProjectionReason,
+		Extensions: map[string]any{"code": "FORBIDDEN"},
+	}
+}
+
 // mayReadImport is the guard every read in this area runs first.
 //
 // In the resolver as well as behind @interactiveOnly, because the directive protects a field

@@ -74,6 +74,15 @@ func importHandler(t *testing.T, configured bool, people ...grants) http.Handler
 func importStack(t *testing.T, source domain.ZPASource, people ...grants) (http.Handler, *domain.ZPASyncService) {
 	t.Helper()
 
+	h, imports, _ := importSchema(t, source, people...)
+	return h, imports
+}
+
+// importSchema is importStack with the schema handed back as well, for a test that has to give
+// somebody a programme or a subject group to lead.
+func importSchema(t *testing.T, source domain.ZPASource, people ...grants) (http.Handler, *domain.ZPASyncService, *storetest.Schema) {
+	t.Helper()
+
 	s := storetest.New(t)
 	for _, p := range people {
 		storetest.SeedPerson(t, s, p.who, p.roles...)
@@ -102,7 +111,7 @@ func importStack(t *testing.T, source domain.ZPASource, people ...grants) (http.
 		Build:  buildinfo.Info{Version: "test"},
 		Auth:   auth.Config{Mode: auth.ModeProxy, Users: directory, Tokens: directory},
 		Import: imports,
-	}), imports
+	}), imports, s
 }
 
 const runsQuery = `{ zpaSyncRuns(limit: 5) { id status trigger } }`
@@ -156,10 +165,11 @@ func TestTheImportIsInteractiveOnly(t *testing.T) {
 
 // TestWhoSeesTheImport walks the cast across the rule.
 //
-// The union of ADMIN and DEANS_OFFICE is the first rule in this codebase that joins those two,
+// The union of ADMIN and DEANS_OFFICE was the first rule in this codebase that joins those two,
 // so it is worth a table rather than a sentence: the act is operational, the need for it arises
 // in planning, and forcing the dean's office to acquire ADMIN for a refresh button would push
-// exactly the behaviour the access design works hardest to avoid.
+// exactly the behaviour the access design works hardest to avoid. The leads who lead something
+// joined on 2026-11-18; an unscoped grant is still the empty permission.
 func TestWhoSeesTheImport(t *testing.T) {
 	t.Parallel()
 
@@ -172,8 +182,9 @@ func TestWhoSeesTheImport(t *testing.T) {
 		{"an administrator", testdata.Sechs, []string{string(policy.RoleAdmin)}, true},
 		{"the dean's office", testdata.Fuenf, []string{string(policy.RoleDeansOffice)}, true},
 		{"a lecturer", testdata.Eins, []string{string(policy.RoleLecturer)}, false},
-		{"a programme lead", testdata.Vier, []string{string(policy.RoleProgrammeLead)}, false},
-		{"a subject group lead", testdata.Drei, []string{string(policy.RoleSubjectGroupLead)}, false},
+		// Without anything to lead. The leads who lead something are TestALeadSyncsTheCatalogue.
+		{"a programme lead without a programme", testdata.Vier, []string{string(policy.RoleProgrammeLead)}, false},
+		{"a subject group lead without a group", testdata.Drei, []string{string(policy.RoleSubjectGroupLead)}, false},
 		{"an observer", testdata.Zwei, []string{string(policy.RoleObserver)}, true},
 	}
 
@@ -393,5 +404,95 @@ func TestTheDevelopmentUserHasAPersonRow(t *testing.T) {
 	}
 	if roles != 0 {
 		t.Errorf("the development user was granted %d role(s) in the database", roles)
+	}
+}
+
+// seedLeads gives a programme lead a programme and a subject group lead a group.
+func seedLeads(t *testing.T, s *storetest.Schema, programmeLead, groupLead testdata.Persona) {
+	t.Helper()
+
+	if _, err := s.Pool.Exec(t.Context(),
+		`WITH p AS (INSERT INTO programme (code, title) VALUES ('IF', 'Informatik') RETURNING id)
+		 INSERT INTO person_programme_scope (person_id, role, programme_id)
+		 SELECT $1, 'PROGRAMME_LEAD', id FROM p`, programmeLead.ID()); err != nil {
+		t.Fatalf("cannot make %s the lead of a programme: %v", programmeLead.Name, err)
+	}
+	if _, err := s.Pool.Exec(t.Context(),
+		`WITH g AS (INSERT INTO subject_group (code, name) VALUES ('SWE', 'Softwarefächer') RETURNING id)
+		 INSERT INTO person_subject_group_scope (person_id, role, subject_group_id)
+		 SELECT $1, 'SUBJECT_GROUP_LEAD', id FROM g`, groupLead.ID()); err != nil {
+		t.Fatalf("cannot make %s the lead of a group: %v", groupLead.Name, err)
+	}
+}
+
+// TestALeadSyncsTheCatalogue: since 2026-11-18 a programme or subject group lead fetches a module
+// they just had entered in the examination office's system, rather than waiting for the night.
+//
+// The rule that matters more with more people at the button is the one that was always there: a
+// run in progress refuses a second one, whoever asks — a lead of the other kind included — and a
+// run that just succeeded refuses the next. Through the browser and a full-reach token; a plain
+// token is refused like everybody's.
+func TestALeadSyncsTheCatalogue(t *testing.T) {
+	t.Parallel()
+
+	gate := make(chan struct{})
+	h, _, s := importSchema(t, &stubZPASource{objects: oneRegulation(), gate: gate},
+		grants{testdata.Vier, []string{string(policy.RoleProgrammeLead)}},
+		grants{testdata.Drei, []string{string(policy.RoleSubjectGroupLead)}})
+	seedLeads(t, s, testdata.Vier, testdata.Drei)
+
+	programmeLead := graphqltest.New(h).AsUser(testdata.Vier.Mail).On(graphqltest.Browser)
+	groupLead := graphqltest.New(h).
+		WithToken(fullReachToken(t, s, testdata.Drei)).On(graphqltest.Token)
+	plainToken := graphqltest.New(h).WithToken(testdata.Drei.Token).On(graphqltest.Token)
+
+	assertRefusal(t, plainToken.Do(t, `mutation { syncZpaNow { id } }`, nil), "FULL_REACH_REQUIRED")
+	assertRefusal(t, plainToken.Do(t, runsQuery, nil), "FULL_REACH_REQUIRED")
+
+	var first struct {
+		SyncZpaNow zpaRun `json:"syncZpaNow"`
+	}
+	programmeLead.MustQuery(t, `mutation { syncZpaNow { id status startedBy } }`, nil, &first)
+	run := first.SyncZpaNow
+	if run.Status != string(domain.ZPASyncRunning) || run.StartedBy != testdata.Vier.Name {
+		t.Errorf("the lead's run = %+v, want RUNNING and started by %s", run, testdata.Vier.Name)
+	}
+
+	// The other lead, through the other door, while the first run is going.
+	assertRefusal(t, groupLead.Do(t, `mutation { syncZpaNow { id } }`, nil), "ZPA_SYNC_RUNNING")
+	var running int
+	if err := s.Pool.QueryRow(t.Context(),
+		`SELECT count(*) FROM zpa_sync_run WHERE status = 'RUNNING'`).Scan(&running); err != nil {
+		t.Fatal(err)
+	}
+	if running != 1 {
+		t.Errorf("%d runs are RUNNING, want exactly one", running)
+	}
+
+	// Both follow it: whoever may start a run may read it.
+	close(gate)
+	done := followRun(t, groupLead, run.ID)
+	if done.Status != string(domain.ZPASyncSucceeded) {
+		t.Errorf("the run ended %s, want SUCCEEDED", done.Status)
+	}
+	var runs struct {
+		ZpaSyncRuns []struct{ ID string } `json:"zpaSyncRuns"`
+	}
+	programmeLead.MustQuery(t, runsQuery, nil, &runs)
+	if len(runs.ZpaSyncRuns) != 1 {
+		t.Errorf("the lead sees %d runs, want 1", len(runs.ZpaSyncRuns))
+	}
+
+	assertRefusal(t, groupLead.Do(t, `mutation { syncZpaNow { id } }`, nil), "ZPA_SYNCED_RECENTLY")
+
+	// Rebuilding the catalogue without a fetch stays with administration and the dean's office.
+	for _, c := range []*graphqltest.Client{programmeLead, groupLead} {
+		resp := c.Do(t, `mutation { projectZpaCatalogue { id } }`, nil)
+		assertRefusal(t, resp, "FORBIDDEN")
+		for _, m := range resp.Messages() {
+			if m != policy.ZPAProjectionReason {
+				t.Errorf("a lead refused a rebuild is told %q", m)
+			}
+		}
 	}
 }

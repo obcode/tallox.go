@@ -44,8 +44,8 @@ func (r *mutationResolver) SyncZpaNow(ctx context.Context) (*model.ZpaSyncRun, e
 
 // ProjectZpaCatalogue is the resolver for the projectZpaCatalogue field.
 func (r *mutationResolver) ProjectZpaCatalogue(ctx context.Context) (*model.ZpaCatalogueProjection, error) {
-	if !policy.MayTriggerZPASync(principal.From(ctx)) {
-		return nil, zpaForbidden()
+	if !policy.MayProjectZPACatalogue(principal.From(ctx)) {
+		return nil, zpaProjectionForbidden()
 	}
 
 	projection, err := r.Import.ProjectCatalogue(ctx)

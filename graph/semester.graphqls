@@ -82,6 +82,13 @@ type Semester {
   demandRelease: DemandRelease!
 
   """
+  How many of the subject groups with instances in this semester have shut their wish round, out
+  of how many. The rest are what `publishWishes` waits for (`WISH_WINDOWS_OPEN`). Readable by
+  everybody with an account, like `wishWindows`.
+  """
+  wishRounds: WishRounds!
+
+  """
   Whether this is the semester the faculty is planning right now. At most one is.
 
   The answer to "which semester is this page about" before anybody has chosen one — a

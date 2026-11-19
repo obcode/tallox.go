@@ -169,6 +169,16 @@ func (r *semesterResolver) DemandRelease(ctx context.Context, obj *model.Semeste
 	return &model.DemandRelease{Released: counted.Released, Planned: counted.Planned}, nil
 }
 
+// WishRounds is the resolver for the wishRounds field.
+func (r *semesterResolver) WishRounds(ctx context.Context, obj *model.Semester) (*model.WishRounds, error) {
+	actor := principal.From(ctx)
+	counted, err := r.Marks.WishRounds(ctx, actor, obj.Code)
+	if err != nil {
+		return nil, planningMarkError(actor, err)
+	}
+	return &model.WishRounds{Closed: counted.Closed, Groups: counted.Groups}, nil
+}
+
 // Semester returns generated.SemesterResolver implementation.
 func (r *Resolver) Semester() generated.SemesterResolver { return &semesterResolver{r} }
 

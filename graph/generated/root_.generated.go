@@ -699,6 +699,7 @@ type ComplexityRoot struct {
 		IsPlanningSemester        func(childComplexity int) int
 		Phase                     func(childComplexity int) int
 		ReachablePhases           func(childComplexity int) int
+		WishRounds                func(childComplexity int) int
 		WishesPublishedAt         func(childComplexity int) int
 	}
 
@@ -785,6 +786,11 @@ type ComplexityRoot struct {
 		ShareHours func(childComplexity int) int
 		TrackLimit func(childComplexity int) int
 		UpdatedAt  func(childComplexity int) int
+	}
+
+	WishRounds struct {
+		Closed func(childComplexity int) int
+		Groups func(childComplexity int) int
 	}
 
 	WishWindow struct {
@@ -4444,6 +4450,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Semester.ReachablePhases(childComplexity), true
+	case "Semester.wishRounds":
+		if e.ComplexityRoot.Semester.WishRounds == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Semester.WishRounds(childComplexity), true
 	case "Semester.wishesPublishedAt":
 		if e.ComplexityRoot.Semester.WishesPublishedAt == nil {
 			break
@@ -4807,6 +4819,19 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Wish.UpdatedAt(childComplexity), true
+
+	case "WishRounds.closed":
+		if e.ComplexityRoot.WishRounds.Closed == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WishRounds.Closed(childComplexity), true
+	case "WishRounds.groups":
+		if e.ComplexityRoot.WishRounds.Groups == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WishRounds.Groups(childComplexity), true
 
 	case "WishWindow.changedAt":
 		if e.ComplexityRoot.WishWindow.ChangedAt == nil {
@@ -9442,6 +9467,24 @@ type DemandRelease {
 }
 
 """
+How far the wish rounds of one semester have got: ` + "`" + `closed` + "`" + ` of the ` + "`" + `groups` + "`" + ` subject groups that have
+instances in it have shut their wish round (` + "`" + `setWishWindow` + "`" + `).
+
+A round runs per subject group, while the demand is released per study programme — the two count
+different things and do not add up to one figure. ` + "`" + `groups` + "`" + ` is the set ` + "`" + `publishWishes` + "`" + ` waits for:
+active subject groups with at least one instance in the semester. A group nobody has decided
+anything about is open, as everywhere else; a module in no subject group has no round and is not
+counted. Readable by everybody with an account, like ` + "`" + `wishWindows` + "`" + `: it counts subject groups and
+their rounds and says nothing about anybody's wishes.
+"""
+type WishRounds {
+  "How many of these subject groups have shut their wish round for this semester."
+  closed: Int!
+  "How many active subject groups have at least one instance in this semester."
+  groups: Int!
+}
+
+"""
 One study programme announcing that its review of a semester is done: after the assignment its
 lead has gone over the demand, its cut and who teaches what, and the figures stand against the
 quota as far as anybody knows today. An announcement only: unlike ` + "`" + `DemandCompletion` + "`" + `, it blocks
@@ -9709,6 +9752,13 @@ type Semester {
   this semester, out of how many. Readable by everybody with an account, like ` + "`" + `demandCompletions` + "`" + `.
   """
   demandRelease: DemandRelease!
+
+  """
+  How many of the subject groups with instances in this semester have shut their wish round, out
+  of how many. The rest are what ` + "`" + `publishWishes` + "`" + ` waits for (` + "`" + `WISH_WINDOWS_OPEN` + "`" + `). Readable by
+  everybody with an account, like ` + "`" + `wishWindows` + "`" + `.
+  """
+  wishRounds: WishRounds!
 
   """
   Whether this is the semester the faculty is planning right now. At most one is.
@@ -12478,6 +12528,8 @@ func (ec *executionContext) childFields_Semester(ctx context.Context, field grap
 		return ec.fieldContext_Semester_phase(ctx, field)
 	case "demandRelease":
 		return ec.fieldContext_Semester_demandRelease(ctx, field)
+	case "wishRounds":
+		return ec.fieldContext_Semester_wishRounds(ctx, field)
 	case "isPlanningSemester":
 		return ec.fieldContext_Semester_isPlanningSemester(ctx, field)
 	case "reachablePhases":
@@ -12666,6 +12718,16 @@ func (ec *executionContext) childFields_Wish(ctx context.Context, field graphql.
 		return ec.fieldContext_Wish_updatedAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type Wish", field.Name)
+}
+
+func (ec *executionContext) childFields_WishRounds(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "closed":
+		return ec.fieldContext_WishRounds_closed(ctx, field)
+	case "groups":
+		return ec.fieldContext_WishRounds_groups(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type WishRounds", field.Name)
 }
 
 func (ec *executionContext) childFields_WishWindow(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

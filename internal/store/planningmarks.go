@@ -67,6 +67,17 @@ func (m *PlanningMarks) DemandRelease(ctx context.Context,
 	return domain.DemandRelease{Released: int(row.Released), Planned: int(row.Planned)}, nil
 }
 
+// WishRounds counts the subject groups with instances in one semester and how many have shut
+// their wish round.
+func (m *PlanningMarks) WishRounds(ctx context.Context,
+	semesterCode string) (domain.WishRounds, error) {
+	row, err := New(m.pool).WishRoundsOfSemester(ctx, semesterCode)
+	if err != nil {
+		return domain.WishRounds{}, fmt.Errorf("cannot count the wish rounds: %w", err)
+	}
+	return domain.WishRounds{Closed: int(row.Closed), Groups: int(row.Groups)}, nil
+}
+
 // AnnounceDemandComplete records or refreshes one announcement, and moves a semester still in
 // DEMAND_PLANNING on to WISHES.
 func (m *PlanningMarks) AnnounceDemandComplete(ctx context.Context, semesterCode, programme string,

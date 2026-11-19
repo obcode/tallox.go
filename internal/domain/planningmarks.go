@@ -78,6 +78,17 @@ type DemandRelease struct {
 	Planned  int
 }
 
+// WishRounds is how far the wish rounds of one semester have got: Closed of the Groups subject
+// groups with instances in it have shut their round. The rest are what publishing the wishes
+// waits for.
+//
+// Public like the windows it counts. A round runs per subject group and the demand is released per
+// programme, so this and DemandRelease count different things and never make one figure.
+type WishRounds struct {
+	Closed int
+	Groups int
+}
+
 // ReviewCompletion is one study programme announcing that its review of a semester is done:
 // after the assignment, its lead has gone over the demand, its cut and who teaches what, and the
 // figures stand as far as anybody knows today.
@@ -154,6 +165,9 @@ type PlanningMarkStore interface {
 	// WishWindows returns the subject groups somebody has decided something about, for one
 	// semester. Not every group: an absent row is open.
 	WishWindows(ctx context.Context, semesterCode string) ([]WishWindow, error)
+	// WishRounds counts the subject groups with instances in one semester and how many have shut
+	// their wish round.
+	WishRounds(ctx context.Context, semesterCode string) (WishRounds, error)
 	// SetWishWindow opens or shuts one.
 	SetWishWindow(ctx context.Context, semesterCode string, subjectGroupID uuid.UUID, open bool,
 		by uuid.UUID) (*WishWindow, error)
@@ -220,6 +234,23 @@ func (s *PlanningMarkService) DemandRelease(ctx context.Context, actor principal
 		return DemandRelease{}, err
 	}
 	return s.store.DemandRelease(ctx, semester.Code)
+}
+
+// WishRounds is how many of the subject groups with instances in a semester have shut their wish
+// round, out of how many.
+//
+// Readable by anybody with an account, for the reason the windows are: a colleague waiting for the
+// assignment, or for the wishes to be published, needs to see how far the rounds have got.
+func (s *PlanningMarkService) WishRounds(ctx context.Context, actor principal.Actor,
+	semesterCode string) (WishRounds, error) {
+	if !actor.Authenticated() {
+		return WishRounds{}, ErrNotAuthenticated
+	}
+	semester, err := s.semesters.ByCode(ctx, actor, semesterCode)
+	if err != nil {
+		return WishRounds{}, err
+	}
+	return s.store.WishRounds(ctx, semester.Code)
 }
 
 // SetDemandComplete announces a study programme's demand as settled, or withdraws the

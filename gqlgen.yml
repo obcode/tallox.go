@@ -137,6 +137,8 @@ models:
     fields:
       demandRelease:
         resolver: true
+      wishRounds:
+        resolver: true
   Programme:
     fields:
       leads:

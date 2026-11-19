@@ -95,6 +95,31 @@ WHERE ci.semester_id = sqlc.arg(semester_id)::uuid
   AND COALESCE(ww.open, true)
 ORDER BY g.code;
 
+-- name: WishRoundsOfSemester :one
+-- How far the wish rounds of one semester have got: how many of the subject groups that have
+-- instances in it have shut their round, out of how many.
+--
+-- The groups are exactly OpenWishWindowsOfSemester's — active, with at least one instance in the
+-- semester — so groups - closed is the number publishing waits for. An absent row is open. Public
+-- like the list of windows: it counts subject groups and their rounds, never anything about wishes.
+WITH groups AS (
+    SELECT DISTINCT g.id
+    FROM course_instance ci
+    JOIN semester s ON s.id = ci.semester_id
+    JOIN module_subject_group msg ON msg.module_id = ci.module_id
+    JOIN subject_group g ON g.id = msg.subject_group_id
+    WHERE s.code = sqlc.arg(semester)::text
+      AND g.active
+)
+SELECT COUNT(*) FILTER (WHERE EXISTS (
+           SELECT 1 FROM wish_window ww
+           JOIN semester s ON s.id = ww.semester_id
+           WHERE s.code = sqlc.arg(semester)::text
+             AND ww.subject_group_id = groups.id
+             AND NOT ww.open))::int AS closed,
+       COUNT(*)::int AS groups
+FROM groups;
+
 -- name: SetWishWindow :one
 -- Open or shut one subject group's wish round.
 --

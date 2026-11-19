@@ -1549,6 +1549,10 @@ type Semester struct {
 	// How many of the study programmes this faculty plans have released their demand for wishes in
 	// this semester, out of how many. Readable by everybody with an account, like `demandCompletions`.
 	DemandRelease *DemandRelease `json:"demandRelease"`
+	// How many of the subject groups with instances in this semester have shut their wish round, out
+	// of how many. The rest are what `publishWishes` waits for (`WISH_WINDOWS_OPEN`). Readable by
+	// everybody with an account, like `wishWindows`.
+	WishRounds *WishRounds `json:"wishRounds"`
 	// Whether this is the semester the faculty is planning right now. At most one is.
 	//
 	// The answer to "which semester is this page about" before anybody has chosen one — a
@@ -1834,6 +1838,22 @@ type Wish struct {
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
 	// When it was last changed. Changing your mind moves this and keeps `createdAt`. `null` like `createdAt`.
 	UpdatedAt *time.Time `json:"updatedAt,omitempty"`
+}
+
+// How far the wish rounds of one semester have got: `closed` of the `groups` subject groups that have
+// instances in it have shut their wish round (`setWishWindow`).
+//
+// A round runs per subject group, while the demand is released per study programme — the two count
+// different things and do not add up to one figure. `groups` is the set `publishWishes` waits for:
+// active subject groups with at least one instance in the semester. A group nobody has decided
+// anything about is open, as everywhere else; a module in no subject group has no round and is not
+// counted. Readable by everybody with an account, like `wishWindows`: it counts subject groups and
+// their rounds and says nothing about anybody's wishes.
+type WishRounds struct {
+	// How many of these subject groups have shut their wish round for this semester.
+	Closed int `json:"closed"`
+	// How many active subject groups have at least one instance in this semester.
+	Groups int `json:"groups"`
 }
 
 // One subject group's wish round, for one semester.

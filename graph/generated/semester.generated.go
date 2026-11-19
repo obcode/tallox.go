@@ -20,6 +20,7 @@ import (
 
 type SemesterResolver interface {
 	DemandRelease(ctx context.Context, obj *model.Semester) (*model.DemandRelease, error)
+	WishRounds(ctx context.Context, obj *model.Semester) (*model.WishRounds, error)
 }
 
 // endregion ************************** generated!.gotpl **************************
@@ -103,6 +104,38 @@ func (ec *executionContext) fieldContext_Semester_demandRelease(_ context.Contex
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_DemandRelease(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Semester_wishRounds(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Semester_wishRounds(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Semester().WishRounds(ctx, obj)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.WishRounds) graphql.Marshaler {
+			return ec.marshalNWishRounds2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishRounds(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Semester_wishRounds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Semester",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_WishRounds(ctx, field)
 		},
 	}
 	return fc, nil
@@ -336,6 +369,44 @@ func (ec *executionContext) _Semester(ctx context.Context, sel ast.SelectionSet,
 					}
 				}()
 				res = ec._Semester_demandRelease(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			if field.IsDeferred() {
+				deferredFieldSet.AddField(field)
+				fieldIndex := len(deferredFieldSet.Values) - 1
+				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, deferredFieldSet)
+				})
+
+				for _, deferrable := range field.Deferrables {
+					view, ok := deferLabelToView[deferrable.Label]
+					if !ok {
+						view = deferredFieldSet.NewView()
+						deferLabelToView[deferrable.Label] = view
+					}
+					view.AddIndices(fieldIndex)
+				}
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+		case "wishRounds":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Semester_wishRounds(ctx, field, obj)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}

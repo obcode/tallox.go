@@ -313,6 +313,44 @@ func (q *Queries) SetWishWindow(ctx context.Context, arg SetWishWindowParams) (W
 	return i, err
 }
 
+const wishRoundsOfSemester = `-- name: WishRoundsOfSemester :one
+WITH groups AS (
+    SELECT DISTINCT g.id
+    FROM course_instance ci
+    JOIN semester s ON s.id = ci.semester_id
+    JOIN module_subject_group msg ON msg.module_id = ci.module_id
+    JOIN subject_group g ON g.id = msg.subject_group_id
+    WHERE s.code = $1::text
+      AND g.active
+)
+SELECT COUNT(*) FILTER (WHERE EXISTS (
+           SELECT 1 FROM wish_window ww
+           JOIN semester s ON s.id = ww.semester_id
+           WHERE s.code = $1::text
+             AND ww.subject_group_id = groups.id
+             AND NOT ww.open))::int AS closed,
+       COUNT(*)::int AS groups
+FROM groups
+`
+
+type WishRoundsOfSemesterRow struct {
+	Closed int32
+	Groups int32
+}
+
+// How far the wish rounds of one semester have got: how many of the subject groups that have
+// instances in it have shut their round, out of how many.
+//
+// The groups are exactly OpenWishWindowsOfSemester's — active, with at least one instance in the
+// semester — so groups - closed is the number publishing waits for. An absent row is open. Public
+// like the list of windows: it counts subject groups and their rounds, never anything about wishes.
+func (q *Queries) WishRoundsOfSemester(ctx context.Context, semester string) (WishRoundsOfSemesterRow, error) {
+	row := q.db.QueryRow(ctx, wishRoundsOfSemester, semester)
+	var i WishRoundsOfSemesterRow
+	err := row.Scan(&i.Closed, &i.Groups)
+	return i, err
+}
+
 const wishWindowsOfSemester = `-- name: WishWindowsOfSemester :many
 SELECT ww.semester_id, ww.subject_group_id, ww.open, ww.changed_at, ww.changed_by,
        g.code AS subject_group_code, g.name AS subject_group_name

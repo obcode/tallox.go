@@ -8,7 +8,6 @@ package graph
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/obcode/tallox.go/graph/generated"
@@ -172,7 +171,12 @@ func (r *semesterResolver) DemandRelease(ctx context.Context, obj *model.Semeste
 
 // WishRounds is the resolver for the wishRounds field.
 func (r *semesterResolver) WishRounds(ctx context.Context, obj *model.Semester) (*model.WishRounds, error) {
-	panic(fmt.Errorf("not implemented: WishRounds - wishRounds"))
+	actor := principal.From(ctx)
+	counted, err := r.Marks.WishRounds(ctx, actor, obj.Code)
+	if err != nil {
+		return nil, planningMarkError(actor, err)
+	}
+	return &model.WishRounds{Closed: counted.Closed, Groups: counted.Groups}, nil
 }
 
 // Semester returns generated.SemesterResolver implementation.

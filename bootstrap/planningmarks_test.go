@@ -329,3 +329,44 @@ func TestAnUnreleasedProgrammeTakesNoWishThroughAnyDoor(t *testing.T) {
 		}{})
 	f.register(t, testdata.Eins)
 }
+
+// TestEveryoneReadsHowFarTheWishRoundsHaveGot: Semester.wishRounds through all three doors, for a
+// lecturer who leads nothing. Public like the windows it counts.
+func TestEveryoneReadsHowFarTheWishRoundsHaveGot(t *testing.T) {
+	t.Parallel()
+
+	f := wishHandler(t,
+		grants{testdata.Drei, []string{"LECTURER", "SUBJECT_GROUP_LEAD"}},
+		grants{testdata.Zwei, []string{"LECTURER"}},
+	)
+	f.leadGroup(t, testdata.Drei, f.group)
+
+	const query = `query($s: String!) { semester(code: $s) { wishRounds { closed groups } } }`
+	type rounds struct {
+		Semester struct{ WishRounds struct{ Closed, Groups int } }
+	}
+	read := func(t *testing.T, c *graphqltest.Client) (int, int) {
+		t.Helper()
+		var out rounds
+		c.MustQuery(t, query, map[string]any{"s": f.semester}, &out)
+		return out.Semester.WishRounds.Closed, out.Semester.WishRounds.Groups
+	}
+
+	doors := f.threeDoors(t, testdata.Zwei)
+	for door, c := range doors {
+		if closed, groups := read(t, c); closed != 0 || groups != 1 {
+			t.Errorf("%s, nothing shut: %d of %d, want 0 of 1", door, closed, groups)
+		}
+	}
+
+	graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).MustQuery(t, setWishWindowMutation,
+		map[string]any{"s": f.semester, "g": f.group.String(), "open": false}, &struct {
+			SetWishWindow struct{ Open bool }
+		}{})
+
+	for door, c := range doors {
+		if closed, groups := read(t, c); closed != 1 || groups != 1 {
+			t.Errorf("%s, the round shut: %d of %d, want 1 of 1", door, closed, groups)
+		}
+	}
+}

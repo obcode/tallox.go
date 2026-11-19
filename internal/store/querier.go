@@ -1924,6 +1924,13 @@ type Querier interface {
 	// Here rather than in wish.sql: this reads cohorts, not wishes, and wish.sql is the file whose every
 	// query has to run through the confidentiality filter.
 	WishHandoverTarget(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
+	// How far the wish rounds of one semester have got: how many of the subject groups that have
+	// instances in it have shut their round, out of how many.
+	//
+	// The groups are exactly OpenWishWindowsOfSemester's — active, with at least one instance in the
+	// semester — so groups - closed is the number publishing waits for. An absent row is open. Public
+	// like the list of windows: it counts subject groups and their rounds, never anything about wishes.
+	WishRoundsOfSemester(ctx context.Context, semester string) (WishRoundsOfSemesterRow, error)
 	// The subject groups somebody has decided something about, for one semester.
 	//
 	// Only those: an absent row means open, so this list is the exceptions and not the state of every

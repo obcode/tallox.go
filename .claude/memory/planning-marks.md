@@ -134,3 +134,16 @@ Die erste Freigabe eines Studiengangs bringt ein Semester aus `DEMAND_PLANNING` 
 derselben Transaktion (`AnnounceDemandComplete` → `AdvanceToWishesOnRelease`). Zurücknehmen
 lässt die Phase stehen. Details in [[semester-and-phase]]. Neu lesbar für alle:
 `Semester.demandRelease` (freigegeben von geplanten Studiengängen).
+
+## Wie weit die Wunschrunden sind (2026-11-19)
+
+`Semester.wishRounds { closed groups }`, öffentlich wie `wishWindows`: von den aktiven Fachgruppen
+mit mindestens einer Instanz im Semester, wie viele ihre Runde geschlossen haben. Dieselbe Menge
+wie `OpenWishWindowsOfSemester`, also `groups - closed` = worauf `publishWishes` wartet
+(`TestWishRoundsCountTheGroupsPublishingWaitsFor` prüft das gegeneinander).
+
+Anlass: Der Phasenbalken der GUI teilt Bedarfsplanung und Wunschphase nach **Studiengängen**
+(`demandRelease`). Die Frage war, ob eine geschlossene Mathe-Runde „Zuteilung“ anteilig füllen
+müsste. Nein: Runden laufen je **Fachgruppe**, ein anderes Korn — im selben Balken gemischt läse
+er sich falsch. Deshalb eine eigene Zeile unter dem Balken, kein Segment. Die Phase selbst schaltet
+weiter das Dekanat; zuteilen geht ohnehin immer.

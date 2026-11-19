@@ -375,3 +375,103 @@ func TestTheReleaseGatesEveryWishWrite(t *testing.T) {
 		t.Errorf("released with a shut window gave %v, want ErrWishWindowClosed", err)
 	}
 }
+
+// TestWishRoundsCountTheGroupsPublishingWaitsFor is the fraction under the phase bar: subject
+// groups with instances in the semester, and how many of them have shut their round.
+//
+// The groups have to be OpenWishWindowsOfSemester's, or "3 of 5 closed" and the refusal of
+// publishWishes would disagree about how many are still open.
+func TestWishRoundsCountTheGroupsPublishingWaitsFor(t *testing.T) {
+	t.Parallel()
+
+	f, m := marks(t)
+	ctx := t.Context()
+
+	count := func() domain.WishRounds {
+		t.Helper()
+		got, err := m.WishRounds(ctx, f.semester.Code)
+		if err != nil {
+			t.Fatalf("cannot count: %v", err)
+		}
+		return got
+	}
+	shut := func(group uuid.UUID, open bool) {
+		t.Helper()
+		if _, err := m.SetWishWindow(ctx, f.semester.Code, group, open, uuid.Nil); err != nil {
+			t.Fatalf("cannot switch the window: %v", err)
+		}
+	}
+
+	// MATHE has the fixture's instance, SWE has none: one group, nobody has shut anything.
+	if got := count(); got != (domain.WishRounds{Closed: 0, Groups: 1}) {
+		t.Errorf("before any decision: %+v, want 0 of 1", got)
+	}
+
+	// A group with no instance in the semester holds nothing up and closes nothing.
+	shut(f.otherGroup, false)
+	if got := count(); got != (domain.WishRounds{Closed: 0, Groups: 1}) {
+		t.Errorf("after shutting a group without instances: %+v, want 0 of 1", got)
+	}
+
+	// A second module in SWE, with an instance: now two groups, of which SWE is shut.
+	second := moduleID(t, f.schema, storetest.FixtureModuleDutyDiffers)
+	modules := store.NewModules(f.schema.Pool)
+	if _, err := modules.SetModuleComponents(ctx, second, []domain.ModuleComponent{
+		{Kind: domain.PartKindLecture, TeachingHours: 2, Position: 0},
+	}, uuid.Nil); err != nil {
+		t.Fatalf("cannot state the second module's split: %v", err)
+	}
+	if _, err := f.schema.Pool.Exec(ctx,
+		`INSERT INTO module_subject_group (module_id, subject_group_id) VALUES ($1, $2)`,
+		second, f.otherGroup); err != nil {
+		t.Fatalf("cannot put the second module in a subject group: %v", err)
+	}
+	if _, err := store.NewDemand(f.schema.Pool, modules).CreateCourseInstance(ctx,
+		domain.NewCourseInstance{
+			SemesterID: f.semester.ID, ModuleID: second, ProgrammeID: f.programme,
+		}); err != nil {
+		t.Fatalf("cannot declare the second instance: %v", err)
+	}
+	if got := count(); got != (domain.WishRounds{Closed: 1, Groups: 2}) {
+		t.Errorf("with a second, shut group: %+v, want 1 of 2", got)
+	}
+
+	shut(f.group, false)
+	if got := count(); got != (domain.WishRounds{Closed: 2, Groups: 2}) {
+		t.Errorf("with both shut: %+v, want 2 of 2", got)
+	}
+
+	// Reopening keeps the row and counts as open again.
+	shut(f.group, true)
+	if got := count(); got != (domain.WishRounds{Closed: 1, Groups: 2}) {
+		t.Errorf("after reopening one: %+v, want 1 of 2", got)
+	}
+
+	// The same set publishing waits for: the open ones are groups - closed.
+	waiting, err := store.NewSemesters(f.schema.Pool).OpenWishWindows(ctx, f.semester.ID)
+	if err != nil {
+		t.Fatalf("cannot list the open rounds: %v", err)
+	}
+	if got := count(); len(waiting) != got.Groups-got.Closed {
+		t.Errorf("publishing waits for %d groups, the count says %d of %d are closed",
+			len(waiting), got.Closed, got.Groups)
+	}
+
+	// An inactive group is not one anybody runs a round for.
+	if _, err := f.schema.Pool.Exec(ctx,
+		`UPDATE subject_group SET active = false WHERE id = $1`, f.group); err != nil {
+		t.Fatalf("cannot retire the group: %v", err)
+	}
+	if got := count(); got != (domain.WishRounds{Closed: 1, Groups: 1}) {
+		t.Errorf("with the open group retired: %+v, want 1 of 1", got)
+	}
+
+	// Another semester's rounds are not this one's.
+	other, err := m.WishRounds(ctx, "2031-SS")
+	if err != nil {
+		t.Fatalf("cannot count another semester: %v", err)
+	}
+	if other != (domain.WishRounds{}) {
+		t.Errorf("a semester without instances counts %+v", other)
+	}
+}

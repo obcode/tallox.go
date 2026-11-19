@@ -53,7 +53,11 @@ SELECT
                          ORDER BY s.role, s.programme_id, s.subject_group_id)
         FROM person_role_scope s
         WHERE s.person_id = t.owner_id
-    ), '[]'::jsonb)::jsonb AS role_scopes
+    ), '[]'::jsonb)::jsonb AS role_scopes,
+    -- The subject groups this person is a member of (not the ones they lead — those are role
+    -- scopes). Read by one rule only: the wishes a lead has shown to their group.
+    ARRAY(SELECT psg.subject_group_id FROM person_subject_group psg
+          WHERE psg.person_id = t.owner_id ORDER BY psg.subject_group_id)::uuid[] AS subject_groups
 FROM personal_access_token t
 JOIN person p ON p.id = t.owner_id
 LEFT JOIN person_role pr

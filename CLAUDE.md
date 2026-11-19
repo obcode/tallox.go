@@ -264,7 +264,9 @@ Belt and braces: keep personnel data in its own root fields rather than hanging 
 
 Wishes are confidential until published. Visible iff owner ∨ (a planning role or the dean's
 office, **and** full reach — a browser session or a full-reach token) ∨
-`semester.wishes_published_at IS NOT NULL`. The purpose is to end the first-come-first-served race — a leak here is political damage, not a
+`semester.wishes_published_at IS NOT NULL` ∨ (the module's subject group lead has shown the group
+its wishes, `wish_window.wishes_published_at`, **and** the reader is a member of that group, with
+full reach — since 2026-11-19). The purpose is to end the first-come-first-served race — a leak here is political damage, not a
 bug.
 
 Two decisions inside that rule are decisions rather than mechanics, and both are visible in

@@ -19,6 +19,12 @@ var (
 		Phase:             policy.PhaseWishes,
 		WishesPublishedAt: time.Date(2026, 10, 27, 12, 0, 0, 0, time.Local),
 	}
+	// groupPublished is the state between the two: the lead of groupOne has shown the wishes on
+	// the group's modules to its members, the semester as a whole is unpublished.
+	groupPublished = policy.SemesterState{
+		Phase:                   policy.PhaseWishes,
+		WishesPublishedInGroups: []uuid.UUID{groupOne},
+	}
 )
 
 // roleSubsets returns every combination of roles, including none at all.
@@ -65,6 +71,20 @@ func everyActor() []principal.Actor {
 				{Role: string(policy.RolePartnerReader), ProgrammeID: programmeOne},
 			}
 			actors = append(actors, scoped)
+
+			// The same, as a member of groupOne — the group that publishes within itself in
+			// groupPublished — and of groupTwo, which does not. Membership is not a grant and is
+			// carried whatever the roles, so it rides along every combination.
+			member := plain
+			member.SubjectGroups = []uuid.UUID{groupOne, groupTwo}
+			actors = append(actors, member)
+
+			// And through a token minted with full reach, which must read like the browser.
+			if kind == principal.KindToken {
+				full := member
+				full.FullReach = true
+				actors = append(actors, full)
+			}
 		}
 	}
 	return actors
@@ -104,7 +124,7 @@ func TestGuardAndFilterAgree(t *testing.T) {
 
 	checked := 0
 	for _, actor := range everyActor() {
-		for _, state := range []policy.SemesterState{unpublished, published} {
+		for _, state := range []policy.SemesterState{unpublished, groupPublished, published} {
 			for _, phase := range policy.AllPhases() {
 				state.Phase = phase
 				for _, owner := range owners {
@@ -399,6 +419,59 @@ func TestBeingInASubjectGroupIsNotReadingItsWishes(t *testing.T) {
 	if policy.CanSeeWish(member, unpublished, wish) {
 		t.Error("a colleague working in the same subject group reads an unpublished wish — " +
 			"which is exactly the person the rule protects the owner from")
+	}
+}
+
+// TestALeadCanShowTheGroupItsWishes is the exception decided on 2026-11-19: once a subject group
+// lead has shut the round and published within the group, every member reads the wishes on the
+// group's modules — and nothing else changes.
+func TestALeadCanShowTheGroupItsWishes(t *testing.T) {
+	t.Parallel()
+
+	member := testdata.Zwei.Actor(principal.KindInteractive, string(policy.RoleLecturer))
+	member.SubjectGroups = []uuid.UUID{groupOne}
+	outsider := testdata.Zwei.Actor(principal.KindInteractive, string(policy.RoleLecturer))
+	outsider.SubjectGroups = []uuid.UUID{groupTwo}
+	plainToken := member
+	plainToken.Kind = principal.KindToken
+	fullReach := plainToken
+	fullReach.FullReach = true
+	partner := testdata.Zwei.Actor(principal.KindInteractive, string(policy.RolePartnerReader))
+	partner.SubjectGroups = []uuid.UUID{groupOne}
+
+	onGroup := policy.Wish{OwnerID: testdata.Eins.ID(), ProgrammeID: programmeOne, SubjectGroupID: groupOne}
+	onOther := policy.Wish{OwnerID: testdata.Eins.ID(), ProgrammeID: programmeOne, SubjectGroupID: groupTwo}
+	unsorted := policy.Wish{OwnerID: testdata.Eins.ID(), ProgrammeID: programmeOne}
+
+	cases := []struct {
+		name  string
+		actor principal.Actor
+		state policy.SemesterState
+		wish  policy.Wish
+		want  bool
+	}{
+		{"member, before the lead published", member, unpublished, onGroup, false},
+		{"member, on the group's module", member, groupPublished, onGroup, true},
+		{"member, on another group's module", member, groupPublished, onOther, false},
+		{"member, on a module in no group", member, groupPublished, unsorted, false},
+		{"member of another group", outsider, groupPublished, onGroup, false},
+		{"member through a plain token", plainToken, groupPublished, onGroup, false},
+		{"member through a full-reach token", fullReach, groupPublished, onGroup, true},
+		{"partner reader in the group", partner, groupPublished, onGroup, false},
+	}
+	for _, c := range cases {
+		if got := policy.CanSeeWish(c.actor, c.state, c.wish); got != c.want {
+			t.Errorf("%s: CanSeeWish = %v, want %v", c.name, got, c.want)
+		}
+		if got := policy.WishVisibility(c.actor, c.state).Matches(c.wish); got != c.want {
+			t.Errorf("%s: WishVisibility(...).Matches = %v, want %v", c.name, got, c.want)
+		}
+	}
+
+	// The note and the timestamps stay with the people who read them before: publishing within
+	// the group shows who wants what, like the semester publication, and no more.
+	if policy.CanReadWishDetails(member, onGroup) {
+		t.Error("a member reads the note of a wish the lead only published within the group")
 	}
 }
 

@@ -475,11 +475,13 @@ type WishTrackLimit struct {
 }
 
 type WishWindow struct {
-	SemesterID     uuid.UUID
-	SubjectGroupID uuid.UUID
-	Open           bool
-	ChangedAt      time.Time
-	ChangedBy      uuid.NullUUID
+	SemesterID        uuid.UUID
+	SubjectGroupID    uuid.UUID
+	Open              bool
+	ChangedAt         time.Time
+	ChangedBy         uuid.NullUUID
+	WishesPublishedAt pgtype.Timestamptz
+	WishesPublishedBy uuid.NullUUID
 }
 
 type ZpaBasketV struct {

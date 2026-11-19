@@ -87,6 +87,20 @@ func MaySetWishWindow(a principal.Actor, subjectGroupID uuid.UUID) bool {
 	return MayActInSubjectGroup(a, subjectGroupID)
 }
 
+// MayPublishSubjectGroupWishes reports whether this actor may show the wishes on a subject group's
+// modules to the members of that group.
+//
+// The reach of the wish round — the lead of that group or the dean's office — and full reach on top,
+// like MayPublishWishes: it cannot be undone, and it is the moment the confidentiality rule stops
+// applying inside the group. A plain token never does it.
+func MayPublishSubjectGroupWishes(a principal.Actor, subjectGroupID uuid.UUID) bool {
+	return MayActWithFullReach(a) && MaySetWishWindow(a, subjectGroupID)
+}
+
+// SubjectGroupWishesReason is what somebody is told who may not show a group its wishes.
+const SubjectGroupWishesReason = "Nur die Leitung dieser Fachgruppe und das Dekanat können die " +
+	"Wünsche in der Fachgruppe zeigen."
+
 // WishWindowRefusal picks the sentence for a refused switch.
 func WishWindowRefusal(a principal.Actor) string {
 	if HoldsSubjectGroupLeadWithoutScope(a) {

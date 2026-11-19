@@ -1871,6 +1871,10 @@ type WishWindow struct {
 	Open bool `json:"open"`
 	// When it was last switched.
 	ChangedAt time.Time `json:"changedAt"`
+	// When the subject group's lead showed the wishes on the group's modules to everybody in the group
+	// (`publishSubjectGroupWishes`), or `null` while nobody has. Public like the rest of this type: it
+	// is a decision about the process, not anything about a wish.
+	WishesPublishedAt *time.Time `json:"wishesPublishedAt,omitempty"`
 }
 
 // One rebuild of the module catalogue out of the cached payloads.

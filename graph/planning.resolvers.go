@@ -55,6 +55,21 @@ func (r *mutationResolver) SetWishWindow(ctx context.Context, semester string, s
 	return wishWindowModel(*window), nil
 }
 
+// PublishSubjectGroupWishes is the resolver for the publishSubjectGroupWishes field.
+func (r *mutationResolver) PublishSubjectGroupWishes(ctx context.Context, semester string, subjectGroupID string) (*model.WishWindow, error) {
+	groupID, err := parseID(subjectGroupID)
+	if err != nil {
+		return nil, err
+	}
+
+	actor := principal.From(ctx)
+	window, err := r.Marks.PublishSubjectGroupWishes(ctx, actor, semester, groupID)
+	if err != nil {
+		return nil, subjectGroupWishesError(actor, err)
+	}
+	return wishWindowModel(*window), nil
+}
+
 // DemandCompletions is the resolver for the demandCompletions field.
 func (r *queryResolver) DemandCompletions(ctx context.Context, semester string) ([]*model.DemandCompletion, error) {
 	actor := principal.From(ctx)

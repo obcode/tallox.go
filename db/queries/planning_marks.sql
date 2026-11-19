@@ -68,6 +68,7 @@ WHERE pr.planning_status = 'PLANNED';
 -- group. A caller that wants the state of one group asks for it and reads "open" when it is not
 -- here, which is what the wish write rule does (WishWriteContext, COALESCE(ww.open, true)).
 SELECT ww.semester_id, ww.subject_group_id, ww.open, ww.changed_at, ww.changed_by,
+       ww.wishes_published_at,
        g.code AS subject_group_code, g.name AS subject_group_name
 FROM wish_window ww
 JOIN subject_group g ON g.id = ww.subject_group_id
@@ -134,6 +135,35 @@ SELECT s.id, sqlc.arg(subject_group_id)::uuid, sqlc.arg(open)::boolean,
 ON CONFLICT (semester_id, subject_group_id) DO UPDATE
    SET open = EXCLUDED.open, changed_at = now(), changed_by = EXCLUDED.changed_by
 RETURNING semester_id, subject_group_id, open, changed_at, changed_by;
+
+-- name: PublishSubjectGroupWishes :one
+-- Show the wishes on one subject group's modules to everybody in that group, for one semester.
+--
+-- Only while the round is shut: an absent row is an open round and matches nothing, and so does a
+-- row saying open. Already published matches regardless and keeps the first timestamp, so that a
+-- repeated call is not an error even after the round was opened again. No row back means the
+-- round is open (or the semester is not recorded, which the service rules out first).
+UPDATE wish_window ww
+   SET wishes_published_at = COALESCE(ww.wishes_published_at, now()),
+       wishes_published_by = CASE WHEN ww.wishes_published_at IS NULL
+                                  THEN sqlc.narg('published_by')::uuid
+                                  ELSE ww.wishes_published_by END
+  FROM semester s
+ WHERE s.id = ww.semester_id
+   AND s.code = sqlc.arg(semester)::text
+   AND ww.subject_group_id = sqlc.arg(subject_group_id)::uuid
+   AND (NOT ww.open OR ww.wishes_published_at IS NOT NULL)
+RETURNING ww.wishes_published_at;
+
+-- name: SubjectGroupsWithPublishedWishes :many
+-- The subject groups whose lead has shown their wishes to the group, for one semester. Public like
+-- the windows: it names groups and a decision, never anything about a wish. The wish filter reads
+-- it (policy.SemesterState.WishesPublishedInGroups).
+SELECT ww.subject_group_id
+FROM wish_window ww
+WHERE ww.semester_id = sqlc.arg(semester_id)::uuid
+  AND ww.wishes_published_at IS NOT NULL
+ORDER BY ww.subject_group_id;
 
 -- name: WishWriteContext :one
 -- Everything the wish write rule needs about one instance, in one statement.

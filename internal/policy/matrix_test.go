@@ -6,6 +6,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
+
 	"github.com/obcode/tallox.go/internal/golden"
 	"github.com/obcode/tallox.go/internal/policy"
 	"github.com/obcode/tallox.go/internal/principal"
@@ -111,6 +113,24 @@ func callers() []caller {
 	return out
 }
 
+// wishCallers are callers() plus a lecturer who is a member of group 1, for the state in which
+// its lead has shown the group its wishes. Only in this matrix: membership is not a role, works the
+// same for every one, and grants nothing in any other rule.
+func wishCallers() []caller {
+	var out []caller
+	for _, c := range callers() {
+		out = append(out, c)
+		if c.label == string(policy.RoleLecturer) {
+			member := c.actor
+			member.SubjectGroups = []uuid.UUID{groupOne}
+			out = append(out, caller{
+				label: c.label, door: c.door, scoped: "member of group 1", actor: member,
+			})
+		}
+	}
+	return out
+}
+
 func renderMatrix() string {
 	var b strings.Builder
 
@@ -122,7 +142,7 @@ func renderMatrix() string {
 	b.WriteString(rule(header))
 
 	previous := ""
-	for _, c := range callers() {
+	for _, c := range wishCallers() {
 		if previous != "" && c.label != previous {
 			b.WriteString("\n")
 		}
@@ -133,6 +153,7 @@ func renderMatrix() string {
 			state policy.SemesterState
 		}{
 			{"unpublished", unpublished},
+			{"in group 1", groupPublished},
 			{"published", published},
 		} {
 			for _, phase := range policy.AllPhases() {
@@ -200,7 +221,10 @@ A wish is visible if and only if
   · the person is responsible for it — they lead the study programme whose demand the instance
     is, or the subject group the instance's module belongs to, or they are the dean's office
     — and then only with full reach: in a browser session, or through a token its owner minted
-    with full reach — never through a plain Personal Access Token.
+    with full reach — never through a plain Personal Access Token, or
+  · the lead of the subject group of the instance's module has shut the group's wish round and
+    shown the group its wishes (wish_window.wishes_published_at), and the person is a member
+    of that group — again only with full reach.
 
 The purpose is to end the first-come-first-served race: a new colleague should be able to
 register interest without it looking like an attack on somebody who has taught the subject
@@ -237,7 +261,10 @@ them is the dean's office.
 The columns
 -----------
 
-  Responsible for   What this person has been assigned. Programme 1 and group 1 below.
+  Responsible for   What this person has been assigned. Programme 1 and group 1 below; for
+                    LECTURER also a member of group 1, which is not an assignment.
+  Wishes            unpublished, published for the semester, or "in group 1": the lead of
+                    group 1 has shown the wishes on its modules to the group's members.
   own               Their own entry — always visible, through either door.
   prog. 1           A colleague's entry on an instance of programme 1, whose module is in
                     group 2.
@@ -268,7 +295,9 @@ Notes
     for line — it widens the door and never the role. Since 2026-10-28, so that programme leads
     can plan through the API.
   · **Being in a subject group is not leading it.** Membership decides what the wish screen
-    offers first and grants nothing here. The kickoff sentence "jeder in einer Fachgruppe
+    offers first and grants nothing here — until the group's lead has shut the round and shown
+    the group its wishes (decided 2026-11-19). Then members read who wants what on the group's
+    modules, never the note or when it was entered, and never on another group's modules. The kickoff sentence "jeder in einer Fachgruppe
     müsste alles lesen können" is about planning data: if it covered wishes, the rule would
     switch itself off precisely inside the subject group, which is where the
     first-come-first-served race actually happens.

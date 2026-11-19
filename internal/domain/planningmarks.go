@@ -53,6 +53,13 @@ var (
 
 	// ErrNotYourSubjectGroup is somebody trying to switch a window that is not theirs.
 	ErrNotYourSubjectGroup = errors.New("für diese Fachgruppe bist Du nicht zuständig")
+
+	// ErrWishWindowStillOpen is a subject group's wishes shown to its members while its round is
+	// open. Refused because every entry made afterwards would be visible the moment it is made —
+	// the same reason publishWishes waits for every round.
+	ErrWishWindowStillOpen = errors.New(
+		"die Wunschphase dieser Fachgruppe ist noch offen; schließe sie, bevor Du die Wünsche " +
+			"in der Fachgruppe zeigst")
 )
 
 // DemandCompletion is one study programme saying its demand for a semester is settled, which
@@ -109,6 +116,9 @@ type WishWindow struct {
 	Open             bool
 	ChangedAt        time.Time
 	ChangedBy        uuid.UUID
+	// WishesPublishedAt is when the group's lead showed the wishes on the group's modules to its
+	// members, or the zero time while nobody has. Never moves once set.
+	WishesPublishedAt time.Time
 }
 
 // WishWriteContext is everything the wish write rule needs about one instance, read at once.
@@ -170,6 +180,10 @@ type PlanningMarkStore interface {
 	WishRounds(ctx context.Context, semesterCode string) (WishRounds, error)
 	// SetWishWindow opens or shuts one.
 	SetWishWindow(ctx context.Context, semesterCode string, subjectGroupID uuid.UUID, open bool,
+		by uuid.UUID) (*WishWindow, error)
+	// PublishSubjectGroupWishes marks one group's wishes as shown to its members, keeping the first
+	// timestamp. ErrWishWindowStillOpen while the round is open and has never been published.
+	PublishSubjectGroupWishes(ctx context.Context, semesterCode string, subjectGroupID uuid.UUID,
 		by uuid.UUID) (*WishWindow, error)
 
 	// ProgrammeIDByCode resolves the code a caller names to the id the policy asks about, or
@@ -391,4 +405,26 @@ func (s *PlanningMarkService) SetWishWindow(ctx context.Context, actor principal
 		return nil, err
 	}
 	return s.store.SetWishWindow(ctx, semester.Code, subjectGroupID, open, actor.ID)
+}
+
+// PublishSubjectGroupWishes shows the wishes on one subject group's modules to the members of that
+// group, for one semester. Irreversible; a repeated call answers the first publication.
+//
+// The lead of that group or the dean's office, with full reach. Refused while the group's round is
+// open (ErrWishWindowStillOpen). Like SetWishWindow, the refusals come before the semester row is
+// recorded, so that a refused caller leaves nothing behind.
+func (s *PlanningMarkService) PublishSubjectGroupWishes(ctx context.Context, actor principal.Actor,
+	semesterCode string, subjectGroupID uuid.UUID) (*WishWindow, error) {
+	if !actor.Authenticated() {
+		return nil, ErrNotAuthenticated
+	}
+	if !policy.MayPublishSubjectGroupWishes(actor, subjectGroupID) {
+		return nil, ErrNotYourSubjectGroup
+	}
+
+	semester, err := s.semesters.EnsureRecorded(ctx, actor, semesterCode)
+	if err != nil {
+		return nil, err
+	}
+	return s.store.PublishSubjectGroupWishes(ctx, semester.Code, subjectGroupID, actor.ID)
 }

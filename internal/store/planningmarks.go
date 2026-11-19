@@ -239,6 +239,9 @@ func (m *PlanningMarks) WishWindows(ctx context.Context,
 			Open:             row.Open,
 			ChangedAt:        row.ChangedAt,
 		}
+		if row.WishesPublishedAt.Valid {
+			window.WishesPublishedAt = row.WishesPublishedAt.Time
+		}
 		if row.ChangedBy.Valid {
 			window.ChangedBy = row.ChangedBy.UUID
 		}
@@ -337,4 +340,49 @@ func wishWriteContextFrom(row WishWriteContextRow) domain.WishWriteContext {
 		out.SubjectGroupID = row.SubjectGroupID.UUID
 	}
 	return out
+}
+
+// PublishSubjectGroupWishes marks one subject group's wishes as shown to its members.
+//
+// A single UPDATE that matches only a shut or already published round, so "is it shut" and
+// "publish" cannot be decided against two different states. No row back is an open round — an
+// absent row is one too — and that is ErrWishWindowStillOpen.
+func (m *PlanningMarks) PublishSubjectGroupWishes(ctx context.Context, semesterCode string,
+	subjectGroupID uuid.UUID, by uuid.UUID) (*domain.WishWindow, error) {
+	_, err := New(m.pool).PublishSubjectGroupWishes(ctx, PublishSubjectGroupWishesParams{
+		PublishedBy:    nullUUID(nonNilUUID(by)),
+		Semester:       semesterCode,
+		SubjectGroupID: subjectGroupID,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrWishWindowStillOpen
+	}
+	if err != nil {
+		return nil, fmt.Errorf("cannot publish the wishes of the subject group: %w", err)
+	}
+
+	list, err := m.WishWindows(ctx, semesterCode)
+	if err != nil {
+		return nil, err
+	}
+	for _, window := range list {
+		if window.SubjectGroupID == subjectGroupID {
+			return &window, nil
+		}
+	}
+	return nil, domain.ErrSubjectGroupNotFound
+}
+
+// SubjectGroupsWithPublishedWishes returns the subject groups whose lead showed the wishes to the
+// group, in one semester. Read by the wish screen's filter (policy.SemesterState).
+func (w *Wishes) SubjectGroupsWithPublishedWishes(ctx context.Context,
+	semesterID uuid.UUID) ([]uuid.UUID, error) {
+	if semesterID == uuid.Nil {
+		return nil, nil
+	}
+	ids, err := New(w.pool).SubjectGroupsWithPublishedWishes(ctx, semesterID)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the subject groups that published their wishes: %w", err)
+	}
+	return ids, nil
 }

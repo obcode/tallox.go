@@ -490,7 +490,11 @@ SELECT
                          ORDER BY s.role, s.programme_id, s.subject_group_id)
         FROM person_role_scope s
         WHERE s.person_id = p.id
-    ), '[]'::jsonb)::jsonb AS role_scopes  -- cast: without it sqlc types the column interface{}
+    ), '[]'::jsonb)::jsonb AS role_scopes,  -- cast: without it sqlc types the column interface{}
+    -- The subject groups this person is a member of (not the ones they lead — those are role
+    -- scopes). Read by one rule only: the wishes a lead has shown to their group.
+    ARRAY(SELECT psg.subject_group_id FROM person_subject_group psg
+          WHERE psg.person_id = p.id ORDER BY psg.subject_group_id)::uuid[] AS subject_groups
 FROM person p
 LEFT JOIN person_role pr
     ON pr.person_id = p.id
@@ -500,12 +504,13 @@ GROUP BY p.id
 `
 
 type PersonByMailRow struct {
-	ID         uuid.UUID
-	Mail       string
-	Name       string
-	Active     bool
-	Roles      []string
-	RoleScopes []byte
+	ID            uuid.UUID
+	Mail          string
+	Name          string
+	Active        bool
+	Roles         []string
+	RoleScopes    []byte
+	SubjectGroups []uuid.UUID
 }
 
 // The authentication query of the browser door. mail is citext, so the comparison is
@@ -536,6 +541,7 @@ func (q *Queries) PersonByMail(ctx context.Context, mail string) (PersonByMailRo
 		&i.Active,
 		&i.Roles,
 		&i.RoleScopes,
+		&i.SubjectGroups,
 	)
 	return i, err
 }

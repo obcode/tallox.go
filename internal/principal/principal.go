@@ -142,6 +142,12 @@ type Actor struct {
 	// Narrowed with the roles: an actor that kept the scopes of a role it no longer holds is
 	// a bug in the direction that leaks.
 	RoleScopes []RoleScope
+	// SubjectGroups are the subject groups this person is a member of (person_subject_group),
+	// as read at authentication. Not a grant and not narrowed with the roles: belonging to a
+	// group is a fact about the person, not something they act as. Read by exactly one rule —
+	// a subject group lead may show the wishes on the group's modules to its members once the
+	// group's wish round is shut (policy.CanSeeWish). Empty is no membership, which fails closed.
+	SubjectGroups []uuid.UUID
 	// Scopes are the area:verb grants of the Personal Access Token used, empty for an
 	// interactive session (where the role alone bounds what is allowed).
 	//

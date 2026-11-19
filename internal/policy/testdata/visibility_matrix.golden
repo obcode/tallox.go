@@ -16,7 +16,10 @@ A wish is visible if and only if
   · the person is responsible for it — they lead the study programme whose demand the instance
     is, or the subject group the instance's module belongs to, or they are the dean's office
     — and then only with full reach: in a browser session, or through a token its owner minted
-    with full reach — never through a plain Personal Access Token.
+    with full reach — never through a plain Personal Access Token, or
+  · the lead of the subject group of the instance's module has shut the group's wish round and
+    shown the group its wishes (wish_window.wishes_published_at), and the person is a member
+    of that group — again only with full reach.
 
 The purpose is to end the first-come-first-served race: a new colleague should be able to
 register interest without it looking like an attack on somebody who has taught the subject
@@ -53,7 +56,10 @@ them is the dean's office.
 The columns
 -----------
 
-  Responsible for   What this person has been assigned. Programme 1 and group 1 below.
+  Responsible for   What this person has been assigned. Programme 1 and group 1 below; for
+                    LECTURER also a member of group 1, which is not an assignment.
+  Wishes            unpublished, published for the semester, or "in group 1": the lead of
+                    group 1 has shown the wishes on its modules to the group's members.
   own               Their own entry — always visible, through either door.
   prog. 1           A colleague's entry on an instance of programme 1, whose module is in
                     group 2.
@@ -84,7 +90,9 @@ Notes
     for line — it widens the door and never the role. Since 2026-10-28, so that programme leads
     can plan through the API.
   · **Being in a subject group is not leading it.** Membership decides what the wish screen
-    offers first and grants nothing here. The kickoff sentence "jeder in einer Fachgruppe
+    offers first and grants nothing here — until the group's lead has shut the round and shown
+    the group its wishes (decided 2026-11-19). Then members read who wants what on the group's
+    modules, never the note or when it was entered, and never on another group's modules. The kickoff sentence "jeder in einer Fachgruppe
     müsste alles lesen können" is about planning data: if it covered wishes, the rule would
     switch itself off precisely inside the subject group, which is where the
     first-come-first-served race actually happens.
@@ -96,6 +104,11 @@ Role                Door         Responsible for  Phase            Wishes       
 (not signed in)     —            —                ASSIGNMENT       unpublished  no    no       no       no       no access
 (not signed in)     —            —                REVIEW           unpublished  no    no       no       no       no access
 (not signed in)     —            —                FINAL            unpublished  no    no       no       no       no access
+(not signed in)     —            —                DEMAND_PLANNING  in group 1   no    no       no       no       no access
+(not signed in)     —            —                WISHES           in group 1   no    no       no       no       no access
+(not signed in)     —            —                ASSIGNMENT       in group 1   no    no       no       no       no access
+(not signed in)     —            —                REVIEW           in group 1   no    no       no       no       no access
+(not signed in)     —            —                FINAL            in group 1   no    no       no       no       no access
 (not signed in)     —            —                DEMAND_PLANNING  published    no    no       no       no       no access
 (not signed in)     —            —                WISHES           published    no    no       no       no       no access
 (not signed in)     —            —                ASSIGNMENT       published    no    no       no       no       no access
@@ -108,33 +121,96 @@ LECTURER            interactive  —                WISHES           unpublished
 LECTURER            interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 LECTURER            interactive  —                REVIEW           unpublished  yes   no       no       no       own only
 LECTURER            interactive  —                FINAL            unpublished  yes   no       no       no       own only
+LECTURER            interactive  —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+LECTURER            interactive  —                WISHES           in group 1   yes   no       no       no       own only
+LECTURER            interactive  —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+LECTURER            interactive  —                REVIEW           in group 1   yes   no       no       no       own only
+LECTURER            interactive  —                FINAL            in group 1   yes   no       no       no       own only
 LECTURER            interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 LECTURER            interactive  —                WISHES           published    yes   yes      yes      yes      all
 LECTURER            interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
 LECTURER            interactive  —                REVIEW           published    yes   yes      yes      yes      all
 LECTURER            interactive  —                FINAL            published    yes   yes      yes      yes      all
 
+LECTURER            interactive  member of group 1 DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+LECTURER            interactive  member of group 1 WISHES           unpublished  yes   no       no       no       own only
+LECTURER            interactive  member of group 1 ASSIGNMENT       unpublished  yes   no       no       no       own only
+LECTURER            interactive  member of group 1 REVIEW           unpublished  yes   no       no       no       own only
+LECTURER            interactive  member of group 1 FINAL            unpublished  yes   no       no       no       own only
+LECTURER            interactive  member of group 1 DEMAND_PLANNING  in group 1   yes   no       yes      no       own + scoped
+LECTURER            interactive  member of group 1 WISHES           in group 1   yes   no       yes      no       own + scoped
+LECTURER            interactive  member of group 1 ASSIGNMENT       in group 1   yes   no       yes      no       own + scoped
+LECTURER            interactive  member of group 1 REVIEW           in group 1   yes   no       yes      no       own + scoped
+LECTURER            interactive  member of group 1 FINAL            in group 1   yes   no       yes      no       own + scoped
+LECTURER            interactive  member of group 1 DEMAND_PLANNING  published    yes   yes      yes      yes      all
+LECTURER            interactive  member of group 1 WISHES           published    yes   yes      yes      yes      all
+LECTURER            interactive  member of group 1 ASSIGNMENT       published    yes   yes      yes      yes      all
+LECTURER            interactive  member of group 1 REVIEW           published    yes   yes      yes      yes      all
+LECTURER            interactive  member of group 1 FINAL            published    yes   yes      yes      yes      all
+
 LECTURER            token        —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 LECTURER            token        —                WISHES           unpublished  yes   no       no       no       own only
 LECTURER            token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 LECTURER            token        —                REVIEW           unpublished  yes   no       no       no       own only
 LECTURER            token        —                FINAL            unpublished  yes   no       no       no       own only
+LECTURER            token        —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+LECTURER            token        —                WISHES           in group 1   yes   no       no       no       own only
+LECTURER            token        —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+LECTURER            token        —                REVIEW           in group 1   yes   no       no       no       own only
+LECTURER            token        —                FINAL            in group 1   yes   no       no       no       own only
 LECTURER            token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 LECTURER            token        —                WISHES           published    yes   yes      yes      yes      all
 LECTURER            token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
 LECTURER            token        —                REVIEW           published    yes   yes      yes      yes      all
 LECTURER            token        —                FINAL            published    yes   yes      yes      yes      all
 
+LECTURER            token        member of group 1 DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+LECTURER            token        member of group 1 WISHES           unpublished  yes   no       no       no       own only
+LECTURER            token        member of group 1 ASSIGNMENT       unpublished  yes   no       no       no       own only
+LECTURER            token        member of group 1 REVIEW           unpublished  yes   no       no       no       own only
+LECTURER            token        member of group 1 FINAL            unpublished  yes   no       no       no       own only
+LECTURER            token        member of group 1 DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+LECTURER            token        member of group 1 WISHES           in group 1   yes   no       no       no       own only
+LECTURER            token        member of group 1 ASSIGNMENT       in group 1   yes   no       no       no       own only
+LECTURER            token        member of group 1 REVIEW           in group 1   yes   no       no       no       own only
+LECTURER            token        member of group 1 FINAL            in group 1   yes   no       no       no       own only
+LECTURER            token        member of group 1 DEMAND_PLANNING  published    yes   yes      yes      yes      all
+LECTURER            token        member of group 1 WISHES           published    yes   yes      yes      yes      all
+LECTURER            token        member of group 1 ASSIGNMENT       published    yes   yes      yes      yes      all
+LECTURER            token        member of group 1 REVIEW           published    yes   yes      yes      yes      all
+LECTURER            token        member of group 1 FINAL            published    yes   yes      yes      yes      all
+
 LECTURER            full reach   —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
 LECTURER            full reach   —                WISHES           unpublished  yes   no       no       no       own only
 LECTURER            full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 LECTURER            full reach   —                REVIEW           unpublished  yes   no       no       no       own only
 LECTURER            full reach   —                FINAL            unpublished  yes   no       no       no       own only
+LECTURER            full reach   —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+LECTURER            full reach   —                WISHES           in group 1   yes   no       no       no       own only
+LECTURER            full reach   —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+LECTURER            full reach   —                REVIEW           in group 1   yes   no       no       no       own only
+LECTURER            full reach   —                FINAL            in group 1   yes   no       no       no       own only
 LECTURER            full reach   —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 LECTURER            full reach   —                WISHES           published    yes   yes      yes      yes      all
 LECTURER            full reach   —                ASSIGNMENT       published    yes   yes      yes      yes      all
 LECTURER            full reach   —                REVIEW           published    yes   yes      yes      yes      all
 LECTURER            full reach   —                FINAL            published    yes   yes      yes      yes      all
+
+LECTURER            full reach   member of group 1 DEMAND_PLANNING  unpublished  yes   no       no       no       own only
+LECTURER            full reach   member of group 1 WISHES           unpublished  yes   no       no       no       own only
+LECTURER            full reach   member of group 1 ASSIGNMENT       unpublished  yes   no       no       no       own only
+LECTURER            full reach   member of group 1 REVIEW           unpublished  yes   no       no       no       own only
+LECTURER            full reach   member of group 1 FINAL            unpublished  yes   no       no       no       own only
+LECTURER            full reach   member of group 1 DEMAND_PLANNING  in group 1   yes   no       yes      no       own + scoped
+LECTURER            full reach   member of group 1 WISHES           in group 1   yes   no       yes      no       own + scoped
+LECTURER            full reach   member of group 1 ASSIGNMENT       in group 1   yes   no       yes      no       own + scoped
+LECTURER            full reach   member of group 1 REVIEW           in group 1   yes   no       yes      no       own + scoped
+LECTURER            full reach   member of group 1 FINAL            in group 1   yes   no       yes      no       own + scoped
+LECTURER            full reach   member of group 1 DEMAND_PLANNING  published    yes   yes      yes      yes      all
+LECTURER            full reach   member of group 1 WISHES           published    yes   yes      yes      yes      all
+LECTURER            full reach   member of group 1 ASSIGNMENT       published    yes   yes      yes      yes      all
+LECTURER            full reach   member of group 1 REVIEW           published    yes   yes      yes      yes      all
+LECTURER            full reach   member of group 1 FINAL            published    yes   yes      yes      yes      all
 
 
 SUBJECT_GROUP_LEAD  interactive  —                DEMAND_PLANNING  unpublished  yes   no       no       no       own only
@@ -142,6 +218,11 @@ SUBJECT_GROUP_LEAD  interactive  —                WISHES           unpublished
 SUBJECT_GROUP_LEAD  interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  interactive  —                REVIEW           unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  interactive  —                FINAL            unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  interactive  —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  interactive  —                WISHES           in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  interactive  —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  interactive  —                REVIEW           in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  interactive  —                FINAL            in group 1   yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  interactive  —                WISHES           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -153,6 +234,11 @@ SUBJECT_GROUP_LEAD  interactive  group 1          WISHES           unpublished  
 SUBJECT_GROUP_LEAD  interactive  group 1          ASSIGNMENT       unpublished  yes   no       yes      no       own + scoped
 SUBJECT_GROUP_LEAD  interactive  group 1          REVIEW           unpublished  yes   no       yes      no       own + scoped
 SUBJECT_GROUP_LEAD  interactive  group 1          FINAL            unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  interactive  group 1          DEMAND_PLANNING  in group 1   yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  interactive  group 1          WISHES           in group 1   yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  interactive  group 1          ASSIGNMENT       in group 1   yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  interactive  group 1          REVIEW           in group 1   yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  interactive  group 1          FINAL            in group 1   yes   no       yes      no       own + scoped
 SUBJECT_GROUP_LEAD  interactive  group 1          DEMAND_PLANNING  published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  interactive  group 1          WISHES           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  interactive  group 1          ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -164,6 +250,11 @@ SUBJECT_GROUP_LEAD  token        —                WISHES           unpublished
 SUBJECT_GROUP_LEAD  token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        —                REVIEW           unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        —                FINAL            unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        —                WISHES           in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        —                REVIEW           in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        —                FINAL            in group 1   yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  token        —                WISHES           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -175,6 +266,11 @@ SUBJECT_GROUP_LEAD  token        group 1          WISHES           unpublished  
 SUBJECT_GROUP_LEAD  token        group 1          ASSIGNMENT       unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        group 1          REVIEW           unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        group 1          FINAL            unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        group 1          DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        group 1          WISHES           in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        group 1          ASSIGNMENT       in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        group 1          REVIEW           in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  token        group 1          FINAL            in group 1   yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  token        group 1          DEMAND_PLANNING  published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  token        group 1          WISHES           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  token        group 1          ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -186,6 +282,11 @@ SUBJECT_GROUP_LEAD  full reach   —                WISHES           unpublished
 SUBJECT_GROUP_LEAD  full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  full reach   —                REVIEW           unpublished  yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  full reach   —                FINAL            unpublished  yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                WISHES           in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                REVIEW           in group 1   yes   no       no       no       own only
+SUBJECT_GROUP_LEAD  full reach   —                FINAL            in group 1   yes   no       no       no       own only
 SUBJECT_GROUP_LEAD  full reach   —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  full reach   —                WISHES           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  full reach   —                ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -197,6 +298,11 @@ SUBJECT_GROUP_LEAD  full reach   group 1          WISHES           unpublished  
 SUBJECT_GROUP_LEAD  full reach   group 1          ASSIGNMENT       unpublished  yes   no       yes      no       own + scoped
 SUBJECT_GROUP_LEAD  full reach   group 1          REVIEW           unpublished  yes   no       yes      no       own + scoped
 SUBJECT_GROUP_LEAD  full reach   group 1          FINAL            unpublished  yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  full reach   group 1          DEMAND_PLANNING  in group 1   yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  full reach   group 1          WISHES           in group 1   yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  full reach   group 1          ASSIGNMENT       in group 1   yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  full reach   group 1          REVIEW           in group 1   yes   no       yes      no       own + scoped
+SUBJECT_GROUP_LEAD  full reach   group 1          FINAL            in group 1   yes   no       yes      no       own + scoped
 SUBJECT_GROUP_LEAD  full reach   group 1          DEMAND_PLANNING  published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  full reach   group 1          WISHES           published    yes   yes      yes      yes      all
 SUBJECT_GROUP_LEAD  full reach   group 1          ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -209,6 +315,11 @@ PROGRAMME_LEAD      interactive  —                WISHES           unpublished
 PROGRAMME_LEAD      interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      interactive  —                REVIEW           unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      interactive  —                FINAL            unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      interactive  —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      interactive  —                WISHES           in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      interactive  —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      interactive  —                REVIEW           in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      interactive  —                FINAL            in group 1   yes   no       no       no       own only
 PROGRAMME_LEAD      interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      interactive  —                WISHES           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -220,6 +331,11 @@ PROGRAMME_LEAD      interactive  programme 1      WISHES           unpublished  
 PROGRAMME_LEAD      interactive  programme 1      ASSIGNMENT       unpublished  yes   yes      no       no       own + scoped
 PROGRAMME_LEAD      interactive  programme 1      REVIEW           unpublished  yes   yes      no       no       own + scoped
 PROGRAMME_LEAD      interactive  programme 1      FINAL            unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      interactive  programme 1      DEMAND_PLANNING  in group 1   yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      interactive  programme 1      WISHES           in group 1   yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      interactive  programme 1      ASSIGNMENT       in group 1   yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      interactive  programme 1      REVIEW           in group 1   yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      interactive  programme 1      FINAL            in group 1   yes   yes      no       no       own + scoped
 PROGRAMME_LEAD      interactive  programme 1      DEMAND_PLANNING  published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      interactive  programme 1      WISHES           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      interactive  programme 1      ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -231,6 +347,11 @@ PROGRAMME_LEAD      token        —                WISHES           unpublished
 PROGRAMME_LEAD      token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        —                REVIEW           unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        —                FINAL            unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      token        —                WISHES           in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      token        —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      token        —                REVIEW           in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      token        —                FINAL            in group 1   yes   no       no       no       own only
 PROGRAMME_LEAD      token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      token        —                WISHES           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -242,6 +363,11 @@ PROGRAMME_LEAD      token        programme 1      WISHES           unpublished  
 PROGRAMME_LEAD      token        programme 1      ASSIGNMENT       unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        programme 1      REVIEW           unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      token        programme 1      FINAL            unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      token        programme 1      DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      token        programme 1      WISHES           in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      token        programme 1      ASSIGNMENT       in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      token        programme 1      REVIEW           in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      token        programme 1      FINAL            in group 1   yes   no       no       no       own only
 PROGRAMME_LEAD      token        programme 1      DEMAND_PLANNING  published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      token        programme 1      WISHES           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      token        programme 1      ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -253,6 +379,11 @@ PROGRAMME_LEAD      full reach   —                WISHES           unpublished
 PROGRAMME_LEAD      full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      full reach   —                REVIEW           unpublished  yes   no       no       no       own only
 PROGRAMME_LEAD      full reach   —                FINAL            unpublished  yes   no       no       no       own only
+PROGRAMME_LEAD      full reach   —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      full reach   —                WISHES           in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      full reach   —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      full reach   —                REVIEW           in group 1   yes   no       no       no       own only
+PROGRAMME_LEAD      full reach   —                FINAL            in group 1   yes   no       no       no       own only
 PROGRAMME_LEAD      full reach   —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      full reach   —                WISHES           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      full reach   —                ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -264,6 +395,11 @@ PROGRAMME_LEAD      full reach   programme 1      WISHES           unpublished  
 PROGRAMME_LEAD      full reach   programme 1      ASSIGNMENT       unpublished  yes   yes      no       no       own + scoped
 PROGRAMME_LEAD      full reach   programme 1      REVIEW           unpublished  yes   yes      no       no       own + scoped
 PROGRAMME_LEAD      full reach   programme 1      FINAL            unpublished  yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      full reach   programme 1      DEMAND_PLANNING  in group 1   yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      full reach   programme 1      WISHES           in group 1   yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      full reach   programme 1      ASSIGNMENT       in group 1   yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      full reach   programme 1      REVIEW           in group 1   yes   yes      no       no       own + scoped
+PROGRAMME_LEAD      full reach   programme 1      FINAL            in group 1   yes   yes      no       no       own + scoped
 PROGRAMME_LEAD      full reach   programme 1      DEMAND_PLANNING  published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      full reach   programme 1      WISHES           published    yes   yes      yes      yes      all
 PROGRAMME_LEAD      full reach   programme 1      ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -276,6 +412,11 @@ DEANS_OFFICE        interactive  —                WISHES           unpublished
 DEANS_OFFICE        interactive  —                ASSIGNMENT       unpublished  yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                REVIEW           unpublished  yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                FINAL            unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                DEMAND_PLANNING  in group 1   yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                WISHES           in group 1   yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                ASSIGNMENT       in group 1   yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                REVIEW           in group 1   yes   yes      yes      yes      all
+DEANS_OFFICE        interactive  —                FINAL            in group 1   yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                WISHES           published    yes   yes      yes      yes      all
 DEANS_OFFICE        interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -287,6 +428,11 @@ DEANS_OFFICE        token        —                WISHES           unpublished
 DEANS_OFFICE        token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 DEANS_OFFICE        token        —                REVIEW           unpublished  yes   no       no       no       own only
 DEANS_OFFICE        token        —                FINAL            unpublished  yes   no       no       no       own only
+DEANS_OFFICE        token        —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+DEANS_OFFICE        token        —                WISHES           in group 1   yes   no       no       no       own only
+DEANS_OFFICE        token        —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+DEANS_OFFICE        token        —                REVIEW           in group 1   yes   no       no       no       own only
+DEANS_OFFICE        token        —                FINAL            in group 1   yes   no       no       no       own only
 DEANS_OFFICE        token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 DEANS_OFFICE        token        —                WISHES           published    yes   yes      yes      yes      all
 DEANS_OFFICE        token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -298,6 +444,11 @@ DEANS_OFFICE        full reach   —                WISHES           unpublished
 DEANS_OFFICE        full reach   —                ASSIGNMENT       unpublished  yes   yes      yes      yes      all
 DEANS_OFFICE        full reach   —                REVIEW           unpublished  yes   yes      yes      yes      all
 DEANS_OFFICE        full reach   —                FINAL            unpublished  yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                DEMAND_PLANNING  in group 1   yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                WISHES           in group 1   yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                ASSIGNMENT       in group 1   yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                REVIEW           in group 1   yes   yes      yes      yes      all
+DEANS_OFFICE        full reach   —                FINAL            in group 1   yes   yes      yes      yes      all
 DEANS_OFFICE        full reach   —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 DEANS_OFFICE        full reach   —                WISHES           published    yes   yes      yes      yes      all
 DEANS_OFFICE        full reach   —                ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -310,6 +461,11 @@ PARTNER_READER      interactive  —                WISHES           unpublished
 PARTNER_READER      interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 PARTNER_READER      interactive  —                REVIEW           unpublished  yes   no       no       no       own only
 PARTNER_READER      interactive  —                FINAL            unpublished  yes   no       no       no       own only
+PARTNER_READER      interactive  —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+PARTNER_READER      interactive  —                WISHES           in group 1   yes   no       no       no       own only
+PARTNER_READER      interactive  —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+PARTNER_READER      interactive  —                REVIEW           in group 1   yes   no       no       no       own only
+PARTNER_READER      interactive  —                FINAL            in group 1   yes   no       no       no       own only
 PARTNER_READER      interactive  —                DEMAND_PLANNING  published    yes   no       no       no       own only
 PARTNER_READER      interactive  —                WISHES           published    yes   no       no       no       own only
 PARTNER_READER      interactive  —                ASSIGNMENT       published    yes   no       no       no       own only
@@ -321,6 +477,11 @@ PARTNER_READER      token        —                WISHES           unpublished
 PARTNER_READER      token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 PARTNER_READER      token        —                REVIEW           unpublished  yes   no       no       no       own only
 PARTNER_READER      token        —                FINAL            unpublished  yes   no       no       no       own only
+PARTNER_READER      token        —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+PARTNER_READER      token        —                WISHES           in group 1   yes   no       no       no       own only
+PARTNER_READER      token        —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+PARTNER_READER      token        —                REVIEW           in group 1   yes   no       no       no       own only
+PARTNER_READER      token        —                FINAL            in group 1   yes   no       no       no       own only
 PARTNER_READER      token        —                DEMAND_PLANNING  published    yes   no       no       no       own only
 PARTNER_READER      token        —                WISHES           published    yes   no       no       no       own only
 PARTNER_READER      token        —                ASSIGNMENT       published    yes   no       no       no       own only
@@ -332,6 +493,11 @@ PARTNER_READER      full reach   —                WISHES           unpublished
 PARTNER_READER      full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 PARTNER_READER      full reach   —                REVIEW           unpublished  yes   no       no       no       own only
 PARTNER_READER      full reach   —                FINAL            unpublished  yes   no       no       no       own only
+PARTNER_READER      full reach   —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+PARTNER_READER      full reach   —                WISHES           in group 1   yes   no       no       no       own only
+PARTNER_READER      full reach   —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+PARTNER_READER      full reach   —                REVIEW           in group 1   yes   no       no       no       own only
+PARTNER_READER      full reach   —                FINAL            in group 1   yes   no       no       no       own only
 PARTNER_READER      full reach   —                DEMAND_PLANNING  published    yes   no       no       no       own only
 PARTNER_READER      full reach   —                WISHES           published    yes   no       no       no       own only
 PARTNER_READER      full reach   —                ASSIGNMENT       published    yes   no       no       no       own only
@@ -344,6 +510,11 @@ OBSERVER            interactive  —                WISHES           unpublished
 OBSERVER            interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 OBSERVER            interactive  —                REVIEW           unpublished  yes   no       no       no       own only
 OBSERVER            interactive  —                FINAL            unpublished  yes   no       no       no       own only
+OBSERVER            interactive  —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+OBSERVER            interactive  —                WISHES           in group 1   yes   no       no       no       own only
+OBSERVER            interactive  —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+OBSERVER            interactive  —                REVIEW           in group 1   yes   no       no       no       own only
+OBSERVER            interactive  —                FINAL            in group 1   yes   no       no       no       own only
 OBSERVER            interactive  —                DEMAND_PLANNING  published    yes   no       no       no       own only
 OBSERVER            interactive  —                WISHES           published    yes   no       no       no       own only
 OBSERVER            interactive  —                ASSIGNMENT       published    yes   no       no       no       own only
@@ -355,6 +526,11 @@ OBSERVER            token        —                WISHES           unpublished
 OBSERVER            token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 OBSERVER            token        —                REVIEW           unpublished  yes   no       no       no       own only
 OBSERVER            token        —                FINAL            unpublished  yes   no       no       no       own only
+OBSERVER            token        —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+OBSERVER            token        —                WISHES           in group 1   yes   no       no       no       own only
+OBSERVER            token        —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+OBSERVER            token        —                REVIEW           in group 1   yes   no       no       no       own only
+OBSERVER            token        —                FINAL            in group 1   yes   no       no       no       own only
 OBSERVER            token        —                DEMAND_PLANNING  published    yes   no       no       no       own only
 OBSERVER            token        —                WISHES           published    yes   no       no       no       own only
 OBSERVER            token        —                ASSIGNMENT       published    yes   no       no       no       own only
@@ -366,6 +542,11 @@ OBSERVER            full reach   —                WISHES           unpublished
 OBSERVER            full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 OBSERVER            full reach   —                REVIEW           unpublished  yes   no       no       no       own only
 OBSERVER            full reach   —                FINAL            unpublished  yes   no       no       no       own only
+OBSERVER            full reach   —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+OBSERVER            full reach   —                WISHES           in group 1   yes   no       no       no       own only
+OBSERVER            full reach   —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+OBSERVER            full reach   —                REVIEW           in group 1   yes   no       no       no       own only
+OBSERVER            full reach   —                FINAL            in group 1   yes   no       no       no       own only
 OBSERVER            full reach   —                DEMAND_PLANNING  published    yes   no       no       no       own only
 OBSERVER            full reach   —                WISHES           published    yes   no       no       no       own only
 OBSERVER            full reach   —                ASSIGNMENT       published    yes   no       no       no       own only
@@ -378,6 +559,11 @@ ADMIN               interactive  —                WISHES           unpublished
 ADMIN               interactive  —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 ADMIN               interactive  —                REVIEW           unpublished  yes   no       no       no       own only
 ADMIN               interactive  —                FINAL            unpublished  yes   no       no       no       own only
+ADMIN               interactive  —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+ADMIN               interactive  —                WISHES           in group 1   yes   no       no       no       own only
+ADMIN               interactive  —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+ADMIN               interactive  —                REVIEW           in group 1   yes   no       no       no       own only
+ADMIN               interactive  —                FINAL            in group 1   yes   no       no       no       own only
 ADMIN               interactive  —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 ADMIN               interactive  —                WISHES           published    yes   yes      yes      yes      all
 ADMIN               interactive  —                ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -389,6 +575,11 @@ ADMIN               token        —                WISHES           unpublished
 ADMIN               token        —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 ADMIN               token        —                REVIEW           unpublished  yes   no       no       no       own only
 ADMIN               token        —                FINAL            unpublished  yes   no       no       no       own only
+ADMIN               token        —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+ADMIN               token        —                WISHES           in group 1   yes   no       no       no       own only
+ADMIN               token        —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+ADMIN               token        —                REVIEW           in group 1   yes   no       no       no       own only
+ADMIN               token        —                FINAL            in group 1   yes   no       no       no       own only
 ADMIN               token        —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 ADMIN               token        —                WISHES           published    yes   yes      yes      yes      all
 ADMIN               token        —                ASSIGNMENT       published    yes   yes      yes      yes      all
@@ -400,6 +591,11 @@ ADMIN               full reach   —                WISHES           unpublished
 ADMIN               full reach   —                ASSIGNMENT       unpublished  yes   no       no       no       own only
 ADMIN               full reach   —                REVIEW           unpublished  yes   no       no       no       own only
 ADMIN               full reach   —                FINAL            unpublished  yes   no       no       no       own only
+ADMIN               full reach   —                DEMAND_PLANNING  in group 1   yes   no       no       no       own only
+ADMIN               full reach   —                WISHES           in group 1   yes   no       no       no       own only
+ADMIN               full reach   —                ASSIGNMENT       in group 1   yes   no       no       no       own only
+ADMIN               full reach   —                REVIEW           in group 1   yes   no       no       no       own only
+ADMIN               full reach   —                FINAL            in group 1   yes   no       no       no       own only
 ADMIN               full reach   —                DEMAND_PLANNING  published    yes   yes      yes      yes      all
 ADMIN               full reach   —                WISHES           published    yes   yes      yes      yes      all
 ADMIN               full reach   —                ASSIGNMENT       published    yes   yes      yes      yes      all

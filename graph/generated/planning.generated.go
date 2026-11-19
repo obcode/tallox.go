@@ -227,6 +227,52 @@ func (ec *executionContext) fieldContext_ReviewCompletion_completedAt(_ context.
 	return graphql.NewScalarFieldContext("ReviewCompletion", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _WishRounds_closed(ctx context.Context, field graphql.CollectedField, obj *model.WishRounds) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WishRounds_closed(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Closed, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WishRounds_closed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WishRounds", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _WishRounds_groups(ctx context.Context, field graphql.CollectedField, obj *model.WishRounds) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WishRounds_groups(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Groups, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WishRounds_groups(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WishRounds", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _WishWindow_semester(ctx context.Context, field graphql.CollectedField, obj *model.WishWindow) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -479,6 +525,49 @@ func (ec *executionContext) _ReviewCompletion(ctx context.Context, sel ast.Selec
 	return out
 }
 
+var wishRoundsImplementors = []string{"WishRounds"}
+
+func (ec *executionContext) _WishRounds(ctx context.Context, sel ast.SelectionSet, obj *model.WishRounds) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, wishRoundsImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WishRounds")
+		case "closed":
+			out.Values[i] = ec._WishRounds_closed(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "groups":
+			out.Values[i] = ec._WishRounds_groups(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var wishWindowImplementors = []string{"WishWindow"}
 
 func (ec *executionContext) _WishWindow(ctx context.Context, sel ast.SelectionSet, obj *model.WishWindow) graphql.Marshaler {
@@ -600,6 +689,20 @@ func (ec *executionContext) marshalNReviewCompletion2ᚖgithubᚗcomᚋobcodeᚋ
 		return graphql.Null
 	}
 	return ec._ReviewCompletion(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNWishRounds2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishRounds(ctx context.Context, sel ast.SelectionSet, v model.WishRounds) graphql.Marshaler {
+	return ec._WishRounds(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNWishRounds2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishRounds(ctx context.Context, sel ast.SelectionSet, v *model.WishRounds) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._WishRounds(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNWishWindow2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishWindow(ctx context.Context, sel ast.SelectionSet, v model.WishWindow) graphql.Marshaler {

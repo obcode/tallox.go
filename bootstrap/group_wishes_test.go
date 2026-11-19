@@ -191,3 +191,54 @@ func TestShowingTheGroupItsWishesIsRefusedWhereItMustBe(t *testing.T) {
 		}
 	})
 }
+
+const wishGroupQuery = `query($s: String!) {
+	wishes(semester: $s) { person { mail } instance { module { subjectGroup { id code } } } }
+}`
+
+// TestAWishNamesTheGroupOfItsModuleThroughEveryDoor: a wish answers
+// instance.module.subjectGroup like any module does. The wish screen keeps another person's wish
+// only on a module of a group that has shown its wishes, and decides that by this field; with the
+// field always null, the member who was shown the wishes saw none of them. Every door that reads
+// the row reads the group — the owner through all three, the member and the lead through those
+// that read other people's wishes before the semester publication.
+func TestAWishNamesTheGroupOfItsModuleThroughEveryDoor(t *testing.T) {
+	t.Parallel()
+
+	f := groupWishesFixture(t)
+	f.shutRound(t, testdata.Drei)
+	graphqltest.New(f.handler).AsUser(testdata.Drei.Mail).MustQuery(t, publishGroupWishesMutation,
+		map[string]any{"s": f.semester, "g": f.group.String()}, nil)
+
+	check := func(who testdata.Persona, doors ...string) {
+		t.Helper()
+
+		all := f.threeDoors(t, who)
+		for _, door := range doors {
+			var out struct {
+				Wishes []struct {
+					Person   struct{ Mail string }
+					Instance struct {
+						Module struct {
+							SubjectGroup *struct{ ID, Code string }
+						}
+					}
+				}
+			}
+			all[door].MustQuery(t, wishGroupQuery, map[string]any{"s": f.semester}, &out)
+			if len(out.Wishes) == 0 {
+				t.Errorf("%s, %s: reads no wish at all", who.Mail, door)
+			}
+			for _, w := range out.Wishes {
+				g := w.Instance.Module.SubjectGroup
+				if g == nil || g.ID != f.group.String() || g.Code == "" {
+					t.Errorf("%s, %s: the wish of %s names the module's group as %+v, want %s",
+						who.Mail, door, w.Person.Mail, g, f.group)
+				}
+			}
+		}
+	}
+	check(testdata.Eins, "browser", "token", "full reach")
+	check(testdata.Zwei, "browser", "full reach")
+	check(testdata.Drei, "browser", "full reach")
+}

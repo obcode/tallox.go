@@ -302,6 +302,9 @@ type wishRow struct {
 	ModuleID               uuid.UUID
 	ModuleName             string
 	SubjectGroupID         uuid.NullUUID
+	SubjectGroupCode       string
+	SubjectGroupName       string
+	SubjectGroupActive     bool
 	ModuleSource           string
 	ModuleTeachingLanguage *string
 	ModuleOtherLanguage    *string
@@ -309,6 +312,22 @@ type wishRow struct {
 	PersonName             string
 	PersonSortName         string
 	TrackLimit             *int16
+}
+
+// subjectGroupRefOf is the module's group as Module.subjectGroup answers it, or nil for a module
+// in no group. Without it a wish's module said "no group" for every row, and the wish screen,
+// which keeps another person's wish only on a module of a group that has shown its wishes to its
+// members, kept none.
+func subjectGroupRefOf(row wishRow) *domain.SubjectGroupRef {
+	if !row.SubjectGroupID.Valid {
+		return nil
+	}
+	return &domain.SubjectGroupRef{
+		ID:     row.SubjectGroupID.UUID,
+		Code:   row.SubjectGroupCode,
+		Name:   row.SubjectGroupName,
+		Active: row.SubjectGroupActive,
+	}
 }
 
 func wishFrom(row wishRow) domain.Wish {
@@ -335,8 +354,9 @@ func wishFrom(row wishRow) domain.Wish {
 			EnglishOverride:   row.TaughtInEnglish,
 			CatalogueLanguage: domain.Language(stringOrEmpty(row.ModuleTeachingLanguage)),
 			CiE:               row.InstanceCie,
-			Module: languagesOf(domain.Module{ID: row.ModuleID, Name: row.ModuleName},
-				row.ModuleSource, row.ModuleTeachingLanguage, row.ModuleOtherLanguage),
+			Module: languagesOf(domain.Module{
+				ID: row.ModuleID, Name: row.ModuleName, SubjectGroup: subjectGroupRefOf(row),
+			}, row.ModuleSource, row.ModuleTeachingLanguage, row.ModuleOtherLanguage),
 			Programme: domain.Programme{
 				ID: row.ProgrammeID, Code: row.ProgrammeCode, Title: row.ProgrammeTitle,
 			},

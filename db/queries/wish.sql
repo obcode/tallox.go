@@ -60,6 +60,12 @@ SELECT
                WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
+    -- The group as Module.subjectGroup shows it. Public catalogue data, joined here so that a wish
+    -- answers instance.module.subjectGroup like every other module does; the GUI decides by it
+    -- which of the rows a group has shown to its members belong to that group.
+    COALESCE(g.code, '')::text AS subject_group_code,
+    COALESCE(g.name, '')::text AS subject_group_name,
+    COALESCE(g.active, true)::bool AS subject_group_active,
     -- What the module description says about language: Module.englishPossible, and the catalogue's
     -- default behind taughtInEnglish.
     m.source AS module_source, m.teaching_language AS module_teaching_language,
@@ -76,6 +82,7 @@ JOIN semester sem ON sem.id = ci.semester_id
 JOIN programme prog ON prog.id = ci.programme_id
 JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id
+LEFT JOIN subject_group g ON g.id = msg.subject_group_id
 JOIN person ON person.id = w.person_id
 LEFT JOIN teacher t ON t.mail = person.mail
 LEFT JOIN wish_track_limit l
@@ -122,6 +129,12 @@ SELECT
                WHERE p.course_instance_id = ci.id), 0)::float8 AS teaching_hours,
     prog.id AS programme_id, prog.code AS programme_code, prog.title AS programme_title,
     m.id AS module_id, m.name AS module_name, msg.subject_group_id AS subject_group_id,
+    -- The group as Module.subjectGroup shows it. Public catalogue data, joined here so that a wish
+    -- answers instance.module.subjectGroup like every other module does; the GUI decides by it
+    -- which of the rows a group has shown to its members belong to that group.
+    COALESCE(g.code, '')::text AS subject_group_code,
+    COALESCE(g.name, '')::text AS subject_group_name,
+    COALESCE(g.active, true)::bool AS subject_group_active,
     -- What the module description says about language: Module.englishPossible, and the catalogue's
     -- default behind taughtInEnglish.
     m.source AS module_source, m.teaching_language AS module_teaching_language,
@@ -138,6 +151,7 @@ JOIN semester sem ON sem.id = ci.semester_id
 JOIN programme prog ON prog.id = ci.programme_id
 JOIN module m ON m.id = ci.module_id
 LEFT JOIN module_subject_group msg ON msg.module_id = m.id
+LEFT JOIN subject_group g ON g.id = msg.subject_group_id
 JOIN person ON person.id = w.person_id
 LEFT JOIN teacher t ON t.mail = person.mail
 LEFT JOIN wish_track_limit l

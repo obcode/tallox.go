@@ -462,6 +462,7 @@ type ComplexityRoot struct {
 		ProjectZpaCatalogue               func(childComplexity int) int
 		PublishAssignments                func(childComplexity int, code string) int
 		PublishDesiredHours               func(childComplexity int, code string) int
+		PublishSubjectGroupWishes         func(childComplexity int, semester string, subjectGroupID string) int
 		PublishWishes                     func(childComplexity int, code string) int
 		RejoinInstancePart                func(childComplexity int, id string) int
 		ReleaseInstanceCoverage           func(childComplexity int, id string) int
@@ -794,10 +795,11 @@ type ComplexityRoot struct {
 	}
 
 	WishWindow struct {
-		ChangedAt    func(childComplexity int) int
-		Open         func(childComplexity int) int
-		Semester     func(childComplexity int) int
-		SubjectGroup func(childComplexity int) int
+		ChangedAt         func(childComplexity int) int
+		Open              func(childComplexity int) int
+		Semester          func(childComplexity int) int
+		SubjectGroup      func(childComplexity int) int
+		WishesPublishedAt func(childComplexity int) int
 	}
 
 	ZpaCatalogueProjection struct {
@@ -2805,6 +2807,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.PublishDesiredHours(childComplexity, args["code"].(string)), true
+	case "Mutation.publishSubjectGroupWishes":
+		if e.ComplexityRoot.Mutation.PublishSubjectGroupWishes == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_publishSubjectGroupWishes_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.PublishSubjectGroupWishes(childComplexity, args["semester"].(string), args["subjectGroupId"].(string)), true
 	case "Mutation.publishWishes":
 		if e.ComplexityRoot.Mutation.PublishWishes == nil {
 			break
@@ -4857,6 +4870,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.WishWindow.SubjectGroup(childComplexity), true
+	case "WishWindow.wishesPublishedAt":
+		if e.ComplexityRoot.WishWindow.WishesPublishedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WishWindow.WishesPublishedAt(childComplexity), true
 
 	case "ZpaCatalogueProjection.addedModules":
 		if e.ComplexityRoot.ZpaCatalogueProjection.AddedModules == nil {
@@ -9518,6 +9537,12 @@ type WishWindow {
   open: Boolean!
   "When it was last switched."
   changedAt: Time!
+  """
+  When the subject group's lead showed the wishes on the group's modules to everybody in the group
+  (` + "`" + `publishSubjectGroupWishes` + "`" + `), or ` + "`" + `null` + "`" + ` while nobody has. Public like the rest of this type: it
+  is a decision about the process, not anything about a wish.
+  """
+  wishesPublishedAt: Time
 }
 
 extend type Query {
@@ -9623,6 +9648,31 @@ extend type Mutation {
     "True to take entries, false to stop."
     open: Boolean!
   ): WishWindow! @scope(area: PLANNING, verb: WRITE)
+
+  """
+  Show the wishes on one subject group's modules to everybody in that group, before the wishes of
+  the whole semester are published (` + "`" + `publishWishes` + "`" + `).
+
+  Members of the group then read who registered interest in which instance of the group's modules,
+  with the priority, the share and the bound on cohorts — what the semester publication shows. The
+  note and when a wish was entered stay with the people who read them before. Wishes on modules of
+  other subject groups stay confidential, members of other groups see nothing new, and through a
+  plain token nothing changes until the semester is published.
+
+  **There is no way back.** Calling it twice is not an error and does not move the timestamp.
+  Refused with ` + "`" + `WISH_WINDOW_OPEN` + "`" + ` while the group's wish round is open (` + "`" + `setWishWindow` + "`" + `): published
+  then, every entry made in the round would be visible the moment it is made. Opening the round
+  again afterwards stays possible, the same as after the semester publication.
+
+  Only the lead of that subject group and the dean's office. In a signed-in browser session or with
+  a token minted with ` + "`" + `fullReach` + "`" + `; through a plain token this fails with ` + "`" + `FULL_REACH_REQUIRED` + "`" + `.
+  """
+  publishSubjectGroupWishes(
+    "Four digits, a hyphen and SS or WS."
+    semester: String!
+    "The subject group whose wishes its members are to see."
+    subjectGroupId: ID!
+  ): WishWindow! @fullReach @scope(area: PLANNING, verb: WRITE)
 }
 `, BuiltIn: false},
 	{Name: "../schema.graphqls", Input: `# Descriptions in this file are read by two audiences that have nothing to do with each
@@ -12740,6 +12790,8 @@ func (ec *executionContext) childFields_WishWindow(ctx context.Context, field gr
 		return ec.fieldContext_WishWindow_open(ctx, field)
 	case "changedAt":
 		return ec.fieldContext_WishWindow_changedAt(ctx, field)
+	case "wishesPublishedAt":
+		return ec.fieldContext_WishWindow_wishesPublishedAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type WishWindow", field.Name)
 }

@@ -374,6 +374,29 @@ func (ec *executionContext) fieldContext_WishWindow_changedAt(_ context.Context,
 	return graphql.NewScalarFieldContext("WishWindow", field, false, false, errors.New("field of type Time does not have child fields"))
 }
 
+func (ec *executionContext) _WishWindow_wishesPublishedAt(ctx context.Context, field graphql.CollectedField, obj *model.WishWindow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WishWindow_wishesPublishedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.WishesPublishedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalOTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_WishWindow_wishesPublishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WishWindow", field, false, false, errors.New("field of type Time does not have child fields"))
+}
+
 // endregion **************************** field.gotpl *****************************
 
 // region    **************************** input.gotpl *****************************
@@ -598,6 +621,11 @@ func (ec *executionContext) _WishWindow(ctx context.Context, sel ast.SelectionSe
 		case "changedAt":
 			out.Values[i] = ec._WishWindow_changedAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "wishesPublishedAt":
+			out.Values[i] = ec._WishWindow_wishesPublishedAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
 		default:

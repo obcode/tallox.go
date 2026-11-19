@@ -234,3 +234,26 @@ solange es keine konkrete Anforderung gibt.
   („abtrennen“). Die Regel „Wunsch → Instanz, Zuteilung → Teil“ oben gilt unverändert.
 - Zusammenlegen (`handOverWishes`): die überlebende Zeile bekommt den größeren Anteil, `NULL`
   (ganzer Zug) gewinnt (`MergeCollidingWishShares`). Vormerkungen übernehmen keinen Anteil.
+
+## Wünsche in der Fachgruppe zeigen (2026-11-19)
+
+Anregung aus dem Kollegium, Olli hat freigegeben: eine Fachgruppe, die ihre Wunschrunde geschlossen
+hat, soll ihre Wünsche nicht bis zur Veröffentlichung für das ganze Semester verstecken müssen.
+`publishSubjectGroupWishes(semester, subjectGroupId)` — Leitung der Fachgruppe oder Dekanat,
+`@fullReach`, unumkehrbar, `WISH_WINDOW_OPEN` solange die Runde offen ist (abwesende Zeile = offen).
+Danach erneut öffnen geht weiter, wie nach der Semester-Veröffentlichung.
+
+- Spalten `wish_window.wishes_published_at/_by` (Migration `20261119170000`). Compare-and-set im
+  UPDATE: trifft nur eine geschlossene oder schon veröffentlichte Runde, erster Zeitstempel bleibt.
+- **Es zählt die Fachgruppe des Moduls**, und lesen darf, wer **Mitglied** dieser Fachgruppe ist
+  (`person_subject_group`). Dafür trägt der Actor jetzt `SubjectGroups` (beim Anmelden gelesen,
+  beide Türen; nicht mit den Rollen verengt, Mitgliedschaft ist keine Rolle).
+- Policy: `SemesterState.WishesPublishedInGroups`, `WishesSharedWith(actor)` = veröffentlicht ∩
+  Mitglied. Diese Gruppen gehen in `WishFilter.SubjectGroupIDs` — dieselbe Klausel wie die geleiteten
+  Gruppen, SQL unverändert. Nur mit voller Reichweite (Browser, Planungs-Token), Onlooker nie.
+- **Nur `WishService.List` lädt die Gruppen in den Zustand.** Vormerkungen, Rundmail-Empfänger und
+  `CanReadWishDetails` lesen den Zustand ohne — Notiz und Zeitstempel bleiben bei den Zuständigen,
+  Vormerkungen vertraulich (Plan-Frage 3, Standard übernommen).
+- Golden-Matrix: Zustand „in group 1“ und eine LECTURER-Zeile „member of group 1“.
+  `TestBeingInASubjectGroupIsNotReadingItsWishes` gilt weiter (ohne Veröffentlichung in der Gruppe).
+- Nicht gebaut: eine Mail an Abonnenten, wenn eine Fachgruppe ihre Wünsche zeigt.

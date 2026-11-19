@@ -238,6 +238,9 @@ type WishStore interface {
 	// states read a moment apart is how a rule ends up describing neither.
 	// (nil, nil) when the instance is not there.
 	WishWriteContext(ctx context.Context, instanceID uuid.UUID) (WishWriteContext, error)
+	// SubjectGroupsWithPublishedWishes names the subject groups whose lead showed the wishes on
+	// the group's modules to its members, in one semester. Empty for a semester with no row.
+	SubjectGroupsWithPublishedWishes(ctx context.Context, semesterID uuid.UUID) ([]uuid.UUID, error)
 
 	DesiredHoursStore
 	AdvanceWishStore
@@ -290,7 +293,17 @@ func (s *WishService) List(ctx context.Context, actor principal.Actor,
 		return nil, err
 	}
 
-	wishes, err := s.store.Wishes(ctx, q, policy.WishVisibility(actor, semester.State()))
+	// The groups whose lead showed their members the wishes. Only this read carries them: the
+	// advance wishes and the details below are read with the state without, on purpose.
+	state := semester.State()
+	if !state.WishesPublished() && len(actor.SubjectGroups) > 0 {
+		state.WishesPublishedInGroups, err = s.store.SubjectGroupsWithPublishedWishes(ctx, semester.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	wishes, err := s.store.Wishes(ctx, q, policy.WishVisibility(actor, state))
 	if err != nil {
 		return nil, err
 	}

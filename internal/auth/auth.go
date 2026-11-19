@@ -104,6 +104,9 @@ type Person struct {
 	// programme lead leads. Carried here because authentication is the one place that reads a
 	// person's grants, and a second lookup later would be a second place to forget.
 	RoleScopes []principal.RoleScope
+	// SubjectGroups are the subject groups this person is a member of — not the ones they lead,
+	// which are RoleScopes. Carried for the same reason.
+	SubjectGroups []uuid.UUID
 }
 
 // Token is a Personal Access Token as stored, with its owner.

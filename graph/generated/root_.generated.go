@@ -8855,6 +8855,7 @@ enum ScopeArea {
   ` + "`" + `requestInstanceCoverage` + "`" + `, ` + "`" + `acceptInstanceCoverage` + "`" + `, ` + "`" + `releaseInstanceCoverage` + "`" + `,
   ` + "`" + `copyDemandFromSemester` + "`" + `, ` + "`" + `planDemand` + "`" + `,
   ` + "`" + `demandCompletions` + "`" + `, ` + "`" + `wishWindows` + "`" + `, ` + "`" + `setDemandComplete` + "`" + `, ` + "`" + `setWishWindow` + "`" + `,
+  ` + "`" + `publishSubjectGroupWishes` + "`" + `,
   ` + "`" + `reviewCompletions` + "`" + `, ` + "`" + `setReviewComplete` + "`" + `,
   ` + "`" + `subjectGroups` + "`" + `, ` + "`" + `subjectGroup` + "`" + `, ` + "`" + `mySubjectGroups` + "`" + `, ` + "`" + `modulesWithoutSubjectGroup` + "`" + `,
   ` + "`" + `subjectGroupsWithoutLead` + "`" + `, ` + "`" + `setMySubjectGroups` + "`" + `, ` + "`" + `setModulesSubjectGroup` + "`" + `,

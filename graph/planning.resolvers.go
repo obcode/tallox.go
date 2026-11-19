@@ -7,7 +7,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/principal"
@@ -58,7 +57,17 @@ func (r *mutationResolver) SetWishWindow(ctx context.Context, semester string, s
 
 // PublishSubjectGroupWishes is the resolver for the publishSubjectGroupWishes field.
 func (r *mutationResolver) PublishSubjectGroupWishes(ctx context.Context, semester string, subjectGroupID string) (*model.WishWindow, error) {
-	panic(fmt.Errorf("not implemented: PublishSubjectGroupWishes - publishSubjectGroupWishes"))
+	groupID, err := parseID(subjectGroupID)
+	if err != nil {
+		return nil, err
+	}
+
+	actor := principal.From(ctx)
+	window, err := r.Marks.PublishSubjectGroupWishes(ctx, actor, semester, groupID)
+	if err != nil {
+		return nil, subjectGroupWishesError(actor, err)
+	}
+	return wishWindowModel(*window), nil
 }
 
 // DemandCompletions is the resolver for the demandCompletions field.

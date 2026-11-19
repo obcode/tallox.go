@@ -42,6 +42,15 @@ type SemesterState struct {
 	// everybody, or the zero time. Mirrors semester.desired_hours_published_at, and the database
 	// holds that it never precedes the freeze.
 	DesiredHoursPublishedAt time.Time
+	// WishesPublishedInGroups are the subject groups whose lead has shown the wishes on the
+	// group's modules to the members of the group (wish_window.wishes_published_at), in this
+	// semester. Publication within a group, not to the faculty: it widens the wish rule for the
+	// actors who belong to one of these groups (principal.Actor.SubjectGroups) and for nobody
+	// else. Decided 2026-11-19.
+	//
+	// Only the wish screen's read carries it. A state without it is the conservative one — the
+	// advance wishes and the details (note, timestamps) are read with it left empty, on purpose.
+	WishesPublishedInGroups []uuid.UUID
 }
 
 // WishesPublished reports whether the confidentiality window over the wishes has closed.
@@ -52,6 +61,25 @@ func (s SemesterState) AssignmentsPublished() bool { return !s.AssignmentsPublis
 
 // DesiredHoursFrozen reports whether only the dean's office changes desired teaching hours now.
 func (s SemesterState) DesiredHoursFrozen() bool { return !s.DesiredHoursFrozenAt.IsZero() }
+
+// WishesSharedWith returns the subject groups whose wishes this actor reads because the group's
+// lead published them within the group and the actor is a member: the intersection of the two
+// lists. Empty for everybody once the whole semester is published, where it no longer matters.
+func (s SemesterState) WishesSharedWith(a principal.Actor) []uuid.UUID {
+	var out []uuid.UUID
+	for _, published := range s.WishesPublishedInGroups {
+		if published == uuid.Nil {
+			continue
+		}
+		for _, member := range a.SubjectGroups {
+			if member == published {
+				out = append(out, published)
+				break
+			}
+		}
+	}
+	return out
+}
 
 // DesiredHoursPublished reports whether everybody reads the desired teaching hours now.
 func (s SemesterState) DesiredHoursPublished() bool { return !s.DesiredHoursPublishedAt.IsZero() }
@@ -132,7 +160,9 @@ type WishFilter struct {
 	// ProgrammeIDs are the study programmes this caller leads. Meaningful only for
 	// WishScopeOwnOrScoped, and empty is a real value: a lead with no programme reaches none.
 	ProgrammeIDs []uuid.UUID
-	// SubjectGroupIDs are the subject groups this caller leads. Same reading as above.
+	// SubjectGroupIDs are the subject groups whose wishes this caller reads: the ones they lead,
+	// and the ones whose lead published the wishes within the group while the caller is a member
+	// (SemesterState.WishesPublishedInGroups). Same reading as above.
 	SubjectGroupIDs []uuid.UUID
 }
 
@@ -198,7 +228,8 @@ func CanSeeWish(a principal.Actor, s SemesterState, w Wish) bool {
 		return false
 	default:
 		programmes, groups := UnpublishedWishScope(a)
-		return programmes.Allows(w.ProgrammeID) || groups.Allows(w.SubjectGroupID)
+		return programmes.Allows(w.ProgrammeID) || groups.Allows(w.SubjectGroupID) ||
+			idScopeAllows(false, s.WishesSharedWith(a), w.SubjectGroupID)
 	}
 }
 
@@ -233,6 +264,10 @@ func WishVisibility(a principal.Actor, s SemesterState) WishFilter {
 	}
 
 	programmes, groups := UnpublishedWishScope(a)
+	// The groups whose lead published within the group and the actor belongs to. They join the
+	// subject groups the actor leads: in both cases every wish on the group's modules is
+	// readable, and the WHERE clause does not need to know which of the two it was.
+	shared := s.WishesSharedWith(a)
 
 	// The dean's office reaches across both dimensions and is not enumerable — a programme or a
 	// subject group created tomorrow is included — so it collapses to no restriction at all
@@ -240,7 +275,7 @@ func WishVisibility(a principal.Actor, s SemesterState) WishFilter {
 	if programmes.All || groups.All {
 		return WishFilter{Scope: WishScopeAll}
 	}
-	if programmes.Empty() && groups.Empty() {
+	if programmes.Empty() && groups.Empty() && len(shared) == 0 {
 		// Everybody else, and every lead nobody has given a subject to yet. Not "everything":
 		// an unscoped grant is the grant's subject being unset, not a narrowing that was skipped.
 		return WishFilter{Scope: WishScopeOwn, OwnerID: a.ID}
@@ -249,7 +284,7 @@ func WishVisibility(a principal.Actor, s SemesterState) WishFilter {
 		Scope:           WishScopeOwnOrScoped,
 		OwnerID:         a.ID,
 		ProgrammeIDs:    programmes.IDs,
-		SubjectGroupIDs: groups.IDs,
+		SubjectGroupIDs: append(append([]uuid.UUID{}, groups.IDs...), shared...),
 	}
 }
 

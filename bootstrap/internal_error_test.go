@@ -89,7 +89,10 @@ func TestAStoreFailureSaysNothing(t *testing.T) {
 		group := f.create(t, "MATHE", "Mathematik")
 		probes = append(probes, probe{
 			area: "subjectgroup", handler: f.handler, schema: f.schema, who: testdata.Eins,
-			table: "person_subject_group",
+			// subject_group rather than person_subject_group: authentication reads the
+			// memberships on every request (the wishes a lead shows the group), so pulling that
+			// table away refuses at the door before the area's mapping is reached.
+			table: "subject_group",
 			query: `mutation($g: [ID!]!) { setMySubjectGroups(subjectGroupIds: $g) { code } }`,
 			vars:  map[string]any{"g": []string{group}},
 		})

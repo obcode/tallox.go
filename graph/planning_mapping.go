@@ -50,8 +50,9 @@ func wishWindowModel(w domain.WishWindow) *model.WishWindow {
 			// query and defaults to the ordinary case rather than to a claim.
 			Active: true,
 		},
-		Open:      w.Open,
-		ChangedAt: w.ChangedAt,
+		Open:              w.Open,
+		ChangedAt:         w.ChangedAt,
+		WishesPublishedAt: timeOrNil(w.WishesPublishedAt),
 	}
 }
 
@@ -61,6 +62,15 @@ func wishWindowModels(list []domain.WishWindow) []*model.WishWindow {
 		out = append(out, wishWindowModel(w))
 	}
 	return out
+}
+
+// subjectGroupWishesError is planningMarkError with the sentence for showing a group its wishes
+// rather than for switching its round, which is what ErrNotYourSubjectGroup otherwise says.
+func subjectGroupWishesError(actor principal.Actor, err error) error {
+	if errors.Is(err, domain.ErrNotYourSubjectGroup) && !policy.HoldsSubjectGroupLeadWithoutScope(actor) {
+		return refusal("NOT_YOUR_SUBJECT_GROUP", policy.SubjectGroupWishesReason)
+	}
+	return planningMarkError(actor, err)
 }
 
 // planningMarkError maps this area's refusals to codes the interface branches on.
@@ -84,6 +94,8 @@ func planningMarkError(actor principal.Actor, err error) error {
 			return refusal("SUBJECT_GROUP_SCOPE_MISSING", policy.SubjectGroupScopeMissingReason)
 		}
 		return refusal("NOT_YOUR_SUBJECT_GROUP", policy.WishWindowSwitchReason)
+	case errors.Is(err, domain.ErrWishWindowStillOpen):
+		return refusal("WISH_WINDOW_OPEN", err.Error())
 	case errors.Is(err, domain.ErrProgrammeNotFound):
 		return refusal("PROGRAMME_NOT_FOUND", err.Error())
 	case errors.Is(err, domain.ErrSubjectGroupNotFound):

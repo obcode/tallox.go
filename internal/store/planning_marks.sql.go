@@ -224,6 +224,39 @@ func (q *Queries) ProgrammeIDByCode(ctx context.Context, code string) (uuid.UUID
 	return id, err
 }
 
+const publishSubjectGroupWishes = `-- name: PublishSubjectGroupWishes :one
+UPDATE wish_window ww
+   SET wishes_published_at = COALESCE(ww.wishes_published_at, now()),
+       wishes_published_by = CASE WHEN ww.wishes_published_at IS NULL
+                                  THEN $1::uuid
+                                  ELSE ww.wishes_published_by END
+  FROM semester s
+ WHERE s.id = ww.semester_id
+   AND s.code = $2::text
+   AND ww.subject_group_id = $3::uuid
+   AND (NOT ww.open OR ww.wishes_published_at IS NOT NULL)
+RETURNING ww.wishes_published_at
+`
+
+type PublishSubjectGroupWishesParams struct {
+	PublishedBy    uuid.NullUUID
+	Semester       string
+	SubjectGroupID uuid.UUID
+}
+
+// Show the wishes on one subject group's modules to everybody in that group, for one semester.
+//
+// Only while the round is shut: an absent row is an open round and matches nothing, and so does a
+// row saying open. Already published matches regardless and keeps the first timestamp, so that a
+// repeated call is not an error even after the round was opened again. No row back means the
+// round is open (or the semester is not recorded, which the service rules out first).
+func (q *Queries) PublishSubjectGroupWishes(ctx context.Context, arg PublishSubjectGroupWishesParams) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, publishSubjectGroupWishes, arg.PublishedBy, arg.Semester, arg.SubjectGroupID)
+	var wishes_published_at pgtype.Timestamptz
+	err := row.Scan(&wishes_published_at)
+	return wishes_published_at, err
+}
+
 const reviewCompletionsOfSemester = `-- name: ReviewCompletionsOfSemester :many
 SELECT rc.semester_id, rc.programme_id, rc.completed_at, rc.completed_by,
        prog.code AS programme_code, prog.title AS programme_title
@@ -290,19 +323,27 @@ type SetWishWindowParams struct {
 	Semester       string
 }
 
+type SetWishWindowRow struct {
+	SemesterID     uuid.UUID
+	SubjectGroupID uuid.UUID
+	Open           bool
+	ChangedAt      time.Time
+	ChangedBy      uuid.NullUUID
+}
+
 // Open or shut one subject group's wish round.
 //
 // Upsert, and the row is kept when it is opened again rather than deleted. Unlike the
 // announcement above, the two states are not the same: a window that was shut and reopened means
 // somebody took two decisions, and the second one is worth being able to see.
-func (q *Queries) SetWishWindow(ctx context.Context, arg SetWishWindowParams) (WishWindow, error) {
+func (q *Queries) SetWishWindow(ctx context.Context, arg SetWishWindowParams) (SetWishWindowRow, error) {
 	row := q.db.QueryRow(ctx, setWishWindow,
 		arg.SubjectGroupID,
 		arg.Open,
 		arg.ChangedBy,
 		arg.Semester,
 	)
-	var i WishWindow
+	var i SetWishWindowRow
 	err := row.Scan(
 		&i.SemesterID,
 		&i.SubjectGroupID,
@@ -311,6 +352,37 @@ func (q *Queries) SetWishWindow(ctx context.Context, arg SetWishWindowParams) (W
 		&i.ChangedBy,
 	)
 	return i, err
+}
+
+const subjectGroupsWithPublishedWishes = `-- name: SubjectGroupsWithPublishedWishes :many
+SELECT ww.subject_group_id
+FROM wish_window ww
+WHERE ww.semester_id = $1::uuid
+  AND ww.wishes_published_at IS NOT NULL
+ORDER BY ww.subject_group_id
+`
+
+// The subject groups whose lead has shown their wishes to the group, for one semester. Public like
+// the windows: it names groups and a decision, never anything about a wish. The wish filter reads
+// it (policy.SemesterState.WishesPublishedInGroups).
+func (q *Queries) SubjectGroupsWithPublishedWishes(ctx context.Context, semesterID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx, subjectGroupsWithPublishedWishes, semesterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []uuid.UUID{}
+	for rows.Next() {
+		var subject_group_id uuid.UUID
+		if err := rows.Scan(&subject_group_id); err != nil {
+			return nil, err
+		}
+		items = append(items, subject_group_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const wishRoundsOfSemester = `-- name: WishRoundsOfSemester :one
@@ -353,6 +425,7 @@ func (q *Queries) WishRoundsOfSemester(ctx context.Context, semester string) (Wi
 
 const wishWindowsOfSemester = `-- name: WishWindowsOfSemester :many
 SELECT ww.semester_id, ww.subject_group_id, ww.open, ww.changed_at, ww.changed_by,
+       ww.wishes_published_at,
        g.code AS subject_group_code, g.name AS subject_group_name
 FROM wish_window ww
 JOIN subject_group g ON g.id = ww.subject_group_id
@@ -362,13 +435,14 @@ ORDER BY g.code
 `
 
 type WishWindowsOfSemesterRow struct {
-	SemesterID       uuid.UUID
-	SubjectGroupID   uuid.UUID
-	Open             bool
-	ChangedAt        time.Time
-	ChangedBy        uuid.NullUUID
-	SubjectGroupCode string
-	SubjectGroupName string
+	SemesterID        uuid.UUID
+	SubjectGroupID    uuid.UUID
+	Open              bool
+	ChangedAt         time.Time
+	ChangedBy         uuid.NullUUID
+	WishesPublishedAt pgtype.Timestamptz
+	SubjectGroupCode  string
+	SubjectGroupName  string
 }
 
 // The subject groups somebody has decided something about, for one semester.
@@ -391,6 +465,7 @@ func (q *Queries) WishWindowsOfSemester(ctx context.Context, semester string) ([
 			&i.Open,
 			&i.ChangedAt,
 			&i.ChangedBy,
+			&i.WishesPublishedAt,
 			&i.SubjectGroupCode,
 			&i.SubjectGroupName,
 		); err != nil {

@@ -62,12 +62,13 @@ func (d *Directory) PersonByMail(ctx context.Context, mail string) (*auth.Person
 	}
 
 	return &auth.Person{
-		ID:         row.ID,
-		Mail:       row.Mail,
-		Name:       row.Name,
-		Active:     row.Active,
-		Roles:      row.Roles,
-		RoleScopes: scopes,
+		ID:            row.ID,
+		Mail:          row.Mail,
+		Name:          row.Name,
+		Active:        row.Active,
+		Roles:         row.Roles,
+		RoleScopes:    scopes,
+		SubjectGroups: row.SubjectGroups,
 	}, nil
 }
 
@@ -95,12 +96,13 @@ func (d *Directory) TokenByID(ctx context.Context, tokenID string) (*auth.Token,
 		ExpiresAt:  row.ExpiresAt,
 		RevokedAt:  nullableTime(row.RevokedAt),
 		Owner: auth.Person{
-			ID:         row.OwnerID,
-			Mail:       row.Mail,
-			Name:       row.Name,
-			Active:     row.Active,
-			Roles:      row.Roles,
-			RoleScopes: scopes,
+			ID:            row.OwnerID,
+			Mail:          row.Mail,
+			Name:          row.Name,
+			Active:        row.Active,
+			Roles:         row.Roles,
+			RoleScopes:    scopes,
+			SubjectGroups: row.SubjectGroups,
 		},
 	}, nil
 }

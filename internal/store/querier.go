@@ -1473,6 +1473,13 @@ type Querier interface {
 	// updated_at stays untouched when nothing changed, so a repeated call does not make the row
 	// look edited.
 	PublishSemesterWishes(ctx context.Context, id uuid.UUID) (Semester, error)
+	// Show the wishes on one subject group's modules to everybody in that group, for one semester.
+	//
+	// Only while the round is shut: an absent row is an open round and matches nothing, and so does a
+	// row saying open. Already published matches regardless and keeps the first timestamp, so that a
+	// repeated call is not an error even after the round was opened again. No row back means the
+	// round is open (or the semester is not recorded, which the service rules out first).
+	PublishSubjectGroupWishes(ctx context.Context, arg PublishSubjectGroupWishesParams) (pgtype.Timestamptz, error)
 	// One mail per recipient, the same text for each: an announcement names nobody but its sender.
 	QueueAnnouncementMails(ctx context.Context, arg QueueAnnouncementMailsParams) error
 	QueueMail(ctx context.Context, arg QueueMailParams) (uuid.UUID, error)
@@ -1667,7 +1674,7 @@ type Querier interface {
 	// Upsert, and the row is kept when it is opened again rather than deleted. Unlike the
 	// announcement above, the two states are not the same: a window that was shut and reopened means
 	// somebody took two decisions, and the second one is worth being able to see.
-	SetWishWindow(ctx context.Context, arg SetWishWindowParams) (WishWindow, error)
+	SetWishWindow(ctx context.Context, arg SetWishWindowParams) (SetWishWindowRow, error)
 	// The parts this cohort holds for its own programme's sibling cohorts.
 	//
 	// What a promotion has to hand back before it hands the rows to another programme: the flag means
@@ -1745,6 +1752,10 @@ type Querier interface {
 	// shorten. The membership row survives, so bringing the group back brings the person back with
 	// it.
 	SubjectGroupsOfPerson(ctx context.Context, personID uuid.UUID) ([]SubjectGroupsOfPersonRow, error)
+	// The subject groups whose lead has shown their wishes to the group, for one semester. Public like
+	// the windows: it names groups and a decision, never anything about a wish. The wish filter reads
+	// it (policy.SemesterState.WishesPublishedInGroups).
+	SubjectGroupsWithPublishedWishes(ctx context.Context, semesterID uuid.UUID) ([]uuid.UUID, error)
 	// "Keine Fachgruppe ohne Person, die sich ihrer annimmt", as a number rather than as a NOT NULL.
 	//
 	// A constraint would mean a group could not be created before its lead was decided, and that a

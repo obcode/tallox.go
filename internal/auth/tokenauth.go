@@ -160,12 +160,13 @@ func (a *TokenAuthenticator) Authenticate(ctx context.Context, r *http.Request) 
 		// Roles come from the owner on every request rather than from the token row. That is
 		// what makes "a token can never exceed its owner" true by construction: revoking a
 		// role demotes every token that person holds, immediately, without touching one.
-		Roles:      stored.Owner.Roles,
-		RoleScopes: stored.Owner.RoleScopes,
-		Scopes:     stored.Scopes,
-		FullReach:  stored.FullReach,
-		Kind:       principal.KindToken,
-		TokenID:    stored.ID,
+		Roles:         stored.Owner.Roles,
+		RoleScopes:    stored.Owner.RoleScopes,
+		SubjectGroups: stored.Owner.SubjectGroups,
+		Scopes:        stored.Scopes,
+		FullReach:     stored.FullReach,
+		Kind:          principal.KindToken,
+		TokenID:       stored.ID,
 	}, nil
 }
 

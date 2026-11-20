@@ -777,6 +777,15 @@ type DemandEntryInput struct {
 	// The sentence beside the row, for every cohort of this module. `null` leaves what is stored;
 	// the empty string clears it. At most 2000 characters; surrounding whitespace is dropped.
 	Note *string `json:"note,omitempty"`
+	// Withdraw this module's cohorts even where colleagues have registered interest in them: their
+	// wishes lapse with the cohort. Default `false`, which refuses such a cohort with
+	// `INSTANCE_IN_USE` and cause `WISHES`, as it always did.
+	//
+	// Only wishes lapse. A cohort somebody is assigned to is still refused (cause `ASSIGNMENT`): an
+	// assignment is resolved deliberately, in the assignment, never as a side effect of the demand.
+	// Cohorts that merge into a sibling hand their wishes over and are not affected. Every wish that
+	// lapses is recorded, and its owner can be told by mail (`MODULE_WITHDRAWN` for `MY_WISHES`).
+	DropWishes *bool `json:"dropWishes,omitempty"`
 }
 
 // What a save did, or — after a dry run — what it would do.
@@ -826,9 +835,12 @@ type DemandRefusal struct {
 	// they are reported rather than raised: one module that cannot be withdrawn must not undo fifteen
 	// that could be declared.
 	Code string `json:"code"`
-	// The sentence to show. `INSTANCE_IN_USE` deliberately says only that something hangs off the
-	// instance — never what, never how many.
+	// The sentence to show. It says what is in the way — wishes, an assignment — never whose, never
+	// how many.
 	Message string `json:"message"`
+	// For `INSTANCE_IN_USE` and `PART_ASSIGNED`: what is in the way. `null` for the other codes, and
+	// where it cannot be told.
+	Cause *InstanceUse `json:"cause,omitempty"`
 }
 
 // How far the demand releases of one semester have got: `released` of the `planned` study programmes
@@ -2340,6 +2352,68 @@ func (e *AssignmentConfirmationState) UnmarshalJSON(b []byte) error {
 }
 
 func (e AssignmentConfirmationState) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// What keeps a cohort from being withdrawn, where a refusal can say so.
+//
+// Only ever reported to somebody who may write that programme's demand — who may read its
+// unpublished wishes and its assignments anyway (every mutation here is `@fullReach`). It names the
+// kind of thing, never who or how many.
+type InstanceUse string
+
+const (
+	// Colleagues have registered interest in the cohort. `dropWishes` withdraws it anyway.
+	InstanceUseWishes InstanceUse = "WISHES"
+	// Somebody is assigned to one of its parts. Resolve the assignment first.
+	InstanceUseAssignment InstanceUse = "ASSIGNMENT"
+)
+
+var AllInstanceUse = []InstanceUse{
+	InstanceUseWishes,
+	InstanceUseAssignment,
+}
+
+func (e InstanceUse) IsValid() bool {
+	switch e {
+	case InstanceUseWishes, InstanceUseAssignment:
+		return true
+	}
+	return false
+}
+
+func (e InstanceUse) String() string {
+	return string(e)
+}
+
+func (e *InstanceUse) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = InstanceUse(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid InstanceUse", str)
+	}
+	return nil
+}
+
+func (e InstanceUse) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *InstanceUse) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e InstanceUse) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

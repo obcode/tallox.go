@@ -1513,6 +1513,29 @@ func (ec *executionContext) fieldContext_DemandRefusal_message(_ context.Context
 	return graphql.NewScalarFieldContext("DemandRefusal", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _DemandRefusal_cause(ctx context.Context, field graphql.CollectedField, obj *model.DemandRefusal) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DemandRefusal_cause(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Cause, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.InstanceUse) graphql.Marshaler {
+			return ec.marshalOInstanceUse2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstanceUse(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_DemandRefusal_cause(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DemandRefusal", field, false, false, errors.New("field of type InstanceUse does not have child fields"))
+}
+
 func (ec *executionContext) _InstanceCoverage_instance(ctx context.Context, field graphql.CollectedField, obj *model.InstanceCoverage) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -1842,8 +1865,11 @@ func (ec *executionContext) unmarshalInputDemandEntryInput(ctx context.Context, 
 	if _, present := asMap["tracks"]; !present {
 		asMap["tracks"] = []any{}
 	}
+	if _, present := asMap["dropWishes"]; !present {
+		asMap["dropWishes"] = false
+	}
 
-	fieldsInOrder := [...]string{"moduleId", "tracks", "programmeSemester", "note"}
+	fieldsInOrder := [...]string{"moduleId", "tracks", "programmeSemester", "note", "dropWishes"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -1878,6 +1904,13 @@ func (ec *executionContext) unmarshalInputDemandEntryInput(ctx context.Context, 
 				return it, err
 			}
 			it.Note = data
+		case "dropWishes":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dropWishes"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DropWishes = data
 		}
 	}
 	return it, nil
@@ -2463,6 +2496,11 @@ func (ec *executionContext) _DemandRefusal(ctx context.Context, sel ast.Selectio
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "cause":
+			out.Values[i] = ec._DemandRefusal_cause(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -2864,6 +2902,22 @@ func (ec *executionContext) marshalOInstanceCoverage2ᚖgithubᚗcomᚋobcodeᚋ
 		return graphql.Null
 	}
 	return ec._InstanceCoverage(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOInstanceUse2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstanceUse(ctx context.Context, v any) (*model.InstanceUse, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.InstanceUse)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInstanceUse2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐInstanceUse(ctx context.Context, sel ast.SelectionSet, v *model.InstanceUse) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 // endregion ***************************** type.gotpl *****************************

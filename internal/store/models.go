@@ -169,6 +169,18 @@ type InstancePart struct {
 	TaughtBy            *string
 }
 
+type LapsedWish struct {
+	ID               uuid.UUID
+	CourseInstanceID uuid.UUID
+	PersonID         uuid.UUID
+	SemesterID       uuid.UUID
+	ModuleID         uuid.UUID
+	ProgrammeID      uuid.UUID
+	Track            string
+	LapsedAt         time.Time
+	LapsedBy         uuid.NullUUID
+}
+
 type MailOutbox struct {
 	ID            uuid.UUID
 	PersonID      uuid.UUID

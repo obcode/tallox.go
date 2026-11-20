@@ -77,7 +77,7 @@ signed-in session, and before publication it would be a count.
 enum NotificationTargetSet {
   "The modules you have noted an advance wish for, and your advance wishes themselves."
   MY_ADVANCE_WISHES
-  "The instances you have registered interest in, and their subject groups' wish rounds."
+  "The instances you have registered interest in, and their subject groups' wish rounds — and one withdrawn with your wish on it (`MODULE_WITHDRAWN`), which lets the wish lapse."
   MY_WISHES
   "The parts you have been assigned, and your confirmation."
   MY_ASSIGNMENTS

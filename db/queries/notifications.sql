@@ -299,7 +299,10 @@ SELECT DISTINCT ON (e.id, s.person_id) e.id, s.person_id, s.id, s.delivery
         OR (s.target_set = 'MY_ADVANCE_WISHES' AND EXISTS (
                 SELECT 1 FROM advance_wish aw
                  WHERE aw.person_id = s.person_id AND aw.module_id = e.module_id))
-        OR (s.target_set = 'MY_WISHES' AND EXISTS (
+        OR (s.target_set = 'MY_WISHES' AND e.kind = 'MODULE_WITHDRAWN' AND EXISTS (
+                SELECT 1 FROM lapsed_wish lw
+                 WHERE lw.person_id = s.person_id AND lw.course_instance_id = e.course_instance_id))
+        OR (s.target_set = 'MY_WISHES' AND e.kind <> 'MODULE_WITHDRAWN' AND EXISTS (
                 SELECT 1 FROM wish w
                   JOIN course_instance ci ON ci.id = w.course_instance_id
                   LEFT JOIN module_subject_group msg ON msg.module_id = ci.module_id

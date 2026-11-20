@@ -257,3 +257,18 @@ Danach erneut öffnen geht weiter, wie nach der Semester-Veröffentlichung.
 - Golden-Matrix: Zustand „in group 1“ und eine LECTURER-Zeile „member of group 1“.
   `TestBeingInASubjectGroupIsNotReadingItsWishes` gilt weiter (ohne Veröffentlichung in der Gruppe).
 - Nicht gebaut: eine Mail an Abonnenten, wenn eine Fachgruppe ihre Wünsche zeigt.
+
+## Wünsche verfallen beim Zurückziehen (2026-11-20)
+
+- `planDemand` mit `DemandEntryInput.dropWishes`: der letzte Zug eines Moduls geht trotz Wünschen;
+  die Wünsche werden gelöscht und in `lapsed_wish` protokolliert (Person, Instanz-Id, wer).
+  **Erstmals entfernt jemand anderes als die Person selbst einen Wunsch** — deshalb das Protokoll.
+- Eine Zuteilung wird nie mit aufgelöst (`cause: ASSIGNMENT`), die bleibt ein bewusster Schritt.
+- `DemandRefusal.cause` (`WISHES`/`ASSIGNMENT`) nennt den Grund — nur an Leute, die den Bedarf
+  schreiben dürfen und damit Wünsche und Zuteilungen ohnehin lesen (`@fullReach`).
+  Kein Count, kein Name. `withdrawCourseInstance` bleibt opak.
+- Der Grund wird per Ausprobieren bestimmt, nicht per Lesen: Zuteilung direkt abfragen, Wünsche
+  per Löschen im verschachtelten Savepoint und erneutem Delete (`deleteInstanceOrExplain`). So
+  liest keine Abfrage außerhalb `wish.sql` die Wunschtabelle.
+- Offen geblieben (Plan-Fragen): Mail nur mit Abo (Standard), kein Entfernen einzelner Wünsche
+  durch die Fachgruppenleitung, verfallene Wünsche nicht auf „Meine Wünsche“.

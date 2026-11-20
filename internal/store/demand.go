@@ -2528,7 +2528,7 @@ func (d *Demand) planModule(ctx context.Context, tx pgx.Tx, plan *domain.DemandP
 		last := spare[len(spare)-1]
 		spare = spare[:len(spare)-1]
 
-		if err := d.withdraw(ctx, tx, plan, last, len(wanted) > 0); err != nil {
+		if err := d.withdraw(ctx, tx, plan, last, len(wanted) > 0, pc.entry.DropWishes, pc.by); err != nil {
 			return err
 		}
 	}
@@ -2606,7 +2606,7 @@ func sharedKindsOf(held []*heldInstance) map[string]bool {
 // the offer away. Only then do the cohort's wishes move to a sibling — when the whole module goes,
 // the foreign key refuses the last cohort as it always did.
 func (d *Demand) withdraw(ctx context.Context, tx pgx.Tx, plan *domain.DemandPlan, instance *heldInstance,
-	keepOffered bool,
+	keepOffered, dropWishes bool, by uuid.UUID,
 ) error {
 	// A savepoint — pgx opens one for a transaction begun inside a transaction — because a
 	// foreign key that refuses this one withdrawal would otherwise abort the whole transaction,
@@ -2632,20 +2632,29 @@ func (d *Demand) withdraw(ctx context.Context, tx pgx.Tx, plan *domain.DemandPla
 		}
 	}
 
-	rows, err := New(sub).DeleteCourseInstance(ctx, instance.id)
+	rows, cause, err := deleteInstanceOrExplain(ctx, sub, instance.id, dropWishes, by)
 	switch {
-	case isForeignKeyViolation(err):
+	case err != nil:
 		_ = sub.Rollback(ctx)
-		plan.Refused = append(plan.Refused, domain.DemandRefusal{
+		return err
+	case cause != nil || rows < 0:
+		_ = sub.Rollback(ctx)
+		refusal := domain.DemandRefusal{
 			ModuleID: instance.moduleID,
 			Track:    instance.track,
 			Code:     "INSTANCE_IN_USE",
 			Reason:   domain.ErrInstanceInUse.Error(),
-		})
+			Cause:    cause,
+		}
+		switch {
+		case cause == nil:
+		case *cause == domain.InstanceUseAssignment:
+			refusal.Reason = domain.ErrInstanceAssigned.Error()
+		case *cause == domain.InstanceUseWishes:
+			refusal.Reason = domain.ErrInstanceWished.Error()
+		}
+		plan.Refused = append(plan.Refused, refusal)
 		return nil
-	case err != nil:
-		_ = sub.Rollback(ctx)
-		return fmt.Errorf("cannot withdraw the instance: %w", err)
 	case rows == 0:
 		_ = sub.Rollback(ctx)
 		return nil
@@ -2995,6 +3004,7 @@ func (d *Demand) adjustGroups(ctx context.Context, tx pgx.Tx, plan *domain.Deman
 					Track:    instance.track,
 					Code:     "PART_ASSIGNED",
 					Reason:   domain.ErrPartAssigned.Error(),
+					Cause:    ptr(domain.InstanceUseAssignment),
 				})
 				break
 			}
@@ -3126,3 +3136,75 @@ func (d *Demand) nameModules(ctx context.Context, plan *domain.DemandPlan) error
 	}
 	return nil
 }
+
+// deleteInstanceOrExplain deletes one cohort inside the savepoint tx and, where a foreign key
+// refuses, finds out what is in the way.
+//
+// rows is what the delete reported; -1 with a nil cause is a refusal whose cause cannot be told.
+// The cause is found by trying rather than by reading: an assignment is asked for directly (the
+// assignment table may be read here), and wishes by elimination — dropping them in a nested
+// savepoint and deleting again. That way no query outside wish.sql reads the wish table
+// (TestNoOtherQueryFileReadsWishes), and "the wishes were the only thing in the way" is what the
+// database itself said, not what a second query believed.
+//
+// With dropWishes the nested savepoint is kept: the wishes lapse, recorded in lapsed_wish with
+// the person who withdrew the cohort. An assignment is never resolved here.
+func deleteInstanceOrExplain(ctx context.Context, tx pgx.Tx, id uuid.UUID, dropWishes bool,
+	by uuid.UUID,
+) (int64, *domain.InstanceUse, error) {
+	try, err := tx.Begin(ctx)
+	if err != nil {
+		return 0, nil, fmt.Errorf("cannot open a savepoint: %w", err)
+	}
+	rows, err := New(try).DeleteCourseInstance(ctx, id)
+	if err == nil {
+		if err := try.Commit(ctx); err != nil {
+			return 0, nil, fmt.Errorf("cannot release the savepoint: %w", err)
+		}
+		return rows, nil, nil
+	}
+	_ = try.Rollback(ctx)
+	if !isForeignKeyViolation(err) {
+		return 0, nil, fmt.Errorf("cannot withdraw the instance: %w", err)
+	}
+
+	assigned, err := New(tx).InstanceHasAssignment(ctx, id)
+	if err != nil {
+		return 0, nil, fmt.Errorf("cannot tell whether the instance is assigned: %w", err)
+	}
+	if assigned {
+		return -1, ptr(domain.InstanceUseAssignment), nil
+	}
+
+	lapse, err := tx.Begin(ctx)
+	if err != nil {
+		return 0, nil, fmt.Errorf("cannot open a savepoint: %w", err)
+	}
+	lapsed, err := New(lapse).LapseWishesOfInstance(ctx, LapseWishesOfInstanceParams{
+		InstanceID: id, LapsedBy: by,
+	})
+	if err != nil {
+		_ = lapse.Rollback(ctx)
+		return 0, nil, fmt.Errorf("cannot let the wishes lapse: %w", err)
+	}
+	rows, err = New(lapse).DeleteCourseInstance(ctx, id)
+	if err != nil || lapsed == 0 {
+		_ = lapse.Rollback(ctx)
+		if err != nil && !isForeignKeyViolation(err) {
+			return 0, nil, fmt.Errorf("cannot withdraw the instance: %w", err)
+		}
+		// Something other than wishes and assignments — nothing does today; say nothing about it.
+		return -1, nil, nil
+	}
+	if !dropWishes {
+		_ = lapse.Rollback(ctx)
+		return -1, ptr(domain.InstanceUseWishes), nil
+	}
+	if err := lapse.Commit(ctx); err != nil {
+		return 0, nil, fmt.Errorf("cannot release the savepoint: %w", err)
+	}
+	return rows, nil, nil
+}
+
+// ptr is the address of a copy of v.
+func ptr[T any](v T) *T { return &v }

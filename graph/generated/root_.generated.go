@@ -296,6 +296,7 @@ type ComplexityRoot struct {
 	}
 
 	DemandRefusal struct {
+		Cause      func(childComplexity int) int
 		Code       func(childComplexity int) int
 		Message    func(childComplexity int) int
 		ModuleID   func(childComplexity int) int
@@ -1921,6 +1922,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.DemandPlanReport.Withdrawn(childComplexity), true
 
+	case "DemandRefusal.cause":
+		if e.ComplexityRoot.DemandRefusal.Cause == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DemandRefusal.Cause(childComplexity), true
 	case "DemandRefusal.code":
 		if e.ComplexityRoot.DemandRefusal.Code == nil {
 			break
@@ -8274,6 +8281,31 @@ input DemandEntryInput {
   the empty string clears it. At most 2000 characters; surrounding whitespace is dropped.
   """
   note: String
+  """
+  Withdraw this module's cohorts even where colleagues have registered interest in them: their
+  wishes lapse with the cohort. Default ` + "`" + `false` + "`" + `, which refuses such a cohort with
+  ` + "`" + `INSTANCE_IN_USE` + "`" + ` and cause ` + "`" + `WISHES` + "`" + `, as it always did.
+
+  Only wishes lapse. A cohort somebody is assigned to is still refused (cause ` + "`" + `ASSIGNMENT` + "`" + `): an
+  assignment is resolved deliberately, in the assignment, never as a side effect of the demand.
+  Cohorts that merge into a sibling hand their wishes over and are not affected. Every wish that
+  lapses is recorded, and its owner can be told by mail (` + "`" + `MODULE_WITHDRAWN` + "`" + ` for ` + "`" + `MY_WISHES` + "`" + `).
+  """
+  dropWishes: Boolean = false
+}
+
+"""
+What keeps a cohort from being withdrawn, where a refusal can say so.
+
+Only ever reported to somebody who may write that programme's demand — who may read its
+unpublished wishes and its assignments anyway (every mutation here is ` + "`" + `@fullReach` + "`" + `). It names the
+kind of thing, never who or how many.
+"""
+enum InstanceUse {
+  "Colleagues have registered interest in the cohort. ` + "`" + `dropWishes` + "`" + ` withdraws it anyway."
+  WISHES
+  "Somebody is assigned to one of its parts. Resolve the assignment first."
+  ASSIGNMENT
 }
 
 """
@@ -8327,10 +8359,15 @@ type DemandRefusal {
   """
   code: String!
   """
-  The sentence to show. ` + "`" + `INSTANCE_IN_USE` + "`" + ` deliberately says only that something hangs off the
-  instance — never what, never how many.
+  The sentence to show. It says what is in the way — wishes, an assignment — never whose, never
+  how many.
   """
   message: String!
+  """
+  For ` + "`" + `INSTANCE_IN_USE` + "`" + ` and ` + "`" + `PART_ASSIGNED` + "`" + `: what is in the way. ` + "`" + `null` + "`" + ` for the other codes, and
+  where it cannot be told.
+  """
+  cause: InstanceUse
 }
 
 """
@@ -8434,7 +8471,8 @@ extend type Mutation {
   to one that stays, so cohorts can be merged after the wish round. Somebody who wished for both
   keeps one wish — the stronger priority, both notes. The report says nothing about it, by design.
   A cohort somebody is already assigned to still refuses, and so does the last cohort of a module
-  that is no longer offered while somebody wants it.
+  that is no longer offered while somebody wants it — unless the entry says ` + "`" + `dropWishes` + "`" + `, then
+  those wishes lapse and the cohort goes. Each refusal says in ` + "`" + `cause` + "`" + ` what is in the way.
 
   # dryRun
 
@@ -9049,7 +9087,7 @@ signed-in session, and before publication it would be a count.
 enum NotificationTargetSet {
   "The modules you have noted an advance wish for, and your advance wishes themselves."
   MY_ADVANCE_WISHES
-  "The instances you have registered interest in, and their subject groups' wish rounds."
+  "The instances you have registered interest in, and their subject groups' wish rounds — and one withdrawn with your wish on it (` + "`" + `MODULE_WITHDRAWN` + "`" + `), which lets the wish lapse."
   MY_WISHES
   "The parts you have been assigned, and your confirmation."
   MY_ASSIGNMENTS
@@ -12083,6 +12121,8 @@ func (ec *executionContext) childFields_DemandRefusal(ctx context.Context, field
 		return ec.fieldContext_DemandRefusal_code(ctx, field)
 	case "message":
 		return ec.fieldContext_DemandRefusal_message(ctx, field)
+	case "cause":
+		return ec.fieldContext_DemandRefusal_cause(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type DemandRefusal", field.Name)
 }

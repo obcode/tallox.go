@@ -69,6 +69,7 @@ func (r *mutationResolver) PlanDemand(ctx context.Context, semester string, prog
 			Tracks:            tracks,
 			ProgrammeSemester: entry.ProgrammeSemester,
 			Note:              entry.Note,
+			DropWishes:        entry.DropWishes != nil && *entry.DropWishes,
 		})
 	}
 

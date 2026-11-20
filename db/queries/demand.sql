@@ -976,3 +976,25 @@ SELECT EXISTS (
     WHERE ci.id = sqlc.arg(instance_id)::uuid
       AND a.person_id = sqlc.arg(person_id)::uuid
 )::boolean AS teaches;
+
+-- name: LapseWishesOfInstance :execrows
+-- A cohort withdrawn with dropWishes: its wishes go, and each leaves a lapsed_wish row so that its
+-- owner can be told. A write, not a read — nothing comes back but the number of rows, and that
+-- number goes nowhere but the caller's check that the delete can proceed.
+WITH gone AS (
+    DELETE FROM wish WHERE course_instance_id = @instance_id::uuid
+    RETURNING person_id
+)
+INSERT INTO lapsed_wish (course_instance_id, person_id, semester_id, module_id, programme_id, track, lapsed_by)
+SELECT ci.id, g.person_id, ci.semester_id, ci.module_id, ci.programme_id, ci.track,
+       NULLIF(@lapsed_by::uuid, '00000000-0000-0000-0000-000000000000'::uuid)
+  FROM gone g
+  JOIN course_instance ci ON ci.id = @instance_id::uuid;
+
+-- name: InstanceHasAssignment :one
+-- Whether somebody holds a part of this cohort — the cause a refused withdrawal names first.
+SELECT EXISTS (
+    SELECT 1 FROM assignment a
+      JOIN instance_part ip ON ip.id = a.instance_part_id
+     WHERE ip.course_instance_id = $1
+)::boolean AS assigned;

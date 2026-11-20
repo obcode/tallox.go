@@ -219,6 +219,7 @@ func demandPlanModel(p domain.DemandPlan) *model.DemandPlanReport {
 			Track:      r.Track,
 			Code:       r.Code,
 			Message:    r.Reason,
+			Cause:      instanceUseModel(r.Cause),
 		})
 	}
 	for _, i := range p.Instances {
@@ -289,9 +290,11 @@ func optionalProgrammeModel(p *domain.Programme) *model.Programme {
 //     programme lead needs an administrator, the lead of another programme needs the right
 //     programme, and a closed phase needs the phase moved. A single FORBIDDEN would send all
 //     three to ask the wrong person.
-//   - INSTANCE_IN_USE says nothing about what is using the instance. No count, no kind of thing
-//     named. Two things can hang off one now — a wish on the instance, an assignment on one of
-//     its parts — and a helpful message would be the confidential fact with the names taken out.
+//   - INSTANCE_IN_USE from a single withdrawal says nothing about what is using the instance.
+//     A plan's refusals do since 2026-11-20 (DemandRefusal.cause, wishes or an assignment, never
+//     a count or a name): everybody who gets one may write the programme's demand and so read its
+//     wishes and assignments — bootstrap.TestInstanceInUseTellsNobodySomethingNew — and a lead
+//     who cannot tell which of the two is in the way cannot do anything about either.
 //   - PART_ASSIGNED does name what hangs off a *part*, because only one thing ever does. It is
 //     reachable only by somebody who may write this programme's demand, and they may read its
 //     assignments; bootstrap.TestPartAssignedTellsNobodySomethingNew asserts that rather than
@@ -398,4 +401,13 @@ func demandUserFacing(actor principal.Actor, err error) error {
 		// generic and the log line is not.
 		return internalRefusal("demand", err)
 	}
+}
+
+// instanceUseModel is the cause of a refusal as the schema spells it.
+func instanceUseModel(c *domain.InstanceUse) *model.InstanceUse {
+	if c == nil {
+		return nil
+	}
+	m := model.InstanceUse(*c)
+	return &m
 }

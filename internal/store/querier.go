@@ -919,6 +919,8 @@ type Querier interface {
 	// One instance by what identifies it, for a copy that has to find next year's counterpart of a
 	// row it only knows by last year's id.
 	InstanceByIdentity(ctx context.Context, arg InstanceByIdentityParams) (uuid.UUID, error)
+	// Whether somebody holds a part of this cohort — the cause a refused withdrawal names first.
+	InstanceHasAssignment(ctx context.Context, courseInstanceID uuid.UUID) (bool, error)
 	InstancePartHasPieces(ctx context.Context, id uuid.UUID) (bool, error)
 	// Read after LockInstancePart, in the same transaction: a new statement sees what committed while
 	// it waited for the lock, which is the whole reason this is a second statement.
@@ -939,6 +941,10 @@ type Querier interface {
 	// that semester's assignments are public yet. Locked, so that a cohort withdrawn while its parts
 	// are being rewritten waits rather than leaving the rewrite pointing at nothing.
 	InstancesForSplit(ctx context.Context, moduleID uuid.UUID) ([]InstancesForSplitRow, error)
+	// A cohort withdrawn with dropWishes: its wishes go, and each leaves a lapsed_wish row so that its
+	// owner can be told. A write, not a read — nothing comes back but the number of rows, and that
+	// number goes nowhere but the caller's check that the delete can proceed.
+	LapseWishesOfInstance(ctx context.Context, arg LapseWishesOfInstanceParams) (int64, error)
 	// The one number the interface shows largest, and the one the deploy smoke check asserts is
 	// recent. PARTIAL counts: it fetched something, and a run that got three of four endpoints is
 	// not the silence this is watching for.

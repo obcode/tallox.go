@@ -504,7 +504,31 @@ type DemandEntry struct {
 	// pointer and not a string: the table sends the field it shows, and a screen that did not
 	// show it must be able to say nothing about it.
 	Note *string
+	// DropWishes withdraws this module's cohorts even where colleagues registered interest in
+	// them; the wishes lapse and are recorded so that their owners can be told. It never resolves
+	// an assignment.
+	DropWishes bool
 }
+
+// InstanceUse is what keeps a cohort from being withdrawn.
+type InstanceUse string
+
+// The two things that can hang off a cohort.
+const (
+	InstanceUseWishes     InstanceUse = "WISHES"
+	InstanceUseAssignment InstanceUse = "ASSIGNMENT"
+)
+
+// The sentences a refused withdrawal shows, by cause. Never whose, never how many: the caller may
+// write the programme's demand and so may read its wishes and assignments anyway, but a count in a
+// sentence travels further than the screen it was shown on.
+var (
+	ErrInstanceWished = errors.New(
+		"hierfür haben sich Kolleginnen oder Kollegen eingetragen; zurückziehen geht nur mit der " +
+			"Bestätigung, dass die Wünsche verfallen")
+	ErrInstanceAssigned = errors.New(
+		"hier ist bereits jemand zugeteilt; zuerst die Zuteilung lösen")
+)
 
 // DemandChange is one thing a plan did, or would do.
 type DemandChange struct {
@@ -530,9 +554,13 @@ type DemandRefusal struct {
 	Track      string
 	// Code is the machine-readable half, e.g. INSTANCE_IN_USE.
 	Code string
-	// Reason is the sentence to show. It says what happened, never what is in the way — the
-	// first thing that will hang off an instance is a confidential wish.
+	// Reason is the sentence to show. Since 2026-11-20 it says what is in the way — wishes or an
+	// assignment — because only somebody who may read both ever gets it; never whose, never how
+	// many.
 	Reason string
+	// Cause says what is in the way, for INSTANCE_IN_USE and PART_ASSIGNED; nil where it is not
+	// known.
+	Cause *InstanceUse
 }
 
 // DemandPlan is what a save did, or — with DryRun — what it would do.

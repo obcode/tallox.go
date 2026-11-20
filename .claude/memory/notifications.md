@@ -70,6 +70,12 @@ Markdown ohne HTML-Durchreichen (`MarkdownHTML`, Test gegen Script/Img/javascrip
 Der Nachtbericht (`-access-report`) hat einen Block MAIL mit Kennzahlen, über der Zeile
 `Berichtenswert:`, die die letzte bleiben muss (das Cron-Skript liest sie dort).
 
+## Verfallene Wünsche (2026-11-20)
+
+`MODULE_WITHDRAWN` gehört jetzt auch zu `MY_WISHES` (und zu den empfohlenen Abos): der Fan-out
+sucht dafür nur `lapsed_wish` der abonnierenden Person für genau diese Instanz. Die anderen Arten
+unter `MY_WISHES` lesen weiter `wish`. Kein Baseline-Seed nötig, die Tabelle startet leer.
+
 ## Offen
 
 - Smoke-Test „wann ging die letzte Mail raus“ in `tallox.dev`.

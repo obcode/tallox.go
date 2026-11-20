@@ -1081,6 +1081,22 @@ func (q *Queries) InstanceByIdentity(ctx context.Context, arg InstanceByIdentity
 	return id, err
 }
 
+const instanceHasAssignment = `-- name: InstanceHasAssignment :one
+SELECT EXISTS (
+    SELECT 1 FROM assignment a
+      JOIN instance_part ip ON ip.id = a.instance_part_id
+     WHERE ip.course_instance_id = $1
+)::boolean AS assigned
+`
+
+// Whether somebody holds a part of this cohort — the cause a refused withdrawal names first.
+func (q *Queries) InstanceHasAssignment(ctx context.Context, courseInstanceID uuid.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, instanceHasAssignment, courseInstanceID)
+	var assigned bool
+	err := row.Scan(&assigned)
+	return assigned, err
+}
+
 const instancePartHasPieces = `-- name: InstancePartHasPieces :one
 SELECT EXISTS (
     SELECT 1 FROM instance_part WHERE divided_from_id = $1::uuid
@@ -1228,6 +1244,34 @@ func (q *Queries) InstancesForSplit(ctx context.Context, moduleID uuid.UUID) ([]
 		return nil, err
 	}
 	return items, nil
+}
+
+const lapseWishesOfInstance = `-- name: LapseWishesOfInstance :execrows
+WITH gone AS (
+    DELETE FROM wish WHERE course_instance_id = $2::uuid
+    RETURNING person_id
+)
+INSERT INTO lapsed_wish (course_instance_id, person_id, semester_id, module_id, programme_id, track, lapsed_by)
+SELECT ci.id, g.person_id, ci.semester_id, ci.module_id, ci.programme_id, ci.track,
+       NULLIF($1::uuid, '00000000-0000-0000-0000-000000000000'::uuid)
+  FROM gone g
+  JOIN course_instance ci ON ci.id = $2::uuid
+`
+
+type LapseWishesOfInstanceParams struct {
+	LapsedBy   uuid.UUID
+	InstanceID uuid.UUID
+}
+
+// A cohort withdrawn with dropWishes: its wishes go, and each leaves a lapsed_wish row so that its
+// owner can be told. A write, not a read — nothing comes back but the number of rows, and that
+// number goes nowhere but the caller's check that the delete can proceed.
+func (q *Queries) LapseWishesOfInstance(ctx context.Context, arg LapseWishesOfInstanceParams) (int64, error) {
+	result, err := q.db.Exec(ctx, lapseWishesOfInstance, arg.LapsedBy, arg.InstanceID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const listCourseInstances = `-- name: ListCourseInstances :many

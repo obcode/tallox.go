@@ -8471,7 +8471,8 @@ extend type Mutation {
   to one that stays, so cohorts can be merged after the wish round. Somebody who wished for both
   keeps one wish — the stronger priority, both notes. The report says nothing about it, by design.
   A cohort somebody is already assigned to still refuses, and so does the last cohort of a module
-  that is no longer offered while somebody wants it.
+  that is no longer offered while somebody wants it — unless the entry says ` + "`" + `dropWishes` + "`" + `, then
+  those wishes lapse and the cohort goes. Each refusal says in ` + "`" + `cause` + "`" + ` what is in the way.
 
   # dryRun
 
@@ -9086,7 +9087,7 @@ signed-in session, and before publication it would be a count.
 enum NotificationTargetSet {
   "The modules you have noted an advance wish for, and your advance wishes themselves."
   MY_ADVANCE_WISHES
-  "The instances you have registered interest in, and their subject groups' wish rounds."
+  "The instances you have registered interest in, and their subject groups' wish rounds — and one withdrawn with your wish on it (` + "`" + `MODULE_WITHDRAWN` + "`" + `), which lets the wish lapse."
   MY_WISHES
   "The parts you have been assigned, and your confirmation."
   MY_ASSIGNMENTS

@@ -2580,7 +2580,7 @@ type NotificationTargetSet string
 const (
 	// The modules you have noted an advance wish for, and your advance wishes themselves.
 	NotificationTargetSetMyAdvanceWishes NotificationTargetSet = "MY_ADVANCE_WISHES"
-	// The instances you have registered interest in, and their subject groups' wish rounds.
+	// The instances you have registered interest in, and their subject groups' wish rounds — and one withdrawn with your wish on it (`MODULE_WITHDRAWN`), which lets the wish lapse.
 	NotificationTargetSetMyWishes NotificationTargetSet = "MY_WISHES"
 	// The parts you have been assigned, and your confirmation.
 	NotificationTargetSetMyAssignments NotificationTargetSet = "MY_ASSIGNMENTS"

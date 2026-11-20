@@ -434,3 +434,40 @@ func TestAnAdvanceWishNotedAfterTheReleaseIsNotToldNotOffered(t *testing.T) {
 		t.Fatalf("recipients %v, want only Zwei, who noted it down before the release", got)
 	}
 }
+
+// A cohort withdrawn with its wishes lapsing tells exactly the people whose wish lapsed, and only
+// those who follow "my wishes" for withdrawals. Zwei follows the same and wished for nothing.
+func TestALapsedWishIsToldToItsOwnerOnly(t *testing.T) {
+	t.Parallel()
+	f := newNotificationFixture(t)
+	ctx := t.Context()
+	f.release(t)
+	if _, err := f.wishes.SetWish(ctx, f.instance, testdata.Eins.ID(), domain.WishFirstChoice, "", false, 0); err != nil {
+		t.Fatalf("cannot wish: %v", err)
+	}
+	for _, who := range []testdata.Persona{testdata.Eins, testdata.Zwei} {
+		f.subscribe(t, who, domain.NewNotificationSubscription{
+			Kind: domain.NotifyModuleWithdrawn, TargetSet: domain.TargetMyWishes})
+	}
+	// The offer has to have been announced before its withdrawal is news.
+	if sent := f.tick(t, later()); len(sent) != 0 {
+		t.Fatalf("announcing the offer sent %d mails to withdrawal subscribers", len(sent))
+	}
+
+	plan, err := store.NewDemand(f.schema.Pool, store.NewModules(f.schema.Pool)).PlanDemand(ctx, f.semester.Code, f.programme,
+		[]domain.DemandEntry{{ModuleID: f.module, DropWishes: true}}, uuid.Nil, false)
+	if err != nil {
+		t.Fatalf("cannot withdraw: %v", err)
+	}
+	if len(plan.Withdrawn) != 1 {
+		t.Fatalf("withdrawal reports %+v, want the cohort withdrawn", plan)
+	}
+
+	sent := f.tick(t, later().Add(domain.NotificationSettle))
+	if got := recipients(sent); !slices.Equal(got, []string{testdata.Eins.Mail}) {
+		t.Fatalf("recipients %v, want only Eins", got)
+	}
+	if !strings.Contains(sent[0].Subject, "nicht angeboten") {
+		t.Errorf("subject %q does not say the module is withdrawn", sent[0].Subject)
+	}
+}

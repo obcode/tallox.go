@@ -82,12 +82,14 @@ const (
 )
 
 // targetSetKinds is which kinds each set can say something about — what the matching query in
-// internal/store resolves. Withdrawal is not among them for wishes and assignments: an instance
-// somebody wished for or holds cannot be withdrawn (INSTANCE_IN_USE), so there is nothing to say. A subscription outside it would match nothing, ever, and a person who
+// internal/store resolves. Withdrawal is not among them for assignments: an instance somebody
+// holds cannot be withdrawn (INSTANCE_IN_USE), so there is nothing to say. For wishes it is, since
+// 2026-11-20: a plan may withdraw a cohort and let its wishes lapse (dropWishes), and the fan-out
+// matches the subscriber's own lapsed_wish rows for exactly that instance. A subscription outside it would match nothing, ever, and a person who
 // made one would wait for a mail that cannot come; refusing it says so at once.
 var targetSetKinds = map[NotificationTargetSet][]NotificationKind{
 	TargetMyAdvanceWishes: {NotifyModuleOffered, NotifyModuleWithdrawn, NotifyAdvanceWishResolved},
-	TargetMyWishes:        {NotifyWishWindowChanged, NotifyAssignmentsPublished},
+	TargetMyWishes:        {NotifyModuleWithdrawn, NotifyWishWindowChanged, NotifyAssignmentsPublished},
 	TargetMyAssignments:   {NotifyAssignmentsPublished, NotifyConfirmationDue},
 	TargetMyCompetences:   {NotifyModuleOffered, NotifyModuleWithdrawn},
 	TargetMySubjectGroups: {NotifyModuleOffered, NotifyModuleWithdrawn, NotifyWishWindowChanged},
@@ -108,6 +110,7 @@ var recommendedSubscriptions = []struct {
 	{NotifyAssignmentsPublished, TargetMyAssignments},
 	{NotifyConfirmationDue, TargetMyAssignments},
 	{NotifyModuleWithdrawn, TargetMyAdvanceWishes},
+	{NotifyModuleWithdrawn, TargetMyWishes},
 	{NotifyModuleOffered, TargetMyCompetences},
 }
 

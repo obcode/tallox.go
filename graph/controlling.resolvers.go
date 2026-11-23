@@ -7,6 +7,7 @@ package graph
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/obcode/tallox.go/graph/model"
 	"github.com/obcode/tallox.go/internal/principal"
@@ -80,4 +81,9 @@ func (r *queryResolver) ProgrammeQuotas(ctx context.Context, studyYear int) ([]*
 		out = append(out, programmeQuotaModel(q))
 	}
 	return out, nil
+}
+
+// BigCourseOverview is the resolver for the bigCourseOverview field.
+func (r *queryResolver) BigCourseOverview(ctx context.Context, studyYear int) (*model.BigCourseOverview, error) {
+	panic(fmt.Errorf("not implemented: BigCourseOverview - bigCourseOverview"))
 }

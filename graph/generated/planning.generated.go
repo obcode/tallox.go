@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -45,7 +44,7 @@ func (ec *executionContext) _DemandCompletion_semester(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_DemandCompletion_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DemandCompletion", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("DemandCompletion", field, false, false, "String")
 }
 
 func (ec *executionContext) _DemandCompletion_programme(ctx context.Context, field graphql.CollectedField, obj *model.DemandCompletion) (ret graphql.Marshaler) {
@@ -100,7 +99,7 @@ func (ec *executionContext) _DemandCompletion_completedAt(ctx context.Context, f
 	)
 }
 func (ec *executionContext) fieldContext_DemandCompletion_completedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DemandCompletion", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("DemandCompletion", field, false, false, "Time")
 }
 
 func (ec *executionContext) _DemandRelease_released(ctx context.Context, field graphql.CollectedField, obj *model.DemandRelease) (ret graphql.Marshaler) {
@@ -123,7 +122,7 @@ func (ec *executionContext) _DemandRelease_released(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_DemandRelease_released(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DemandRelease", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("DemandRelease", field, false, false, "Int")
 }
 
 func (ec *executionContext) _DemandRelease_planned(ctx context.Context, field graphql.CollectedField, obj *model.DemandRelease) (ret graphql.Marshaler) {
@@ -146,7 +145,7 @@ func (ec *executionContext) _DemandRelease_planned(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_DemandRelease_planned(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DemandRelease", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("DemandRelease", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ReviewCompletion_semester(ctx context.Context, field graphql.CollectedField, obj *model.ReviewCompletion) (ret graphql.Marshaler) {
@@ -169,7 +168,7 @@ func (ec *executionContext) _ReviewCompletion_semester(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_ReviewCompletion_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ReviewCompletion", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ReviewCompletion", field, false, false, "String")
 }
 
 func (ec *executionContext) _ReviewCompletion_programme(ctx context.Context, field graphql.CollectedField, obj *model.ReviewCompletion) (ret graphql.Marshaler) {
@@ -224,7 +223,7 @@ func (ec *executionContext) _ReviewCompletion_completedAt(ctx context.Context, f
 	)
 }
 func (ec *executionContext) fieldContext_ReviewCompletion_completedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ReviewCompletion", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("ReviewCompletion", field, false, false, "Time")
 }
 
 func (ec *executionContext) _WishRounds_closed(ctx context.Context, field graphql.CollectedField, obj *model.WishRounds) (ret graphql.Marshaler) {
@@ -247,7 +246,7 @@ func (ec *executionContext) _WishRounds_closed(ctx context.Context, field graphq
 	)
 }
 func (ec *executionContext) fieldContext_WishRounds_closed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("WishRounds", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("WishRounds", field, false, false, "Int")
 }
 
 func (ec *executionContext) _WishRounds_groups(ctx context.Context, field graphql.CollectedField, obj *model.WishRounds) (ret graphql.Marshaler) {
@@ -270,7 +269,7 @@ func (ec *executionContext) _WishRounds_groups(ctx context.Context, field graphq
 	)
 }
 func (ec *executionContext) fieldContext_WishRounds_groups(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("WishRounds", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("WishRounds", field, false, false, "Int")
 }
 
 func (ec *executionContext) _WishWindow_semester(ctx context.Context, field graphql.CollectedField, obj *model.WishWindow) (ret graphql.Marshaler) {
@@ -293,7 +292,7 @@ func (ec *executionContext) _WishWindow_semester(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_WishWindow_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("WishWindow", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("WishWindow", field, false, false, "String")
 }
 
 func (ec *executionContext) _WishWindow_subjectGroup(ctx context.Context, field graphql.CollectedField, obj *model.WishWindow) (ret graphql.Marshaler) {
@@ -348,7 +347,7 @@ func (ec *executionContext) _WishWindow_open(ctx context.Context, field graphql.
 	)
 }
 func (ec *executionContext) fieldContext_WishWindow_open(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("WishWindow", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("WishWindow", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _WishWindow_changedAt(ctx context.Context, field graphql.CollectedField, obj *model.WishWindow) (ret graphql.Marshaler) {
@@ -371,7 +370,7 @@ func (ec *executionContext) _WishWindow_changedAt(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_WishWindow_changedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("WishWindow", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("WishWindow", field, false, false, "Time")
 }
 
 func (ec *executionContext) _WishWindow_wishesPublishedAt(ctx context.Context, field graphql.CollectedField, obj *model.WishWindow) (ret graphql.Marshaler) {
@@ -394,7 +393,7 @@ func (ec *executionContext) _WishWindow_wishesPublishedAt(ctx context.Context, f
 	)
 }
 func (ec *executionContext) fieldContext_WishWindow_wishesPublishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("WishWindow", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("WishWindow", field, false, false, "Time")
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -415,8 +414,7 @@ func (ec *executionContext) _DemandCompletion(ctx context.Context, sel ast.Selec
 	fields := graphql.CollectFields(ec.OperationContext, sel, demandCompletionImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -445,14 +443,10 @@ func (ec *executionContext) _DemandCompletion(ctx context.Context, sel ast.Selec
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -463,8 +457,7 @@ func (ec *executionContext) _DemandRelease(ctx context.Context, sel ast.Selectio
 	fields := graphql.CollectFields(ec.OperationContext, sel, demandReleaseImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -488,14 +481,10 @@ func (ec *executionContext) _DemandRelease(ctx context.Context, sel ast.Selectio
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -506,8 +495,7 @@ func (ec *executionContext) _ReviewCompletion(ctx context.Context, sel ast.Selec
 	fields := graphql.CollectFields(ec.OperationContext, sel, reviewCompletionImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -536,14 +524,10 @@ func (ec *executionContext) _ReviewCompletion(ctx context.Context, sel ast.Selec
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -554,8 +538,7 @@ func (ec *executionContext) _WishRounds(ctx context.Context, sel ast.SelectionSe
 	fields := graphql.CollectFields(ec.OperationContext, sel, wishRoundsImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -579,14 +562,10 @@ func (ec *executionContext) _WishRounds(ctx context.Context, sel ast.SelectionSe
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -597,8 +576,7 @@ func (ec *executionContext) _WishWindow(ctx context.Context, sel ast.SelectionSe
 	fields := graphql.CollectFields(ec.OperationContext, sel, wishWindowImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -637,14 +615,10 @@ func (ec *executionContext) _WishWindow(ctx context.Context, sel ast.SelectionSe
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -671,23 +645,15 @@ func (ec *executionContext) marshalNDemandCompletion2ᚕᚖgithubᚗcomᚋobcode
 
 func (ec *executionContext) marshalNDemandCompletion2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandCompletion(ctx context.Context, sel ast.SelectionSet, v *model.DemandCompletion) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "DemandCompletion!")
 		return graphql.Null
 	}
 	return ec._DemandCompletion(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNDemandRelease2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandRelease(ctx context.Context, sel ast.SelectionSet, v model.DemandRelease) graphql.Marshaler {
-	return ec._DemandRelease(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNDemandRelease2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDemandRelease(ctx context.Context, sel ast.SelectionSet, v *model.DemandRelease) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "DemandRelease!")
 		return graphql.Null
 	}
 	return ec._DemandRelease(ctx, sel, v)
@@ -711,30 +677,18 @@ func (ec *executionContext) marshalNReviewCompletion2ᚕᚖgithubᚗcomᚋobcode
 
 func (ec *executionContext) marshalNReviewCompletion2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐReviewCompletion(ctx context.Context, sel ast.SelectionSet, v *model.ReviewCompletion) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "ReviewCompletion!")
 		return graphql.Null
 	}
 	return ec._ReviewCompletion(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNWishRounds2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishRounds(ctx context.Context, sel ast.SelectionSet, v model.WishRounds) graphql.Marshaler {
-	return ec._WishRounds(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNWishRounds2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishRounds(ctx context.Context, sel ast.SelectionSet, v *model.WishRounds) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "WishRounds!")
 		return graphql.Null
 	}
 	return ec._WishRounds(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNWishWindow2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishWindow(ctx context.Context, sel ast.SelectionSet, v model.WishWindow) graphql.Marshaler {
-	return ec._WishWindow(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNWishWindow2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishWindowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.WishWindow) graphql.Marshaler {
@@ -755,9 +709,7 @@ func (ec *executionContext) marshalNWishWindow2ᚕᚖgithubᚗcomᚋobcodeᚋtal
 
 func (ec *executionContext) marshalNWishWindow2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishWindow(ctx context.Context, sel ast.SelectionSet, v *model.WishWindow) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "WishWindow!")
 		return graphql.Null
 	}
 	return ec._WishWindow(ctx, sel, v)

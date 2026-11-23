@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -46,7 +45,7 @@ func (ec *executionContext) _AccessCounts_total(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_AccessCounts_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessCounts_interactive(ctx context.Context, field graphql.CollectedField, obj *model.AccessCounts) (ret graphql.Marshaler) {
@@ -69,7 +68,7 @@ func (ec *executionContext) _AccessCounts_interactive(ctx context.Context, field
 	)
 }
 func (ec *executionContext) fieldContext_AccessCounts_interactive(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessCounts_token(ctx context.Context, field graphql.CollectedField, obj *model.AccessCounts) (ret graphql.Marshaler) {
@@ -92,7 +91,7 @@ func (ec *executionContext) _AccessCounts_token(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_AccessCounts_token(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessCounts_mutations(ctx context.Context, field graphql.CollectedField, obj *model.AccessCounts) (ret graphql.Marshaler) {
@@ -115,7 +114,7 @@ func (ec *executionContext) _AccessCounts_mutations(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_AccessCounts_mutations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessCounts_errors(ctx context.Context, field graphql.CollectedField, obj *model.AccessCounts) (ret graphql.Marshaler) {
@@ -138,7 +137,7 @@ func (ec *executionContext) _AccessCounts_errors(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_AccessCounts_errors(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessCounts_refusedAuth(ctx context.Context, field graphql.CollectedField, obj *model.AccessCounts) (ret graphql.Marshaler) {
@@ -161,7 +160,7 @@ func (ec *executionContext) _AccessCounts_refusedAuth(ctx context.Context, field
 	)
 }
 func (ec *executionContext) fieldContext_AccessCounts_refusedAuth(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessCounts_refusedScope(ctx context.Context, field graphql.CollectedField, obj *model.AccessCounts) (ret graphql.Marshaler) {
@@ -184,7 +183,7 @@ func (ec *executionContext) _AccessCounts_refusedScope(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_AccessCounts_refusedScope(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessCounts_refusedInteractive(ctx context.Context, field graphql.CollectedField, obj *model.AccessCounts) (ret graphql.Marshaler) {
@@ -207,7 +206,7 @@ func (ec *executionContext) _AccessCounts_refusedInteractive(ctx context.Context
 	)
 }
 func (ec *executionContext) fieldContext_AccessCounts_refusedInteractive(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessCounts_people(ctx context.Context, field graphql.CollectedField, obj *model.AccessCounts) (ret graphql.Marshaler) {
@@ -230,7 +229,7 @@ func (ec *executionContext) _AccessCounts_people(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_AccessCounts_people(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessCounts", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessLogEntry_id(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -253,7 +252,7 @@ func (ec *executionContext) _AccessLogEntry_id(ctx context.Context, field graphq
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "ID")
 }
 
 func (ec *executionContext) _AccessLogEntry_at(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -276,7 +275,7 @@ func (ec *executionContext) _AccessLogEntry_at(ctx context.Context, field graphq
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_at(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "Time")
 }
 
 func (ec *executionContext) _AccessLogEntry_personId(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -299,7 +298,7 @@ func (ec *executionContext) _AccessLogEntry_personId(ctx context.Context, field 
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_personId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "ID")
 }
 
 func (ec *executionContext) _AccessLogEntry_personName(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -322,7 +321,7 @@ func (ec *executionContext) _AccessLogEntry_personName(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_personName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "String")
 }
 
 func (ec *executionContext) _AccessLogEntry_mail(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -345,7 +344,7 @@ func (ec *executionContext) _AccessLogEntry_mail(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_mail(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "String")
 }
 
 func (ec *executionContext) _AccessLogEntry_door(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -368,7 +367,7 @@ func (ec *executionContext) _AccessLogEntry_door(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_door(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type AccessDoor does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "AccessDoor")
 }
 
 func (ec *executionContext) _AccessLogEntry_tokenId(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -391,7 +390,7 @@ func (ec *executionContext) _AccessLogEntry_tokenId(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_tokenId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "String")
 }
 
 func (ec *executionContext) _AccessLogEntry_roles(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -414,7 +413,7 @@ func (ec *executionContext) _AccessLogEntry_roles(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_roles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type Role does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "Role")
 }
 
 func (ec *executionContext) _AccessLogEntry_narrowedFrom(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -437,7 +436,7 @@ func (ec *executionContext) _AccessLogEntry_narrowedFrom(ctx context.Context, fi
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_narrowedFrom(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type Role does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "Role")
 }
 
 func (ec *executionContext) _AccessLogEntry_operation(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -460,7 +459,7 @@ func (ec *executionContext) _AccessLogEntry_operation(ctx context.Context, field
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_operation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "String")
 }
 
 func (ec *executionContext) _AccessLogEntry_fields(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -483,7 +482,7 @@ func (ec *executionContext) _AccessLogEntry_fields(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_fields(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "String")
 }
 
 func (ec *executionContext) _AccessLogEntry_mutation(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -506,7 +505,7 @@ func (ec *executionContext) _AccessLogEntry_mutation(ctx context.Context, field 
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_mutation(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _AccessLogEntry_outcome(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -529,7 +528,7 @@ func (ec *executionContext) _AccessLogEntry_outcome(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_outcome(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type AccessOutcome does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "AccessOutcome")
 }
 
 func (ec *executionContext) _AccessLogEntry_errorCode(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -552,7 +551,7 @@ func (ec *executionContext) _AccessLogEntry_errorCode(ctx context.Context, field
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_errorCode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "String")
 }
 
 func (ec *executionContext) _AccessLogEntry_durationMs(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -575,7 +574,7 @@ func (ec *executionContext) _AccessLogEntry_durationMs(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_durationMs(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessLogEntry_sourceIp(ctx context.Context, field graphql.CollectedField, obj *model.AccessLogEntry) (ret graphql.Marshaler) {
@@ -598,7 +597,7 @@ func (ec *executionContext) _AccessLogEntry_sourceIp(ctx context.Context, field 
 	)
 }
 func (ec *executionContext) fieldContext_AccessLogEntry_sourceIp(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessLogEntry", field, false, false, "String")
 }
 
 func (ec *executionContext) _AccessMutationCount_mail(ctx context.Context, field graphql.CollectedField, obj *model.AccessMutationCount) (ret graphql.Marshaler) {
@@ -621,7 +620,7 @@ func (ec *executionContext) _AccessMutationCount_mail(ctx context.Context, field
 	)
 }
 func (ec *executionContext) fieldContext_AccessMutationCount_mail(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessMutationCount", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessMutationCount", field, false, false, "String")
 }
 
 func (ec *executionContext) _AccessMutationCount_field(ctx context.Context, field graphql.CollectedField, obj *model.AccessMutationCount) (ret graphql.Marshaler) {
@@ -644,7 +643,7 @@ func (ec *executionContext) _AccessMutationCount_field(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_AccessMutationCount_field(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessMutationCount", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessMutationCount", field, false, false, "String")
 }
 
 func (ec *executionContext) _AccessMutationCount_calls(ctx context.Context, field graphql.CollectedField, obj *model.AccessMutationCount) (ret graphql.Marshaler) {
@@ -667,7 +666,7 @@ func (ec *executionContext) _AccessMutationCount_calls(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_AccessMutationCount_calls(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessMutationCount", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessMutationCount", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessMutationCount_lastAt(ctx context.Context, field graphql.CollectedField, obj *model.AccessMutationCount) (ret graphql.Marshaler) {
@@ -690,7 +689,7 @@ func (ec *executionContext) _AccessMutationCount_lastAt(ctx context.Context, fie
 	)
 }
 func (ec *executionContext) fieldContext_AccessMutationCount_lastAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessMutationCount", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessMutationCount", field, false, false, "Time")
 }
 
 func (ec *executionContext) _AccessRoleCount_role(ctx context.Context, field graphql.CollectedField, obj *model.AccessRoleCount) (ret graphql.Marshaler) {
@@ -713,7 +712,7 @@ func (ec *executionContext) _AccessRoleCount_role(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_AccessRoleCount_role(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessRoleCount", field, false, false, errors.New("field of type Role does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessRoleCount", field, false, false, "Role")
 }
 
 func (ec *executionContext) _AccessRoleCount_operations(ctx context.Context, field graphql.CollectedField, obj *model.AccessRoleCount) (ret graphql.Marshaler) {
@@ -736,7 +735,7 @@ func (ec *executionContext) _AccessRoleCount_operations(ctx context.Context, fie
 	)
 }
 func (ec *executionContext) fieldContext_AccessRoleCount_operations(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessRoleCount", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessRoleCount", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AccessSummary_from(ctx context.Context, field graphql.CollectedField, obj *model.AccessSummary) (ret graphql.Marshaler) {
@@ -759,7 +758,7 @@ func (ec *executionContext) _AccessSummary_from(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_AccessSummary_from(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessSummary", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessSummary", field, false, false, "Time")
 }
 
 func (ec *executionContext) _AccessSummary_until(ctx context.Context, field graphql.CollectedField, obj *model.AccessSummary) (ret graphql.Marshaler) {
@@ -782,7 +781,7 @@ func (ec *executionContext) _AccessSummary_until(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_AccessSummary_until(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessSummary", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessSummary", field, false, false, "Time")
 }
 
 func (ec *executionContext) _AccessSummary_counts(ctx context.Context, field graphql.CollectedField, obj *model.AccessSummary) (ret graphql.Marshaler) {
@@ -933,7 +932,7 @@ func (ec *executionContext) _RefusedSignIn_mail(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_RefusedSignIn_mail(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, "String")
 }
 
 func (ec *executionContext) _RefusedSignIn_tokenId(ctx context.Context, field graphql.CollectedField, obj *model.RefusedSignIn) (ret graphql.Marshaler) {
@@ -956,7 +955,7 @@ func (ec *executionContext) _RefusedSignIn_tokenId(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_RefusedSignIn_tokenId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, "String")
 }
 
 func (ec *executionContext) _RefusedSignIn_reason(ctx context.Context, field graphql.CollectedField, obj *model.RefusedSignIn) (ret graphql.Marshaler) {
@@ -979,7 +978,7 @@ func (ec *executionContext) _RefusedSignIn_reason(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_RefusedSignIn_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, "String")
 }
 
 func (ec *executionContext) _RefusedSignIn_door(ctx context.Context, field graphql.CollectedField, obj *model.RefusedSignIn) (ret graphql.Marshaler) {
@@ -1002,7 +1001,7 @@ func (ec *executionContext) _RefusedSignIn_door(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_RefusedSignIn_door(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, errors.New("field of type AccessDoor does not have child fields"))
+	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, "AccessDoor")
 }
 
 func (ec *executionContext) _RefusedSignIn_attempts(ctx context.Context, field graphql.CollectedField, obj *model.RefusedSignIn) (ret graphql.Marshaler) {
@@ -1025,7 +1024,7 @@ func (ec *executionContext) _RefusedSignIn_attempts(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_RefusedSignIn_attempts(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, "Int")
 }
 
 func (ec *executionContext) _RefusedSignIn_lastAt(ctx context.Context, field graphql.CollectedField, obj *model.RefusedSignIn) (ret graphql.Marshaler) {
@@ -1048,7 +1047,7 @@ func (ec *executionContext) _RefusedSignIn_lastAt(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_RefusedSignIn_lastAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("RefusedSignIn", field, false, false, "Time")
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -1127,6 +1126,18 @@ func (ec *executionContext) unmarshalInputAccessLogFilter(ctx context.Context, o
 	return it, nil
 }
 
+// UnmarshalAccessLogFilter unmarshals raw into the AccessLogFilter input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalAccessLogFilter(ctx context.Context, raw any) (model.AccessLogFilter, error) {
+	var out model.AccessLogFilter
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "AccessLogFilter", raw, &out)
+	return out, err
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -1141,8 +1152,7 @@ func (ec *executionContext) _AccessCounts(ctx context.Context, sel ast.Selection
 	fields := graphql.CollectFields(ec.OperationContext, sel, accessCountsImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1201,14 +1211,10 @@ func (ec *executionContext) _AccessCounts(ctx context.Context, sel ast.Selection
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1219,8 +1225,7 @@ func (ec *executionContext) _AccessLogEntry(ctx context.Context, sel ast.Selecti
 	fields := graphql.CollectFields(ec.OperationContext, sel, accessLogEntryImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1314,14 +1319,10 @@ func (ec *executionContext) _AccessLogEntry(ctx context.Context, sel ast.Selecti
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1332,8 +1333,7 @@ func (ec *executionContext) _AccessMutationCount(ctx context.Context, sel ast.Se
 	fields := graphql.CollectFields(ec.OperationContext, sel, accessMutationCountImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1367,14 +1367,10 @@ func (ec *executionContext) _AccessMutationCount(ctx context.Context, sel ast.Se
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1385,8 +1381,7 @@ func (ec *executionContext) _AccessRoleCount(ctx context.Context, sel ast.Select
 	fields := graphql.CollectFields(ec.OperationContext, sel, accessRoleCountImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1410,14 +1405,10 @@ func (ec *executionContext) _AccessRoleCount(ctx context.Context, sel ast.Select
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1428,8 +1419,7 @@ func (ec *executionContext) _AccessSummary(ctx context.Context, sel ast.Selectio
 	fields := graphql.CollectFields(ec.OperationContext, sel, accessSummaryImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1473,14 +1463,10 @@ func (ec *executionContext) _AccessSummary(ctx context.Context, sel ast.Selectio
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1491,8 +1477,7 @@ func (ec *executionContext) _RefusedSignIn(ctx context.Context, sel ast.Selectio
 	fields := graphql.CollectFields(ec.OperationContext, sel, refusedSignInImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1536,14 +1521,10 @@ func (ec *executionContext) _RefusedSignIn(ctx context.Context, sel ast.Selectio
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1554,9 +1535,7 @@ func (ec *executionContext) _RefusedSignIn(ctx context.Context, sel ast.Selectio
 
 func (ec *executionContext) marshalNAccessCounts2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAccessCounts(ctx context.Context, sel ast.SelectionSet, v *model.AccessCounts) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "AccessCounts!")
 		return graphql.Null
 	}
 	return ec._AccessCounts(ctx, sel, v)
@@ -1574,9 +1553,7 @@ func (ec *executionContext) marshalNAccessDoor2githubᚗcomᚋobcodeᚋtalloxᚗ
 
 func (ec *executionContext) marshalNAccessLogEntry2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAccessLogEntry(ctx context.Context, sel ast.SelectionSet, v *model.AccessLogEntry) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "AccessLogEntry!")
 		return graphql.Null
 	}
 	return ec._AccessLogEntry(ctx, sel, v)
@@ -1600,9 +1577,7 @@ func (ec *executionContext) marshalNAccessMutationCount2ᚕᚖgithubᚗcomᚋobc
 
 func (ec *executionContext) marshalNAccessMutationCount2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAccessMutationCount(ctx context.Context, sel ast.SelectionSet, v *model.AccessMutationCount) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "AccessMutationCount!")
 		return graphql.Null
 	}
 	return ec._AccessMutationCount(ctx, sel, v)
@@ -1636,9 +1611,7 @@ func (ec *executionContext) marshalNAccessRoleCount2ᚕᚖgithubᚗcomᚋobcode�
 
 func (ec *executionContext) marshalNAccessRoleCount2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAccessRoleCount(ctx context.Context, sel ast.SelectionSet, v *model.AccessRoleCount) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "AccessRoleCount!")
 		return graphql.Null
 	}
 	return ec._AccessRoleCount(ctx, sel, v)
@@ -1662,9 +1635,7 @@ func (ec *executionContext) marshalNRefusedSignIn2ᚕᚖgithubᚗcomᚋobcodeᚋ
 
 func (ec *executionContext) marshalNRefusedSignIn2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐRefusedSignIn(ctx context.Context, sel ast.SelectionSet, v *model.RefusedSignIn) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "RefusedSignIn!")
 		return graphql.Null
 	}
 	return ec._RefusedSignIn(ctx, sel, v)

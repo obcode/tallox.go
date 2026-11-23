@@ -5142,19 +5142,21 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := newExecutionContext(opCtx, e, make(chan graphql.DeferredResult))
-	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
-		ec.unmarshalInputAccessLogFilter,
-		ec.unmarshalInputAnnouncementAudienceInput,
-		ec.unmarshalInputDeclareCourseInstanceInput,
-		ec.unmarshalInputDemandEntryInput,
-		ec.unmarshalInputDemandTrackInput,
-		ec.unmarshalInputLocalModuleInput,
-		ec.unmarshalInputLocalTeacherInput,
-		ec.unmarshalInputModuleComponentInput,
-		ec.unmarshalInputModuleFilter,
-		ec.unmarshalInputNotificationSubscriptionInput,
-		ec.unmarshalInputScopeGrantInput,
-	)
+	inputUnmarshalers := func() *graphql.InputUnmarshalerIndex {
+		return graphql.NewInputUnmarshalerIndex(
+			graphql.NewInputUnmarshaler("AccessLogFilter", ec.unmarshalInputAccessLogFilter),
+			graphql.NewInputUnmarshaler("AnnouncementAudienceInput", ec.unmarshalInputAnnouncementAudienceInput),
+			graphql.NewInputUnmarshaler("DeclareCourseInstanceInput", ec.unmarshalInputDeclareCourseInstanceInput),
+			graphql.NewInputUnmarshaler("DemandEntryInput", ec.unmarshalInputDemandEntryInput),
+			graphql.NewInputUnmarshaler("DemandTrackInput", ec.unmarshalInputDemandTrackInput),
+			graphql.NewInputUnmarshaler("LocalModuleInput", ec.unmarshalInputLocalModuleInput),
+			graphql.NewInputUnmarshaler("LocalTeacherInput", ec.unmarshalInputLocalTeacherInput),
+			graphql.NewInputUnmarshaler("ModuleComponentInput", ec.unmarshalInputModuleComponentInput),
+			graphql.NewInputUnmarshaler("ModuleFilter", ec.unmarshalInputModuleFilter),
+			graphql.NewInputUnmarshaler("NotificationSubscriptionInput", ec.unmarshalInputNotificationSubscriptionInput),
+			graphql.NewInputUnmarshaler("ScopeGrantInput", ec.unmarshalInputScopeGrantInput),
+		)
+	}
 	first := true
 
 	switch opCtx.Operation.Operation {
@@ -5164,7 +5166,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 			var data graphql.Marshaler
 			if first {
 				first = false
-				ctx = graphql.WithUnmarshalerMap(ctx, inputUnmarshalMap)
+				ctx = graphql.WithLazyInputUnmarshalerIndex(ctx, inputUnmarshalers)
 				data = ec._Query(ctx, opCtx.Operation.SelectionSet)
 			} else {
 				if atomic.LoadInt32(&ec.PendingDeferred) > 0 {
@@ -5194,7 +5196,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 				return nil
 			}
 			first = false
-			ctx = graphql.WithUnmarshalerMap(ctx, inputUnmarshalMap)
+			ctx = graphql.WithLazyInputUnmarshalerIndex(ctx, inputUnmarshalers)
 			data := ec._Mutation(ctx, opCtx.Operation.SelectionSet)
 			var buf bytes.Buffer
 			data.MarshalGQL(&buf)

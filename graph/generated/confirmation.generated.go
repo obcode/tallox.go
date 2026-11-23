@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -45,7 +44,7 @@ func (ec *executionContext) _AssignmentConfirmation_semester(ctx context.Context
 	)
 }
 func (ec *executionContext) fieldContext_AssignmentConfirmation_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AssignmentConfirmation", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AssignmentConfirmation", field, false, false, "String")
 }
 
 func (ec *executionContext) _AssignmentConfirmation_personId(ctx context.Context, field graphql.CollectedField, obj *model.AssignmentConfirmation) (ret graphql.Marshaler) {
@@ -68,7 +67,7 @@ func (ec *executionContext) _AssignmentConfirmation_personId(ctx context.Context
 	)
 }
 func (ec *executionContext) fieldContext_AssignmentConfirmation_personId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AssignmentConfirmation", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("AssignmentConfirmation", field, false, false, "ID")
 }
 
 func (ec *executionContext) _AssignmentConfirmation_state(ctx context.Context, field graphql.CollectedField, obj *model.AssignmentConfirmation) (ret graphql.Marshaler) {
@@ -91,7 +90,7 @@ func (ec *executionContext) _AssignmentConfirmation_state(ctx context.Context, f
 	)
 }
 func (ec *executionContext) fieldContext_AssignmentConfirmation_state(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AssignmentConfirmation", field, false, false, errors.New("field of type AssignmentConfirmationState does not have child fields"))
+	return graphql.NewScalarFieldContext("AssignmentConfirmation", field, false, false, "AssignmentConfirmationState")
 }
 
 func (ec *executionContext) _AssignmentConfirmation_confirmedAt(ctx context.Context, field graphql.CollectedField, obj *model.AssignmentConfirmation) (ret graphql.Marshaler) {
@@ -114,7 +113,7 @@ func (ec *executionContext) _AssignmentConfirmation_confirmedAt(ctx context.Cont
 	)
 }
 func (ec *executionContext) fieldContext_AssignmentConfirmation_confirmedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AssignmentConfirmation", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("AssignmentConfirmation", field, false, false, "Time")
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -135,8 +134,7 @@ func (ec *executionContext) _AssignmentConfirmation(ctx context.Context, sel ast
 	fields := graphql.CollectFields(ec.OperationContext, sel, assignmentConfirmationImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -170,14 +168,10 @@ func (ec *executionContext) _AssignmentConfirmation(ctx context.Context, sel ast
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -185,10 +179,6 @@ func (ec *executionContext) _AssignmentConfirmation(ctx context.Context, sel ast
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
-
-func (ec *executionContext) marshalNAssignmentConfirmation2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignmentConfirmation(ctx context.Context, sel ast.SelectionSet, v model.AssignmentConfirmation) graphql.Marshaler {
-	return ec._AssignmentConfirmation(ctx, sel, &v)
-}
 
 func (ec *executionContext) marshalNAssignmentConfirmation2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignmentConfirmationᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssignmentConfirmation) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
@@ -208,9 +198,7 @@ func (ec *executionContext) marshalNAssignmentConfirmation2ᚕᚖgithubᚗcomᚋ
 
 func (ec *executionContext) marshalNAssignmentConfirmation2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignmentConfirmation(ctx context.Context, sel ast.SelectionSet, v *model.AssignmentConfirmation) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "AssignmentConfirmation!")
 		return graphql.Null
 	}
 	return ec._AssignmentConfirmation(ctx, sel, v)

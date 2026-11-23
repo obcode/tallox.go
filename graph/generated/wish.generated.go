@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -46,7 +45,7 @@ func (ec *executionContext) _AdvanceWish_id(ctx context.Context, field graphql.C
 	)
 }
 func (ec *executionContext) fieldContext_AdvanceWish_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, "ID")
 }
 
 func (ec *executionContext) _AdvanceWish_person(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
@@ -101,7 +100,7 @@ func (ec *executionContext) _AdvanceWish_semester(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_AdvanceWish_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, "String")
 }
 
 func (ec *executionContext) _AdvanceWish_module(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
@@ -188,7 +187,7 @@ func (ec *executionContext) _AdvanceWish_priority(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_AdvanceWish_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type WishPriority does not have child fields"))
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, "WishPriority")
 }
 
 func (ec *executionContext) _AdvanceWish_note(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
@@ -211,7 +210,7 @@ func (ec *executionContext) _AdvanceWish_note(ctx context.Context, field graphql
 	)
 }
 func (ec *executionContext) fieldContext_AdvanceWish_note(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, "String")
 }
 
 func (ec *executionContext) _AdvanceWish_maxTracks(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
@@ -234,7 +233,7 @@ func (ec *executionContext) _AdvanceWish_maxTracks(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_AdvanceWish_maxTracks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, "Int")
 }
 
 func (ec *executionContext) _AdvanceWish_status(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
@@ -257,7 +256,7 @@ func (ec *executionContext) _AdvanceWish_status(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_AdvanceWish_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type AdvanceWishStatus does not have child fields"))
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, "AdvanceWishStatus")
 }
 
 func (ec *executionContext) _AdvanceWish_convertedAt(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
@@ -280,7 +279,7 @@ func (ec *executionContext) _AdvanceWish_convertedAt(ctx context.Context, field 
 	)
 }
 func (ec *executionContext) fieldContext_AdvanceWish_convertedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, "Time")
 }
 
 func (ec *executionContext) _AdvanceWish_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
@@ -303,7 +302,7 @@ func (ec *executionContext) _AdvanceWish_createdAt(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_AdvanceWish_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, "Time")
 }
 
 func (ec *executionContext) _AdvanceWish_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.AdvanceWish) (ret graphql.Marshaler) {
@@ -326,7 +325,7 @@ func (ec *executionContext) _AdvanceWish_updatedAt(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_AdvanceWish_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("AdvanceWish", field, false, false, "Time")
 }
 
 func (ec *executionContext) _DesiredHoursOverviewRow_person(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
@@ -413,7 +412,7 @@ func (ec *executionContext) _DesiredHoursOverviewRow_stated(ctx context.Context,
 	)
 }
 func (ec *executionContext) fieldContext_DesiredHoursOverviewRow_stated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DesiredHoursOverviewRow", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("DesiredHoursOverviewRow", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _DesiredHoursOverviewRow_minHours(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
@@ -436,7 +435,7 @@ func (ec *executionContext) _DesiredHoursOverviewRow_minHours(ctx context.Contex
 	)
 }
 func (ec *executionContext) fieldContext_DesiredHoursOverviewRow_minHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DesiredHoursOverviewRow", field, false, false, errors.New("field of type Float does not have child fields"))
+	return graphql.NewScalarFieldContext("DesiredHoursOverviewRow", field, false, false, "Float")
 }
 
 func (ec *executionContext) _DesiredHoursOverviewRow_maxHours(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
@@ -459,7 +458,7 @@ func (ec *executionContext) _DesiredHoursOverviewRow_maxHours(ctx context.Contex
 	)
 }
 func (ec *executionContext) fieldContext_DesiredHoursOverviewRow_maxHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DesiredHoursOverviewRow", field, false, false, errors.New("field of type Float does not have child fields"))
+	return graphql.NewScalarFieldContext("DesiredHoursOverviewRow", field, false, false, "Float")
 }
 
 func (ec *executionContext) _DesiredHoursOverviewRow_assignedLoad(ctx context.Context, field graphql.CollectedField, obj *model.DesiredHoursOverviewRow) (ret graphql.Marshaler) {
@@ -514,7 +513,7 @@ func (ec *executionContext) _DesiredTeachingHours_semester(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_DesiredTeachingHours_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, "String")
 }
 
 func (ec *executionContext) _DesiredTeachingHours_person(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
@@ -569,7 +568,7 @@ func (ec *executionContext) _DesiredTeachingHours_minHours(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_DesiredTeachingHours_minHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type Float does not have child fields"))
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, "Float")
 }
 
 func (ec *executionContext) _DesiredTeachingHours_maxHours(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
@@ -592,7 +591,7 @@ func (ec *executionContext) _DesiredTeachingHours_maxHours(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_DesiredTeachingHours_maxHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type Float does not have child fields"))
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, "Float")
 }
 
 func (ec *executionContext) _DesiredTeachingHours_hours(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
@@ -615,7 +614,7 @@ func (ec *executionContext) _DesiredTeachingHours_hours(ctx context.Context, fie
 	)
 }
 func (ec *executionContext) fieldContext_DesiredTeachingHours_hours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type Float does not have child fields"))
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, "Float")
 }
 
 func (ec *executionContext) _DesiredTeachingHours_note(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
@@ -638,7 +637,7 @@ func (ec *executionContext) _DesiredTeachingHours_note(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_DesiredTeachingHours_note(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, "String")
 }
 
 func (ec *executionContext) _DesiredTeachingHours_correctedBy(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
@@ -661,7 +660,7 @@ func (ec *executionContext) _DesiredTeachingHours_correctedBy(ctx context.Contex
 	)
 }
 func (ec *executionContext) fieldContext_DesiredTeachingHours_correctedBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, "String")
 }
 
 func (ec *executionContext) _DesiredTeachingHours_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.DesiredTeachingHours) (ret graphql.Marshaler) {
@@ -684,7 +683,7 @@ func (ec *executionContext) _DesiredTeachingHours_updatedAt(ctx context.Context,
 	)
 }
 func (ec *executionContext) fieldContext_DesiredTeachingHours_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("DesiredTeachingHours", field, false, false, "Time")
 }
 
 func (ec *executionContext) _Wish_id(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
@@ -707,7 +706,7 @@ func (ec *executionContext) _Wish_id(ctx context.Context, field graphql.Collecte
 	)
 }
 func (ec *executionContext) fieldContext_Wish_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("Wish", field, false, false, "ID")
 }
 
 func (ec *executionContext) _Wish_person(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
@@ -794,7 +793,7 @@ func (ec *executionContext) _Wish_priority(ctx context.Context, field graphql.Co
 	)
 }
 func (ec *executionContext) fieldContext_Wish_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type WishPriority does not have child fields"))
+	return graphql.NewScalarFieldContext("Wish", field, false, false, "WishPriority")
 }
 
 func (ec *executionContext) _Wish_note(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
@@ -817,7 +816,7 @@ func (ec *executionContext) _Wish_note(ctx context.Context, field graphql.Collec
 	)
 }
 func (ec *executionContext) fieldContext_Wish_note(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Wish", field, false, false, "String")
 }
 
 func (ec *executionContext) _Wish_trackLimit(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
@@ -840,7 +839,7 @@ func (ec *executionContext) _Wish_trackLimit(ctx context.Context, field graphql.
 	)
 }
 func (ec *executionContext) fieldContext_Wish_trackLimit(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("Wish", field, false, false, "Int")
 }
 
 func (ec *executionContext) _Wish_cie(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
@@ -863,7 +862,7 @@ func (ec *executionContext) _Wish_cie(ctx context.Context, field graphql.Collect
 	)
 }
 func (ec *executionContext) fieldContext_Wish_cie(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("Wish", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _Wish_shareHours(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
@@ -886,7 +885,7 @@ func (ec *executionContext) _Wish_shareHours(ctx context.Context, field graphql.
 	)
 }
 func (ec *executionContext) fieldContext_Wish_shareHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("Wish", field, false, false, "Int")
 }
 
 func (ec *executionContext) _Wish_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
@@ -909,7 +908,7 @@ func (ec *executionContext) _Wish_createdAt(ctx context.Context, field graphql.C
 	)
 }
 func (ec *executionContext) fieldContext_Wish_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Wish", field, false, false, "Time")
 }
 
 func (ec *executionContext) _Wish_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Wish) (ret graphql.Marshaler) {
@@ -932,7 +931,7 @@ func (ec *executionContext) _Wish_updatedAt(ctx context.Context, field graphql.C
 	)
 }
 func (ec *executionContext) fieldContext_Wish_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Wish", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Wish", field, false, false, "Time")
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -953,8 +952,7 @@ func (ec *executionContext) _AdvanceWish(ctx context.Context, sel ast.SelectionS
 	fields := graphql.CollectFields(ec.OperationContext, sel, advanceWishImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1028,14 +1026,10 @@ func (ec *executionContext) _AdvanceWish(ctx context.Context, sel ast.SelectionS
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1046,8 +1040,7 @@ func (ec *executionContext) _DesiredHoursOverviewRow(ctx context.Context, sel as
 	fields := graphql.CollectFields(ec.OperationContext, sel, desiredHoursOverviewRowImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1091,14 +1084,10 @@ func (ec *executionContext) _DesiredHoursOverviewRow(ctx context.Context, sel as
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1109,8 +1098,7 @@ func (ec *executionContext) _DesiredTeachingHours(ctx context.Context, sel ast.S
 	fields := graphql.CollectFields(ec.OperationContext, sel, desiredTeachingHoursImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1164,14 +1152,10 @@ func (ec *executionContext) _DesiredTeachingHours(ctx context.Context, sel ast.S
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1182,8 +1166,7 @@ func (ec *executionContext) _Wish(ctx context.Context, sel ast.SelectionSet, obj
 	fields := graphql.CollectFields(ec.OperationContext, sel, wishImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1247,14 +1230,10 @@ func (ec *executionContext) _Wish(ctx context.Context, sel ast.SelectionSet, obj
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1262,10 +1241,6 @@ func (ec *executionContext) _Wish(ctx context.Context, sel ast.SelectionSet, obj
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
-
-func (ec *executionContext) marshalNAdvanceWish2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAdvanceWish(ctx context.Context, sel ast.SelectionSet, v model.AdvanceWish) graphql.Marshaler {
-	return ec._AdvanceWish(ctx, sel, &v)
-}
 
 func (ec *executionContext) marshalNAdvanceWish2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAdvanceWishᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AdvanceWish) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
@@ -1285,9 +1260,7 @@ func (ec *executionContext) marshalNAdvanceWish2ᚕᚖgithubᚗcomᚋobcodeᚋta
 
 func (ec *executionContext) marshalNAdvanceWish2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAdvanceWish(ctx context.Context, sel ast.SelectionSet, v *model.AdvanceWish) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "AdvanceWish!")
 		return graphql.Null
 	}
 	return ec._AdvanceWish(ctx, sel, v)
@@ -1321,9 +1294,7 @@ func (ec *executionContext) marshalNDesiredHoursOverviewRow2ᚕᚖgithubᚗcom�
 
 func (ec *executionContext) marshalNDesiredHoursOverviewRow2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredHoursOverviewRow(ctx context.Context, sel ast.SelectionSet, v *model.DesiredHoursOverviewRow) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "DesiredHoursOverviewRow!")
 		return graphql.Null
 	}
 	return ec._DesiredHoursOverviewRow(ctx, sel, v)
@@ -1347,16 +1318,10 @@ func (ec *executionContext) marshalNDesiredTeachingHours2ᚕᚖgithubᚗcomᚋob
 
 func (ec *executionContext) marshalNDesiredTeachingHours2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐDesiredTeachingHours(ctx context.Context, sel ast.SelectionSet, v *model.DesiredTeachingHours) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "DesiredTeachingHours!")
 		return graphql.Null
 	}
 	return ec._DesiredTeachingHours(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNWish2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWish(ctx context.Context, sel ast.SelectionSet, v model.Wish) graphql.Marshaler {
-	return ec._Wish(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNWish2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWishᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Wish) graphql.Marshaler {
@@ -1377,9 +1342,7 @@ func (ec *executionContext) marshalNWish2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗ
 
 func (ec *executionContext) marshalNWish2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐWish(ctx context.Context, sel ast.SelectionSet, v *model.Wish) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "Wish!")
 		return graphql.Null
 	}
 	return ec._Wish(ctx, sel, v)
@@ -1395,9 +1358,7 @@ func (ec *executionContext) marshalNWishPriority2githubᚗcomᚋobcodeᚋtallox�
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "WishPriority!")
 	}
 	return res
 }

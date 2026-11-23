@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -77,7 +76,7 @@ func (ec *executionContext) _Session_effectiveRoles(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_Session_effectiveRoles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Session", field, false, false, errors.New("field of type Role does not have child fields"))
+	return graphql.NewScalarFieldContext("Session", field, false, false, "Role")
 }
 
 func (ec *executionContext) _Session_grantedRoles(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
@@ -100,7 +99,7 @@ func (ec *executionContext) _Session_grantedRoles(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_Session_grantedRoles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Session", field, false, false, errors.New("field of type Role does not have child fields"))
+	return graphql.NewScalarFieldContext("Session", field, false, false, "Role")
 }
 
 func (ec *executionContext) _Session_narrowed(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
@@ -123,7 +122,7 @@ func (ec *executionContext) _Session_narrowed(ctx context.Context, field graphql
 	)
 }
 func (ec *executionContext) fieldContext_Session_narrowed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Session", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("Session", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _Session_interactive(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
@@ -146,7 +145,7 @@ func (ec *executionContext) _Session_interactive(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_Session_interactive(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Session", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("Session", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _Session_fullReach(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
@@ -169,7 +168,7 @@ func (ec *executionContext) _Session_fullReach(ctx context.Context, field graphq
 	)
 }
 func (ec *executionContext) fieldContext_Session_fullReach(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Session", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("Session", field, false, false, "Boolean")
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -190,8 +189,7 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 	fields := graphql.CollectFields(ec.OperationContext, sel, sessionImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -235,14 +233,10 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -251,15 +245,9 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) marshalNSession2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSession(ctx context.Context, sel ast.SelectionSet, v model.Session) graphql.Marshaler {
-	return ec._Session(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNSession2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSession(ctx context.Context, sel ast.SelectionSet, v *model.Session) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "Session!")
 		return graphql.Null
 	}
 	return ec._Session(ctx, sel, v)

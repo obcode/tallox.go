@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -50,7 +49,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_id(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "ID")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_runId(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -73,7 +72,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_runId(ctx context.Context, f
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_runId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "ID")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_startedAt(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -96,7 +95,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_startedAt(ctx context.Contex
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_startedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "Time")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_finishedAt(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -119,7 +118,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_finishedAt(ctx context.Conte
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_finishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "Time")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_status(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -142,7 +141,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_status(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type ZpaProjectionStatus does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "ZpaProjectionStatus")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_programmesWritten(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -165,7 +164,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_programmesWritten(ctx contex
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_programmesWritten(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_teachersWritten(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -188,7 +187,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_teachersWritten(ctx context.
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_teachersWritten(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_modulesWritten(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -211,7 +210,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_modulesWritten(ctx context.C
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_modulesWritten(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_modulesAdded(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -234,7 +233,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_modulesAdded(ctx context.Con
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_modulesAdded(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_addedModules(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -257,7 +256,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_addedModules(ctx context.Con
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_addedModules(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "String")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_offeringsWritten(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -280,7 +279,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_offeringsWritten(ctx context
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_offeringsWritten(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_offeringsRemoved(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -303,7 +302,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_offeringsRemoved(ctx context
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_offeringsRemoved(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_error(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -326,7 +325,7 @@ func (ec *executionContext) _ZpaCatalogueProjection_error(ctx context.Context, f
 	)
 }
 func (ec *executionContext) fieldContext_ZpaCatalogueProjection_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaCatalogueProjection", field, false, false, "String")
 }
 
 func (ec *executionContext) _ZpaCatalogueProjection_notes(ctx context.Context, field graphql.CollectedField, obj *model.ZpaCatalogueProjection) (ret graphql.Marshaler) {
@@ -381,7 +380,7 @@ func (ec *executionContext) _ZpaChange_id(ctx context.Context, field graphql.Col
 	)
 }
 func (ec *executionContext) fieldContext_ZpaChange_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, "ID")
 }
 
 func (ec *executionContext) _ZpaChange_kind(ctx context.Context, field graphql.CollectedField, obj *model.ZpaChange) (ret graphql.Marshaler) {
@@ -404,7 +403,7 @@ func (ec *executionContext) _ZpaChange_kind(ctx context.Context, field graphql.C
 	)
 }
 func (ec *executionContext) fieldContext_ZpaChange_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, errors.New("field of type ZpaObjectKind does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, "ZpaObjectKind")
 }
 
 func (ec *executionContext) _ZpaChange_zpaId(ctx context.Context, field graphql.CollectedField, obj *model.ZpaChange) (ret graphql.Marshaler) {
@@ -427,7 +426,7 @@ func (ec *executionContext) _ZpaChange_zpaId(ctx context.Context, field graphql.
 	)
 }
 func (ec *executionContext) fieldContext_ZpaChange_zpaId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, "String")
 }
 
 func (ec *executionContext) _ZpaChange_label(ctx context.Context, field graphql.CollectedField, obj *model.ZpaChange) (ret graphql.Marshaler) {
@@ -450,7 +449,7 @@ func (ec *executionContext) _ZpaChange_label(ctx context.Context, field graphql.
 	)
 }
 func (ec *executionContext) fieldContext_ZpaChange_label(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, "String")
 }
 
 func (ec *executionContext) _ZpaChange_change(ctx context.Context, field graphql.CollectedField, obj *model.ZpaChange) (ret graphql.Marshaler) {
@@ -473,7 +472,7 @@ func (ec *executionContext) _ZpaChange_change(ctx context.Context, field graphql
 	)
 }
 func (ec *executionContext) fieldContext_ZpaChange_change(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, errors.New("field of type ZpaChangeType does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, "ZpaChangeType")
 }
 
 func (ec *executionContext) _ZpaChange_changedKeys(ctx context.Context, field graphql.CollectedField, obj *model.ZpaChange) (ret graphql.Marshaler) {
@@ -496,7 +495,7 @@ func (ec *executionContext) _ZpaChange_changedKeys(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_ZpaChange_changedKeys(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, "String")
 }
 
 func (ec *executionContext) _ZpaChange_detectedAt(ctx context.Context, field graphql.CollectedField, obj *model.ZpaChange) (ret graphql.Marshaler) {
@@ -519,7 +518,7 @@ func (ec *executionContext) _ZpaChange_detectedAt(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_ZpaChange_detectedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaChange", field, false, false, "Time")
 }
 
 func (ec *executionContext) _ZpaProjectionNote_finding(ctx context.Context, field graphql.CollectedField, obj *model.ZpaProjectionNote) (ret graphql.Marshaler) {
@@ -542,7 +541,7 @@ func (ec *executionContext) _ZpaProjectionNote_finding(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_ZpaProjectionNote_finding(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaProjectionNote", field, false, false, errors.New("field of type ZpaProjectionFinding does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaProjectionNote", field, false, false, "ZpaProjectionFinding")
 }
 
 func (ec *executionContext) _ZpaProjectionNote_count(ctx context.Context, field graphql.CollectedField, obj *model.ZpaProjectionNote) (ret graphql.Marshaler) {
@@ -565,7 +564,7 @@ func (ec *executionContext) _ZpaProjectionNote_count(ctx context.Context, field 
 	)
 }
 func (ec *executionContext) fieldContext_ZpaProjectionNote_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaProjectionNote", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaProjectionNote", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaProjectionNote_sample(ctx context.Context, field graphql.CollectedField, obj *model.ZpaProjectionNote) (ret graphql.Marshaler) {
@@ -588,7 +587,7 @@ func (ec *executionContext) _ZpaProjectionNote_sample(ctx context.Context, field
 	)
 }
 func (ec *executionContext) fieldContext_ZpaProjectionNote_sample(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaProjectionNote", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaProjectionNote", field, false, false, "String")
 }
 
 func (ec *executionContext) _ZpaSyncRun_id(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -611,7 +610,7 @@ func (ec *executionContext) _ZpaSyncRun_id(ctx context.Context, field graphql.Co
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRun_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, "ID")
 }
 
 func (ec *executionContext) _ZpaSyncRun_trigger(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -634,7 +633,7 @@ func (ec *executionContext) _ZpaSyncRun_trigger(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRun_trigger(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, errors.New("field of type ZpaSyncTrigger does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, "ZpaSyncTrigger")
 }
 
 func (ec *executionContext) _ZpaSyncRun_startedBy(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -657,7 +656,7 @@ func (ec *executionContext) _ZpaSyncRun_startedBy(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRun_startedBy(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, "String")
 }
 
 func (ec *executionContext) _ZpaSyncRun_startedAt(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -680,7 +679,7 @@ func (ec *executionContext) _ZpaSyncRun_startedAt(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRun_startedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, "Time")
 }
 
 func (ec *executionContext) _ZpaSyncRun_finishedAt(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -703,7 +702,7 @@ func (ec *executionContext) _ZpaSyncRun_finishedAt(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRun_finishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, "Time")
 }
 
 func (ec *executionContext) _ZpaSyncRun_status(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -726,7 +725,7 @@ func (ec *executionContext) _ZpaSyncRun_status(ctx context.Context, field graphq
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRun_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, errors.New("field of type ZpaSyncStatus does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, "ZpaSyncStatus")
 }
 
 func (ec *executionContext) _ZpaSyncRun_fetched(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -749,7 +748,7 @@ func (ec *executionContext) _ZpaSyncRun_fetched(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRun_fetched(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaSyncRun_appeared(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -772,7 +771,7 @@ func (ec *executionContext) _ZpaSyncRun_appeared(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRun_appeared(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaSyncRun_changed(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -795,7 +794,7 @@ func (ec *executionContext) _ZpaSyncRun_changed(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRun_changed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaSyncRun_disappeared(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -818,7 +817,7 @@ func (ec *executionContext) _ZpaSyncRun_disappeared(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRun_disappeared(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaSyncRun_error(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -841,7 +840,7 @@ func (ec *executionContext) _ZpaSyncRun_error(ctx context.Context, field graphql
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRun_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRun", field, false, false, "String")
 }
 
 func (ec *executionContext) _ZpaSyncRun_kinds(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRun) (ret graphql.Marshaler) {
@@ -928,7 +927,7 @@ func (ec *executionContext) _ZpaSyncRunKind_kind(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRunKind_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRunKind", field, false, false, errors.New("field of type ZpaObjectKind does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRunKind", field, false, false, "ZpaObjectKind")
 }
 
 func (ec *executionContext) _ZpaSyncRunKind_status(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRunKind) (ret graphql.Marshaler) {
@@ -951,7 +950,7 @@ func (ec *executionContext) _ZpaSyncRunKind_status(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRunKind_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRunKind", field, false, false, errors.New("field of type ZpaSyncStatus does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRunKind", field, false, false, "ZpaSyncStatus")
 }
 
 func (ec *executionContext) _ZpaSyncRunKind_fetched(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRunKind) (ret graphql.Marshaler) {
@@ -974,7 +973,7 @@ func (ec *executionContext) _ZpaSyncRunKind_fetched(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRunKind_fetched(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRunKind", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRunKind", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ZpaSyncRunKind_error(ctx context.Context, field graphql.CollectedField, obj *model.ZpaSyncRunKind) (ret graphql.Marshaler) {
@@ -997,7 +996,7 @@ func (ec *executionContext) _ZpaSyncRunKind_error(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_ZpaSyncRunKind_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ZpaSyncRunKind", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ZpaSyncRunKind", field, false, false, "String")
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -1018,8 +1017,7 @@ func (ec *executionContext) _ZpaCatalogueProjection(ctx context.Context, sel ast
 	fields := graphql.CollectFields(ec.OperationContext, sel, zpaCatalogueProjectionImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1103,14 +1101,10 @@ func (ec *executionContext) _ZpaCatalogueProjection(ctx context.Context, sel ast
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1121,8 +1115,7 @@ func (ec *executionContext) _ZpaChange(ctx context.Context, sel ast.SelectionSet
 	fields := graphql.CollectFields(ec.OperationContext, sel, zpaChangeImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1171,14 +1164,10 @@ func (ec *executionContext) _ZpaChange(ctx context.Context, sel ast.SelectionSet
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1189,8 +1178,7 @@ func (ec *executionContext) _ZpaProjectionNote(ctx context.Context, sel ast.Sele
 	fields := graphql.CollectFields(ec.OperationContext, sel, zpaProjectionNoteImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1219,14 +1207,10 @@ func (ec *executionContext) _ZpaProjectionNote(ctx context.Context, sel ast.Sele
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1237,8 +1221,7 @@ func (ec *executionContext) _ZpaSyncRun(ctx context.Context, sel ast.SelectionSe
 	fields := graphql.CollectFields(ec.OperationContext, sel, zpaSyncRunImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1304,43 +1287,11 @@ func (ec *executionContext) _ZpaSyncRun(ctx context.Context, sel ast.SelectionSe
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "projection":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._ZpaSyncRun_projection(ctx, field, obj)
-				if res == graphql.RequiredNull {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.IsDeferred() {
-				deferredFieldSet.AddField(field)
-				fieldIndex := len(deferredFieldSet.Values) - 1
-				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, deferredFieldSet)
+			out.ResolveConcurrently(ec.OperationContext, &deferred, i,
+				true, false,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._ZpaSyncRun_projection(ctx, field, obj)
 				})
-
-				for _, deferrable := range field.Deferrables {
-					view, ok := deferLabelToView[deferrable.Label]
-					if !ok {
-						view = deferredFieldSet.NewView()
-						deferLabelToView[deferrable.Label] = view
-					}
-					view.AddIndices(fieldIndex)
-				}
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -1350,14 +1301,10 @@ func (ec *executionContext) _ZpaSyncRun(ctx context.Context, sel ast.SelectionSe
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1368,8 +1315,7 @@ func (ec *executionContext) _ZpaSyncRunKind(ctx context.Context, sel ast.Selecti
 	fields := graphql.CollectFields(ec.OperationContext, sel, zpaSyncRunKindImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1403,14 +1349,10 @@ func (ec *executionContext) _ZpaSyncRunKind(ctx context.Context, sel ast.Selecti
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1418,10 +1360,6 @@ func (ec *executionContext) _ZpaSyncRunKind(ctx context.Context, sel ast.Selecti
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
-
-func (ec *executionContext) marshalNZpaCatalogueProjection2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐZpaCatalogueProjection(ctx context.Context, sel ast.SelectionSet, v model.ZpaCatalogueProjection) graphql.Marshaler {
-	return ec._ZpaCatalogueProjection(ctx, sel, &v)
-}
 
 func (ec *executionContext) marshalNZpaCatalogueProjection2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐZpaCatalogueProjectionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ZpaCatalogueProjection) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
@@ -1441,9 +1379,7 @@ func (ec *executionContext) marshalNZpaCatalogueProjection2ᚕᚖgithubᚗcomᚋ
 
 func (ec *executionContext) marshalNZpaCatalogueProjection2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐZpaCatalogueProjection(ctx context.Context, sel ast.SelectionSet, v *model.ZpaCatalogueProjection) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "ZpaCatalogueProjection!")
 		return graphql.Null
 	}
 	return ec._ZpaCatalogueProjection(ctx, sel, v)
@@ -1467,9 +1403,7 @@ func (ec *executionContext) marshalNZpaChange2ᚕᚖgithubᚗcomᚋobcodeᚋtall
 
 func (ec *executionContext) marshalNZpaChange2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐZpaChange(ctx context.Context, sel ast.SelectionSet, v *model.ZpaChange) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "ZpaChange!")
 		return graphql.Null
 	}
 	return ec._ZpaChange(ctx, sel, v)
@@ -1485,9 +1419,7 @@ func (ec *executionContext) marshalNZpaChangeType2githubᚗcomᚋobcodeᚋtallox
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "ZpaChangeType!")
 	}
 	return res
 }
@@ -1502,9 +1434,7 @@ func (ec *executionContext) marshalNZpaObjectKind2githubᚗcomᚋobcodeᚋtallox
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "ZpaObjectKind!")
 	}
 	return res
 }
@@ -1519,9 +1449,7 @@ func (ec *executionContext) marshalNZpaProjectionFinding2githubᚗcomᚋobcode�
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "ZpaProjectionFinding!")
 	}
 	return res
 }
@@ -1544,9 +1472,7 @@ func (ec *executionContext) marshalNZpaProjectionNote2ᚕᚖgithubᚗcomᚋobcod
 
 func (ec *executionContext) marshalNZpaProjectionNote2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐZpaProjectionNote(ctx context.Context, sel ast.SelectionSet, v *model.ZpaProjectionNote) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "ZpaProjectionNote!")
 		return graphql.Null
 	}
 	return ec._ZpaProjectionNote(ctx, sel, v)
@@ -1562,15 +1488,9 @@ func (ec *executionContext) marshalNZpaProjectionStatus2githubᚗcomᚋobcodeᚋ
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "ZpaProjectionStatus!")
 	}
 	return res
-}
-
-func (ec *executionContext) marshalNZpaSyncRun2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐZpaSyncRun(ctx context.Context, sel ast.SelectionSet, v model.ZpaSyncRun) graphql.Marshaler {
-	return ec._ZpaSyncRun(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNZpaSyncRun2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐZpaSyncRunᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ZpaSyncRun) graphql.Marshaler {
@@ -1591,9 +1511,7 @@ func (ec *executionContext) marshalNZpaSyncRun2ᚕᚖgithubᚗcomᚋobcodeᚋtal
 
 func (ec *executionContext) marshalNZpaSyncRun2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐZpaSyncRun(ctx context.Context, sel ast.SelectionSet, v *model.ZpaSyncRun) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "ZpaSyncRun!")
 		return graphql.Null
 	}
 	return ec._ZpaSyncRun(ctx, sel, v)
@@ -1617,9 +1535,7 @@ func (ec *executionContext) marshalNZpaSyncRunKind2ᚕᚖgithubᚗcomᚋobcode�
 
 func (ec *executionContext) marshalNZpaSyncRunKind2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐZpaSyncRunKind(ctx context.Context, sel ast.SelectionSet, v *model.ZpaSyncRunKind) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "ZpaSyncRunKind!")
 		return graphql.Null
 	}
 	return ec._ZpaSyncRunKind(ctx, sel, v)
@@ -1635,9 +1551,7 @@ func (ec *executionContext) marshalNZpaSyncStatus2githubᚗcomᚋobcodeᚋtallox
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "ZpaSyncStatus!")
 	}
 	return res
 }
@@ -1652,9 +1566,7 @@ func (ec *executionContext) marshalNZpaSyncTrigger2githubᚗcomᚋobcodeᚋtallo
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "ZpaSyncTrigger!")
 	}
 	return res
 }

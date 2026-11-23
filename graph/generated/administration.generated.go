@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -78,7 +77,7 @@ func (ec *executionContext) _AccessDiagnosis_active(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_AccessDiagnosis_active(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AccessDiagnosis", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("AccessDiagnosis", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _AccessDiagnosis_grants(ctx context.Context, field graphql.CollectedField, obj *model.AccessDiagnosis) (ret graphql.Marshaler) {
@@ -165,7 +164,7 @@ func (ec *executionContext) _PolicyDecision_rule(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_PolicyDecision_rule(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PolicyDecision", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("PolicyDecision", field, false, false, "String")
 }
 
 func (ec *executionContext) _PolicyDecision_allowed(ctx context.Context, field graphql.CollectedField, obj *model.PolicyDecision) (ret graphql.Marshaler) {
@@ -188,7 +187,7 @@ func (ec *executionContext) _PolicyDecision_allowed(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_PolicyDecision_allowed(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PolicyDecision", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("PolicyDecision", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _PolicyDecision_reason(ctx context.Context, field graphql.CollectedField, obj *model.PolicyDecision) (ret graphql.Marshaler) {
@@ -211,7 +210,7 @@ func (ec *executionContext) _PolicyDecision_reason(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_PolicyDecision_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PolicyDecision", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("PolicyDecision", field, false, false, "String")
 }
 
 func (ec *executionContext) _RoleGrant_role(ctx context.Context, field graphql.CollectedField, obj *model.RoleGrant) (ret graphql.Marshaler) {
@@ -234,7 +233,7 @@ func (ec *executionContext) _RoleGrant_role(ctx context.Context, field graphql.C
 	)
 }
 func (ec *executionContext) fieldContext_RoleGrant_role(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("RoleGrant", field, false, false, errors.New("field of type Role does not have child fields"))
+	return graphql.NewScalarFieldContext("RoleGrant", field, false, false, "Role")
 }
 
 func (ec *executionContext) _RoleGrant_grantedAt(ctx context.Context, field graphql.CollectedField, obj *model.RoleGrant) (ret graphql.Marshaler) {
@@ -257,7 +256,7 @@ func (ec *executionContext) _RoleGrant_grantedAt(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_RoleGrant_grantedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("RoleGrant", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("RoleGrant", field, false, false, "Time")
 }
 
 func (ec *executionContext) _RoleGrant_grantedBy(ctx context.Context, field graphql.CollectedField, obj *model.RoleGrant) (ret graphql.Marshaler) {
@@ -312,7 +311,7 @@ func (ec *executionContext) _RoleGrant_expiresAt(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_RoleGrant_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("RoleGrant", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("RoleGrant", field, false, false, "Time")
 }
 
 func (ec *executionContext) _TeacherAccount_teacher(ctx context.Context, field graphql.CollectedField, obj *model.TeacherAccount) (ret graphql.Marshaler) {
@@ -397,8 +396,7 @@ func (ec *executionContext) _AccessDiagnosis(ctx context.Context, sel ast.Select
 	fields := graphql.CollectFields(ec.OperationContext, sel, accessDiagnosisImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -432,14 +430,10 @@ func (ec *executionContext) _AccessDiagnosis(ctx context.Context, sel ast.Select
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -450,8 +444,7 @@ func (ec *executionContext) _PolicyDecision(ctx context.Context, sel ast.Selecti
 	fields := graphql.CollectFields(ec.OperationContext, sel, policyDecisionImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -480,14 +473,10 @@ func (ec *executionContext) _PolicyDecision(ctx context.Context, sel ast.Selecti
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -498,8 +487,7 @@ func (ec *executionContext) _RoleGrant(ctx context.Context, sel ast.SelectionSet
 	fields := graphql.CollectFields(ec.OperationContext, sel, roleGrantImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -533,14 +521,10 @@ func (ec *executionContext) _RoleGrant(ctx context.Context, sel ast.SelectionSet
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -551,8 +535,7 @@ func (ec *executionContext) _TeacherAccount(ctx context.Context, sel ast.Selecti
 	fields := graphql.CollectFields(ec.OperationContext, sel, teacherAccountImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -576,14 +559,10 @@ func (ec *executionContext) _TeacherAccount(ctx context.Context, sel ast.Selecti
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -610,9 +589,7 @@ func (ec *executionContext) marshalNPolicyDecision2ᚕᚖgithubᚗcomᚋobcode�
 
 func (ec *executionContext) marshalNPolicyDecision2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPolicyDecision(ctx context.Context, sel ast.SelectionSet, v *model.PolicyDecision) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "PolicyDecision!")
 		return graphql.Null
 	}
 	return ec._PolicyDecision(ctx, sel, v)
@@ -636,23 +613,15 @@ func (ec *executionContext) marshalNRoleGrant2ᚕᚖgithubᚗcomᚋobcodeᚋtall
 
 func (ec *executionContext) marshalNRoleGrant2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐRoleGrant(ctx context.Context, sel ast.SelectionSet, v *model.RoleGrant) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "RoleGrant!")
 		return graphql.Null
 	}
 	return ec._RoleGrant(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNTeacherAccount2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐTeacherAccount(ctx context.Context, sel ast.SelectionSet, v model.TeacherAccount) graphql.Marshaler {
-	return ec._TeacherAccount(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNTeacherAccount2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐTeacherAccount(ctx context.Context, sel ast.SelectionSet, v *model.TeacherAccount) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "TeacherAccount!")
 		return graphql.Null
 	}
 	return ec._TeacherAccount(ctx, sel, v)

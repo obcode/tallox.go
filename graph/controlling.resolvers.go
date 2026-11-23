@@ -81,3 +81,14 @@ func (r *queryResolver) ProgrammeQuotas(ctx context.Context, studyYear int) ([]*
 	}
 	return out, nil
 }
+
+// BigCourseOverview is the resolver for the bigCourseOverview field.
+func (r *queryResolver) BigCourseOverview(ctx context.Context, studyYear int) (*model.BigCourseOverview, error) {
+	actor := principal.From(ctx)
+
+	overview, err := r.Staffing.BigCourseOverview(ctx, actor, studyYear)
+	if err != nil {
+		return nil, assignmentError(err)
+	}
+	return bigCourseOverviewModel(*overview), nil
+}

@@ -43,6 +43,7 @@ Kollegium — das gehört nach `tallox.dev`.
 - [Bestätigung der Zuteilung](assignment-confirmation.md) — Prüftermin je Semester, „passt so“ je Person, Zustand aus Fingerabdruck abgeleitet
 - [Selbständiges Arbeiten wird nicht geplant](independent-work.md) — seit 2026-11-10: Abschlussarbeiten & Co. (`SELF_STUDY`) weder Bedarf noch Kompetenz noch Vormerkung, `MODULE_NOT_PLANNED`
 - [Mail: Abos und Rundmails](notifications.md) — Abgleich statt Hooks, 10 min Entprellung, Opt-in, nur eigene Zeilen, nur person.mail; Advisory Lock pro Schema
+- [Große Fächer](big-courses.md) — FKR-Regel als Übersicht je Prof: was groß heißt, Soll/Ist, Leitungen und Dekanat sehen alle, sonst nur die eigene Zeile
 
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:
      eine Datei = ein Sachverhalt, Frontmatter mit name/description/metadata.type,

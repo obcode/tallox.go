@@ -762,6 +762,136 @@ enum AssignmentConfirmationState {
   STALE
 }
 """
+One big course: one module in one programme in one semester, across that programme's cohorts of
+it. Held in the winter and again in the summer, or in two programmes, it is two courses.
+
+Big means compulsory in the programme or in a basket other than the FWP electives, and either at
+least 6 hours of it held by the professor, or the whole cohort reached (a single cohort, or a
+lecture held once for all) with the professor holding the lecture.
+"""
+type BigCourse {
+  """
+  Four digits, a hyphen and SS or WS.
+  """
+  semester: String!
+  """
+  The module.
+  """
+  moduleId: ID!
+  """
+  The module's name.
+  """
+  moduleName: String!
+  """
+  The programme it counts in.
+  """
+  programme: Programme!
+  """
+  The teaching hours the professor holds of it.
+  """
+  teachingHours: Float!
+  """
+  Why it counts as big.
+  """
+  reason: BigCourseReason!
+}
+"""
+The faculty council's rule on big courses, for one study year: whoever teaches at least 20 hours a
+week averaged over the winter and the summer holds at least two big compulsory or basket courses
+in it, and at least one from 10 hours.
+
+Counted from the assignments of the planning, not from the deputat, across every programme.
+Professors only — neither honorary professors nor lecturers on contract. Advice for the planning:
+nothing is refused because a target is not met.
+"""
+type BigCourseOverview {
+  """
+  The year the study year's winter semester starts in: `2026` for 2026-WS and 2027-SS.
+  """
+  studyYear: Int!
+  """
+  True while either semester has not reached `ASSIGNMENT`: the figures stand on a planning that is
+  still being made, and a target not met yet is no finding.
+  """
+  provisional: Boolean!
+  """
+  One row per professor, by name. Whose rows you get: see `bigCourseOverview`.
+  """
+  rows: [BigCourseRow!]!
+}
+"""
+Why a course counts as big.
+"""
+enum BigCourseReason {
+  """
+  The professor holds at least 6 hours of it.
+  """
+  BY_HOURS
+  """
+  It reaches the whole cohort and the professor holds the lecture.
+  """
+  BY_COHORT
+}
+"""
+One professor's study year.
+"""
+type BigCourseRow {
+  """
+  The professor. `personId` is the account, `null` for a professor without one; `teacherId` is
+  always the examination office's record.
+  """
+  professor: Assignee!
+  """
+  The subject groups the professor is a member of, by code. Empty without an account.
+  """
+  subjectGroups: [SubjectGroupRef!]!
+  """
+  Teaching hours a week assigned in the winter semester.
+  """
+  winterHours: Float!
+  """
+  The same for the summer semester.
+  """
+  summerHours: Float!
+  """
+  The mean of the two.
+  """
+  averageHours: Float!
+  """
+  How many big courses the rule asks for: 2 from 20 hours on average, 1 from 10, else 0.
+  """
+  target: Int!
+  """
+  How many big courses were counted: the length of `courses`.
+  """
+  actual: Int!
+  """
+  Whether `actual` meets `target`, or `NOT_APPLICABLE` when the target is 0.
+  """
+  status: BigCourseStatus!
+  """
+  The big courses counted, winter first.
+  """
+  courses: [BigCourse!]!
+}
+"""
+Whether a professor meets the target of the rule.
+"""
+enum BigCourseStatus {
+  """
+  At least as many big courses as the target.
+  """
+  FULFILLED
+  """
+  Fewer big courses than the target.
+  """
+  NOT_FULFILLED
+  """
+  Under 10 hours on average: the rule asks for nothing.
+  """
+  NOT_APPLICABLE
+}
+"""
 A sibling cohort's shared part, seen from the cohort it is held for.
 """
 type BorrowedPart {
@@ -4891,6 +5021,20 @@ type Query {
     studyYear: Int!
   ): [ProgrammeQuota!]! @scope(area: PLANNING, verb: READ)
   """
+  The big-course overview of a study year.
+
+  Every professor's row for the dean's office and for the leads of a subject group or a programme,
+  in the browser or with a full-reach token — already during the planning. Everybody else, and
+  every plain token, gets their own row only; not an error, the same way `assignedTeachingHours`
+  answers.
+  """
+  bigCourseOverview(
+    """
+    The year the study year's winter semester starts in: `2026` for 2026-WS and 2027-SS.
+    """
+    studyYear: Int!
+  ): BigCourseOverview! @scope(area: PLANNING, verb: READ)
+  """
   The demand of a semester: which instances have been declared, with their parts.
 
   The semester is required and has no default. Without one this would be a question about every
@@ -5442,7 +5586,7 @@ enum ScopeArea {
 
   Fields: `semesters`, `semester`, `planningSemester`, `programmes`, `programme`, `modules`,
   `module`, `teachers`,
-  `courseInstances`, `courseInstance`, `teachingLoad`, `studyYearLoad`, `programmeQuotas`, `setProgrammeQuota`,
+  `courseInstances`, `courseInstance`, `teachingLoad`, `studyYearLoad`, `bigCourseOverview`, `programmeQuotas`, `setProgrammeQuota`,
   `advanceSemesterPhase`, `setPlanningSemester`,
   `publishWishes`, `publishAssignments`, `setAssignmentConfirmationDue`,
   # setAssignment and clearAssignment are here and are @fullReach: their refusals answer

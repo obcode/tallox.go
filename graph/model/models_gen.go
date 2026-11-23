@@ -378,6 +378,67 @@ type AssignmentConfirmation struct {
 	ConfirmedAt *time.Time `json:"confirmedAt,omitempty"`
 }
 
+// One big course: one module in one programme in one semester, across that programme's cohorts of
+// it. Held in the winter and again in the summer, or in two programmes, it is two courses.
+//
+// Big means compulsory in the programme or in a basket other than the FWP electives, and either at
+// least 6 hours of it held by the professor, or the whole cohort reached (a single cohort, or a
+// lecture held once for all) with the professor holding the lecture.
+type BigCourse struct {
+	// Four digits, a hyphen and SS or WS.
+	Semester string `json:"semester"`
+	// The module.
+	ModuleID string `json:"moduleId"`
+	// The module's name.
+	ModuleName string `json:"moduleName"`
+	// The programme it counts in.
+	Programme *Programme `json:"programme"`
+	// The teaching hours the professor holds of it.
+	TeachingHours float64 `json:"teachingHours"`
+	// Why it counts as big.
+	Reason BigCourseReason `json:"reason"`
+}
+
+// The faculty council's rule on big courses, for one study year: whoever teaches at least 20 hours a
+// week averaged over the winter and the summer holds at least two big compulsory or basket courses
+// in it, and at least one from 10 hours.
+//
+// Counted from the assignments of the planning, not from the deputat, across every programme.
+// Professors only — neither honorary professors nor lecturers on contract. Advice for the planning:
+// nothing is refused because a target is not met.
+type BigCourseOverview struct {
+	// The year the study year's winter semester starts in: `2026` for 2026-WS and 2027-SS.
+	StudyYear int `json:"studyYear"`
+	// True while either semester has not reached `ASSIGNMENT`: the figures stand on a planning that is
+	// still being made, and a target not met yet is no finding.
+	Provisional bool `json:"provisional"`
+	// One row per professor, by name. Whose rows you get: see `bigCourseOverview`.
+	Rows []*BigCourseRow `json:"rows"`
+}
+
+// One professor's study year.
+type BigCourseRow struct {
+	// The professor. `personId` is the account, `null` for a professor without one; `teacherId` is
+	// always the examination office's record.
+	Professor *Assignee `json:"professor"`
+	// The subject groups the professor is a member of, by code. Empty without an account.
+	SubjectGroups []*SubjectGroupRef `json:"subjectGroups"`
+	// Teaching hours a week assigned in the winter semester.
+	WinterHours float64 `json:"winterHours"`
+	// The same for the summer semester.
+	SummerHours float64 `json:"summerHours"`
+	// The mean of the two.
+	AverageHours float64 `json:"averageHours"`
+	// How many big courses the rule asks for: 2 from 20 hours on average, 1 from 10, else 0.
+	Target int `json:"target"`
+	// How many big courses were counted: the length of `courses`.
+	Actual int `json:"actual"`
+	// Whether `actual` meets `target`, or `NOT_APPLICABLE` when the target is 0.
+	Status BigCourseStatus `json:"status"`
+	// The big courses counted, winter first.
+	Courses []*BigCourse `json:"courses"`
+}
+
 // A sibling cohort's shared part, seen from the cohort it is held for.
 type BorrowedPart struct {
 	// The part itself, as its owning cohort holds it.
@@ -2352,6 +2413,125 @@ func (e *AssignmentConfirmationState) UnmarshalJSON(b []byte) error {
 }
 
 func (e AssignmentConfirmationState) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Why a course counts as big.
+type BigCourseReason string
+
+const (
+	// The professor holds at least 6 hours of it.
+	BigCourseReasonByHours BigCourseReason = "BY_HOURS"
+	// It reaches the whole cohort and the professor holds the lecture.
+	BigCourseReasonByCohort BigCourseReason = "BY_COHORT"
+)
+
+var AllBigCourseReason = []BigCourseReason{
+	BigCourseReasonByHours,
+	BigCourseReasonByCohort,
+}
+
+func (e BigCourseReason) IsValid() bool {
+	switch e {
+	case BigCourseReasonByHours, BigCourseReasonByCohort:
+		return true
+	}
+	return false
+}
+
+func (e BigCourseReason) String() string {
+	return string(e)
+}
+
+func (e *BigCourseReason) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = BigCourseReason(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid BigCourseReason", str)
+	}
+	return nil
+}
+
+func (e BigCourseReason) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *BigCourseReason) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e BigCourseReason) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Whether a professor meets the target of the rule.
+type BigCourseStatus string
+
+const (
+	// At least as many big courses as the target.
+	BigCourseStatusFulfilled BigCourseStatus = "FULFILLED"
+	// Fewer big courses than the target.
+	BigCourseStatusNotFulfilled BigCourseStatus = "NOT_FULFILLED"
+	// Under 10 hours on average: the rule asks for nothing.
+	BigCourseStatusNotApplicable BigCourseStatus = "NOT_APPLICABLE"
+)
+
+var AllBigCourseStatus = []BigCourseStatus{
+	BigCourseStatusFulfilled,
+	BigCourseStatusNotFulfilled,
+	BigCourseStatusNotApplicable,
+}
+
+func (e BigCourseStatus) IsValid() bool {
+	switch e {
+	case BigCourseStatusFulfilled, BigCourseStatusNotFulfilled, BigCourseStatusNotApplicable:
+		return true
+	}
+	return false
+}
+
+func (e BigCourseStatus) String() string {
+	return string(e)
+}
+
+func (e *BigCourseStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = BigCourseStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid BigCourseStatus", str)
+	}
+	return nil
+}
+
+func (e BigCourseStatus) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *BigCourseStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e BigCourseStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

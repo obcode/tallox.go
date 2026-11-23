@@ -24,6 +24,465 @@ import (
 
 // region    **************************** field.gotpl *****************************
 
+func (ec *executionContext) _BigCourse_semester(ctx context.Context, field graphql.CollectedField, obj *model.BigCourse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourse_semester(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Semester, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourse_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourse", field, false, false, "String")
+}
+
+func (ec *executionContext) _BigCourse_moduleId(ctx context.Context, field graphql.CollectedField, obj *model.BigCourse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourse_moduleId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ModuleID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourse_moduleId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourse", field, false, false, "ID")
+}
+
+func (ec *executionContext) _BigCourse_moduleName(ctx context.Context, field graphql.CollectedField, obj *model.BigCourse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourse_moduleName(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ModuleName, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourse_moduleName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourse", field, false, false, "String")
+}
+
+func (ec *executionContext) _BigCourse_programme(ctx context.Context, field graphql.CollectedField, obj *model.BigCourse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourse_programme(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Programme, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Programme) graphql.Marshaler {
+			return ec.marshalNProgramme2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgramme(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourse_programme(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BigCourse",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Programme(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BigCourse_teachingHours(ctx context.Context, field graphql.CollectedField, obj *model.BigCourse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourse_teachingHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TeachingHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourse_teachingHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourse", field, false, false, "Float")
+}
+
+func (ec *executionContext) _BigCourse_reason(ctx context.Context, field graphql.CollectedField, obj *model.BigCourse) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourse_reason(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Reason, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.BigCourseReason) graphql.Marshaler {
+			return ec.marshalNBigCourseReason2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseReason(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourse_reason(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourse", field, false, false, "BigCourseReason")
+}
+
+func (ec *executionContext) _BigCourseOverview_studyYear(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseOverview_studyYear(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StudyYear, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseOverview_studyYear(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourseOverview", field, false, false, "Int")
+}
+
+func (ec *executionContext) _BigCourseOverview_provisional(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseOverview_provisional(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Provisional, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseOverview_provisional(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourseOverview", field, false, false, "Boolean")
+}
+
+func (ec *executionContext) _BigCourseOverview_rows(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseOverview) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseOverview_rows(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Rows, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.BigCourseRow) graphql.Marshaler {
+			return ec.marshalNBigCourseRow2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseRowᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseOverview_rows(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BigCourseOverview",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_BigCourseRow(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BigCourseRow_professor(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseRow_professor(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Professor, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Assignee) graphql.Marshaler {
+			return ec.marshalNAssignee2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignee(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseRow_professor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BigCourseRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Assignee(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BigCourseRow_subjectGroups(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseRow_subjectGroups(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SubjectGroups, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.SubjectGroupRef) graphql.Marshaler {
+			return ec.marshalNSubjectGroupRef2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSubjectGroupRefᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseRow_subjectGroups(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BigCourseRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_SubjectGroupRef(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _BigCourseRow_winterHours(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseRow_winterHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.WinterHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseRow_winterHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourseRow", field, false, false, "Float")
+}
+
+func (ec *executionContext) _BigCourseRow_summerHours(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseRow_summerHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SummerHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseRow_summerHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourseRow", field, false, false, "Float")
+}
+
+func (ec *executionContext) _BigCourseRow_averageHours(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseRow_averageHours(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.AverageHours, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v float64) graphql.Marshaler {
+			return ec.marshalNFloat2float64(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseRow_averageHours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourseRow", field, false, false, "Float")
+}
+
+func (ec *executionContext) _BigCourseRow_target(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseRow_target(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Target, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseRow_target(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourseRow", field, false, false, "Int")
+}
+
+func (ec *executionContext) _BigCourseRow_actual(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseRow_actual(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Actual, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseRow_actual(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourseRow", field, false, false, "Int")
+}
+
+func (ec *executionContext) _BigCourseRow_status(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseRow_status(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Status, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.BigCourseStatus) graphql.Marshaler {
+			return ec.marshalNBigCourseStatus2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseStatus(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseRow_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("BigCourseRow", field, false, false, "BigCourseStatus")
+}
+
+func (ec *executionContext) _BigCourseRow_courses(ctx context.Context, field graphql.CollectedField, obj *model.BigCourseRow) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_BigCourseRow_courses(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Courses, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.BigCourse) graphql.Marshaler {
+			return ec.marshalNBigCourse2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_BigCourseRow_courses(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "BigCourseRow",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_BigCourse(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ProgrammeQuota_programme(ctx context.Context, field graphql.CollectedField, obj *model.ProgrammeQuota) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -794,6 +1253,180 @@ func (ec *executionContext) fieldContext_TeachingLoadShare_externalHours(_ conte
 
 // region    **************************** object.gotpl ****************************
 
+var bigCourseImplementors = []string{"BigCourse"}
+
+func (ec *executionContext) _BigCourse(ctx context.Context, sel ast.SelectionSet, obj *model.BigCourse) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, bigCourseImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BigCourse")
+		case "semester":
+			out.Values[i] = ec._BigCourse_semester(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "moduleId":
+			out.Values[i] = ec._BigCourse_moduleId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "moduleName":
+			out.Values[i] = ec._BigCourse_moduleName(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "programme":
+			out.Values[i] = ec._BigCourse_programme(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "teachingHours":
+			out.Values[i] = ec._BigCourse_teachingHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "reason":
+			out.Values[i] = ec._BigCourse_reason(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var bigCourseOverviewImplementors = []string{"BigCourseOverview"}
+
+func (ec *executionContext) _BigCourseOverview(ctx context.Context, sel ast.SelectionSet, obj *model.BigCourseOverview) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, bigCourseOverviewImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BigCourseOverview")
+		case "studyYear":
+			out.Values[i] = ec._BigCourseOverview_studyYear(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "provisional":
+			out.Values[i] = ec._BigCourseOverview_provisional(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "rows":
+			out.Values[i] = ec._BigCourseOverview_rows(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
+var bigCourseRowImplementors = []string{"BigCourseRow"}
+
+func (ec *executionContext) _BigCourseRow(ctx context.Context, sel ast.SelectionSet, obj *model.BigCourseRow) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, bigCourseRowImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := graphql.NewDeferredGroup(ctx)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("BigCourseRow")
+		case "professor":
+			out.Values[i] = ec._BigCourseRow_professor(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "subjectGroups":
+			out.Values[i] = ec._BigCourseRow_subjectGroups(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "winterHours":
+			out.Values[i] = ec._BigCourseRow_winterHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "summerHours":
+			out.Values[i] = ec._BigCourseRow_summerHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "averageHours":
+			out.Values[i] = ec._BigCourseRow_averageHours(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "target":
+			out.Values[i] = ec._BigCourseRow_target(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "actual":
+			out.Values[i] = ec._BigCourseRow_actual(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._BigCourseRow_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "courses":
+			out.Values[i] = ec._BigCourseRow_courses(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
+
+	return out
+}
+
 var programmeQuotaImplementors = []string{"ProgrammeQuota"}
 
 func (ec *executionContext) _ProgrammeQuota(ctx context.Context, sel ast.SelectionSet, obj *model.ProgrammeQuota) graphql.Marshaler {
@@ -1064,6 +1697,82 @@ func (ec *executionContext) _TeachingLoadShare(ctx context.Context, sel ast.Sele
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
+
+func (ec *executionContext) marshalNBigCourse2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BigCourse) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNBigCourse2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourse(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNBigCourse2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourse(ctx context.Context, sel ast.SelectionSet, v *model.BigCourse) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "BigCourse!")
+		return graphql.Null
+	}
+	return ec._BigCourse(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNBigCourseOverview2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseOverview(ctx context.Context, sel ast.SelectionSet, v *model.BigCourseOverview) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "BigCourseOverview!")
+		return graphql.Null
+	}
+	return ec._BigCourseOverview(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNBigCourseReason2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseReason(ctx context.Context, v any) (model.BigCourseReason, error) {
+	var res model.BigCourseReason
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBigCourseReason2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseReason(ctx context.Context, sel ast.SelectionSet, v model.BigCourseReason) graphql.Marshaler {
+	return v
+}
+
+func (ec *executionContext) marshalNBigCourseRow2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseRowᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.BigCourseRow) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNBigCourseRow2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseRow(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNBigCourseRow2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseRow(ctx context.Context, sel ast.SelectionSet, v *model.BigCourseRow) graphql.Marshaler {
+	if v == nil {
+		graphql.AddInvalidNullError(ctx, "BigCourseRow!")
+		return graphql.Null
+	}
+	return ec._BigCourseRow(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNBigCourseStatus2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseStatus(ctx context.Context, v any) (model.BigCourseStatus, error) {
+	var res model.BigCourseStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNBigCourseStatus2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐBigCourseStatus(ctx context.Context, sel ast.SelectionSet, v model.BigCourseStatus) graphql.Marshaler {
+	return v
+}
 
 func (ec *executionContext) marshalNProgrammeQuota2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐProgrammeQuotaᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ProgrammeQuota) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {

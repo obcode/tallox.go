@@ -176,6 +176,33 @@ type ComplexityRoot struct {
 		State       func(childComplexity int) int
 	}
 
+	BigCourse struct {
+		ModuleID      func(childComplexity int) int
+		ModuleName    func(childComplexity int) int
+		Programme     func(childComplexity int) int
+		Reason        func(childComplexity int) int
+		Semester      func(childComplexity int) int
+		TeachingHours func(childComplexity int) int
+	}
+
+	BigCourseOverview struct {
+		Provisional func(childComplexity int) int
+		Rows        func(childComplexity int) int
+		StudyYear   func(childComplexity int) int
+	}
+
+	BigCourseRow struct {
+		Actual        func(childComplexity int) int
+		AverageHours  func(childComplexity int) int
+		Courses       func(childComplexity int) int
+		Professor     func(childComplexity int) int
+		Status        func(childComplexity int) int
+		SubjectGroups func(childComplexity int) int
+		SummerHours   func(childComplexity int) int
+		Target        func(childComplexity int) int
+		WinterHours   func(childComplexity int) int
+	}
+
 	BorrowedPart struct {
 		FromProgramme func(childComplexity int) int
 		FromTrack     func(childComplexity int) int
@@ -615,6 +642,7 @@ type ComplexityRoot struct {
 		AssignedTeachingHours       func(childComplexity int, semester string, person *string) int
 		AssignmentConfirmations     func(childComplexity int, semester string) int
 		Assignments                 func(childComplexity int, semester string, programme *string, module *string, instance *string, person *string) int
+		BigCourseOverview           func(childComplexity int, studyYear int) int
 		BuildInfo                   func(childComplexity int) int
 		CompetenceMemberStatus      func(childComplexity int, subjectGroup string) int
 		Competences                 func(childComplexity int, module *string, subjectGroup *string, person *string, teacher *string) int
@@ -1428,6 +1456,117 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.AssignmentConfirmation.State(childComplexity), true
+
+	case "BigCourse.moduleId":
+		if e.ComplexityRoot.BigCourse.ModuleID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourse.ModuleID(childComplexity), true
+	case "BigCourse.moduleName":
+		if e.ComplexityRoot.BigCourse.ModuleName == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourse.ModuleName(childComplexity), true
+	case "BigCourse.programme":
+		if e.ComplexityRoot.BigCourse.Programme == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourse.Programme(childComplexity), true
+	case "BigCourse.reason":
+		if e.ComplexityRoot.BigCourse.Reason == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourse.Reason(childComplexity), true
+	case "BigCourse.semester":
+		if e.ComplexityRoot.BigCourse.Semester == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourse.Semester(childComplexity), true
+	case "BigCourse.teachingHours":
+		if e.ComplexityRoot.BigCourse.TeachingHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourse.TeachingHours(childComplexity), true
+
+	case "BigCourseOverview.provisional":
+		if e.ComplexityRoot.BigCourseOverview.Provisional == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseOverview.Provisional(childComplexity), true
+	case "BigCourseOverview.rows":
+		if e.ComplexityRoot.BigCourseOverview.Rows == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseOverview.Rows(childComplexity), true
+	case "BigCourseOverview.studyYear":
+		if e.ComplexityRoot.BigCourseOverview.StudyYear == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseOverview.StudyYear(childComplexity), true
+
+	case "BigCourseRow.actual":
+		if e.ComplexityRoot.BigCourseRow.Actual == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseRow.Actual(childComplexity), true
+	case "BigCourseRow.averageHours":
+		if e.ComplexityRoot.BigCourseRow.AverageHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseRow.AverageHours(childComplexity), true
+	case "BigCourseRow.courses":
+		if e.ComplexityRoot.BigCourseRow.Courses == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseRow.Courses(childComplexity), true
+	case "BigCourseRow.professor":
+		if e.ComplexityRoot.BigCourseRow.Professor == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseRow.Professor(childComplexity), true
+	case "BigCourseRow.status":
+		if e.ComplexityRoot.BigCourseRow.Status == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseRow.Status(childComplexity), true
+	case "BigCourseRow.subjectGroups":
+		if e.ComplexityRoot.BigCourseRow.SubjectGroups == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseRow.SubjectGroups(childComplexity), true
+	case "BigCourseRow.summerHours":
+		if e.ComplexityRoot.BigCourseRow.SummerHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseRow.SummerHours(childComplexity), true
+	case "BigCourseRow.target":
+		if e.ComplexityRoot.BigCourseRow.Target == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseRow.Target(childComplexity), true
+	case "BigCourseRow.winterHours":
+		if e.ComplexityRoot.BigCourseRow.WinterHours == nil {
+			break
+		}
+
+		return e.ComplexityRoot.BigCourseRow.WinterHours(childComplexity), true
 
 	case "BorrowedPart.fromProgramme":
 		if e.ComplexityRoot.BorrowedPart.FromProgramme == nil {
@@ -3846,6 +3985,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Assignments(childComplexity, args["semester"].(string), args["programme"].(*string), args["module"].(*string), args["instance"].(*string), args["person"].(*string)), true
+	case "Query.bigCourseOverview":
+		if e.ComplexityRoot.Query.BigCourseOverview == nil {
+			break
+		}
+
+		args, err := ec.field_Query_bigCourseOverview_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.BigCourseOverview(childComplexity, args["studyYear"].(int)), true
 	case "Query.buildInfo":
 		if e.ComplexityRoot.Query.BuildInfo == nil {
 			break
@@ -7786,6 +7936,108 @@ extend type Mutation {
     teachingHours: Float
   ): ProgrammeQuota @scope(area: PLANNING, verb: WRITE)
 }
+
+"""
+The faculty council's rule on big courses, for one study year: whoever teaches at least 20 hours a
+week averaged over the winter and the summer holds at least two big compulsory or basket courses
+in it, and at least one from 10 hours.
+
+Counted from the assignments of the planning, not from the deputat, across every programme.
+Professors only — neither honorary professors nor lecturers on contract. Advice for the planning:
+nothing is refused because a target is not met.
+"""
+type BigCourseOverview {
+  "The year the study year's winter semester starts in: ` + "`" + `2026` + "`" + ` for 2026-WS and 2027-SS."
+  studyYear: Int!
+  """
+  True while either semester has not reached ` + "`" + `ASSIGNMENT` + "`" + `: the figures stand on a planning that is
+  still being made, and a target not met yet is no finding.
+  """
+  provisional: Boolean!
+  "One row per professor, by name. Whose rows you get: see ` + "`" + `bigCourseOverview` + "`" + `."
+  rows: [BigCourseRow!]!
+}
+
+"One professor's study year."
+type BigCourseRow {
+  """
+  The professor. ` + "`" + `personId` + "`" + ` is the account, ` + "`" + `null` + "`" + ` for a professor without one; ` + "`" + `teacherId` + "`" + ` is
+  always the examination office's record.
+  """
+  professor: Assignee!
+  "The subject groups the professor is a member of, by code. Empty without an account."
+  subjectGroups: [SubjectGroupRef!]!
+  "Teaching hours a week assigned in the winter semester."
+  winterHours: Float!
+  "The same for the summer semester."
+  summerHours: Float!
+  "The mean of the two."
+  averageHours: Float!
+  "How many big courses the rule asks for: 2 from 20 hours on average, 1 from 10, else 0."
+  target: Int!
+  "How many big courses were counted: the length of ` + "`" + `courses` + "`" + `."
+  actual: Int!
+  "Whether ` + "`" + `actual` + "`" + ` meets ` + "`" + `target` + "`" + `, or ` + "`" + `NOT_APPLICABLE` + "`" + ` when the target is 0."
+  status: BigCourseStatus!
+  "The big courses counted, winter first."
+  courses: [BigCourse!]!
+}
+
+"""
+One big course: one module in one programme in one semester, across that programme's cohorts of
+it. Held in the winter and again in the summer, or in two programmes, it is two courses.
+
+Big means compulsory in the programme or in a basket other than the FWP electives, and either at
+least 6 hours of it held by the professor, or the whole cohort reached (a single cohort, or a
+lecture held once for all) with the professor holding the lecture.
+"""
+type BigCourse {
+  "Four digits, a hyphen and SS or WS."
+  semester: String!
+  "The module."
+  moduleId: ID!
+  "The module's name."
+  moduleName: String!
+  "The programme it counts in."
+  programme: Programme!
+  "The teaching hours the professor holds of it."
+  teachingHours: Float!
+  "Why it counts as big."
+  reason: BigCourseReason!
+}
+
+"Why a course counts as big."
+enum BigCourseReason {
+  "The professor holds at least 6 hours of it."
+  BY_HOURS
+  "It reaches the whole cohort and the professor holds the lecture."
+  BY_COHORT
+}
+
+"Whether a professor meets the target of the rule."
+enum BigCourseStatus {
+  "At least as many big courses as the target."
+  FULFILLED
+  "Fewer big courses than the target."
+  NOT_FULFILLED
+  "Under 10 hours on average: the rule asks for nothing."
+  NOT_APPLICABLE
+}
+
+extend type Query {
+  """
+  The big-course overview of a study year.
+
+  Every professor's row for the dean's office and for the leads of a subject group or a programme,
+  in the browser or with a full-reach token — already during the planning. Everybody else, and
+  every plain token, gets their own row only; not an error, the same way ` + "`" + `assignedTeachingHours` + "`" + `
+  answers.
+  """
+  bigCourseOverview(
+    "The year the study year's winter semester starts in: ` + "`" + `2026` + "`" + ` for 2026-WS and 2027-SS."
+    studyYear: Int!
+  ): BigCourseOverview! @scope(area: PLANNING, verb: READ)
+}
 `, BuiltIn: false},
 	{Name: "../demand.graphqls", Input: `# The demand: which course instances a study programme needs in a semester.
 #
@@ -8867,7 +9119,7 @@ enum ScopeArea {
 
   Fields: ` + "`" + `semesters` + "`" + `, ` + "`" + `semester` + "`" + `, ` + "`" + `planningSemester` + "`" + `, ` + "`" + `programmes` + "`" + `, ` + "`" + `programme` + "`" + `, ` + "`" + `modules` + "`" + `,
   ` + "`" + `module` + "`" + `, ` + "`" + `teachers` + "`" + `,
-  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `teachingLoad` + "`" + `, ` + "`" + `studyYearLoad` + "`" + `, ` + "`" + `programmeQuotas` + "`" + `, ` + "`" + `setProgrammeQuota` + "`" + `,
+  ` + "`" + `courseInstances` + "`" + `, ` + "`" + `courseInstance` + "`" + `, ` + "`" + `teachingLoad` + "`" + `, ` + "`" + `studyYearLoad` + "`" + `, ` + "`" + `bigCourseOverview` + "`" + `, ` + "`" + `programmeQuotas` + "`" + `, ` + "`" + `setProgrammeQuota` + "`" + `,
   ` + "`" + `advanceSemesterPhase` + "`" + `, ` + "`" + `setPlanningSemester` + "`" + `,
   ` + "`" + `publishWishes` + "`" + `, ` + "`" + `publishAssignments` + "`" + `, ` + "`" + `setAssignmentConfirmationDue` + "`" + `,
   # setAssignment and clearAssignment are here and are @fullReach: their refusals answer
@@ -11871,6 +12123,60 @@ func (ec *executionContext) childFields_AssignmentConfirmation(ctx context.Conte
 		return ec.fieldContext_AssignmentConfirmation_confirmedAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type AssignmentConfirmation", field.Name)
+}
+
+func (ec *executionContext) childFields_BigCourse(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "semester":
+		return ec.fieldContext_BigCourse_semester(ctx, field)
+	case "moduleId":
+		return ec.fieldContext_BigCourse_moduleId(ctx, field)
+	case "moduleName":
+		return ec.fieldContext_BigCourse_moduleName(ctx, field)
+	case "programme":
+		return ec.fieldContext_BigCourse_programme(ctx, field)
+	case "teachingHours":
+		return ec.fieldContext_BigCourse_teachingHours(ctx, field)
+	case "reason":
+		return ec.fieldContext_BigCourse_reason(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type BigCourse", field.Name)
+}
+
+func (ec *executionContext) childFields_BigCourseOverview(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "studyYear":
+		return ec.fieldContext_BigCourseOverview_studyYear(ctx, field)
+	case "provisional":
+		return ec.fieldContext_BigCourseOverview_provisional(ctx, field)
+	case "rows":
+		return ec.fieldContext_BigCourseOverview_rows(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type BigCourseOverview", field.Name)
+}
+
+func (ec *executionContext) childFields_BigCourseRow(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "professor":
+		return ec.fieldContext_BigCourseRow_professor(ctx, field)
+	case "subjectGroups":
+		return ec.fieldContext_BigCourseRow_subjectGroups(ctx, field)
+	case "winterHours":
+		return ec.fieldContext_BigCourseRow_winterHours(ctx, field)
+	case "summerHours":
+		return ec.fieldContext_BigCourseRow_summerHours(ctx, field)
+	case "averageHours":
+		return ec.fieldContext_BigCourseRow_averageHours(ctx, field)
+	case "target":
+		return ec.fieldContext_BigCourseRow_target(ctx, field)
+	case "actual":
+		return ec.fieldContext_BigCourseRow_actual(ctx, field)
+	case "status":
+		return ec.fieldContext_BigCourseRow_status(ctx, field)
+	case "courses":
+		return ec.fieldContext_BigCourseRow_courses(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type BigCourseRow", field.Name)
 }
 
 func (ec *executionContext) childFields_BorrowedPart(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {

@@ -47,3 +47,4 @@ Kollegium — das gehört nach `tallox.dev`.
 <!-- Weitere Notizen entstehen mit dem Code. Konventionen für neue Einträge:
      eine Datei = ein Sachverhalt, Frontmatter mit name/description/metadata.type,
      Querverweise als [[slug]]. -->
+- [Große Fächer](big-courses.md) — FKR-Regel als Übersicht je Prof: was groß heißt, Soll/Ist, Leitungen und Dekanat sehen alle, sonst nur die eigene Zeile

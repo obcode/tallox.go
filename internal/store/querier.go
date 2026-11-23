@@ -297,6 +297,56 @@ type Querier interface {
 	// sorts chronologically as text, which is what its format is for. Then the screen's own order:
 	// module, cohort, and the parts of a cohort in the order somebody arranged them.
 	AssignmentsOfSemester(ctx context.Context, arg AssignmentsOfSemesterParams) ([]AssignmentsOfSemesterRow, error)
+	// What each professor holds in the two semesters of a study year, one row per semester, module and
+	// programme across the cohorts (tracks) of that programme — the grain the rule counts a course at:
+	// the same module in two programmes, or in the winter and again in the summer, is two courses.
+	//
+	//   hours            the teaching hours of the person's own parts there
+	//   holds_lecture    the person holds a lecture part there
+	//   shared_lecture   that lecture is held once for every cohort (serves_sibling_tracks)
+	//   cohorts          how many cohorts of the module the programme plans that semester
+	//   eligible         a compulsory module there, or one in a basket other than the FWP electives;
+	//                    never an FWP placeholder
+	//
+	// Whether a course is big is decided from these in internal/domain, where the thresholds have
+	// names; every holding comes back, eligible or not, because the semester's hours are their sum.
+	BigCourseHoldings(ctx context.Context, arg BigCourseHoldingsParams) ([]BigCourseHoldingsRow, error)
+	// Big courses: the faculty council's rule that whoever teaches a lot over a study year also holds
+	// big compulsory or basket courses, as an overview per professor (domain.BigCourseOverview).
+	//
+	// A SUM OVER ASSIGNMENTS, AND THEREFORE FILTERED
+	//
+	// assignment.sql has no COUNT and no SUM, because before publication a sum over assignments the
+	// caller may not read one by one is the same leak as the rows. This file sums them per person,
+	// and it may because every read carries the person filter of policy.BigCourseVisibility: the
+	// dean's office and the leads (subject group or programme, with a scope, with full reach) read
+	// every professor's figures, everybody else only their own. That is wider than the assigned load
+	// (assigned_load.sql, no programme leads before publication) on purpose: the faculty council's
+	// rule is a duty of the whole faculty, and the leads who plan against it were decided to see it
+	// while they plan.
+	//
+	// store.TestEveryBigCourseQueryIsFiltered reads this file and insists on the filter:
+	//
+	//     @scope = 'all'   no restriction
+	//     @scope = 'own'   the caller's own row, by account
+	//     anything else    nothing at all
+	//
+	// WHO IS A PROFESSOR
+	//
+	// What the examination office says: is_professor, and neither an honorary professorship nor a
+	// contract — decided with the faculty, honorary professors and lecturers on contract are not
+	// bound by the rule. Listed when they are colleagues here (an active account holding LECTURER or
+	// a member of a subject group, the roster of desired_hours.sql) or when they hold anything in the
+	// study year, which is how a professor without an account appears.
+	//
+	// WHAT IS COUNTED
+	//
+	// The hours of the parts somebody holds: an account (a.person_id), connected to its teacher
+	// record by address, or a teacher without one (a.teacher_id). A part another faculty teaches
+	// cannot be held. A lecture serving both cohorts is one part, so every hour counts once.
+	// The professors of a study year, with their subject groups. Zero hours is a row: "not applicable"
+	// is an answer the overview gives, and leaving those out would hide who was looked at.
+	BigCourseRoster(ctx context.Context, arg BigCourseRosterParams) ([]BigCourseRosterRow, error)
 	// The parts another cohort holds for this one — within the programme, and across programmes.
 	//
 	// TWO KINDS OF BORROWING, ONE RENDERING

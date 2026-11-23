@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -51,7 +50,7 @@ func (ec *executionContext) _Semester_code(ctx context.Context, field graphql.Co
 	)
 }
 func (ec *executionContext) fieldContext_Semester_code(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Semester", field, false, false, "String")
 }
 
 func (ec *executionContext) _Semester_phase(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
@@ -74,7 +73,7 @@ func (ec *executionContext) _Semester_phase(ctx context.Context, field graphql.C
 	)
 }
 func (ec *executionContext) fieldContext_Semester_phase(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Phase does not have child fields"))
+	return graphql.NewScalarFieldContext("Semester", field, false, false, "Phase")
 }
 
 func (ec *executionContext) _Semester_demandRelease(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
@@ -161,7 +160,7 @@ func (ec *executionContext) _Semester_isPlanningSemester(ctx context.Context, fi
 	)
 }
 func (ec *executionContext) fieldContext_Semester_isPlanningSemester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("Semester", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _Semester_reachablePhases(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
@@ -184,7 +183,7 @@ func (ec *executionContext) _Semester_reachablePhases(ctx context.Context, field
 	)
 }
 func (ec *executionContext) fieldContext_Semester_reachablePhases(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Phase does not have child fields"))
+	return graphql.NewScalarFieldContext("Semester", field, false, false, "Phase")
 }
 
 func (ec *executionContext) _Semester_wishesPublishedAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
@@ -207,7 +206,7 @@ func (ec *executionContext) _Semester_wishesPublishedAt(ctx context.Context, fie
 	)
 }
 func (ec *executionContext) fieldContext_Semester_wishesPublishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Semester", field, false, false, "Time")
 }
 
 func (ec *executionContext) _Semester_assignmentsPublishedAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
@@ -230,7 +229,7 @@ func (ec *executionContext) _Semester_assignmentsPublishedAt(ctx context.Context
 	)
 }
 func (ec *executionContext) fieldContext_Semester_assignmentsPublishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Semester", field, false, false, "Time")
 }
 
 func (ec *executionContext) _Semester_desiredHoursFrozenAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
@@ -253,7 +252,7 @@ func (ec *executionContext) _Semester_desiredHoursFrozenAt(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_Semester_desiredHoursFrozenAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Semester", field, false, false, "Time")
 }
 
 func (ec *executionContext) _Semester_desiredHoursPublishedAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
@@ -276,7 +275,7 @@ func (ec *executionContext) _Semester_desiredHoursPublishedAt(ctx context.Contex
 	)
 }
 func (ec *executionContext) fieldContext_Semester_desiredHoursPublishedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Semester", field, false, false, "Time")
 }
 
 func (ec *executionContext) _Semester_assignmentConfirmationDue(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
@@ -299,7 +298,7 @@ func (ec *executionContext) _Semester_assignmentConfirmationDue(ctx context.Cont
 	)
 }
 func (ec *executionContext) fieldContext_Semester_assignmentConfirmationDue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Date does not have child fields"))
+	return graphql.NewScalarFieldContext("Semester", field, false, false, "Date")
 }
 
 func (ec *executionContext) _Semester_decidedAt(ctx context.Context, field graphql.CollectedField, obj *model.Semester) (ret graphql.Marshaler) {
@@ -322,7 +321,7 @@ func (ec *executionContext) _Semester_decidedAt(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_Semester_decidedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Semester", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Semester", field, false, false, "Time")
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -343,8 +342,7 @@ func (ec *executionContext) _Semester(ctx context.Context, sel ast.SelectionSet,
 	fields := graphql.CollectFields(ec.OperationContext, sel, semesterImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -360,81 +358,17 @@ func (ec *executionContext) _Semester(ctx context.Context, sel ast.SelectionSet,
 				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "demandRelease":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Semester_demandRelease(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.IsDeferred() {
-				deferredFieldSet.AddField(field)
-				fieldIndex := len(deferredFieldSet.Values) - 1
-				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, deferredFieldSet)
+			out.ResolveConcurrently(ec.OperationContext, &deferred, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Semester_demandRelease(ctx, field, obj)
 				})
-
-				for _, deferrable := range field.Deferrables {
-					view, ok := deferLabelToView[deferrable.Label]
-					if !ok {
-						view = deferredFieldSet.NewView()
-						deferLabelToView[deferrable.Label] = view
-					}
-					view.AddIndices(fieldIndex)
-				}
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "wishRounds":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Semester_wishRounds(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.IsDeferred() {
-				deferredFieldSet.AddField(field)
-				fieldIndex := len(deferredFieldSet.Values) - 1
-				deferredFieldSet.Concurrently(fieldIndex, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, deferredFieldSet)
+			out.ResolveConcurrently(ec.OperationContext, &deferred, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Semester_wishRounds(ctx, field, obj)
 				})
-
-				for _, deferrable := range field.Deferrables {
-					view, ok := deferLabelToView[deferrable.Label]
-					if !ok {
-						view = deferredFieldSet.NewView()
-						deferLabelToView[deferrable.Label] = view
-					}
-					view.AddIndices(fieldIndex)
-				}
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "isPlanningSemester":
 			out.Values[i] = ec._Semester_isPlanningSemester(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -484,14 +418,10 @@ func (ec *executionContext) _Semester(ctx context.Context, sel ast.SelectionSet,
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -510,9 +440,7 @@ func (ec *executionContext) marshalNPhase2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋ
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "Phase!")
 	}
 	return res
 }
@@ -547,10 +475,6 @@ func (ec *executionContext) marshalNPhase2ᚕgithubᚗcomᚋobcodeᚋtalloxᚗgo
 	return ret
 }
 
-func (ec *executionContext) marshalNSemester2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSemester(ctx context.Context, sel ast.SelectionSet, v model.Semester) graphql.Marshaler {
-	return ec._Semester(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNSemester2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSemesterᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Semester) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
 		fc := graphql.GetFieldContext(ctx)
@@ -569,9 +493,7 @@ func (ec *executionContext) marshalNSemester2ᚕᚖgithubᚗcomᚋobcodeᚋtallo
 
 func (ec *executionContext) marshalNSemester2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐSemester(ctx context.Context, sel ast.SelectionSet, v *model.Semester) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "Semester!")
 		return graphql.Null
 	}
 	return ec._Semester(ctx, sel, v)

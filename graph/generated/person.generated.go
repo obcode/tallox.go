@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -45,7 +44,7 @@ func (ec *executionContext) _Person_id(ctx context.Context, field graphql.Collec
 	)
 }
 func (ec *executionContext) fieldContext_Person_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Person", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("Person", field, false, false, "ID")
 }
 
 func (ec *executionContext) _Person_mail(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
@@ -68,7 +67,7 @@ func (ec *executionContext) _Person_mail(ctx context.Context, field graphql.Coll
 	)
 }
 func (ec *executionContext) fieldContext_Person_mail(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Person", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Person", field, false, false, "String")
 }
 
 func (ec *executionContext) _Person_name(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
@@ -91,7 +90,7 @@ func (ec *executionContext) _Person_name(ctx context.Context, field graphql.Coll
 	)
 }
 func (ec *executionContext) fieldContext_Person_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Person", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Person", field, false, false, "String")
 }
 
 func (ec *executionContext) _Person_sortName(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
@@ -114,7 +113,7 @@ func (ec *executionContext) _Person_sortName(ctx context.Context, field graphql.
 	)
 }
 func (ec *executionContext) fieldContext_Person_sortName(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Person", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Person", field, false, false, "String")
 }
 
 func (ec *executionContext) _Person_active(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
@@ -137,7 +136,7 @@ func (ec *executionContext) _Person_active(ctx context.Context, field graphql.Co
 	)
 }
 func (ec *executionContext) fieldContext_Person_active(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Person", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("Person", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _Person_roles(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
@@ -160,7 +159,7 @@ func (ec *executionContext) _Person_roles(ctx context.Context, field graphql.Col
 	)
 }
 func (ec *executionContext) fieldContext_Person_roles(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Person", field, false, false, errors.New("field of type Role does not have child fields"))
+	return graphql.NewScalarFieldContext("Person", field, false, false, "Role")
 }
 
 func (ec *executionContext) _Person_programmes(ctx context.Context, field graphql.CollectedField, obj *model.Person) (ret graphql.Marshaler) {
@@ -277,8 +276,7 @@ func (ec *executionContext) _Person(ctx context.Context, sel ast.SelectionSet, o
 	fields := graphql.CollectFields(ec.OperationContext, sel, personImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -337,14 +335,10 @@ func (ec *executionContext) _Person(ctx context.Context, sel ast.SelectionSet, o
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -352,10 +346,6 @@ func (ec *executionContext) _Person(ctx context.Context, sel ast.SelectionSet, o
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
-
-func (ec *executionContext) marshalNPerson2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPerson(ctx context.Context, sel ast.SelectionSet, v model.Person) graphql.Marshaler {
-	return ec._Person(ctx, sel, &v)
-}
 
 func (ec *executionContext) marshalNPerson2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPersonᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Person) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
@@ -375,9 +365,7 @@ func (ec *executionContext) marshalNPerson2ᚕᚖgithubᚗcomᚋobcodeᚋtallox�
 
 func (ec *executionContext) marshalNPerson2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPerson(ctx context.Context, sel ast.SelectionSet, v *model.Person) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "Person!")
 		return graphql.Null
 	}
 	return ec._Person(ctx, sel, v)
@@ -393,9 +381,7 @@ func (ec *executionContext) marshalNRole2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋi
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "Role!")
 	}
 	return res
 }

@@ -1921,7 +1921,7 @@ func (ec *executionContext) _CreatedPersonalAccessToken_secret(ctx context.Conte
 	)
 }
 func (ec *executionContext) fieldContext_CreatedPersonalAccessToken_secret(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("CreatedPersonalAccessToken", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("CreatedPersonalAccessToken", field, false, false, "String")
 }
 
 func (ec *executionContext) _Mutation_createPersonalAccessToken(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -6034,7 +6034,7 @@ func (ec *executionContext) _PersonalAccessToken_id(ctx context.Context, field g
 	)
 }
 func (ec *executionContext) fieldContext_PersonalAccessToken_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, "ID")
 }
 
 func (ec *executionContext) _PersonalAccessToken_description(ctx context.Context, field graphql.CollectedField, obj *model.PersonalAccessToken) (ret graphql.Marshaler) {
@@ -6057,7 +6057,7 @@ func (ec *executionContext) _PersonalAccessToken_description(ctx context.Context
 	)
 }
 func (ec *executionContext) fieldContext_PersonalAccessToken_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, "String")
 }
 
 func (ec *executionContext) _PersonalAccessToken_scopes(ctx context.Context, field graphql.CollectedField, obj *model.PersonalAccessToken) (ret graphql.Marshaler) {
@@ -6080,7 +6080,7 @@ func (ec *executionContext) _PersonalAccessToken_scopes(ctx context.Context, fie
 	)
 }
 func (ec *executionContext) fieldContext_PersonalAccessToken_scopes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, "String")
 }
 
 func (ec *executionContext) _PersonalAccessToken_fullReach(ctx context.Context, field graphql.CollectedField, obj *model.PersonalAccessToken) (ret graphql.Marshaler) {
@@ -6103,7 +6103,7 @@ func (ec *executionContext) _PersonalAccessToken_fullReach(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_PersonalAccessToken_fullReach(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _PersonalAccessToken_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.PersonalAccessToken) (ret graphql.Marshaler) {
@@ -6126,7 +6126,7 @@ func (ec *executionContext) _PersonalAccessToken_createdAt(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_PersonalAccessToken_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, "Time")
 }
 
 func (ec *executionContext) _PersonalAccessToken_expiresAt(ctx context.Context, field graphql.CollectedField, obj *model.PersonalAccessToken) (ret graphql.Marshaler) {
@@ -6149,7 +6149,7 @@ func (ec *executionContext) _PersonalAccessToken_expiresAt(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_PersonalAccessToken_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, "Time")
 }
 
 func (ec *executionContext) _PersonalAccessToken_lastUsedAt(ctx context.Context, field graphql.CollectedField, obj *model.PersonalAccessToken) (ret graphql.Marshaler) {
@@ -6172,7 +6172,7 @@ func (ec *executionContext) _PersonalAccessToken_lastUsedAt(ctx context.Context,
 	)
 }
 func (ec *executionContext) fieldContext_PersonalAccessToken_lastUsedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, "Time")
 }
 
 func (ec *executionContext) _PersonalAccessToken_revokedAt(ctx context.Context, field graphql.CollectedField, obj *model.PersonalAccessToken) (ret graphql.Marshaler) {
@@ -6195,7 +6195,7 @@ func (ec *executionContext) _PersonalAccessToken_revokedAt(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_PersonalAccessToken_revokedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("PersonalAccessToken", field, false, false, "Time")
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -6216,8 +6216,7 @@ func (ec *executionContext) _CreatedPersonalAccessToken(ctx context.Context, sel
 	fields := graphql.CollectFields(ec.OperationContext, sel, createdPersonalAccessTokenImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -6241,14 +6240,10 @@ func (ec *executionContext) _CreatedPersonalAccessToken(ctx context.Context, sel
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -6262,8 +6257,7 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 	})
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		innerCtx := graphql.WithRootFieldContext(ctx, &graphql.RootFieldContext{
 			Object: field.Name,
@@ -6835,14 +6829,10 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -6853,8 +6843,7 @@ func (ec *executionContext) _PersonalAccessToken(ctx context.Context, sel ast.Se
 	fields := graphql.CollectFields(ec.OperationContext, sel, personalAccessTokenImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -6908,14 +6897,10 @@ func (ec *executionContext) _PersonalAccessToken(ctx context.Context, sel ast.Se
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -6924,29 +6909,17 @@ func (ec *executionContext) _PersonalAccessToken(ctx context.Context, sel ast.Se
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) marshalNCreatedPersonalAccessToken2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCreatedPersonalAccessToken(ctx context.Context, sel ast.SelectionSet, v model.CreatedPersonalAccessToken) graphql.Marshaler {
-	return ec._CreatedPersonalAccessToken(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNCreatedPersonalAccessToken2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCreatedPersonalAccessToken(ctx context.Context, sel ast.SelectionSet, v *model.CreatedPersonalAccessToken) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "CreatedPersonalAccessToken!")
 		return graphql.Null
 	}
 	return ec._CreatedPersonalAccessToken(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNPersonalAccessToken2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPersonalAccessToken(ctx context.Context, sel ast.SelectionSet, v model.PersonalAccessToken) graphql.Marshaler {
-	return ec._PersonalAccessToken(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNPersonalAccessToken2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐPersonalAccessToken(ctx context.Context, sel ast.SelectionSet, v *model.PersonalAccessToken) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "PersonalAccessToken!")
 		return graphql.Null
 	}
 	return ec._PersonalAccessToken(ctx, sel, v)

@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -46,7 +45,7 @@ func (ec *executionContext) _Competence_id(ctx context.Context, field graphql.Co
 	)
 }
 func (ec *executionContext) fieldContext_Competence_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Competence", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("Competence", field, false, false, "ID")
 }
 
 func (ec *executionContext) _Competence_module(ctx context.Context, field graphql.CollectedField, obj *model.Competence) (ret graphql.Marshaler) {
@@ -133,7 +132,7 @@ func (ec *executionContext) _Competence_level(ctx context.Context, field graphql
 	)
 }
 func (ec *executionContext) fieldContext_Competence_level(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Competence", field, false, false, errors.New("field of type CompetenceLevel does not have child fields"))
+	return graphql.NewScalarFieldContext("Competence", field, false, false, "CompetenceLevel")
 }
 
 func (ec *executionContext) _Competence_note(ctx context.Context, field graphql.CollectedField, obj *model.Competence) (ret graphql.Marshaler) {
@@ -156,7 +155,7 @@ func (ec *executionContext) _Competence_note(ctx context.Context, field graphql.
 	)
 }
 func (ec *executionContext) fieldContext_Competence_note(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Competence", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Competence", field, false, false, "String")
 }
 
 func (ec *executionContext) _Competence_outsideSubjectGroups(ctx context.Context, field graphql.CollectedField, obj *model.Competence) (ret graphql.Marshaler) {
@@ -179,7 +178,7 @@ func (ec *executionContext) _Competence_outsideSubjectGroups(ctx context.Context
 	)
 }
 func (ec *executionContext) fieldContext_Competence_outsideSubjectGroups(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Competence", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("Competence", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _Competence_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Competence) (ret graphql.Marshaler) {
@@ -202,7 +201,7 @@ func (ec *executionContext) _Competence_createdAt(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_Competence_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Competence", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Competence", field, false, false, "Time")
 }
 
 func (ec *executionContext) _Competence_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Competence) (ret graphql.Marshaler) {
@@ -225,7 +224,7 @@ func (ec *executionContext) _Competence_updatedAt(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_Competence_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Competence", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Competence", field, false, false, "Time")
 }
 
 func (ec *executionContext) _CompetenceGroupStatus_subjectGroup(ctx context.Context, field graphql.CollectedField, obj *model.CompetenceGroupStatus) (ret graphql.Marshaler) {
@@ -280,7 +279,7 @@ func (ec *executionContext) _CompetenceGroupStatus_canTeachCompulsory(ctx contex
 	)
 }
 func (ec *executionContext) fieldContext_CompetenceGroupStatus_canTeachCompulsory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("CompetenceGroupStatus", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("CompetenceGroupStatus", field, false, false, "Int")
 }
 
 func (ec *executionContext) _CompetenceGroupStatus_minimum(ctx context.Context, field graphql.CollectedField, obj *model.CompetenceGroupStatus) (ret graphql.Marshaler) {
@@ -303,7 +302,7 @@ func (ec *executionContext) _CompetenceGroupStatus_minimum(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_CompetenceGroupStatus_minimum(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("CompetenceGroupStatus", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("CompetenceGroupStatus", field, false, false, "Int")
 }
 
 func (ec *executionContext) _CompetenceModule_id(ctx context.Context, field graphql.CollectedField, obj *model.CompetenceModule) (ret graphql.Marshaler) {
@@ -326,7 +325,7 @@ func (ec *executionContext) _CompetenceModule_id(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_CompetenceModule_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("CompetenceModule", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("CompetenceModule", field, false, false, "ID")
 }
 
 func (ec *executionContext) _CompetenceModule_name(ctx context.Context, field graphql.CollectedField, obj *model.CompetenceModule) (ret graphql.Marshaler) {
@@ -349,7 +348,7 @@ func (ec *executionContext) _CompetenceModule_name(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_CompetenceModule_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("CompetenceModule", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("CompetenceModule", field, false, false, "String")
 }
 
 func (ec *executionContext) _CompetenceModule_compulsory(ctx context.Context, field graphql.CollectedField, obj *model.CompetenceModule) (ret graphql.Marshaler) {
@@ -372,7 +371,7 @@ func (ec *executionContext) _CompetenceModule_compulsory(ctx context.Context, fi
 	)
 }
 func (ec *executionContext) fieldContext_CompetenceModule_compulsory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("CompetenceModule", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("CompetenceModule", field, false, false, "Boolean")
 }
 
 func (ec *executionContext) _CompetenceModule_subjectGroup(ctx context.Context, field graphql.CollectedField, obj *model.CompetenceModule) (ret graphql.Marshaler) {
@@ -427,7 +426,7 @@ func (ec *executionContext) _CompetenceTotal_canTeachCompulsory(ctx context.Cont
 	)
 }
 func (ec *executionContext) fieldContext_CompetenceTotal_canTeachCompulsory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("CompetenceTotal", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("CompetenceTotal", field, false, false, "Int")
 }
 
 func (ec *executionContext) _CompetenceTotal_compulsoryModules(ctx context.Context, field graphql.CollectedField, obj *model.CompetenceTotal) (ret graphql.Marshaler) {
@@ -450,7 +449,7 @@ func (ec *executionContext) _CompetenceTotal_compulsoryModules(ctx context.Conte
 	)
 }
 func (ec *executionContext) fieldContext_CompetenceTotal_compulsoryModules(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("CompetenceTotal", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("CompetenceTotal", field, false, false, "Int")
 }
 
 func (ec *executionContext) _CompetenceTotal_minimum(ctx context.Context, field graphql.CollectedField, obj *model.CompetenceTotal) (ret graphql.Marshaler) {
@@ -473,7 +472,7 @@ func (ec *executionContext) _CompetenceTotal_minimum(ctx context.Context, field 
 	)
 }
 func (ec *executionContext) fieldContext_CompetenceTotal_minimum(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("CompetenceTotal", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("CompetenceTotal", field, false, false, "Int")
 }
 
 func (ec *executionContext) _MemberCompetenceStatus_member(ctx context.Context, field graphql.CollectedField, obj *model.MemberCompetenceStatus) (ret graphql.Marshaler) {
@@ -528,7 +527,7 @@ func (ec *executionContext) _MemberCompetenceStatus_canTeachCompulsory(ctx conte
 	)
 }
 func (ec *executionContext) fieldContext_MemberCompetenceStatus_canTeachCompulsory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("MemberCompetenceStatus", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("MemberCompetenceStatus", field, false, false, "Int")
 }
 
 func (ec *executionContext) _MemberCompetenceStatus_minimum(ctx context.Context, field graphql.CollectedField, obj *model.MemberCompetenceStatus) (ret graphql.Marshaler) {
@@ -551,7 +550,7 @@ func (ec *executionContext) _MemberCompetenceStatus_minimum(ctx context.Context,
 	)
 }
 func (ec *executionContext) fieldContext_MemberCompetenceStatus_minimum(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("MemberCompetenceStatus", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("MemberCompetenceStatus", field, false, false, "Int")
 }
 
 func (ec *executionContext) _ModuleWithoutCompetence_id(ctx context.Context, field graphql.CollectedField, obj *model.ModuleWithoutCompetence) (ret graphql.Marshaler) {
@@ -574,7 +573,7 @@ func (ec *executionContext) _ModuleWithoutCompetence_id(ctx context.Context, fie
 	)
 }
 func (ec *executionContext) fieldContext_ModuleWithoutCompetence_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ModuleWithoutCompetence", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("ModuleWithoutCompetence", field, false, false, "ID")
 }
 
 func (ec *executionContext) _ModuleWithoutCompetence_name(ctx context.Context, field graphql.CollectedField, obj *model.ModuleWithoutCompetence) (ret graphql.Marshaler) {
@@ -597,7 +596,7 @@ func (ec *executionContext) _ModuleWithoutCompetence_name(ctx context.Context, f
 	)
 }
 func (ec *executionContext) fieldContext_ModuleWithoutCompetence_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ModuleWithoutCompetence", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("ModuleWithoutCompetence", field, false, false, "String")
 }
 
 func (ec *executionContext) _ModuleWithoutCompetence_compulsory(ctx context.Context, field graphql.CollectedField, obj *model.ModuleWithoutCompetence) (ret graphql.Marshaler) {
@@ -620,7 +619,7 @@ func (ec *executionContext) _ModuleWithoutCompetence_compulsory(ctx context.Cont
 	)
 }
 func (ec *executionContext) fieldContext_ModuleWithoutCompetence_compulsory(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("ModuleWithoutCompetence", field, false, false, errors.New("field of type Boolean does not have child fields"))
+	return graphql.NewScalarFieldContext("ModuleWithoutCompetence", field, false, false, "Boolean")
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -641,8 +640,7 @@ func (ec *executionContext) _Competence(ctx context.Context, sel ast.SelectionSe
 	fields := graphql.CollectFields(ec.OperationContext, sel, competenceImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -696,14 +694,10 @@ func (ec *executionContext) _Competence(ctx context.Context, sel ast.SelectionSe
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -714,8 +708,7 @@ func (ec *executionContext) _CompetenceGroupStatus(ctx context.Context, sel ast.
 	fields := graphql.CollectFields(ec.OperationContext, sel, competenceGroupStatusImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -744,14 +737,10 @@ func (ec *executionContext) _CompetenceGroupStatus(ctx context.Context, sel ast.
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -762,8 +751,7 @@ func (ec *executionContext) _CompetenceModule(ctx context.Context, sel ast.Selec
 	fields := graphql.CollectFields(ec.OperationContext, sel, competenceModuleImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -797,14 +785,10 @@ func (ec *executionContext) _CompetenceModule(ctx context.Context, sel ast.Selec
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -815,8 +799,7 @@ func (ec *executionContext) _CompetenceTotal(ctx context.Context, sel ast.Select
 	fields := graphql.CollectFields(ec.OperationContext, sel, competenceTotalImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -845,14 +828,10 @@ func (ec *executionContext) _CompetenceTotal(ctx context.Context, sel ast.Select
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -863,8 +842,7 @@ func (ec *executionContext) _MemberCompetenceStatus(ctx context.Context, sel ast
 	fields := graphql.CollectFields(ec.OperationContext, sel, memberCompetenceStatusImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -893,14 +871,10 @@ func (ec *executionContext) _MemberCompetenceStatus(ctx context.Context, sel ast
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -911,8 +885,7 @@ func (ec *executionContext) _ModuleWithoutCompetence(ctx context.Context, sel as
 	fields := graphql.CollectFields(ec.OperationContext, sel, moduleWithoutCompetenceImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -941,14 +914,10 @@ func (ec *executionContext) _ModuleWithoutCompetence(ctx context.Context, sel as
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -956,10 +925,6 @@ func (ec *executionContext) _ModuleWithoutCompetence(ctx context.Context, sel as
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
-
-func (ec *executionContext) marshalNCompetence2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCompetence(ctx context.Context, sel ast.SelectionSet, v model.Competence) graphql.Marshaler {
-	return ec._Competence(ctx, sel, &v)
-}
 
 func (ec *executionContext) marshalNCompetence2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCompetenceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Competence) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
@@ -979,9 +944,7 @@ func (ec *executionContext) marshalNCompetence2ᚕᚖgithubᚗcomᚋobcodeᚋtal
 
 func (ec *executionContext) marshalNCompetence2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCompetence(ctx context.Context, sel ast.SelectionSet, v *model.Competence) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "Competence!")
 		return graphql.Null
 	}
 	return ec._Competence(ctx, sel, v)
@@ -1005,9 +968,7 @@ func (ec *executionContext) marshalNCompetenceGroupStatus2ᚕᚖgithubᚗcomᚋo
 
 func (ec *executionContext) marshalNCompetenceGroupStatus2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCompetenceGroupStatus(ctx context.Context, sel ast.SelectionSet, v *model.CompetenceGroupStatus) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "CompetenceGroupStatus!")
 		return graphql.Null
 	}
 	return ec._CompetenceGroupStatus(ctx, sel, v)
@@ -1023,32 +984,22 @@ func (ec *executionContext) marshalNCompetenceLevel2githubᚗcomᚋobcodeᚋtall
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "CompetenceLevel!")
 	}
 	return res
 }
 
 func (ec *executionContext) marshalNCompetenceModule2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCompetenceModule(ctx context.Context, sel ast.SelectionSet, v *model.CompetenceModule) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "CompetenceModule!")
 		return graphql.Null
 	}
 	return ec._CompetenceModule(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNCompetenceTotal2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCompetenceTotal(ctx context.Context, sel ast.SelectionSet, v model.CompetenceTotal) graphql.Marshaler {
-	return ec._CompetenceTotal(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNCompetenceTotal2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐCompetenceTotal(ctx context.Context, sel ast.SelectionSet, v *model.CompetenceTotal) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "CompetenceTotal!")
 		return graphql.Null
 	}
 	return ec._CompetenceTotal(ctx, sel, v)
@@ -1072,9 +1023,7 @@ func (ec *executionContext) marshalNMemberCompetenceStatus2ᚕᚖgithubᚗcomᚋ
 
 func (ec *executionContext) marshalNMemberCompetenceStatus2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐMemberCompetenceStatus(ctx context.Context, sel ast.SelectionSet, v *model.MemberCompetenceStatus) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "MemberCompetenceStatus!")
 		return graphql.Null
 	}
 	return ec._MemberCompetenceStatus(ctx, sel, v)
@@ -1098,9 +1047,7 @@ func (ec *executionContext) marshalNModuleWithoutCompetence2ᚕᚖgithubᚗcom�
 
 func (ec *executionContext) marshalNModuleWithoutCompetence2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐModuleWithoutCompetence(ctx context.Context, sel ast.SelectionSet, v *model.ModuleWithoutCompetence) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "ModuleWithoutCompetence!")
 		return graphql.Null
 	}
 	return ec._ModuleWithoutCompetence(ctx, sel, v)

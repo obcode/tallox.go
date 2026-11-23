@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -45,7 +44,7 @@ func (ec *executionContext) _Announcement_id(ctx context.Context, field graphql.
 	)
 }
 func (ec *executionContext) fieldContext_Announcement_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Announcement", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("Announcement", field, false, false, "ID")
 }
 
 func (ec *executionContext) _Announcement_sender(ctx context.Context, field graphql.CollectedField, obj *model.Announcement) (ret graphql.Marshaler) {
@@ -132,7 +131,7 @@ func (ec *executionContext) _Announcement_subject(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_Announcement_subject(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Announcement", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Announcement", field, false, false, "String")
 }
 
 func (ec *executionContext) _Announcement_body(ctx context.Context, field graphql.CollectedField, obj *model.Announcement) (ret graphql.Marshaler) {
@@ -155,7 +154,7 @@ func (ec *executionContext) _Announcement_body(ctx context.Context, field graphq
 	)
 }
 func (ec *executionContext) fieldContext_Announcement_body(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Announcement", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Announcement", field, false, false, "String")
 }
 
 func (ec *executionContext) _Announcement_bodyHtml(ctx context.Context, field graphql.CollectedField, obj *model.Announcement) (ret graphql.Marshaler) {
@@ -178,7 +177,7 @@ func (ec *executionContext) _Announcement_bodyHtml(ctx context.Context, field gr
 	)
 }
 func (ec *executionContext) fieldContext_Announcement_bodyHtml(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Announcement", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Announcement", field, false, false, "String")
 }
 
 func (ec *executionContext) _Announcement_recipientCount(ctx context.Context, field graphql.CollectedField, obj *model.Announcement) (ret graphql.Marshaler) {
@@ -201,7 +200,7 @@ func (ec *executionContext) _Announcement_recipientCount(ctx context.Context, fi
 	)
 }
 func (ec *executionContext) fieldContext_Announcement_recipientCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Announcement", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("Announcement", field, false, false, "Int")
 }
 
 func (ec *executionContext) _Announcement_sentAt(ctx context.Context, field graphql.CollectedField, obj *model.Announcement) (ret graphql.Marshaler) {
@@ -224,7 +223,7 @@ func (ec *executionContext) _Announcement_sentAt(ctx context.Context, field grap
 	)
 }
 func (ec *executionContext) fieldContext_Announcement_sentAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Announcement", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Announcement", field, false, false, "Time")
 }
 
 func (ec *executionContext) _AnnouncementAudience_kind(ctx context.Context, field graphql.CollectedField, obj *model.AnnouncementAudience) (ret graphql.Marshaler) {
@@ -247,7 +246,7 @@ func (ec *executionContext) _AnnouncementAudience_kind(ctx context.Context, fiel
 	)
 }
 func (ec *executionContext) fieldContext_AnnouncementAudience_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AnnouncementAudience", field, false, false, errors.New("field of type AnnouncementAudienceKind does not have child fields"))
+	return graphql.NewScalarFieldContext("AnnouncementAudience", field, false, false, "AnnouncementAudienceKind")
 }
 
 func (ec *executionContext) _AnnouncementAudience_subjectGroup(ctx context.Context, field graphql.CollectedField, obj *model.AnnouncementAudience) (ret graphql.Marshaler) {
@@ -334,7 +333,7 @@ func (ec *executionContext) _AnnouncementAudience_semester(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_AnnouncementAudience_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AnnouncementAudience", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AnnouncementAudience", field, false, false, "String")
 }
 
 func (ec *executionContext) _AnnouncementPreview_subject(ctx context.Context, field graphql.CollectedField, obj *model.AnnouncementPreview) (ret graphql.Marshaler) {
@@ -357,7 +356,7 @@ func (ec *executionContext) _AnnouncementPreview_subject(ctx context.Context, fi
 	)
 }
 func (ec *executionContext) fieldContext_AnnouncementPreview_subject(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AnnouncementPreview", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AnnouncementPreview", field, false, false, "String")
 }
 
 func (ec *executionContext) _AnnouncementPreview_html(ctx context.Context, field graphql.CollectedField, obj *model.AnnouncementPreview) (ret graphql.Marshaler) {
@@ -380,7 +379,7 @@ func (ec *executionContext) _AnnouncementPreview_html(ctx context.Context, field
 	)
 }
 func (ec *executionContext) fieldContext_AnnouncementPreview_html(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AnnouncementPreview", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AnnouncementPreview", field, false, false, "String")
 }
 
 func (ec *executionContext) _AnnouncementPreview_text(ctx context.Context, field graphql.CollectedField, obj *model.AnnouncementPreview) (ret graphql.Marshaler) {
@@ -403,7 +402,7 @@ func (ec *executionContext) _AnnouncementPreview_text(ctx context.Context, field
 	)
 }
 func (ec *executionContext) fieldContext_AnnouncementPreview_text(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AnnouncementPreview", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("AnnouncementPreview", field, false, false, "String")
 }
 
 func (ec *executionContext) _AnnouncementPreview_recipientCount(ctx context.Context, field graphql.CollectedField, obj *model.AnnouncementPreview) (ret graphql.Marshaler) {
@@ -426,7 +425,7 @@ func (ec *executionContext) _AnnouncementPreview_recipientCount(ctx context.Cont
 	)
 }
 func (ec *executionContext) fieldContext_AnnouncementPreview_recipientCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AnnouncementPreview", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("AnnouncementPreview", field, false, false, "Int")
 }
 
 func (ec *executionContext) _NotificationSettings_pausedUntil(ctx context.Context, field graphql.CollectedField, obj *model.NotificationSettings) (ret graphql.Marshaler) {
@@ -449,7 +448,7 @@ func (ec *executionContext) _NotificationSettings_pausedUntil(ctx context.Contex
 	)
 }
 func (ec *executionContext) fieldContext_NotificationSettings_pausedUntil(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("NotificationSettings", field, false, false, errors.New("field of type Date does not have child fields"))
+	return graphql.NewScalarFieldContext("NotificationSettings", field, false, false, "Date")
 }
 
 func (ec *executionContext) _NotificationSubscription_id(ctx context.Context, field graphql.CollectedField, obj *model.NotificationSubscription) (ret graphql.Marshaler) {
@@ -472,7 +471,7 @@ func (ec *executionContext) _NotificationSubscription_id(ctx context.Context, fi
 	)
 }
 func (ec *executionContext) fieldContext_NotificationSubscription_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, "ID")
 }
 
 func (ec *executionContext) _NotificationSubscription_kind(ctx context.Context, field graphql.CollectedField, obj *model.NotificationSubscription) (ret graphql.Marshaler) {
@@ -495,7 +494,7 @@ func (ec *executionContext) _NotificationSubscription_kind(ctx context.Context, 
 	)
 }
 func (ec *executionContext) fieldContext_NotificationSubscription_kind(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, errors.New("field of type NotificationKind does not have child fields"))
+	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, "NotificationKind")
 }
 
 func (ec *executionContext) _NotificationSubscription_semester(ctx context.Context, field graphql.CollectedField, obj *model.NotificationSubscription) (ret graphql.Marshaler) {
@@ -518,7 +517,7 @@ func (ec *executionContext) _NotificationSubscription_semester(ctx context.Conte
 	)
 }
 func (ec *executionContext) fieldContext_NotificationSubscription_semester(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, "String")
 }
 
 func (ec *executionContext) _NotificationSubscription_module(ctx context.Context, field graphql.CollectedField, obj *model.NotificationSubscription) (ret graphql.Marshaler) {
@@ -637,7 +636,7 @@ func (ec *executionContext) _NotificationSubscription_targetSet(ctx context.Cont
 	)
 }
 func (ec *executionContext) fieldContext_NotificationSubscription_targetSet(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, errors.New("field of type NotificationTargetSet does not have child fields"))
+	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, "NotificationTargetSet")
 }
 
 func (ec *executionContext) _NotificationSubscription_delivery(ctx context.Context, field graphql.CollectedField, obj *model.NotificationSubscription) (ret graphql.Marshaler) {
@@ -660,7 +659,7 @@ func (ec *executionContext) _NotificationSubscription_delivery(ctx context.Conte
 	)
 }
 func (ec *executionContext) fieldContext_NotificationSubscription_delivery(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, errors.New("field of type NotificationDelivery does not have child fields"))
+	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, "NotificationDelivery")
 }
 
 func (ec *executionContext) _NotificationSubscription_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.NotificationSubscription) (ret graphql.Marshaler) {
@@ -683,7 +682,7 @@ func (ec *executionContext) _NotificationSubscription_createdAt(ctx context.Cont
 	)
 }
 func (ec *executionContext) fieldContext_NotificationSubscription_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("NotificationSubscription", field, false, false, "Time")
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -739,6 +738,18 @@ func (ec *executionContext) unmarshalInputAnnouncementAudienceInput(ctx context.
 		}
 	}
 	return it, nil
+}
+
+// UnmarshalAnnouncementAudienceInput unmarshals raw into the AnnouncementAudienceInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalAnnouncementAudienceInput(ctx context.Context, raw any) (model.AnnouncementAudienceInput, error) {
+	var out model.AnnouncementAudienceInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "AnnouncementAudienceInput", raw, &out)
+	return out, err
 }
 
 func (ec *executionContext) unmarshalInputNotificationSubscriptionInput(ctx context.Context, obj any) (model.NotificationSubscriptionInput, error) {
@@ -817,6 +828,18 @@ func (ec *executionContext) unmarshalInputNotificationSubscriptionInput(ctx cont
 	return it, nil
 }
 
+// UnmarshalNotificationSubscriptionInput unmarshals raw into the NotificationSubscriptionInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalNotificationSubscriptionInput(ctx context.Context, raw any) (model.NotificationSubscriptionInput, error) {
+	var out model.NotificationSubscriptionInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "NotificationSubscriptionInput", raw, &out)
+	return out, err
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -831,8 +854,7 @@ func (ec *executionContext) _Announcement(ctx context.Context, sel ast.Selection
 	fields := graphql.CollectFields(ec.OperationContext, sel, announcementImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -886,14 +908,10 @@ func (ec *executionContext) _Announcement(ctx context.Context, sel ast.Selection
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -904,8 +922,7 @@ func (ec *executionContext) _AnnouncementAudience(ctx context.Context, sel ast.S
 	fields := graphql.CollectFields(ec.OperationContext, sel, announcementAudienceImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -939,14 +956,10 @@ func (ec *executionContext) _AnnouncementAudience(ctx context.Context, sel ast.S
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -957,8 +970,7 @@ func (ec *executionContext) _AnnouncementPreview(ctx context.Context, sel ast.Se
 	fields := graphql.CollectFields(ec.OperationContext, sel, announcementPreviewImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -992,14 +1004,10 @@ func (ec *executionContext) _AnnouncementPreview(ctx context.Context, sel ast.Se
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1010,8 +1018,7 @@ func (ec *executionContext) _NotificationSettings(ctx context.Context, sel ast.S
 	fields := graphql.CollectFields(ec.OperationContext, sel, notificationSettingsImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1030,14 +1037,10 @@ func (ec *executionContext) _NotificationSettings(ctx context.Context, sel ast.S
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1048,8 +1051,7 @@ func (ec *executionContext) _NotificationSubscription(ctx context.Context, sel a
 	fields := graphql.CollectFields(ec.OperationContext, sel, notificationSubscriptionImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -1108,14 +1110,10 @@ func (ec *executionContext) _NotificationSubscription(ctx context.Context, sel a
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -1123,10 +1121,6 @@ func (ec *executionContext) _NotificationSubscription(ctx context.Context, sel a
 // endregion **************************** object.gotpl ****************************
 
 // region    ***************************** type.gotpl *****************************
-
-func (ec *executionContext) marshalNAnnouncement2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAnnouncement(ctx context.Context, sel ast.SelectionSet, v model.Announcement) graphql.Marshaler {
-	return ec._Announcement(ctx, sel, &v)
-}
 
 func (ec *executionContext) marshalNAnnouncement2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAnnouncementᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Announcement) graphql.Marshaler {
 	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
@@ -1146,9 +1140,7 @@ func (ec *executionContext) marshalNAnnouncement2ᚕᚖgithubᚗcomᚋobcodeᚋt
 
 func (ec *executionContext) marshalNAnnouncement2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAnnouncement(ctx context.Context, sel ast.SelectionSet, v *model.Announcement) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "Announcement!")
 		return graphql.Null
 	}
 	return ec._Announcement(ctx, sel, v)
@@ -1172,9 +1164,7 @@ func (ec *executionContext) marshalNAnnouncementAudience2ᚕᚖgithubᚗcomᚋob
 
 func (ec *executionContext) marshalNAnnouncementAudience2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAnnouncementAudience(ctx context.Context, sel ast.SelectionSet, v *model.AnnouncementAudience) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "AnnouncementAudience!")
 		return graphql.Null
 	}
 	return ec._AnnouncementAudience(ctx, sel, v)
@@ -1195,15 +1185,9 @@ func (ec *executionContext) marshalNAnnouncementAudienceKind2githubᚗcomᚋobco
 	return v
 }
 
-func (ec *executionContext) marshalNAnnouncementPreview2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAnnouncementPreview(ctx context.Context, sel ast.SelectionSet, v model.AnnouncementPreview) graphql.Marshaler {
-	return ec._AnnouncementPreview(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNAnnouncementPreview2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAnnouncementPreview(ctx context.Context, sel ast.SelectionSet, v *model.AnnouncementPreview) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "AnnouncementPreview!")
 		return graphql.Null
 	}
 	return ec._AnnouncementPreview(ctx, sel, v)
@@ -1229,22 +1213,12 @@ func (ec *executionContext) marshalNNotificationKind2githubᚗcomᚋobcodeᚋtal
 	return v
 }
 
-func (ec *executionContext) marshalNNotificationSettings2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐNotificationSettings(ctx context.Context, sel ast.SelectionSet, v model.NotificationSettings) graphql.Marshaler {
-	return ec._NotificationSettings(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNNotificationSettings2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐNotificationSettings(ctx context.Context, sel ast.SelectionSet, v *model.NotificationSettings) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "NotificationSettings!")
 		return graphql.Null
 	}
 	return ec._NotificationSettings(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNNotificationSubscription2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐNotificationSubscription(ctx context.Context, sel ast.SelectionSet, v model.NotificationSubscription) graphql.Marshaler {
-	return ec._NotificationSubscription(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNNotificationSubscription2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐNotificationSubscriptionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.NotificationSubscription) graphql.Marshaler {
@@ -1265,9 +1239,7 @@ func (ec *executionContext) marshalNNotificationSubscription2ᚕᚖgithubᚗcom�
 
 func (ec *executionContext) marshalNNotificationSubscription2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐNotificationSubscription(ctx context.Context, sel ast.SelectionSet, v *model.NotificationSubscription) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "NotificationSubscription!")
 		return graphql.Null
 	}
 	return ec._NotificationSubscription(ctx, sel, v)

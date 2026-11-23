@@ -4,7 +4,6 @@ package generated
 
 import (
 	"context"
-	"errors"
 	"math"
 	"strconv"
 	"sync/atomic"
@@ -77,7 +76,7 @@ func (ec *executionContext) _AssignedLoad_total(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_AssignedLoad_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AssignedLoad", field, false, false, errors.New("field of type Float does not have child fields"))
+	return graphql.NewScalarFieldContext("AssignedLoad", field, false, false, "Float")
 }
 
 func (ec *executionContext) _AssignedLoad_bySubjectGroup(ctx context.Context, field graphql.CollectedField, obj *model.AssignedLoad) (ret graphql.Marshaler) {
@@ -164,7 +163,7 @@ func (ec *executionContext) _AssignedLoadShare_hours(ctx context.Context, field 
 	)
 }
 func (ec *executionContext) fieldContext_AssignedLoadShare_hours(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("AssignedLoadShare", field, false, false, errors.New("field of type Float does not have child fields"))
+	return graphql.NewScalarFieldContext("AssignedLoadShare", field, false, false, "Float")
 }
 
 func (ec *executionContext) _Assignee_personId(ctx context.Context, field graphql.CollectedField, obj *model.Assignee) (ret graphql.Marshaler) {
@@ -187,7 +186,7 @@ func (ec *executionContext) _Assignee_personId(ctx context.Context, field graphq
 	)
 }
 func (ec *executionContext) fieldContext_Assignee_personId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Assignee", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("Assignee", field, false, false, "ID")
 }
 
 func (ec *executionContext) _Assignee_teacherId(ctx context.Context, field graphql.CollectedField, obj *model.Assignee) (ret graphql.Marshaler) {
@@ -210,7 +209,7 @@ func (ec *executionContext) _Assignee_teacherId(ctx context.Context, field graph
 	)
 }
 func (ec *executionContext) fieldContext_Assignee_teacherId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Assignee", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("Assignee", field, false, false, "ID")
 }
 
 func (ec *executionContext) _Assignee_name(ctx context.Context, field graphql.CollectedField, obj *model.Assignee) (ret graphql.Marshaler) {
@@ -233,7 +232,7 @@ func (ec *executionContext) _Assignee_name(ctx context.Context, field graphql.Co
 	)
 }
 func (ec *executionContext) fieldContext_Assignee_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Assignee", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Assignee", field, false, false, "String")
 }
 
 func (ec *executionContext) _Assignee_mail(ctx context.Context, field graphql.CollectedField, obj *model.Assignee) (ret graphql.Marshaler) {
@@ -256,7 +255,7 @@ func (ec *executionContext) _Assignee_mail(ctx context.Context, field graphql.Co
 	)
 }
 func (ec *executionContext) fieldContext_Assignee_mail(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Assignee", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Assignee", field, false, false, "String")
 }
 
 func (ec *executionContext) _Assignment_id(ctx context.Context, field graphql.CollectedField, obj *model.Assignment) (ret graphql.Marshaler) {
@@ -279,7 +278,7 @@ func (ec *executionContext) _Assignment_id(ctx context.Context, field graphql.Co
 	)
 }
 func (ec *executionContext) fieldContext_Assignment_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Assignment", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("Assignment", field, false, false, "ID")
 }
 
 func (ec *executionContext) _Assignment_part(ctx context.Context, field graphql.CollectedField, obj *model.Assignment) (ret graphql.Marshaler) {
@@ -398,7 +397,7 @@ func (ec *executionContext) _Assignment_note(ctx context.Context, field graphql.
 	)
 }
 func (ec *executionContext) fieldContext_Assignment_note(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Assignment", field, false, false, errors.New("field of type String does not have child fields"))
+	return graphql.NewScalarFieldContext("Assignment", field, false, false, "String")
 }
 
 func (ec *executionContext) _Assignment_assignedById(ctx context.Context, field graphql.CollectedField, obj *model.Assignment) (ret graphql.Marshaler) {
@@ -421,7 +420,7 @@ func (ec *executionContext) _Assignment_assignedById(ctx context.Context, field 
 	)
 }
 func (ec *executionContext) fieldContext_Assignment_assignedById(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Assignment", field, false, false, errors.New("field of type ID does not have child fields"))
+	return graphql.NewScalarFieldContext("Assignment", field, false, false, "ID")
 }
 
 func (ec *executionContext) _Assignment_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.Assignment) (ret graphql.Marshaler) {
@@ -444,7 +443,7 @@ func (ec *executionContext) _Assignment_createdAt(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_Assignment_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Assignment", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Assignment", field, false, false, "Time")
 }
 
 func (ec *executionContext) _Assignment_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Assignment) (ret graphql.Marshaler) {
@@ -467,7 +466,7 @@ func (ec *executionContext) _Assignment_updatedAt(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_Assignment_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Assignment", field, false, false, errors.New("field of type Time does not have child fields"))
+	return graphql.NewScalarFieldContext("Assignment", field, false, false, "Time")
 }
 
 // endregion **************************** field.gotpl *****************************
@@ -488,8 +487,7 @@ func (ec *executionContext) _AssignedLoad(ctx context.Context, sel ast.Selection
 	fields := graphql.CollectFields(ec.OperationContext, sel, assignedLoadImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -518,14 +516,10 @@ func (ec *executionContext) _AssignedLoad(ctx context.Context, sel ast.Selection
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -536,8 +530,7 @@ func (ec *executionContext) _AssignedLoadShare(ctx context.Context, sel ast.Sele
 	fields := graphql.CollectFields(ec.OperationContext, sel, assignedLoadShareImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -561,14 +554,10 @@ func (ec *executionContext) _AssignedLoadShare(ctx context.Context, sel ast.Sele
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -579,8 +568,7 @@ func (ec *executionContext) _Assignee(ctx context.Context, sel ast.SelectionSet,
 	fields := graphql.CollectFields(ec.OperationContext, sel, assigneeImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -614,14 +602,10 @@ func (ec *executionContext) _Assignee(ctx context.Context, sel ast.SelectionSet,
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -632,8 +616,7 @@ func (ec *executionContext) _Assignment(ctx context.Context, sel ast.SelectionSe
 	fields := graphql.CollectFields(ec.OperationContext, sel, assignmentImplementors)
 
 	out := graphql.NewFieldSet(fields)
-	deferredFieldSet := graphql.NewFieldSet(nil)
-	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	deferred := graphql.NewDeferredGroup(ctx)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
@@ -687,14 +670,10 @@ func (ec *executionContext) _Assignment(ctx context.Context, sel ast.SelectionSe
 		return graphql.Null
 	}
 
-	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
-
-	ec.ProcessDeferredGroup(graphql.DeferredGroup{
-		Defers:   deferLabelToView,
-		Path:     graphql.GetPath(ctx),
-		FieldSet: deferredFieldSet,
-		Context:  ctx,
-	})
+	if n := len(deferred.Defers); n > 0 {
+		atomic.AddInt32(&ec.Deferred, int32(min(n, math.MaxInt32)))
+		ec.ProcessDeferredGroup(deferred)
+	}
 
 	return out
 }
@@ -721,9 +700,7 @@ func (ec *executionContext) marshalNAssignedLoad2ᚕᚖgithubᚗcomᚋobcodeᚋt
 
 func (ec *executionContext) marshalNAssignedLoad2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoad(ctx context.Context, sel ast.SelectionSet, v *model.AssignedLoad) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "AssignedLoad!")
 		return graphql.Null
 	}
 	return ec._AssignedLoad(ctx, sel, v)
@@ -747,9 +724,7 @@ func (ec *executionContext) marshalNAssignedLoadShare2ᚕᚖgithubᚗcomᚋobcod
 
 func (ec *executionContext) marshalNAssignedLoadShare2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignedLoadShare(ctx context.Context, sel ast.SelectionSet, v *model.AssignedLoadShare) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "AssignedLoadShare!")
 		return graphql.Null
 	}
 	return ec._AssignedLoadShare(ctx, sel, v)
@@ -757,16 +732,10 @@ func (ec *executionContext) marshalNAssignedLoadShare2ᚖgithubᚗcomᚋobcode�
 
 func (ec *executionContext) marshalNAssignee2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignee(ctx context.Context, sel ast.SelectionSet, v *model.Assignee) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "Assignee!")
 		return graphql.Null
 	}
 	return ec._Assignee(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNAssignment2githubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignment(ctx context.Context, sel ast.SelectionSet, v model.Assignment) graphql.Marshaler {
-	return ec._Assignment(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNAssignment2ᚕᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignmentᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Assignment) graphql.Marshaler {
@@ -787,9 +756,7 @@ func (ec *executionContext) marshalNAssignment2ᚕᚖgithubᚗcomᚋobcodeᚋtal
 
 func (ec *executionContext) marshalNAssignment2ᚖgithubᚗcomᚋobcodeᚋtalloxᚗgoᚋgraphᚋmodelᚐAssignment(ctx context.Context, sel ast.SelectionSet, v *model.Assignment) graphql.Marshaler {
 	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullError(ctx, "Assignment!")
 		return graphql.Null
 	}
 	return ec._Assignment(ctx, sel, v)

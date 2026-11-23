@@ -63,6 +63,18 @@ func (ec *executionContext) unmarshalInputScopeGrantInput(ctx context.Context, o
 	return it, nil
 }
 
+// UnmarshalScopeGrantInput unmarshals raw into the ScopeGrantInput input type, using the
+// unmarshaler bound to ctx's request. Call it from a resolver to decode an input
+// object that was not passed as a field argument.
+//
+// ctx must come from a gqlgen request; outside one there is no unmarshaler to use
+// and the returned error says so.
+func UnmarshalScopeGrantInput(ctx context.Context, raw any) (model.ScopeGrantInput, error) {
+	var out model.ScopeGrantInput
+	err := graphql.UnmarshalNamedInputFromContext(ctx, "ScopeGrantInput", raw, &out)
+	return out, err
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -85,9 +97,7 @@ func (ec *executionContext) marshalNScopeArea2githubᚗcomᚋobcodeᚋtalloxᚗg
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "ScopeArea!")
 	}
 	return res
 }
@@ -107,9 +117,7 @@ func (ec *executionContext) marshalNScopeVerb2githubᚗcomᚋobcodeᚋtalloxᚗg
 	_ = sel
 	res := graphql.MarshalString(string(v))
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "ScopeVerb!")
 	}
 	return res
 }
@@ -123,9 +131,7 @@ func (ec *executionContext) marshalNTime2timeᚐTime(ctx context.Context, sel as
 	_ = sel
 	res := graphql.MarshalTime(v)
 	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
-		}
+		graphql.AddInvalidNullFromMarshaler(ctx, "Time!")
 	}
 	return res
 }
